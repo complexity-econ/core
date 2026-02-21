@@ -6,6 +6,7 @@ lazy val root = project
     name         := "sfc-abm-core",
     version      := "0.1.0-SNAPSHOT",
     scalaVersion := scala3Version,
+    Compile / mainClass := Some("sfc.sfcMonteCarlo"),
     libraryDependencies ++= Seq(
       "org.scalatest" %% "scalatest" % "3.2.19" % Test
     )
