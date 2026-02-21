@@ -1,0 +1,7 @@
+cff-version: 1.2.0
+title: "SFC-ABM: Stock-Flow Consistent Agent-Based Model"
+type: software
+authors:
+  - given-names: Mateusz
+    family-names: Maciaszek
+license: MIT

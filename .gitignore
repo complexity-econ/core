@@ -1,0 +1,24 @@
+# sbt
+target/
+project/target/
+project/project/
+
+# IDE
+.idea/
+.bsp/
+.metals/
+.vscode/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Scala
+*.class
+*.tasty
+*.log
+
+# Runtime
+logs/
+out/
