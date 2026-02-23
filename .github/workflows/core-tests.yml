@@ -1,0 +1,31 @@
+name: Core Engine Tests
+
+on:
+  push:
+    paths: ['core/**']
+  pull_request:
+    paths: ['core/**']
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: core
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: sbt
+
+      - name: Run tests
+        run: sbt test
+
+      - name: Build fat JAR
+        run: sbt assembly
+
+      - name: Smoke test (3 seeds)
+        run: java -jar target/scala-3.5.2/sfc-abm.jar 2000 3 ci_smoke pln
