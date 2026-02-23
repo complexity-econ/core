@@ -5,6 +5,10 @@ enum MonetaryRegime:
   case Pln   // NBP Taylor rule + floating PLN/EUR
   case Eur   // Exogenous ECB rate + fixed exchange rate (Eurozone membership)
 
+/** Network topology selection for comparative experiments. */
+enum Topology:
+  case Ws, Er, Ba, Lattice
+
 /**
  * Runtime configuration: values that depend on CLI arguments.
  * Passed through runSingle and Simulation.step.
@@ -35,7 +39,7 @@ case class SectorDef(
 )
 
 // Calibration GUS/NBP 2024: 6 sectors of the Polish economy
-val SECTORS: Vector[SectorDef] = Vector(
+private val BASE_SECTORS: Vector[SectorDef] = Vector(
   //                             share   sigma wage  rev   aiCpx hybCpx digiR  hybRet
   SectorDef("BPO/SSC",          0.03, 50.0, 1.35, 1.50, 0.70, 0.70,  0.50,  0.50),  // ~489k workers (ABSL), avg 11 154 PLN
   SectorDef("Manufacturing",    0.16, 10.0, 0.94, 1.05, 1.12, 1.05,  0.45,  0.60),  // ~2.8M workers, avg ~7 800 PLN
@@ -45,10 +49,35 @@ val SECTORS: Vector[SectorDef] = Vector(
   SectorDef("Agriculture",      0.08,  3.0, 0.67, 0.80, 2.50, 2.00,  0.12,  0.85)   // ~8% BAEL, avg ~5 500 PLN
 )
 
+/** SECTORS with optional sigma override via SIGMAS env var.
+  * Format: SIGMAS="3.5,2.0,2.5,0.8,0.5,1.2" (6 comma-separated values, one per sector).
+  * When unset, uses calibrated values from BASE_SECTORS.
+  * SIGMA_MULT env var multiplies all sector sigmas (applied after SIGMAS override). */
+val SECTORS: Vector[SectorDef] =
+  val afterSigmas = sys.env.get("SIGMAS") match
+    case Some(s) if s.nonEmpty =>
+      val sigmas = s.split(",").map(_.trim.toDouble)
+      require(sigmas.length == BASE_SECTORS.length,
+        s"SIGMAS env var must have ${BASE_SECTORS.length} values, got ${sigmas.length}")
+      BASE_SECTORS.zip(sigmas).map((sd, sig) => sd.copy(sigma = sig))
+    case _ => BASE_SECTORS
+  val sigmaMult = sys.env.get("SIGMA_MULT").map(_.trim.toDouble).getOrElse(1.0)
+  if sigmaMult != 1.0 then afterSigmas.map(sd => sd.copy(sigma = sd.sigma * sigmaMult))
+  else afterSigmas
+
+/** Network topology parsed from TOPOLOGY env var (default: ws). */
+val TOPOLOGY: Topology =
+  sys.env.get("TOPOLOGY").map(_.trim.toLowerCase).getOrElse("ws") match
+    case "er"      => Topology.Er
+    case "ba"      => Topology.Ba
+    case "lattice" => Topology.Lattice
+    case _         => Topology.Ws
+
 object Config:
-  val FirmsCount       = 10000
+  val FirmsCount       = sys.env.get("FIRMS_COUNT").map(_.trim.toInt).getOrElse(10000)
   val WorkersPerFirm   = 10
   val TotalPopulation  = FirmsCount * WorkersPerFirm
+  private val ScaleFactor = FirmsCount.toDouble / 10000.0
   val Duration         = 120
   val ShockMonth       = 30
 
@@ -74,7 +103,7 @@ object Config:
   // Government
   val CitRate          = 0.19
   val VatRate          = 0.23
-  val GovBaseSpending  = 100000000.0
+  val GovBaseSpending  = 100000000.0 * ScaleFactor
 
   // NBP (NBP data 2024)
   val NbpInitialRate   = 0.0575      // NBP reference rate 2024
@@ -100,7 +129,7 @@ object Config:
   val SgpAusterityRate = 2.0         // Austerity speed: BDP × max(0, 1 - (debtRatio - 0.60) × rate)
 
   // Banking system
-  val InitBankCapital  = 500000000.0
+  val InitBankCapital  = 500000000.0 * ScaleFactor
   val BaseSpread       = 0.015       // NBP MIR corporate spread 2024
   val NplSpreadFactor  = 5.0
   val MinCar           = 0.08
@@ -110,7 +139,7 @@ object Config:
   val BaseExRate       = 4.33        // NBP average PLN/EUR rate 2024
   val ForeignRate      = 0.04        // ECB rate 2024
   val ImportPropensity = 0.40
-  val ExportBase       = 190000000.0
+  val ExportBase       = 190000000.0 * ScaleFactor
   val TechImportShare  = 0.40
   val IrpSensitivity   = 0.15
   val ExRateAdjSpeed   = 0.02
@@ -122,5 +151,5 @@ object Config:
   // Network
   val NetworkK          = 6      // Watts-Strogatz: neighbors
   val NetworkRewireP    = 0.10   // Watts-Strogatz: rewire probability
-  val DemoEffectThresh  = 0.40   // If >40% neighbors automated -> demonstration effect
+  val DemoEffectThresh  = sys.env.get("DEMO_THRESH").map(_.trim.toDouble).getOrElse(0.40)
   val DemoEffectBoost   = 0.15   // Modest boost to uncertainty discount from demonstration

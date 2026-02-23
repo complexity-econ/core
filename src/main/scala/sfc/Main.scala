@@ -3,7 +3,7 @@ package sfc
 import java.io.{File, PrintWriter}
 import scala.util.Random
 
-import _root_.sfc.config.{Config, SECTORS, RunConfig, MonetaryRegime}
+import _root_.sfc.config.{Config, SECTORS, TOPOLOGY, Topology, RunConfig, MonetaryRegime}
 import _root_.sfc.agents.*
 import _root_.sfc.sfc.*
 import _root_.sfc.engine.*
@@ -13,8 +13,12 @@ import _root_.sfc.networks.Network
 def runSingle(seed: Int, rc: RunConfig): Array[Array[Double]] =
   Random.setSeed(seed.toLong)
 
-  // Generate Watts-Strogatz network
-  val adjList = Network.wattsStrogatz(Config.FirmsCount, Config.NetworkK, Config.NetworkRewireP)
+  // Generate network based on TOPOLOGY env var
+  val adjList = TOPOLOGY match
+    case Topology.Ws      => Network.wattsStrogatz(Config.FirmsCount, Config.NetworkK, Config.NetworkRewireP)
+    case Topology.Er      => Network.erdosRenyi(Config.FirmsCount, Config.NetworkK, Random)
+    case Topology.Ba      => Network.barabasiAlbert(Config.FirmsCount, Config.NetworkK / 2, Random)
+    case Topology.Lattice => Network.lattice(Config.FirmsCount, Config.NetworkK)
 
   // Assign sectors
   val sectorCounts = SECTORS.map(s => (s.share * Config.FirmsCount).toInt)
@@ -126,10 +130,12 @@ def runSingle(seed: Int, rc: RunConfig): Array[Array[Double]] =
   val rc = RunConfig(bdpAmount, nSeeds, outputPrefix, regime)
   val regimeLabel = if rc.isEurozone then "EUR (ECB)" else "PLN (NBP)"
 
-  println(s"+" + "=" * 62 + "+")
-  println(s"|  SFC-ABM v6: BDP=${bdpAmount.toInt} PLN, N=${nSeeds} seeds, ${regimeLabel}  ")
-  println(s"|  10 000 firm x 6 sectors (GUS 2024) x WS network x 120m   |")
-  println(s"+" + "=" * 62 + "+")
+  val topoLabel = TOPOLOGY.toString.toUpperCase
+  val firmsLabel = f"${Config.FirmsCount}%,d"
+  println(s"+" + "=" * 68 + "+")
+  println(s"|  SFC-ABM v7: BDP=${bdpAmount.toInt} PLN, N=${nSeeds} seeds, ${regimeLabel}")
+  println(s"|  ${firmsLabel} firms x 6 sectors (GUS 2024) x ${topoLabel} network x 120m")
+  println(s"+" + "=" * 68 + "+")
 
   val outDir = new File("mc")
   if !outDir.exists() then outDir.mkdirs()
