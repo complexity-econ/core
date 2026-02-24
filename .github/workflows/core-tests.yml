@@ -2,16 +2,11 @@ name: Core Engine Tests
 
 on:
   push:
-    paths: ['core/**']
   pull_request:
-    paths: ['core/**']
 
 jobs:
   test:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: core
     steps:
       - uses: actions/checkout@v4
 
