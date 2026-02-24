@@ -60,9 +60,8 @@ object FirmOps:
    *  Only used for profitability threshold, NOT for probability multiplier.
    *  Mapping: sigma=2->0.91, sigma=5->0.95, sigma=10->0.98, sigma=50->1.00
    *  At equilibrium P~1.1: Manufacturing marginal, Healthcare blocked. */
-  def sigmaThreshold(f: Firm): Double =
-    val s = SECTORS(f.sector).sigma
-    Math.min(1.0, 0.88 + 0.075 * Math.log(s) / Math.log(10.0))
+  def sigmaThreshold(sigma: Double): Double =
+    Math.min(1.0, 0.88 + 0.075 * Math.log(sigma) / Math.log(10.0))
 
 // ---- Firm step result ----
 
@@ -155,7 +154,7 @@ object FirmLogic:
         val fCost  = Config.AiOpex * (0.60 + 0.40 * w.priceLevel) +
           (firm.debt + fLoan) * (lendRate / 12.0) +
           Config.AutoSkeletonCrew * w.hh.marketWage * sWm + Config.OtherCosts * w.priceLevel
-        val fProf  = costs > fCost * (1.1 / FirmOps.sigmaThreshold(firm))
+        val fProf  = costs > fCost * (1.1 / FirmOps.sigmaThreshold(w.currentSigmas(firm.sector)))
         val fPay   = firm.cash > fDown
         val fReady = firm.digitalReadiness >= Config.FullAiReadinessMin
         val fBank  = bankCanLend(fLoan)
@@ -167,7 +166,7 @@ object FirmLogic:
         val hWkrs  = Math.max(3, (wkrs * SECTORS(firm.sector).hybridRetainFrac).toInt)
         val hCost  = hWkrs * w.hh.marketWage * sWm + Config.HybridOpex * (0.60 + 0.40 * w.priceLevel) +
           (firm.debt + hLoan) * (lendRate / 12.0) + Config.OtherCosts * w.priceLevel
-        val hProf  = costs > hCost * (1.05 / FirmOps.sigmaThreshold(firm))
+        val hProf  = costs > hCost * (1.05 / FirmOps.sigmaThreshold(w.currentSigmas(firm.sector)))
         val hPay   = firm.cash > hDown
         val hReady = firm.digitalReadiness >= Config.HybridReadinessMin
         val hBank  = bankCanLend(hLoan)

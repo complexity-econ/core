@@ -15,5 +15,6 @@ case class World(
   hh: HhState,
   automationRatio: Double,
   hybridRatio: Double,
-  gdpProxy: Double
+  gdpProxy: Double,
+  currentSigmas: Vector[Double]
 )

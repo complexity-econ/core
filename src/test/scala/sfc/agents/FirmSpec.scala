@@ -77,16 +77,15 @@ class FirmSpec extends AnyFlatSpec with Matchers:
 
   "FirmOps.sigmaThreshold" should "be monotonically increasing with sigma" in {
     // Sectors ordered by sigma: Public(1.0) < Healthcare(2.0) < Agriculture(3.0) < Retail(5.0) < Manuf(10.0) < BPO(50.0)
-    val thresholds = Vector(4, 3, 5, 2, 1, 0).map { s =>
-      FirmOps.sigmaThreshold(mkFirm(TechState.Traditional(10), s))
-    }
+    val sigmasOrdered = Vector(1.0, 2.0, 3.0, 5.0, 10.0, 50.0)
+    val thresholds = sigmasOrdered.map(FirmOps.sigmaThreshold)
     for i <- 0 until thresholds.length - 1 do
       thresholds(i) should be <= thresholds(i + 1)
   }
 
   it should "be bounded in [0, 1]" in {
-    for s <- SECTORS.indices do
-      val t = FirmOps.sigmaThreshold(mkFirm(TechState.Traditional(10), s))
+    for s <- SECTORS do
+      val t = FirmOps.sigmaThreshold(s.sigma)
       t should be >= 0.0
       t should be <= 1.0
   }
@@ -139,5 +138,6 @@ class FirmSpec extends AnyFlatSpec with Matchers:
       hh = HhState(100000, Config.BaseWage, Config.BaseReservationWage, 0, 0, 0, 0),
       automationRatio = 0.0,
       hybridRatio = 0.0,
-      gdpProxy = 1e9
+      gdpProxy = 1e9,
+      currentSigmas = SECTORS.map(_.sigma).toVector
     )

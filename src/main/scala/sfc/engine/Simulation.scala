@@ -4,6 +4,7 @@ import sfc.config.{Config, SECTORS, RunConfig}
 import sfc.agents.*
 import sfc.sfc.*
 import sfc.networks.Network
+import sfc.dynamics.{SigmaDynamics, DynamicNetwork}
 
 import scala.util.Random
 
@@ -175,6 +176,21 @@ object Simulation:
     val hybR    = if nLiving > 0 then living2.count(_.tech.isInstanceOf[TechState.Hybrid]) / nLiving else 0.0
     val gdp     = domesticCons + Config.GovBaseSpending + w.forex.exports
 
+    // Endogenous sigma evolution (Paper-05)
+    val sectorAdoption = SECTORS.indices.map { s =>
+      val secFirms = living2.filter(_.sector == s)
+      if secFirms.isEmpty then 0.0
+      else secFirms.count(f =>
+        f.tech.isInstanceOf[TechState.Automated] || f.tech.isInstanceOf[TechState.Hybrid]
+      ).toDouble / secFirms.length
+    }.toVector
+    val baseSigmas = SECTORS.map(_.sigma).toVector
+    val newSigmas = SigmaDynamics.evolve(
+      w.currentSigmas, baseSigmas, sectorAdoption, Config.SigmaLambda, Config.SigmaCapMult)
+
+    // Dynamic network rewiring (Paper-05)
+    val rewiredFirms = DynamicNetwork.rewire(newFirms, Config.RewireRho)
+
     val exDev = if rc.isEurozone then 0.0
                else (w.forex.exchangeRate / Config.BaseExRate) - 1.0
     val (newInfl, newPrice) = Sectors.updateInflation(
@@ -193,5 +209,5 @@ object Simulation:
     val newW = World(m, newInfl, newPrice, demandMult, newGov, NbpState(newRefRate),
       newBank, newForex,
       HhState(employed, newWage, resWage, totalIncome, consumption, domesticCons, importCons),
-      autoR, hybR, gdp)
-    (newW, newFirms)
+      autoR, hybR, gdp, newSigmas)
+    (newW, rewiredFirms)

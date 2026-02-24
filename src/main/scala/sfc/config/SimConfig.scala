@@ -153,3 +153,10 @@ object Config:
   val NetworkRewireP    = 0.10   // Watts-Strogatz: rewire probability
   val DemoEffectThresh  = sys.env.get("DEMO_THRESH").map(_.trim.toDouble).getOrElse(0.40)
   val DemoEffectBoost   = 0.15   // Modest boost to uncertainty discount from demonstration
+
+  // Endogenous sigma dynamics (Paper-05)
+  val SigmaLambda  = sys.env.get("SIGMA_LAMBDA").map(_.trim.toDouble).getOrElse(0.0)
+  val SigmaCapMult = sys.env.get("SIGMA_CAP_MULT").map(_.trim.toDouble).getOrElse(3.0)
+
+  // Dynamic network (Paper-05)
+  val RewireRho    = sys.env.get("REWIRE_RHO").map(_.trim.toDouble).getOrElse(0.0)

@@ -60,25 +60,18 @@ class SimConfigSpec extends AnyFlatSpec with Matchers:
   }
 
   "sigmaThreshold" should "return ~0.91 for sigma=2" in {
-    val f = mkFirm(sectorIdx = 3) // Healthcare, sigma=2.0
-    FirmOps.sigmaThreshold(f) shouldBe 0.9026 +- 0.01
+    FirmOps.sigmaThreshold(2.0) shouldBe 0.9026 +- 0.01
   }
 
   it should "return ~0.955 for sigma=5" in {
-    val f = mkFirm(sectorIdx = 2) // Retail, sigma=5.0
-    FirmOps.sigmaThreshold(f) shouldBe 0.9324 +- 0.01
+    FirmOps.sigmaThreshold(5.0) shouldBe 0.9324 +- 0.01
   }
 
   it should "return ~0.955 for sigma=10" in {
-    val f = mkFirm(sectorIdx = 1) // Manufacturing, sigma=10.0
-    FirmOps.sigmaThreshold(f) shouldBe 0.955 +- 0.01
+    FirmOps.sigmaThreshold(10.0) shouldBe 0.955 +- 0.01
   }
 
   it should "be capped at 1.0 for sigma=50" in {
-    val f = mkFirm(sectorIdx = 0) // BPO, sigma=50.0
-    FirmOps.sigmaThreshold(f) should be <= 1.0
-    FirmOps.sigmaThreshold(f) shouldBe 1.0 +- 0.01
+    FirmOps.sigmaThreshold(50.0) should be <= 1.0
+    FirmOps.sigmaThreshold(50.0) shouldBe 1.0 +- 0.01
   }
-
-  private def mkFirm(sectorIdx: Int): Firm =
-    Firm(0, 50000.0, 0.0, TechState.Traditional(10), 0.5, 1.0, 0.5, sectorIdx, Array.empty)

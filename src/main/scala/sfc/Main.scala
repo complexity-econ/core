@@ -61,14 +61,17 @@ def runSingle(seed: Int, rc: RunConfig): Array[Array[Double]] =
     BankState(0, 0, Config.InitBankCapital, initCash),
     ForexState(Config.BaseExRate, 0, Config.ExportBase, 0, 0),
     HhState(Config.TotalPopulation, Config.BaseWage, Config.BaseReservationWage, 0, 0, 0, 0),
-    0, 0, Config.BaseRevenue * Config.FirmsCount)
+    0, 0, Config.BaseRevenue * Config.FirmsCount,
+    SECTORS.map(_.sigma).toVector)
 
   // Collect time-series: 120 rows x N columns
   // Columns: Month, Inflation, Unemployment, AutoRatio+HybridRatio, ExRate, MarketWage,
   //          GovDebt, NPL, RefRate, PriceLevel, AutoRatio, HybridRatio,
   //          SectorAutoRatio(0..5): BPO, Manuf, Retail, Health, Public, Agri,
-  //          EffectiveBDP (per-capita BDP actually delivered after fiscal constraints)
-  val nCols = 19
+  //          EffectiveBDP (per-capita BDP actually delivered after fiscal constraints),
+  //          SectorSigma(0..5): per-sector current sigma (evolves when SIGMA_LAMBDA>0),
+  //          MeanDegree: average network degree (changes when REWIRE_RHO>0)
+  val nCols = 26
   val results = Array.ofDim[Double](Config.Duration, nCols)
 
   for t <- 0 until Config.Duration do
@@ -113,7 +116,14 @@ def runSingle(seed: Int, rc: RunConfig): Array[Array[Double]] =
       sectorAuto(3),              // 15: Health auto
       sectorAuto(4),              // 16: Public auto
       sectorAuto(5),              // 17: Agri auto
-      effectiveBdp                // 18: EffectiveBDP
+      effectiveBdp,               // 18: EffectiveBDP
+      world.currentSigmas(0),     // 19: BPO_Sigma
+      world.currentSigmas(1),     // 20: Manuf_Sigma
+      world.currentSigmas(2),     // 21: Retail_Sigma
+      world.currentSigmas(3),     // 22: Health_Sigma
+      world.currentSigmas(4),     // 23: Public_Sigma
+      world.currentSigmas(5),     // 24: Agri_Sigma
+      firms.map(_.neighbors.length.toDouble).sum / firms.length  // 25: MeanDegree
     )
 
   results
@@ -142,7 +152,7 @@ def runSingle(seed: Int, rc: RunConfig): Array[Array[Double]] =
 
   // Aggregation arrays
   val nMonths = Config.Duration
-  val nCols   = 19
+  val nCols   = 26
   val allRuns = Array.ofDim[Double](nSeeds, nMonths, nCols)
 
   val startTime = System.currentTimeMillis()
@@ -168,7 +178,8 @@ def runSingle(seed: Int, rc: RunConfig): Array[Array[Double]] =
   val termPw = new PrintWriter(new File(s"mc/${outputPrefix}_terminal.csv"))
   termPw.write("Seed;Inflation;Unemployment;TotalAdoption;ExRate;MarketWage;" +
     "GovDebt;NPL;RefRate;PriceLevel;AutoRatio;HybridRatio;" +
-    "BPO_Auto;Manuf_Auto;Retail_Auto;Health_Auto;Public_Auto;Agri_Auto;EffectiveBDP\n")
+    "BPO_Auto;Manuf_Auto;Retail_Auto;Health_Auto;Public_Auto;Agri_Auto;EffectiveBDP;" +
+    "BPO_Sigma;Manuf_Sigma;Retail_Sigma;Health_Sigma;Public_Sigma;Agri_Sigma;MeanDegree\n")
   for seed <- 0 until nSeeds do
     val last = allRuns(seed)(nMonths - 1)
     termPw.write(s"${seed + 1}")
@@ -182,7 +193,9 @@ def runSingle(seed: Int, rc: RunConfig): Array[Array[Double]] =
   val colNames = Array("Month", "Inflation", "Unemployment", "TotalAdoption", "ExRate",
     "MarketWage", "GovDebt", "NPL", "RefRate", "PriceLevel",
     "AutoRatio", "HybridRatio", "BPO_Auto", "Manuf_Auto", "Retail_Auto", "Health_Auto",
-    "Public_Auto", "Agri_Auto", "EffectiveBDP")
+    "Public_Auto", "Agri_Auto", "EffectiveBDP",
+    "BPO_Sigma", "Manuf_Sigma", "Retail_Sigma", "Health_Sigma", "Public_Sigma", "Agri_Sigma",
+    "MeanDegree")
   // Header: Month, then for each metric: mean, std, p05, p95
   aggPw.write("Month")
   for c <- 1 until nCols do
