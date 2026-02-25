@@ -58,14 +58,15 @@ object LaborMarket:
   def jobSearch(households: Vector[Household], firms: Array[Firm],
                 marketWage: Double, rng: Random): Vector[Household] =
     // Compute vacancies per firm: living firms that need workers
+    // O(N_hh) map build instead of O(N_firms × N_hh) nested scan
+    val workerCounts = scala.collection.mutable.Map[Int, Int]().withDefaultValue(0)
+    for hh <- households do
+      hh.status match
+        case HhStatus.Employed(fid, _, _) => workerCounts(fid) += 1
+        case _ =>
     val vacancies = scala.collection.mutable.Map[Int, Int]()
     for f <- firms if FirmOps.isAlive(f) do
-      val currentWorkers = households.count { hh =>
-        hh.status match
-          case HhStatus.Employed(fid, _, _) => fid == f.id
-          case _ => false
-      }
-      val needed = FirmOps.workers(f) - currentWorkers
+      val needed = FirmOps.workers(f) - workerCounts(f.id)
       if needed > 0 then vacancies(f.id) = needed
 
     if vacancies.isEmpty then return households
@@ -80,25 +81,28 @@ object LaborMarket:
 
     val result = households.toArray
 
+    // Pre-sort vacancy firms by sector sigma descending — O(V log V) once
+    // For sector bonus, we group by sector: same-sector gets priority
+    val vacancyFirmsBySector = vacancies.keys.toArray
+      .groupBy(fid => firms(fid).sector)
+    val vacancyFirmsByPriority = vacancies.keys.toArray
+      .sortBy(fid => -SECTORS(firms(fid).sector).sigma)
+
     for idx <- unemployedIndices do
       if vacancies.nonEmpty then
         val hh = result(idx)
-        // Find best matching vacancy: prefer same sector, then highest σ
         val prevSector = hh.status match
           case HhStatus.Unemployed(_) =>
-            // Try to recover previous sector from ID-based heuristic
             firms(hh.id % firms.length).sector
           case _ => 0
 
-        val bestFirmId = vacancies.keys.toSeq.sortBy { fid =>
-          val f = firms(fid)
-          val sectorBonus = if f.sector == prevSector then 0.2 else 0.0
-          -(SECTORS(f.sector).sigma + sectorBonus)  // higher σ = better match priority
-        }.headOption
+        // Try same-sector first (bonus), then fall back to global priority order
+        val bestFirmId = vacancyFirmsBySector.getOrElse(prevSector, Array.empty[Int])
+          .find(fid => vacancies.contains(fid))
+          .orElse(vacancyFirmsByPriority.find(fid => vacancies.contains(fid)))
 
         bestFirmId.foreach { fid =>
           val f = firms(fid)
-          // Wage will be normalized by updateWages in next step; set proportional here
           val sectorMult = SECTORS(f.sector).wageMultiplier
           val individualWage = marketWage * sectorMult * hh.skill * (1.0 - hh.healthPenalty)
           result(idx) = hh.copy(

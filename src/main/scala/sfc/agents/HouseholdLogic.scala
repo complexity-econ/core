@@ -16,6 +16,15 @@ object HouseholdLogic:
     var retrainingAttempts = 0
     var retrainingSuccesses = 0
 
+    // Pre-compute distressed HH set: O(N_hh) instead of O(N_hh × k) per-HH lookup
+    val distressedIds = new java.util.BitSet(households.length)
+    var idx = 0
+    while idx < households.length do
+      households(idx).status match
+        case HhStatus.Bankrupt | HhStatus.Unemployed(_) => distressedIds.set(idx)
+        case _ =>
+      idx += 1
+
     val updated = households.map { hh =>
       hh.status match
         case HhStatus.Bankrupt => hh  // absorbing barrier
@@ -25,8 +34,8 @@ object HouseholdLogic:
           val disposable = Math.max(0.0, income - obligations)
           val consumption = disposable * hh.mpc
 
-          // Social network precautionary effect
-          val neighborDistress = neighborDistressRatio(hh, households)
+          // Social network precautionary effect (uses pre-computed distress set)
+          val neighborDistress = neighborDistressRatioFast(hh, distressedIds)
           val consumptionAdj = if neighborDistress > 0.30 then consumption * 0.90 else consumption
 
           val newSavings = hh.savings + income - obligations - consumptionAdj
@@ -112,17 +121,15 @@ object HouseholdLogic:
         Math.min(Config.HhScarringCap, hh.healthPenalty + Config.HhScarringRate)
       case _ => hh.healthPenalty
 
-  private def neighborDistressRatio(hh: Household, households: Vector[Household]): Double =
+  private def neighborDistressRatioFast(hh: Household, distressedIds: java.util.BitSet): Double =
     if hh.socialNeighbors.isEmpty then 0.0
     else
-      val distressCount = hh.socialNeighbors.count { nid =>
-        if nid >= 0 && nid < households.length then
-          households(nid).status match
-            case HhStatus.Bankrupt | HhStatus.Unemployed(_) => true
-            case _ => false
-        else false
-      }
-      distressCount.toDouble / hh.socialNeighbors.length
+      var count = 0
+      var i = 0
+      while i < hh.socialNeighbors.length do
+        if distressedIds.get(hh.socialNeighbors(i)) then count += 1
+        i += 1
+      count.toDouble / hh.socialNeighbors.length
 
   /** Compute aggregate statistics from individual household states.
     * @param bdp current per-capita BDP (for income reconstruction) */
@@ -130,35 +137,42 @@ object HouseholdLogic:
                         reservationWage: Double, importAdj: Double,
                         retrainingAttempts: Int, retrainingSuccesses: Int,
                         bdp: Double = 0.0): HhAggregates =
-    val alive = households.filter(_.status != HhStatus.Bankrupt)
     val n = households.length
-    val nAlive = alive.length
 
     var nEmployed = 0
     var nUnemployed = 0
     var nRetraining = 0
     var nBankrupt = 0
     var totalIncome = 0.0
+    var sumSkill = 0.0
+    var sumHealth = 0.0
     val incomes = new Array[Double](n)
     val consumptions = new Array[Double](n)
     val savingsArr = new Array[Double](n)
-    var totalMonthsToRuin = 0.0
-    var bankruptWithMonths = 0
 
     var totalRent = 0.0
     var totalDebtService = 0.0
 
-    households.zipWithIndex.foreach { (hh, i) =>
+    // Single pass: collect all per-HH stats + accumulate skill/health
+    var i = 0
+    while i < n do
+      val hh = households(i)
       hh.status match
         case HhStatus.Employed(_, _, wage) =>
           nEmployed += 1
-          incomes(i) = wage  // wage already includes BDP from computeIncome
+          incomes(i) = wage
+          sumSkill += hh.skill
+          sumHealth += hh.healthPenalty
         case HhStatus.Unemployed(months) =>
           nUnemployed += 1
           incomes(i) = bdp
+          sumSkill += hh.skill
+          sumHealth += hh.healthPenalty
         case HhStatus.Retraining(_, _, _) =>
           nRetraining += 1
           incomes(i) = bdp * 0.7
+          sumSkill += hh.skill
+          sumHealth += hh.healthPenalty
         case HhStatus.Bankrupt =>
           nBankrupt += 1
           incomes(i) = 0.0
@@ -170,46 +184,48 @@ object HouseholdLogic:
       consumptions(i) = disposable * hh.mpc
       totalIncome += incomes(i)
       savingsArr(i) = hh.savings
-      // SFC: track obligations — these are income to other sectors
       if hh.status != HhStatus.Bankrupt then
         totalRent += rent
         totalDebtService += debtSvc
-    }
+      i += 1
+
+    val nAlive = n - nBankrupt
 
     // SFC consistency: rent is domestic consumption (landlord income → spending),
     // debt service flows to bank (captured via BankState in Simulation.scala).
-    // Household consumption on goods + rent recycled as domestic demand.
     val goodsConsumption = consumptions.sum
-    val totalConsumption = goodsConsumption + totalRent  // rent recycles as domestic demand
-    val importCons = goodsConsumption * Math.min(0.65, importAdj)  // only goods are importable
+    val totalConsumption = goodsConsumption + totalRent
+    val importCons = goodsConsumption * Math.min(0.65, importAdj)
     val domesticCons = totalConsumption - importCons
 
-    // Gini coefficients
-    val giniIncome = gini(incomes.filter(_ >= 0))
-    val giniWealth = gini(savingsArr)
+    // Sort each array once — reuse for Gini + percentiles + poverty
+    java.util.Arrays.sort(incomes)
+    java.util.Arrays.sort(savingsArr)
+    java.util.Arrays.sort(consumptions)
 
-    // Savings statistics
-    val sortedSavings = savingsArr.sorted
-    val meanSavings = if n > 0 then sortedSavings.sum / n else 0.0
-    val medianSavings = if n > 0 then sortedSavings(n / 2) else 0.0
+    // Gini coefficients (on pre-sorted arrays)
+    val giniIncome = giniSorted(incomes)
+    val giniWealth = giniSorted(savingsArr)
 
-    // Poverty rates (relative to median income)
-    val sortedIncomes = incomes.sorted
-    val medianIncome = if n > 0 then sortedIncomes(n / 2) else 0.0
+    // Savings statistics (savingsArr already sorted)
+    val meanSavings = if n > 0 then savingsArr.sum / n else 0.0
+    val medianSavings = if n > 0 then savingsArr(n / 2) else 0.0
+
+    // Poverty rates from sorted incomes — binary search instead of full scan
+    val medianIncome = if n > 0 then incomes(n / 2) else 0.0
     val povertyRate50 = if n > 0 && medianIncome > 0 then
-      incomes.count(_ < medianIncome * 0.5).toDouble / n else 0.0
+      lowerBound(incomes, medianIncome * 0.5).toDouble / n else 0.0
     val povertyRate30 = if n > 0 && medianIncome > 0 then
-      incomes.count(_ < medianIncome * 0.3).toDouble / n else 0.0
+      lowerBound(incomes, medianIncome * 0.3).toDouble / n else 0.0
 
-    // Consumption percentiles
-    val sortedCons = consumptions.sorted
-    val consP10 = if n > 0 then sortedCons((n * 0.10).toInt) else 0.0
-    val consP50 = if n > 0 then sortedCons(n / 2) else 0.0
-    val consP90 = if n > 0 then sortedCons(Math.min(n - 1, (n * 0.90).toInt)) else 0.0
+    // Consumption percentiles (consumptions already sorted)
+    val consP10 = if n > 0 then consumptions((n * 0.10).toInt) else 0.0
+    val consP50 = if n > 0 then consumptions(n / 2) else 0.0
+    val consP90 = if n > 0 then consumptions(Math.min(n - 1, (n * 0.90).toInt)) else 0.0
 
-    // Skill and health
-    val meanSkill = if nAlive > 0 then alive.map(_.skill).sum / nAlive else 0.0
-    val meanHealth = if nAlive > 0 then alive.map(_.healthPenalty).sum / nAlive else 0.0
+    // Skill and health (accumulated in main loop)
+    val meanSkill = if nAlive > 0 then sumSkill / nAlive else 0.0
+    val meanHealth = if nAlive > 0 then sumHealth / nAlive else 0.0
 
     // Bankruptcy rate and mean months to ruin
     val bankruptcyRate = if n > 0 then nBankrupt.toDouble / n else 0.0
@@ -245,19 +261,28 @@ object HouseholdLogic:
       totalDebtService = totalDebtService
     )
 
-  /** Gini coefficient for an array of values (handles negatives by shifting). */
-  def gini(values: Array[Double]): Double =
-    val n = values.length
+  /** Gini coefficient for a pre-sorted array (handles negatives by shifting). */
+  def giniSorted(sorted: Array[Double]): Double =
+    val n = sorted.length
     if n <= 1 then return 0.0
-    val sorted = values.sorted
-    // Shift to non-negative if needed
-    val minVal = sorted.head
-    val shifted = if minVal < 0 then sorted.map(_ - minVal) else sorted
-    val total = shifted.sum
-    if total <= 0 then return 0.0
-    var cumSum = 0.0
+    val minVal = sorted(0)
+    val shift = if minVal < 0 then -minVal else 0.0
+    var total = 0.0
     var weightedSum = 0.0
-    for i <- 0 until n do
-      cumSum += shifted(i)
-      weightedSum += (2.0 * (i + 1) - n - 1) * shifted(i)
-    weightedSum / (n * total)
+    var i = 0
+    while i < n do
+      val v = sorted(i) + shift
+      total += v
+      weightedSum += (2.0 * (i + 1) - n - 1) * v
+      i += 1
+    if total <= 0 then 0.0 else weightedSum / (n * total)
+
+  /** Binary search: count of elements < threshold in a sorted array. */
+  private def lowerBound(sorted: Array[Double], threshold: Double): Int =
+    var lo = 0
+    var hi = sorted.length
+    while lo < hi do
+      val mid = (lo + hi) >>> 1
+      if sorted(mid) < threshold then lo = mid + 1
+      else hi = mid
+    lo

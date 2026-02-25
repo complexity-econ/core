@@ -121,19 +121,19 @@ class HouseholdSpec extends AnyFlatSpec with Matchers:
     updated(0).status shouldBe HhStatus.Bankrupt
   }
 
-  // --- HouseholdLogic.gini ---
+  // --- HouseholdLogic.giniSorted ---
 
-  "HouseholdLogic.gini" should "return 0 for equal values" in {
-    HouseholdLogic.gini(Array(100.0, 100.0, 100.0, 100.0)) shouldBe 0.0 +- 0.001
+  "HouseholdLogic.giniSorted" should "return 0 for equal values" in {
+    HouseholdLogic.giniSorted(Array(100.0, 100.0, 100.0, 100.0)) shouldBe 0.0 +- 0.001
   }
 
   it should "return 0 for single element" in {
-    HouseholdLogic.gini(Array(42.0)) shouldBe 0.0
+    HouseholdLogic.giniSorted(Array(42.0)) shouldBe 0.0
   }
 
   it should "return value in [0, 1] for typical distribution" in {
     val values = Array(1000.0, 2000.0, 3000.0, 5000.0, 10000.0, 50000.0)
-    val g = HouseholdLogic.gini(values)
+    val g = HouseholdLogic.giniSorted(values)
     g should be >= 0.0
     g should be <= 1.0
   }
@@ -141,7 +141,7 @@ class HouseholdSpec extends AnyFlatSpec with Matchers:
   it should "increase with more inequality" in {
     val equal = Array(1000.0, 1000.0, 1000.0, 1000.0)
     val unequal = Array(0.0, 0.0, 0.0, 4000.0)
-    HouseholdLogic.gini(unequal) should be > HouseholdLogic.gini(equal)
+    HouseholdLogic.giniSorted(unequal) should be > HouseholdLogic.giniSorted(equal)
   }
 
   // --- HouseholdLogic.computeAggregates ---
