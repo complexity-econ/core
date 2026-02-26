@@ -236,8 +236,20 @@ object Simulation:
     val (newInfl, newPrice) = Sectors.updateInflation(
       w.inflation, w.priceLevel, demandMult, wageGrowth, exDev, autoR, hybR, rc)
 
-    val newForex = Sectors.updateForeign(
-      w.forex, importCons, sumTechImp, autoR, w.nbp.referenceRate, gdp, rc)
+    // Open economy (Paper-08) or legacy foreign sector
+    val sectorOutputs = (0 until 6).map { s =>
+      living2.filter(_.sector == s).map(f => FirmOps.capacity(f) * demandMult * w.priceLevel).sum
+    }.toVector
+
+    val (newForex, newBop, oeValuationEffect) = if Config.OeEnabled then
+      val oeResult = OpenEconomy.step(
+        w.bop, w.forex, importCons, sumTechImp,
+        autoR, w.nbp.referenceRate, gdp, w.priceLevel,
+        sectorOutputs, m, rc)
+      (oeResult.forex, oeResult.bop, oeResult.valuationEffect)
+    else
+      val fx = Sectors.updateForeign(w.forex, importCons, sumTechImp, autoR, w.nbp.referenceRate, gdp, rc)
+      (fx, w.bop, 0.0)
 
     val exRateChg = if rc.isEurozone then 0.0
                     else (newForex.exchangeRate / w.forex.exchangeRate) - 1.0
@@ -260,6 +272,7 @@ object Simulation:
       HhState(employed, newWage, resWage, totalIncome, consumption, domesticCons, importCons),
       autoR, hybR, gdp, newSigmas,
       ioFlows = totalIoPaid,
+      bop = newBop,
       hhAgg = finalHhAgg,
       households = finalHouseholds)
 
@@ -275,7 +288,9 @@ object Simulation:
       totalIncome = totalIncome,
       totalConsumption = consumption,
       newLoans = sumNewLoans,
-      nplRecovery = nplNew * Config.LoanRecovery
+      nplRecovery = nplNew * Config.LoanRecovery,
+      currentAccount = newBop.currentAccount,
+      valuationEffect = oeValuationEffect
     )
     val sfcResult = SfcCheck.validate(m, prevSnap, currSnap, sfcFlows)
     if !sfcResult.passed then
@@ -283,6 +298,7 @@ object Simulation:
         f"[SFC] Month $m FAIL:" +
         f" bankCap=${sfcResult.bankCapitalError}%.2f" +
         f" bankDep=${sfcResult.bankDepositsError}%.2f" +
-        f" govDebt=${sfcResult.govDebtError}%.2f")
+        f" govDebt=${sfcResult.govDebtError}%.2f" +
+        f" nfa=${sfcResult.nfaError}%.2f")
 
     (newW, rewiredFirms, finalHouseholds)

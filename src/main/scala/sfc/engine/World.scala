@@ -1,7 +1,7 @@
 package sfc.engine
 
 import sfc.agents.{HhState, HhAggregates, Household, NbpState}
-import sfc.sfc.{GovState, BankState, ForexState}
+import sfc.sfc.{GovState, BankState, ForexState, BopState}
 
 case class World(
   month: Int,
@@ -18,6 +18,7 @@ case class World(
   gdpProxy: Double,
   currentSigmas: Vector[Double],
   ioFlows: Double = 0.0,
+  bop: BopState = BopState.zero,
   hhAgg: Option[HhAggregates] = None,
   households: Option[Vector[Household]] = None
 )
