@@ -54,7 +54,6 @@ object HouseholdLogic:
                 val retrainProb = Config.HhRetrainingProb +
                   (if neighborDistress > 0.30 then 0.05 else 0.0)
                 if hh.savings > Config.HhRetrainingCost && rng.nextDouble() < retrainProb then
-                  retrainingAttempts += 1
                   val targetSector = rng.nextInt(sfc.config.SECTORS.length)
                   (HhStatus.Retraining(Config.HhRetrainingDuration, targetSector,
                     Config.HhRetrainingCost), 1, 0)
@@ -65,7 +64,6 @@ object HouseholdLogic:
                   val successProb = Config.HhRetrainingBaseSuccess *
                     afterSkill * (1.0 - afterHealth)
                   if rng.nextDouble() < successProb then
-                    retrainingSuccesses += 1
                     // Success: reset skill, become unemployed (ready for job search)
                     (HhStatus.Unemployed(0), 0, 1)
                   else

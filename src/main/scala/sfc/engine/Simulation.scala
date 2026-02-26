@@ -181,15 +181,23 @@ object Simulation:
       r.firm
     }
 
+    // I-O intermediate market (Paper-07)
+    val (ioFirms, totalIoPaid) = if Config.IoEnabled then
+      val r = IntermediateMarket.process(newFirms, demandMult, w.priceLevel,
+        Config.IoMatrix, Config.IoColumnSums, Config.IoScale)
+      (r.firms, r.totalPaid)
+    else
+      (newFirms, 0.0)
+
     // Individual mode: post-firm-processing labor market update
     val finalHouseholds = updatedHouseholds.map { hhs =>
-      val afterSep = LaborMarket.separations(hhs, firms, newFirms)
-      val afterSearch = LaborMarket.jobSearch(afterSep, newFirms, newWage, Random)
+      val afterSep = LaborMarket.separations(hhs, firms, ioFirms)
+      val afterSearch = LaborMarket.jobSearch(afterSep, ioFirms, newWage, Random)
       LaborMarket.updateWages(afterSearch, newWage)  // normalize wages for next step
     }
 
     val prevAlive = firms.filter(FirmOps.isAlive).map(_.id).toSet
-    val newlyDead = newFirms.filter(f => !FirmOps.isAlive(f) && prevAlive.contains(f.id))
+    val newlyDead = ioFirms.filter(f => !FirmOps.isAlive(f) && prevAlive.contains(f.id))
     val nplNew    = newlyDead.map(_.debt).sum
     val nplLoss   = nplNew * (1.0 - Config.LoanRecovery)
     val intIncome = firms.filter(FirmOps.isAlive).map(_.debt * lendRate / 12.0).sum
@@ -202,7 +210,7 @@ object Simulation:
       capital    = w.bank.capital - nplLoss + intIncome * 0.3 + hhDebtService * 0.3,
       deposits   = w.bank.deposits + (totalIncome - consumption))
 
-    val living2 = newFirms.filter(FirmOps.isAlive)
+    val living2 = ioFirms.filter(FirmOps.isAlive)
     val nLiving = living2.length.toDouble
     val autoR   = if nLiving > 0 then living2.count(_.tech.isInstanceOf[TechState.Automated]) / nLiving else 0.0
     val hybR    = if nLiving > 0 then living2.count(_.tech.isInstanceOf[TechState.Hybrid]) / nLiving else 0.0
@@ -221,7 +229,7 @@ object Simulation:
       w.currentSigmas, baseSigmas, sectorAdoption, Config.SigmaLambda, Config.SigmaCapMult)
 
     // Dynamic network rewiring (Paper-05)
-    val rewiredFirms = DynamicNetwork.rewire(newFirms, Config.RewireRho)
+    val rewiredFirms = DynamicNetwork.rewire(ioFirms, Config.RewireRho)
 
     val exDev = if rc.isEurozone then 0.0
                else (w.forex.exchangeRate / Config.BaseExRate) - 1.0
@@ -239,14 +247,19 @@ object Simulation:
     val newGov = Sectors.updateGov(w.gov, sumTax, vat, bdpActive, bdp, newPrice)
 
     // Recompute hhAgg from final households if in individual mode
+    // Carry retraining counters from the monthly step (hhAgg) — not zeros
+    val monthlyRetAttempts  = hhAgg.map(_.retrainingAttempts).getOrElse(0)
+    val monthlyRetSuccesses = hhAgg.map(_.retrainingSuccesses).getOrElse(0)
     val finalHhAgg = finalHouseholds.map { hhs =>
-      HouseholdLogic.computeAggregates(hhs, newWage, resWage, importAdj, 0, 0, bdp)
+      HouseholdLogic.computeAggregates(hhs, newWage, resWage, importAdj,
+        monthlyRetAttempts, monthlyRetSuccesses, bdp)
     }
 
     val newW = World(m, newInfl, newPrice, demandMult, newGov, NbpState(newRefRate),
       newBank, newForex,
       HhState(employed, newWage, resWage, totalIncome, consumption, domesticCons, importCons),
       autoR, hybR, gdp, newSigmas,
+      ioFlows = totalIoPaid,
       hhAgg = finalHhAgg,
       households = finalHouseholds)
 
