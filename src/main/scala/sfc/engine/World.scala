@@ -17,6 +17,7 @@ case class World(
   hybridRatio: Double,
   gdpProxy: Double,
   currentSigmas: Vector[Double],
+  ioFlows: Double = 0.0,
   hhAgg: Option[HhAggregates] = None,
   households: Option[Vector[Household]] = None
 )

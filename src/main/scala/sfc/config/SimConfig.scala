@@ -171,6 +171,37 @@ object Config:
   // Dynamic network (Paper-05)
   val RewireRho    = sys.env.get("REWIRE_RHO").map(_.trim.toDouble).getOrElse(0.0)
 
+  // I-O coupling (Paper-07)
+  val IoEnabled: Boolean = sys.env.get("IO_MODE").map(_.trim.toLowerCase) match
+    case Some("enabled" | "true" | "on") => true
+    case _ => false
+
+  val IoMatrix: Vector[Vector[Double]] = sys.env.get("IO_MATRIX") match
+    case Some(s) if s.nonEmpty =>
+      val rows = s.split(";").map(_.split(",").map(_.trim.toDouble).toVector).toVector
+      require(rows.length == 6 && rows.forall(_.length == 6),
+        s"IO_MATRIX must be 6x6, got ${rows.length} rows")
+      rows
+    // a_ij = input from sector i per unit gross output of sector j.
+    // Calibrated from GUS symmetric I-O tables (2015/2019), cross-validated
+    // against WIOD (2000-2014), OECD ICIO (2005-2020), Eurostat (2015/2019).
+    // ISIC mapping: BPO←J62-63+N78-82, Mfg←C10-33, Ret←G-I+K-L+M69-75+R-S,
+    //               Hlt←Q86-88, Pub←O84+P85, Agr←A01-03.
+    case _ => Vector(
+      Vector(0.05, 0.03, 0.04, 0.02, 0.03, 0.01),  // BPO purchases
+      Vector(0.04, 0.35, 0.12, 0.15, 0.05, 0.18),  // Mfg purchases
+      Vector(0.15, 0.10, 0.12, 0.08, 0.07, 0.08),  // Retail purchases
+      Vector(0.01, 0.00, 0.01, 0.05, 0.02, 0.01),  // Healthcare purchases
+      Vector(0.01, 0.01, 0.01, 0.01, 0.03, 0.01),  // Public purchases
+      Vector(0.00, 0.08, 0.05, 0.01, 0.01, 0.12))  // Agriculture purchases
+
+  val IoColumnSums: Vector[Double] =
+    (0 until 6).map(j => IoMatrix.map(_(j)).sum).toVector
+
+  // Pass-through fraction: 1.0 = full I-O, 0.0 = no I-O.
+  // Models contractual rigidity, delivery lags, and supplier substitution.
+  val IoScale: Double = sys.env.get("IO_SCALE").map(_.trim.toDouble).getOrElse(1.0)
+
   // Heterogeneous households (Paper-06)
   val HhCount = sys.env.get("HH_COUNT").map(_.trim.toInt).getOrElse(TotalPopulation)
 

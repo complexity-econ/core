@@ -83,8 +83,10 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
   //          SectorAutoRatio(0..5): BPO, Manuf, Retail, Health, Public, Agri,
   //          EffectiveBDP (per-capita BDP actually delivered after fiscal constraints),
   //          SectorSigma(0..5): per-sector current sigma (evolves when SIGMA_LAMBDA>0),
-  //          MeanDegree: average network degree (changes when REWIRE_RHO>0)
-  val nCols = 26
+  //          MeanDegree: average network degree (changes when REWIRE_RHO>0),
+  //          IoFlows: total intermediate market payments (Paper-07),
+  //          IoGdpRatio: intermediate flows / GDP
+  val nCols = 28
   val results = Array.ofDim[Double](Config.Duration, nCols)
 
   for t <- 0 until Config.Duration do
@@ -137,7 +139,9 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
       world.currentSigmas(3),     // 22: Health_Sigma
       world.currentSigmas(4),     // 23: Public_Sigma
       world.currentSigmas(5),     // 24: Agri_Sigma
-      firms.map(_.neighbors.length.toDouble).sum / firms.length  // 25: MeanDegree
+      firms.map(_.neighbors.length.toDouble).sum / firms.length, // 25: MeanDegree
+      world.ioFlows,                    // 26: IoFlows
+      if world.gdpProxy > 0 then world.ioFlows / world.gdpProxy else 0.0  // 27: IoGdpRatio
     )
 
   RunResult(results, world.hhAgg)
@@ -169,7 +173,7 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
 
   // Aggregation arrays
   val nMonths = Config.Duration
-  val nCols   = 26
+  val nCols   = 28
   val allRuns = Array.ofDim[Double](nSeeds, nMonths, nCols)
   val allHhAgg = new Array[Option[HhAggregates]](nSeeds)
 
@@ -198,7 +202,8 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
   termPw.write("Seed;Inflation;Unemployment;TotalAdoption;ExRate;MarketWage;" +
     "GovDebt;NPL;RefRate;PriceLevel;AutoRatio;HybridRatio;" +
     "BPO_Auto;Manuf_Auto;Retail_Auto;Health_Auto;Public_Auto;Agri_Auto;EffectiveBDP;" +
-    "BPO_Sigma;Manuf_Sigma;Retail_Sigma;Health_Sigma;Public_Sigma;Agri_Sigma;MeanDegree\n")
+    "BPO_Sigma;Manuf_Sigma;Retail_Sigma;Health_Sigma;Public_Sigma;Agri_Sigma;MeanDegree;" +
+    "IoFlows;IoGdpRatio\n")
   for seed <- 0 until nSeeds do
     val last = allRuns(seed)(nMonths - 1)
     termPw.write(s"${seed + 1}")
@@ -246,7 +251,7 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
     "AutoRatio", "HybridRatio", "BPO_Auto", "Manuf_Auto", "Retail_Auto", "Health_Auto",
     "Public_Auto", "Agri_Auto", "EffectiveBDP",
     "BPO_Sigma", "Manuf_Sigma", "Retail_Sigma", "Health_Sigma", "Public_Sigma", "Agri_Sigma",
-    "MeanDegree")
+    "MeanDegree", "IoFlows", "IoGdpRatio")
   // Header: Month, then for each metric: mean, std, p05, p95
   aggPw.write("Month")
   for c <- 1 until nCols do
