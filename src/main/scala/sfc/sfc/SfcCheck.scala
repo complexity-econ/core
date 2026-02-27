@@ -14,7 +14,8 @@ object SfcCheck:
     bankCapital: Double,
     bankDeposits: Double,
     bankLoans: Double,
-    govDebt: Double
+    govDebt: Double,
+    nfa: Double = 0.0
   )
 
   /** Flows observed during a single month (computed in Simulation.step).
@@ -28,15 +29,18 @@ object SfcCheck:
     totalIncome: Double,
     totalConsumption: Double,
     newLoans: Double,
-    nplRecovery: Double
+    nplRecovery: Double,
+    currentAccount: Double = 0.0,
+    valuationEffect: Double = 0.0
   )
 
-  /** Result of the SFC check: three exact balance-sheet identity checks. */
+  /** Result of the SFC check: four exact balance-sheet identity checks. */
   case class SfcResult(
     month: Int,
     bankCapitalError: Double,
     bankDepositsError: Double,
     govDebtError: Double,
+    nfaError: Double = 0.0,
     passed: Boolean
   )
 
@@ -52,7 +56,8 @@ object SfcCheck:
       bankCapital = w.bank.capital,
       bankDeposits = w.bank.deposits,
       bankLoans = w.bank.totalLoans,
-      govDebt = w.gov.cumulativeDebt
+      govDebt = w.gov.cumulativeDebt,
+      nfa = w.bop.nfa
     )
 
   /** Validate three exact balance-sheet identities.
@@ -69,7 +74,8 @@ object SfcCheck:
     * to bank/consumption), refactoring errors in balance sheet updates, and
     * any new flow that modifies a stock without updating the counterpart. */
   def validate(month: Int, prev: Snapshot, curr: Snapshot,
-               flows: MonthlyFlows, tolerance: Double = 1.0): SfcResult =
+               flows: MonthlyFlows, tolerance: Double = 1.0,
+               nfaTolerance: Double = 10.0): SfcResult =
 
     // Identity 1: Bank capital
     val expectedBankCapChange = -flows.nplLoss +
@@ -87,8 +93,19 @@ object SfcCheck:
     val actualGovDebtChange = curr.govDebt - prev.govDebt
     val govDebtErr = actualGovDebtChange - expectedGovDebtChange
 
+    // Identity 4: NFA (Net Foreign Assets)
+    // ΔNFA = currentAccount + valuationEffect
+    // When OPEN_ECON=false: both sides = 0.0, trivially passes.
+    val expectedNfaChange = flows.currentAccount + flows.valuationEffect
+    val actualNfaChange = curr.nfa - prev.nfa
+    val nfaErr = actualNfaChange - expectedNfaChange
+
+    // NFA uses wider tolerance (default 10 PLN) because cumulative NFA
+    // values can reach billions, causing floating-point cancellation
+    // in the (curr.nfa - prev.nfa) subtraction.
     val passed = Math.abs(bankCapErr) < tolerance &&
                  Math.abs(bankDepErr) < tolerance &&
-                 Math.abs(govDebtErr) < tolerance
+                 Math.abs(govDebtErr) < tolerance &&
+                 Math.abs(nfaErr) < nfaTolerance
 
-    SfcResult(month, bankCapErr, bankDepErr, govDebtErr, passed)
+    SfcResult(month, bankCapErr, bankDepErr, govDebtErr, nfaErr, passed)

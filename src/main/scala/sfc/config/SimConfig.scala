@@ -202,6 +202,33 @@ object Config:
   // Models contractual rigidity, delivery lags, and supplier substitution.
   val IoScale: Double = sys.env.get("IO_SCALE").map(_.trim.toDouble).getOrElse(1.0)
 
+  // Open economy (Paper-08)
+  val OeEnabled: Boolean = sys.env.get("OPEN_ECON").map(_.trim.toLowerCase) match
+    case Some("true" | "enabled" | "on" | "1") => true
+    case _ => false
+
+  val OeImportContent: Vector[Double] = sys.env.get("OE_IMPORT_CONTENT") match
+    case Some(s) if s.nonEmpty =>
+      val v = s.split(",").map(_.trim.toDouble).toVector
+      require(v.length == 6, s"OE_IMPORT_CONTENT must have 6 values, got ${v.length}")
+      v
+    case _ => Vector(0.15, 0.50, 0.20, 0.15, 0.05, 0.12) // BPO, Mfg, Ret, Hlt, Pub, Agr
+
+  val OeErFloor: Double   = sys.env.get("OE_ER_FLOOR").map(_.trim.toDouble).getOrElse(2.5)
+  val OeErCeiling: Double = sys.env.get("OE_ER_CEILING").map(_.trim.toDouble).getOrElse(10.0)
+
+  // Hardcoded calibration (NBP/GUS/WIOD)
+  val OeForeignGdpGrowth      = 0.015   // EZ annual real GDP growth
+  val OeExportPriceElasticity  = 0.8     // Marshall-Lerner
+  val OeImportPriceElasticity  = 0.6
+  val OeErElasticity           = 0.5     // ER pass-through to import prices
+  val OeUlcExportBoost         = 0.15    // automation → ULC → export competitiveness
+  val OeNfaReturnRate          = 0.03    // annual return on NFA
+  val OeEuTransfers            = 5000000.0 * ScaleFactor  // monthly EU structural funds
+  val OeFdiBase                = 2000000.0 * ScaleFactor  // baseline FDI
+  val OePortfolioSensitivity   = 0.20    // rate differential → portfolio flows
+  val OeRiskPremiumSensitivity = 0.10    // NFA/GDP → risk premium on ER
+
   // Heterogeneous households (Paper-06)
   val HhCount = sys.env.get("HH_COUNT").map(_.trim.toInt).getOrElse(TotalPopulation)
 
