@@ -1,0 +1,125 @@
+package sfc.agents
+
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+import sfc.config.Config
+
+class FxInterventionSpec extends AnyFlatSpec with Matchers:
+
+  // Helper: call fxIntervention with enabled=true for tests that need active intervention
+  private def fxEnabled(er: Double, reserves: Double, gdp: Double) =
+    CentralBankLogic.fxIntervention(er, reserves, gdp, enabled = true)
+
+  // --- fxIntervention ---
+
+  "CentralBankLogic.fxIntervention" should "return zero effect when disabled (default)" in {
+    // Config.NbpFxIntervention defaults to false
+    val result = CentralBankLogic.fxIntervention(Config.BaseExRate * 1.5, 1e10, 1e9)
+    result.erEffect shouldBe 0.0
+    result.eurTraded shouldBe 0.0
+    result.newReserves shouldBe 1e10
+  }
+
+  it should "return zero effect when ER within band" in {
+    // ER deviation = 5% < default band of 10%
+    val er = Config.BaseExRate * 1.05
+    val result = fxEnabled(er, 1e10, 1e9)
+    result.erEffect shouldBe 0.0
+    result.eurTraded shouldBe 0.0
+  }
+
+  it should "return zero effect when ER just inside band boundary" in {
+    // Use 9.9% deviation (just inside default 10% band) to avoid FP edge case
+    val er = Config.BaseExRate * 1.099
+    val result = fxEnabled(er, 1e10, 1e9)
+    result.erEffect shouldBe 0.0
+    result.eurTraded shouldBe 0.0
+  }
+
+  it should "intervene when PLN depreciates beyond band (sell EUR)" in {
+    // PLN depreciates: ER > baseER * 1.10 → NBP sells EUR to strengthen PLN
+    // erDev > 0 → direction = -1 → sells EUR (eurTraded < 0)
+    val er = Config.BaseExRate * 1.20  // 20% depreciation
+    val reserves = 1e10
+    val result = fxEnabled(er, reserves, 1e9)
+    result.eurTraded should be < 0.0  // sold EUR
+    result.erEffect should be < 0.0   // dampens upward ER deviation
+    result.newReserves should be < reserves
+  }
+
+  it should "intervene when PLN appreciates beyond band (buy EUR)" in {
+    // PLN appreciates: ER < baseER * 0.90 → NBP buys EUR to weaken PLN
+    // erDev < 0 → direction = +1 → buys EUR (eurTraded > 0)
+    val er = Config.BaseExRate * 0.80  // 20% appreciation
+    val reserves = 1e10
+    val result = fxEnabled(er, reserves, 1e9)
+    result.eurTraded should be > 0.0   // bought EUR
+    result.erEffect should be > 0.0    // dampens downward ER deviation
+    result.newReserves should be > reserves
+  }
+
+  it should "not sell more EUR than available reserves" in {
+    val er = Config.BaseExRate * 1.50  // massive depreciation
+    val reserves = 100.0  // tiny reserves
+    val result = fxEnabled(er, reserves, 1e9)
+    result.newReserves should be >= 0.0
+    Math.abs(result.eurTraded) should be <= reserves
+  }
+
+  it should "produce erEffect opposing the deviation direction" in {
+    // Depreciation → negative erEffect (pushes ER down)
+    val erHigh = Config.BaseExRate * 1.30
+    val resultHigh = fxEnabled(erHigh, 1e10, 1e9)
+    resultHigh.erEffect should be < 0.0
+
+    // Appreciation → positive erEffect (pushes ER up)
+    val erLow = Config.BaseExRate * 0.70
+    val resultLow = fxEnabled(erLow, 1e10, 1e9)
+    resultLow.erEffect should be > 0.0
+  }
+
+  it should "produce reserves consistent with eurTraded" in {
+    val er = Config.BaseExRate * 1.25
+    val reserves = 1e10
+    val result = fxEnabled(er, reserves, 1e9)
+    // newReserves = max(0, reserves + eurTraded)
+    result.newReserves shouldBe Math.max(0.0, reserves + result.eurTraded) +- 1e-6
+  }
+
+  it should "produce zero erEffect when gdp is zero (no div-by-zero)" in {
+    val er = Config.BaseExRate * 1.25
+    val result = fxEnabled(er, 1e10, 0.0)
+    result.erEffect shouldBe 0.0
+    // But intervention still occurs (reserves change)
+    result.eurTraded should be < 0.0
+  }
+
+  it should "produce no intervention when ER equals baseER (Eurozone scenario)" in {
+    // In EUR regime, ER = baseER → erDev = 0 → within any band
+    val result = fxEnabled(Config.BaseExRate, 1e10, 1e9)
+    result.erEffect shouldBe 0.0
+    result.eurTraded shouldBe 0.0
+  }
+
+  // --- FxInterventionResult ---
+
+  "FxInterventionResult" should "be constructable with all fields" in {
+    val r = CentralBankLogic.FxInterventionResult(0.01, -5e8, 9.5e9)
+    r.erEffect shouldBe 0.01
+    r.eurTraded shouldBe -5e8
+    r.newReserves shouldBe 9.5e9
+  }
+
+  // --- NbpState FX fields ---
+
+  "NbpState" should "have backward-compatible constructor with FX defaults" in {
+    val nbp = NbpState(0.0575)
+    nbp.fxReserves shouldBe Config.NbpFxReserves
+    nbp.lastFxTraded shouldBe 0.0
+  }
+
+  it should "accept explicit FX field values" in {
+    val nbp = NbpState(0.05, fxReserves = 5e9, lastFxTraded = -1e8)
+    nbp.fxReserves shouldBe 5e9
+    nbp.lastFxTraded shouldBe -1e8
+  }

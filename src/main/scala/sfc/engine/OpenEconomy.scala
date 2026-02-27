@@ -2,12 +2,15 @@ package sfc.engine
 
 import sfc.config.{Config, SECTORS, RunConfig}
 import sfc.sfc.{ForexState, BopState}
+import sfc.agents.CentralBankLogic
 
 case class OpenEconResult(
   forex: ForexState,
   bop: BopState,
   importedIntermediates: Vector[Double],  // per-sector import cost (6 elements)
-  valuationEffect: Double                 // exact valuation effect used in NFA update
+  valuationEffect: Double,                // exact valuation effect used in NFA update
+  fxIntervention: CentralBankLogic.FxInterventionResult =
+    CentralBankLogic.FxInterventionResult(0.0, 0.0, 0.0)
 )
 
 object OpenEconomy:
@@ -16,7 +19,8 @@ object OpenEconomy:
            importCons: Double, techImports: Double,
            autoRatio: Double, domesticRate: Double, gdp: Double,
            priceLevel: Double, sectorOutputs: Vector[Double],
-           month: Int, rc: RunConfig): OpenEconResult =
+           month: Int, rc: RunConfig,
+           nbpFxReserves: Double = 0.0): OpenEconResult =
 
     val nSectors = 6
 
@@ -78,12 +82,13 @@ object OpenEconomy:
     // G. BoP identity: CA + KA + ΔReserves = 0
     val deltaReserves = -(currentAccount + capitalAccount)
 
-    // H. Exchange rate
+    // H. Exchange rate + FX intervention
+    val fxResult = CentralBankLogic.fxIntervention(prevForex.exchangeRate, nbpFxReserves, gdp)
     val newExRate = if rc.isEurozone then Config.BaseExRate
     else
       val bopGdpRatio = if gdp > 0 then (currentAccount + capitalAccount) / gdp else 0.0
       val nfaRisk = Config.OeRiskPremiumSensitivity * Math.min(0.0, nfaGdpRatio)
-      val erChange = Config.ExRateAdjSpeed * (-bopGdpRatio + nfaRisk)
+      val erChange = Config.ExRateAdjSpeed * (-bopGdpRatio + nfaRisk) + fxResult.erEffect
       Math.max(Config.OeErFloor,
         Math.min(Config.OeErCeiling, prevForex.exchangeRate * (1.0 + erChange)))
 
@@ -117,4 +122,4 @@ object OpenEconomy:
       importedIntermediates = totalImportedInterm
     )
 
-    OpenEconResult(newForex, newBop, importedInterm, valuationEffect)
+    OpenEconResult(newForex, newBop, importedInterm, valuationEffect, fxResult)

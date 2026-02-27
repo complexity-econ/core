@@ -159,6 +159,13 @@ object Config:
   val NbpQePace: Double = sys.env.get("NBP_QE_PACE").map(_.trim.toDouble).getOrElse(5e9) * ScaleFactor
   val NbpQeMaxGdpShare: Double = sys.env.get("NBP_QE_MAX_GDP_SHARE").map(_.trim.toDouble).getOrElse(0.30)
 
+  // FX Intervention (Mechanism 5)
+  val NbpFxIntervention: Boolean = sys.env.get("NBP_FX_INTERVENTION").map(_.trim.toBoolean).getOrElse(false)
+  val NbpFxBand: Double = sys.env.get("NBP_FX_BAND").map(_.trim.toDouble).getOrElse(0.10)
+  val NbpFxReserves: Double = sys.env.get("NBP_FX_RESERVES").map(_.trim.toDouble).getOrElse(185e9) * ScaleFactor  // EUR-equivalent total
+  val NbpFxMaxMonthly: Double = sys.env.get("NBP_FX_MAX_MONTHLY").map(_.trim.toDouble).getOrElse(0.03)
+  val NbpFxStrength: Double = sys.env.get("NBP_FX_STRENGTH").map(_.trim.toDouble).getOrElse(0.5)
+
   // Banking system
   val InitBankCapital  = 500000000.0 * ScaleFactor
   val BaseSpread       = 0.015       // NBP MIR corporate spread 2024

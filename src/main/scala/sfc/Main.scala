@@ -86,7 +86,7 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
   //          MeanDegree: average network degree (changes when REWIRE_RHO>0),
   //          IoFlows: total intermediate market payments (Paper-07),
   //          IoGdpRatio: intermediate flows / GDP
-  val nCols = 45
+  val nCols = 48
   val results = Array.ofDim[Double](Config.Duration, nCols)
 
   for t <- 0 until Config.Duration do
@@ -158,7 +158,10 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
       world.nbp.govBondHoldings,          // 41: NbpBondHoldings
       (if world.nbp.qeActive then 1.0 else 0.0),  // 42: QeActive
       world.gov.debtServiceSpend,         // 43: DebtService
-      world.nbp.govBondHoldings * world.gov.bondYield / 12.0  // 44: NbpRemittance
+      world.nbp.govBondHoldings * world.gov.bondYield / 12.0,  // 44: NbpRemittance
+      world.nbp.fxReserves,                                      // 45: FxReserves
+      world.nbp.lastFxTraded,                                    // 46: FxInterventionAmt
+      (if Config.NbpFxIntervention then 1.0 else 0.0)            // 47: FxInterventionActive
     )
 
   RunResult(results, world.hhAgg)
@@ -190,7 +193,7 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
 
   // Aggregation arrays
   val nMonths = Config.Duration
-  val nCols   = 45
+  val nCols   = 48
   val allRuns = Array.ofDim[Double](nSeeds, nMonths, nCols)
   val allHhAgg = new Array[Option[HhAggregates]](nSeeds)
 
@@ -223,7 +226,8 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
     "IoFlows;IoGdpRatio;" +
     "NFA;CurrentAccount;CapitalAccount;TradeBalance_OE;Exports_OE;TotalImports_OE;ImportedInterm;FDI;" +
     "UnempBenefitSpend;OutputGap;" +
-    "BondYield;BondsOutstanding;BankBondHoldings;NbpBondHoldings;QeActive;DebtService;NbpRemittance\n")
+    "BondYield;BondsOutstanding;BankBondHoldings;NbpBondHoldings;QeActive;DebtService;NbpRemittance;" +
+    "FxReserves;FxInterventionAmt;FxInterventionActive\n")
   for seed <- 0 until nSeeds do
     val last = allRuns(seed)(nMonths - 1)
     termPw.write(s"${seed + 1}")
@@ -276,7 +280,8 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
     "TotalImports_OE", "ImportedInterm", "FDI",
     "UnempBenefitSpend", "OutputGap",
     "BondYield", "BondsOutstanding", "BankBondHoldings", "NbpBondHoldings",
-    "QeActive", "DebtService", "NbpRemittance")
+    "QeActive", "DebtService", "NbpRemittance",
+    "FxReserves", "FxInterventionAmt", "FxInterventionActive")
   // Header: Month, then for each metric: mean, std, p05, p95
   aggPw.write("Month")
   for c <- 1 until nCols do

@@ -256,7 +256,9 @@ object Generators:
     bonds    <- Gen.choose(0.0, 1e10)
     qeActive <- Gen.oneOf(true, false)
     qeCum    <- Gen.choose(0.0, 1e10)
-  yield NbpState(rate, bonds, qeActive, qeCum)
+    fxRes    <- Gen.choose(0.0, 1e11)
+    lastFx   <- Gen.choose(-1e9, 1e9)
+  yield NbpState(rate, bonds, qeActive, qeCum, fxRes, lastFx)
 
   // --- I-O matrix generator ---
 

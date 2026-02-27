@@ -256,15 +256,16 @@ object Simulation:
       living2.filter(_.sector == s).map(f => FirmOps.capacity(f) * demandMult * w.priceLevel).sum
     }.toVector
 
-    val (newForex, newBop, oeValuationEffect) = if Config.OeEnabled then
+    val (newForex, newBop, oeValuationEffect, fxResult) = if Config.OeEnabled then
       val oeResult = OpenEconomy.step(
         w.bop, w.forex, importCons, sumTechImp,
         autoR, w.nbp.referenceRate, gdp, w.priceLevel,
-        sectorOutputs, m, rc)
-      (oeResult.forex, oeResult.bop, oeResult.valuationEffect)
+        sectorOutputs, m, rc,
+        nbpFxReserves = w.nbp.fxReserves)
+      (oeResult.forex, oeResult.bop, oeResult.valuationEffect, oeResult.fxIntervention)
     else
       val fx = Sectors.updateForeign(w.forex, importCons, sumTechImp, autoR, w.nbp.referenceRate, gdp, rc)
-      (fx, w.bop, 0.0)
+      (fx, w.bop, 0.0, CentralBankLogic.FxInterventionResult(0.0, 0.0, w.nbp.fxReserves))
 
     val exRateChg = if rc.isEurozone then 0.0
                     else (newForex.exchangeRate / w.forex.exchangeRate) - 1.0
@@ -291,6 +292,10 @@ object Simulation:
     val preQeNbp = NbpState(newRefRate, w.nbp.govBondHoldings, qeActive, w.nbp.qeCumulative)
     val (postQeNbp, qePurchaseAmount) = CentralBankLogic.executeQe(
       preQeNbp, w.bank.govBondHoldings, annualGdpForBonds)
+    val postFxNbp = postQeNbp.copy(
+      fxReserves = fxResult.newReserves,
+      lastFxTraded = fxResult.eurTraded
+    )
 
     val newBank = w.bank.copy(
       totalLoans = Math.max(0, w.bank.totalLoans + sumNewLoans - nplNew * Config.LoanRecovery),
@@ -319,7 +324,7 @@ object Simulation:
       newBank.copy(govBondHoldings = newBank.govBondHoldings + newGovWithYield.deficit - qePurchaseAmount)
     else newBank.copy(govBondHoldings = newBank.govBondHoldings - qePurchaseAmount)
 
-    val newW = World(m, newInfl, newPrice, demandMult, newGovWithYield, postQeNbp,
+    val newW = World(m, newInfl, newPrice, demandMult, newGovWithYield, postFxNbp,
       finalBank, newForex,
       HhState(employed, newWage, resWage, totalIncome, consumption, domesticCons, importCons),
       autoR, hybR, gdp, newSigmas,
