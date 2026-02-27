@@ -388,8 +388,7 @@ object Simulation:
                 // Aggregate HH mode fallback: worker-proportional proxy
                 val ws = if totalWorkers > 0 then perBankWorkers(bId) / totalWorkers else 0.0
                 (totalIncome * ws, consumption * ws, hhDebtService * ws, 0.0)
-          val bankBondInc = if w.bank.govBondHoldings > 0 then
-            bankBondIncome * (b.govBondHoldings / w.bank.govBondHoldings) else 0.0
+          val bankBondInc = b.govBondHoldings * newBondYield / 12.0
           b.copy(
             loans = Math.max(0, b.loans + perBankNewLoans(bId) - bankNplNew * Config.LoanRecovery),
             nplAmount = Math.max(0, b.nplAmount + bankNplNew - b.nplAmount * 0.05),

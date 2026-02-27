@@ -45,6 +45,8 @@ object HouseholdLogic:
     var totalUnempBenefits = 0.0
     var actualTotalDebtService = 0.0
     var actualTotalDepositInterest = 0.0
+    var actualGoodsConsumption = 0.0
+    var actualTotalRent = 0.0
 
     // Per-bank flow accumulators (only when bankRates provided)
     val br = bankRates.orNull
@@ -95,6 +97,10 @@ object HouseholdLogic:
 
           val newSavings = hh.savings + income - obligations - consumptionAdj
           val newDebt = Math.max(0.0, hh.debt - thisDebtService)
+
+          // Accumulate actual consumption flows (used for SFC consistency)
+          actualGoodsConsumption += consumptionAdj
+          actualTotalRent += hh.monthlyRent
 
           // Per-bank accumulation
           if perBankInc != null then
@@ -156,11 +162,18 @@ object HouseholdLogic:
 
     val agg = computeAggregates(updated, marketWage, reservationWage, importAdj,
       retrainingAttempts, retrainingSuccesses)
+    val actualTotalConsumption = actualGoodsConsumption + actualTotalRent
+    val actualImportCons = actualGoodsConsumption * Math.min(0.65, importAdj)
+    val actualDomesticCons = actualTotalConsumption - actualImportCons
     val correctedAgg = agg.copy(
       totalIncome = actualTotalIncome,
+      consumption = actualTotalConsumption,
+      importConsumption = actualImportCons,
+      domesticConsumption = actualDomesticCons,
       totalUnempBenefits = totalUnempBenefits,
       totalDebtService = actualTotalDebtService,
-      totalDepositInterest = actualTotalDepositInterest
+      totalDepositInterest = actualTotalDepositInterest,
+      totalRent = actualTotalRent
     )
     val pbf = if perBankInc != null then
       Some(PerBankHhFlows(perBankInc, perBankCons, perBankDSvc, perBankDepInt))
