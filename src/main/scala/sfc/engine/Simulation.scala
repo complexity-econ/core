@@ -28,8 +28,10 @@ object Sectors:
     val demandPull    = (demandMult - 1.0) * 0.15
     val costPush      = wageGrowth * 0.25
     // EUR: no exchange rate pass-through (single currency area)
-    val importPush    = if rc.isEurozone then 0.0
+    val rawImportPush = if rc.isEurozone then 0.0
                         else Math.max(0.0, exRateDeviation) * Config.ImportPropensity * 0.25
+    val importPush    = if Config.OeEnabled then Math.min(rawImportPush, Config.OeImportPushCap)
+                        else rawImportPush
     val techDeflation = autoRatio * 0.060 + hybridRatio * 0.018
     // Soft floor: beyond -1.5%/month, deflation passes through at 30% rate
     // (models downward price stickiness -- Bewley 1999, Schmitt-Grohe & Uribe 2016)

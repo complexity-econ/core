@@ -21,21 +21,32 @@ object OpenEconomy:
     val nSectors = 6
 
     // A. Export demand (structural)
+    // Foreign buyers care about the real exchange rate: PL / (ER/baseER).
+    // When PL rises but ER depreciates proportionally, real price unchanged.
+    // This replaces the separate priceCompetitiveness × erCompetitiveness terms
+    // which double-counted and let PL crush exports even when ER compensated.
     val foreignGdpFactor = Math.pow(1.0 + Config.OeForeignGdpGrowth / 12.0, month.toDouble)
-    val erCompetitiveness = if rc.isEurozone then 1.0
-      else Math.pow(prevForex.exchangeRate / Config.BaseExRate, Config.OeExportPriceElasticity)
     val ulcEffect = 1.0 + autoRatio * Config.OeUlcExportBoost
-    val priceCompetitiveness = if priceLevel > 0 then
-      Math.pow(1.0 / priceLevel, Config.OeExportPriceElasticity)
-    else 1.0
-    val exports = Config.ExportBase * foreignGdpFactor * priceCompetitiveness *
-      erCompetitiveness * ulcEffect
+    val realExRate = if rc.isEurozone then 1.0
+      else
+        val nominalER = prevForex.exchangeRate / Config.BaseExRate  // >1 when PLN weaker
+        val realPrice = if priceLevel > 0 && nominalER > 0 then priceLevel / nominalER
+                        else 1.0
+        Math.pow(1.0 / Math.max(0.1, realPrice), Config.OeExportPriceElasticity)
+    val exports = Config.OeExportBase * foreignGdpFactor * realExRate * ulcEffect
 
     // B. Imported intermediates (cross-border I-O)
-    val erImportEffect = if rc.isEurozone then 1.0
-      else Math.pow(Config.BaseExRate / prevForex.exchangeRate, Config.OeErElasticity)
+    // Intermediate imports = real domestic output × import share × ER net effect.
+    // sectorOutputs is nominal (includes priceLevel), so divide by PL to get real output.
+    // PLN import bill: quantity × foreign price × ER. With demand elasticity ε:
+    //   bill ∝ realOutput × (ER/baseER)^(1-ε).  For ε<1 bill rises with depreciation.
+    val erNetEffect = if rc.isEurozone then 1.0
+      else Math.pow(prevForex.exchangeRate / Config.BaseExRate,
+                    1.0 - Config.OeErElasticity)
     val importedInterm = (0 until nSectors).map { s =>
-      sectorOutputs(s) * Config.OeImportContent(s) * erImportEffect * priceLevel
+      val realOutput = if priceLevel > 0 then sectorOutputs(s) / priceLevel
+                       else sectorOutputs(s)
+      realOutput * Config.OeImportContent(s) * erNetEffect
     }.toVector
     val totalImportedInterm = importedInterm.sum
 

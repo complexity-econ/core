@@ -217,6 +217,16 @@ object Config:
   val OeErFloor: Double   = sys.env.get("OE_ER_FLOOR").map(_.trim.toDouble).getOrElse(2.5)
   val OeErCeiling: Double = sys.env.get("OE_ER_CEILING").map(_.trim.toDouble).getOrElse(10.0)
 
+  // Export base for open economy.  Default 475M balances initial trade when
+  // intermediate imports (~200M) are added to the existing consumption imports (~275M).
+  // The legacy ExportBase (190M) was calibrated without intermediate imports.
+  val OeExportBase: Double = sys.env.get("OE_EXPORT_BASE").map(_.trim.toDouble)
+    .getOrElse(475000000.0) * ScaleFactor
+
+  // Import-push inflation cap (monthly).  Prevents runaway ER→inflation→ER spiral.
+  // At 3% cap, even a 100% ER deviation contributes at most 3% monthly inflation.
+  val OeImportPushCap: Double = 0.03
+
   // Hardcoded calibration (NBP/GUS/WIOD)
   val OeForeignGdpGrowth      = 0.015   // EZ annual real GDP growth
   val OeExportPriceElasticity  = 0.8     // Marshall-Lerner
