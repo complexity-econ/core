@@ -8,14 +8,18 @@ case class GovState(
   bdpSpending: Double,
   deficit: Double,
   cumulativeDebt: Double,
-  unempBenefitSpend: Double
+  unempBenefitSpend: Double,
+  bondsOutstanding: Double = 0.0,
+  bondYield: Double = 0.0,
+  debtServiceSpend: Double = 0.0
 )
 
 case class BankState(
   totalLoans: Double,
   nplAmount: Double,
   capital: Double,
-  deposits: Double
+  deposits: Double,
+  govBondHoldings: Double = 0.0
 ):
   def nplRatio: Double = if totalLoans > 1.0 then nplAmount / totalLoans else 0.0
   def car: Double = if totalLoans > 1.0 then capital / totalLoans else 10.0

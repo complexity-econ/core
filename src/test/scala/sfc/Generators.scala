@@ -80,16 +80,21 @@ object Generators:
     nplFrac    <- Gen.choose(0.0, 0.30)
     capital    <- Gen.choose(1000.0, 1e9)
     deposits   <- Gen.choose(0.0, 1e10)
-  yield BankState(totalLoans, totalLoans * nplFrac, capital, deposits)
+    bonds      <- Gen.choose(0.0, 1e9)
+  yield BankState(totalLoans, totalLoans * nplFrac, capital, deposits, bonds)
 
   val genGovState: Gen[GovState] = for
-    bdpActive <- Gen.oneOf(true, false)
-    taxRev    <- Gen.choose(0.0, 1e9)
-    bdpSpend  <- Gen.choose(0.0, 1e9)
-    deficit   <- Gen.choose(-1e9, 1e9)
-    cumDebt   <- Gen.choose(0.0, 1e10)
-    unempBen  <- Gen.choose(0.0, 1e8)
-  yield GovState(bdpActive, taxRev, bdpSpend, deficit, cumDebt, unempBen)
+    bdpActive   <- Gen.oneOf(true, false)
+    taxRev      <- Gen.choose(0.0, 1e9)
+    bdpSpend    <- Gen.choose(0.0, 1e9)
+    deficit     <- Gen.choose(-1e9, 1e9)
+    cumDebt     <- Gen.choose(0.0, 1e10)
+    unempBen    <- Gen.choose(0.0, 1e8)
+    bondsOut    <- Gen.choose(0.0, 1e10)
+    bondYield   <- Gen.choose(0.0, 0.15)
+    debtService <- Gen.choose(0.0, 1e8)
+  yield GovState(bdpActive, taxRev, bdpSpend, deficit, cumDebt, unempBen,
+    bondsOut, bondYield, debtService)
 
   val genForexState: Gen[ForexState] = for
     er       <- genExchangeRate
@@ -173,39 +178,47 @@ object Generators:
   // --- SFC Check generators ---
 
   val genSnapshot: Gen[SfcCheck.Snapshot] = for
-    hhS     <- Gen.choose(0.0, 1e10)
-    hhD     <- Gen.choose(0.0, 1e9)
-    fCash   <- Gen.choose(0.0, 1e10)
-    fDebt   <- Gen.choose(0.0, 1e10)
-    bCap    <- Gen.choose(0.0, 1e9)
-    bDep    <- Gen.choose(0.0, 1e10)
-    bLoans  <- Gen.choose(0.0, 1e10)
-    govDebt <- Gen.choose(0.0, 1e10)
-    nfa     <- Gen.choose(-1e10, 1e10)
-  yield SfcCheck.Snapshot(hhS, hhD, fCash, fDebt, bCap, bDep, bLoans, govDebt, nfa)
+    hhS       <- Gen.choose(0.0, 1e10)
+    hhD       <- Gen.choose(0.0, 1e9)
+    fCash     <- Gen.choose(0.0, 1e10)
+    fDebt     <- Gen.choose(0.0, 1e10)
+    bCap      <- Gen.choose(0.0, 1e9)
+    bDep      <- Gen.choose(0.0, 1e10)
+    bLoans    <- Gen.choose(0.0, 1e10)
+    govDebt   <- Gen.choose(0.0, 1e10)
+    nfa       <- Gen.choose(-1e10, 1e10)
+    bankBonds <- Gen.choose(0.0, 1e10)
+    nbpBonds  <- Gen.choose(0.0, 1e10)
+  yield SfcCheck.Snapshot(hhS, hhD, fCash, fDebt, bCap, bDep, bLoans, govDebt, nfa,
+    bankBonds, nbpBonds, bankBonds + nbpBonds)
 
   val genMonthlyFlows: Gen[SfcCheck.MonthlyFlows] = for
-    govSpend  <- Gen.choose(0.0, 1e9)
-    govRev    <- Gen.choose(0.0, 1e9)
-    nplLoss   <- Gen.choose(0.0, 1e8)
-    intIncome <- Gen.choose(0.0, 1e8)
-    hhDebtSvc <- Gen.choose(0.0, 1e7)
-    totIncome <- Gen.choose(0.0, 1e10)
-    totCons   <- Gen.choose(0.0, 1e10)
-    newLoans  <- Gen.choose(0.0, 1e9)
-    nplRecov  <- Gen.choose(0.0, 1e8)
-    ca        <- Gen.choose(-1e9, 1e9)
-    valEff    <- Gen.choose(-1e8, 1e8)
+    govSpend     <- Gen.choose(0.0, 1e9)
+    govRev       <- Gen.choose(0.0, 1e9)
+    nplLoss      <- Gen.choose(0.0, 1e8)
+    intIncome    <- Gen.choose(0.0, 1e8)
+    hhDebtSvc    <- Gen.choose(0.0, 1e7)
+    totIncome    <- Gen.choose(0.0, 1e10)
+    totCons      <- Gen.choose(0.0, 1e10)
+    newLoans     <- Gen.choose(0.0, 1e9)
+    nplRecov     <- Gen.choose(0.0, 1e8)
+    ca           <- Gen.choose(-1e9, 1e9)
+    valEff       <- Gen.choose(-1e8, 1e8)
+    bankBondInc  <- Gen.choose(0.0, 1e8)
+    qePurchase   <- Gen.choose(0.0, 1e9)
+    newBondIssue <- Gen.choose(0.0, 1e9)
   yield SfcCheck.MonthlyFlows(govSpend, govRev, nplLoss, intIncome, hhDebtSvc,
-    totIncome, totCons, newLoans, nplRecov, ca, valEff)
+    totIncome, totCons, newLoans, nplRecov, ca, valEff,
+    bankBondInc, qePurchase, newBondIssue)
 
-  /** Generate (prev, curr, flows) where all 4 SFC identities hold exactly. */
+  /** Generate (prev, curr, flows) where all 5 SFC identities hold exactly. */
   val genConsistentFlowsAndSnapshots: Gen[(SfcCheck.Snapshot, SfcCheck.Snapshot, SfcCheck.MonthlyFlows)] =
     for
       prev  <- genSnapshot
       flows <- genMonthlyFlows
     yield
-      val expectedBankCapChange = -flows.nplLoss + flows.interestIncome * 0.3 + flows.hhDebtService * 0.3
+      val expectedBankCapChange = -flows.nplLoss + flows.interestIncome * 0.3 +
+        flows.hhDebtService * 0.3 + flows.bankBondIncome * 0.3
       val expectedDepChange = flows.totalIncome - flows.totalConsumption
       val expectedGovDebtChange = flows.govSpending - flows.govRevenue
       val expectedNfaChange = flows.currentAccount + flows.valuationEffect
@@ -215,6 +228,8 @@ object Generators:
         govDebt = prev.govDebt + expectedGovDebtChange,
         nfa = prev.nfa + expectedNfaChange
       )
+      // Bond clearing: bankBondHoldings + nbpBondHoldings = bondsOutstanding
+      // genSnapshot already ensures this for prev; curr inherits prev's bond fields unchanged
       (prev, curr, flows)
 
   // --- RunConfig generators ---
@@ -233,6 +248,15 @@ object Generators:
     n   <- Gen.choose(2, 200)
     arr <- Gen.listOfN(n, Gen.choose(0.0, 100000.0))
   yield arr.toArray.sorted
+
+  // --- NbpState generator ---
+
+  val genNbpState: Gen[NbpState] = for
+    rate     <- genRate
+    bonds    <- Gen.choose(0.0, 1e10)
+    qeActive <- Gen.oneOf(true, false)
+    qeCum    <- Gen.choose(0.0, 1e10)
+  yield NbpState(rate, bonds, qeActive, qeCum)
 
   // --- I-O matrix generator ---
 

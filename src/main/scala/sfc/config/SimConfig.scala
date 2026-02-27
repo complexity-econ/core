@@ -149,6 +149,16 @@ object Config:
   val GovBenefitM4to6: Double = sys.env.get("GOV_BENEFIT_M4_6").map(_.trim.toDouble).getOrElse(1200.0)
   val GovBenefitDuration: Int = sys.env.get("GOV_BENEFIT_DURATION").map(_.trim.toInt).getOrElse(6)
 
+  // Bond market (Mechanism 3)
+  val GovBondMarket: Boolean = sys.env.get("GOV_BOND_MARKET").map(_.trim.toBoolean).getOrElse(true)
+  val GovFiscalRiskBeta: Double = sys.env.get("GOV_FISCAL_RISK_BETA").map(_.trim.toDouble).getOrElse(2.0)
+  val GovTermPremium: Double = sys.env.get("GOV_TERM_PREMIUM").map(_.trim.toDouble).getOrElse(0.005)
+
+  // QE (Mechanism 4)
+  val NbpQe: Boolean = sys.env.get("NBP_QE").map(_.trim.toBoolean).getOrElse(false)
+  val NbpQePace: Double = sys.env.get("NBP_QE_PACE").map(_.trim.toDouble).getOrElse(5e9) * ScaleFactor
+  val NbpQeMaxGdpShare: Double = sys.env.get("NBP_QE_MAX_GDP_SHARE").map(_.trim.toDouble).getOrElse(0.30)
+
   // Banking system
   val InitBankCapital  = 500000000.0 * ScaleFactor
   val BaseSpread       = 0.015       // NBP MIR corporate spread 2024

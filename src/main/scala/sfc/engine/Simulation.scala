@@ -97,12 +97,17 @@ object Sectors:
 
   def updateGov(prev: GovState, citPaid: Double, vat: Double,
     bdpActive: Boolean, bdpAmount: Double, priceLevel: Double,
-    unempBenefitSpend: Double): GovState =
+    unempBenefitSpend: Double,
+    debtService: Double = 0.0,
+    nbpRemittance: Double = 0.0): GovState =
     val bdpSpend   = if bdpActive then Config.TotalPopulation.toDouble * bdpAmount else 0.0
-    val totalSpend = bdpSpend + unempBenefitSpend + Config.GovBaseSpending * priceLevel
-    val totalRev   = citPaid + vat
+    val totalSpend = bdpSpend + unempBenefitSpend + Config.GovBaseSpending * priceLevel + debtService
+    val totalRev   = citPaid + vat + nbpRemittance
     val deficit    = totalSpend - totalRev
-    GovState(bdpActive, totalRev, bdpSpend, deficit, prev.cumulativeDebt + deficit, unempBenefitSpend)
+    val newBondsOutstanding = if Config.GovBondMarket then prev.bondsOutstanding + deficit
+                              else prev.bondsOutstanding
+    GovState(bdpActive, totalRev, bdpSpend, deficit, prev.cumulativeDebt + deficit,
+      unempBenefitSpend, newBondsOutstanding, prev.bondYield, debtService)
 
 object Simulation:
   /** Step with optional individual households.
@@ -218,11 +223,7 @@ object Simulation:
 
     // SFC: household debt service flows to bank as interest income
     val hhDebtService = hhAgg.map(_.totalDebtService).getOrElse(0.0)
-    val newBank = w.bank.copy(
-      totalLoans = Math.max(0, w.bank.totalLoans + sumNewLoans - nplNew * Config.LoanRecovery),
-      nplAmount  = Math.max(0, w.bank.nplAmount + nplNew - w.bank.nplAmount * 0.05),
-      capital    = w.bank.capital - nplLoss + intIncome * 0.3 + hhDebtService * 0.3,
-      deposits   = w.bank.deposits + (totalIncome - consumption))
+    // Note: newBank construction deferred until after bond market block (needs bankBondIncome)
 
     val living2 = ioFirms.filter(FirmOps.isAlive)
     val nLiving = living2.length.toDouble
@@ -269,9 +270,40 @@ object Simulation:
                     else (newForex.exchangeRate / w.forex.exchangeRate) - 1.0
     val newRefRate = Sectors.updateCbRate(w.nbp.referenceRate, newInfl, exRateChg, employed, rc)
 
+    // --- Bond market + QE ---
+    val annualGdpForBonds = w.gdpProxy * 12.0
+    val debtToGdp = if annualGdpForBonds > 0 then w.gov.cumulativeDebt / annualGdpForBonds else 0.0
+    val nbpBondGdpShare = if annualGdpForBonds > 0 then w.nbp.govBondHoldings / annualGdpForBonds else 0.0
+    val newBondYield = CentralBankLogic.bondYield(newRefRate, debtToGdp, nbpBondGdpShare, w.bop.nfa)
+
+    // Debt service: use LAGGED bond stock (standard SFC approach — avoids circular dependency)
+    val monthlyDebtService = w.gov.bondsOutstanding * newBondYield / 12.0
+    val bankBondIncome = w.bank.govBondHoldings * newBondYield / 12.0
+    val nbpBondIncome = w.nbp.govBondHoldings * newBondYield / 12.0
+    val nbpRemittance = nbpBondIncome
+
+    // QE logic
+    val qeActivate = CentralBankLogic.shouldActivateQe(newRefRate, newInfl)
+    val qeTaper = CentralBankLogic.shouldTaperQe(newInfl)
+    val qeActive = if qeActivate then true
+                   else if qeTaper then false
+                   else w.nbp.qeActive
+    val preQeNbp = NbpState(newRefRate, w.nbp.govBondHoldings, qeActive, w.nbp.qeCumulative)
+    val (postQeNbp, qePurchaseAmount) = CentralBankLogic.executeQe(
+      preQeNbp, w.bank.govBondHoldings, annualGdpForBonds)
+
+    val newBank = w.bank.copy(
+      totalLoans = Math.max(0, w.bank.totalLoans + sumNewLoans - nplNew * Config.LoanRecovery),
+      nplAmount  = Math.max(0, w.bank.nplAmount + nplNew - w.bank.nplAmount * 0.05),
+      capital    = w.bank.capital - nplLoss + intIncome * 0.3 + hhDebtService * 0.3
+                   + bankBondIncome * 0.3,
+      deposits   = w.bank.deposits + (totalIncome - consumption))
+
     val vat = consumption * Config.VatRate
     val unempBenefitSpend = hhAgg.map(_.totalUnempBenefits).getOrElse(0.0)
-    val newGov = Sectors.updateGov(w.gov, sumTax, vat, bdpActive, bdp, newPrice, unempBenefitSpend)
+    val newGov = Sectors.updateGov(w.gov, sumTax, vat, bdpActive, bdp, newPrice, unempBenefitSpend,
+      monthlyDebtService, nbpRemittance)
+    val newGovWithYield = newGov.copy(bondYield = newBondYield)
 
     // Recompute hhAgg from final households if in individual mode
     // Carry retraining counters from the monthly step (hhAgg) — not zeros
@@ -282,8 +314,13 @@ object Simulation:
         monthlyRetAttempts, monthlyRetSuccesses, bdp)
     }
 
-    val newW = World(m, newInfl, newPrice, demandMult, newGov, NbpState(newRefRate),
-      newBank, newForex,
+    // Bond allocation: new issuance goes to bank; QE transfers from bank to NBP
+    val finalBank = if Config.GovBondMarket then
+      newBank.copy(govBondHoldings = newBank.govBondHoldings + newGovWithYield.deficit - qePurchaseAmount)
+    else newBank.copy(govBondHoldings = newBank.govBondHoldings - qePurchaseAmount)
+
+    val newW = World(m, newInfl, newPrice, demandMult, newGovWithYield, postQeNbp,
+      finalBank, newForex,
       HhState(employed, newWage, resWage, totalIncome, consumption, domesticCons, importCons),
       autoR, hybR, gdp, newSigmas,
       ioFlows = totalIoPaid,
@@ -295,8 +332,9 @@ object Simulation:
     val prevSnap = SfcCheck.snapshot(w, firms, households)
     val currSnap = SfcCheck.snapshot(newW, rewiredFirms, finalHouseholds)
     val sfcFlows = SfcCheck.MonthlyFlows(
-      govSpending = newGov.bdpSpending + newGov.unempBenefitSpend + Config.GovBaseSpending * newPrice,
-      govRevenue = sumTax + vat,
+      govSpending = newGovWithYield.bdpSpending + newGovWithYield.unempBenefitSpend
+        + Config.GovBaseSpending * newPrice + monthlyDebtService,
+      govRevenue = sumTax + vat + nbpRemittance,
       nplLoss = nplLoss,
       interestIncome = intIncome,
       hhDebtService = hhDebtService,
@@ -305,7 +343,10 @@ object Simulation:
       newLoans = sumNewLoans,
       nplRecovery = nplNew * Config.LoanRecovery,
       currentAccount = newBop.currentAccount,
-      valuationEffect = oeValuationEffect
+      valuationEffect = oeValuationEffect,
+      bankBondIncome = bankBondIncome,
+      qePurchase = qePurchaseAmount,
+      newBondIssuance = if Config.GovBondMarket then newGovWithYield.deficit else 0.0
     )
     val sfcResult = SfcCheck.validate(m, prevSnap, currSnap, sfcFlows)
     if !sfcResult.passed then
@@ -314,6 +355,7 @@ object Simulation:
         f" bankCap=${sfcResult.bankCapitalError}%.2f" +
         f" bankDep=${sfcResult.bankDepositsError}%.2f" +
         f" govDebt=${sfcResult.govDebtError}%.2f" +
-        f" nfa=${sfcResult.nfaError}%.2f")
+        f" nfa=${sfcResult.nfaError}%.2f" +
+        f" bondClr=${sfcResult.bondClearingError}%.2f")
 
     (newW, rewiredFirms, finalHouseholds)

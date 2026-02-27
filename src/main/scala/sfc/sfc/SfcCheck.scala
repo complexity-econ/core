@@ -15,7 +15,10 @@ object SfcCheck:
     bankDeposits: Double,
     bankLoans: Double,
     govDebt: Double,
-    nfa: Double = 0.0
+    nfa: Double = 0.0,
+    bankBondHoldings: Double = 0.0,
+    nbpBondHoldings: Double = 0.0,
+    bondsOutstanding: Double = 0.0
   )
 
   /** Flows observed during a single month (computed in Simulation.step).
@@ -31,16 +34,20 @@ object SfcCheck:
     newLoans: Double,
     nplRecovery: Double,
     currentAccount: Double = 0.0,
-    valuationEffect: Double = 0.0
+    valuationEffect: Double = 0.0,
+    bankBondIncome: Double = 0.0,
+    qePurchase: Double = 0.0,
+    newBondIssuance: Double = 0.0
   )
 
-  /** Result of the SFC check: four exact balance-sheet identity checks. */
+  /** Result of the SFC check: five exact balance-sheet identity checks. */
   case class SfcResult(
     month: Int,
     bankCapitalError: Double,
     bankDepositsError: Double,
     govDebtError: Double,
     nfaError: Double = 0.0,
+    bondClearingError: Double = 0.0,
     passed: Boolean
   )
 
@@ -57,18 +64,23 @@ object SfcCheck:
       bankDeposits = w.bank.deposits,
       bankLoans = w.bank.totalLoans,
       govDebt = w.gov.cumulativeDebt,
-      nfa = w.bop.nfa
+      nfa = w.bop.nfa,
+      bankBondHoldings = w.bank.govBondHoldings,
+      nbpBondHoldings = w.nbp.govBondHoldings,
+      bondsOutstanding = w.gov.bondsOutstanding
     )
 
-  /** Validate three exact balance-sheet identities.
+  /** Validate five exact balance-sheet identities.
     *
     * The model uses a demand multiplier (not direct flow-of-funds) for the
     * firm revenue channel, so the full monetary circuit cannot close exactly.
     * Instead we check identities that ARE exact by construction:
     *
-    * 1. Bank capital:  Δ = -nplLoss + interestIncome × 0.3 + hhDebtService × 0.3
+    * 1. Bank capital:  Δ = -nplLoss + interestIncome × 0.3 + hhDebtService × 0.3 + bankBondIncome × 0.3
     * 2. Bank deposits: Δ = totalIncome - totalConsumption
     * 3. Gov debt:      Δ = govSpending - govRevenue
+    * 4. NFA:           Δ = currentAccount + valuationEffect
+    * 5. Bond clearing: bankBondHoldings + nbpBondHoldings = bondsOutstanding
     *
     * These catch: mis-routed flows (e.g. rent subtracted from HH but not added
     * to bank/consumption), refactoring errors in balance sheet updates, and
@@ -77,9 +89,10 @@ object SfcCheck:
                flows: MonthlyFlows, tolerance: Double = 1.0,
                nfaTolerance: Double = 10.0): SfcResult =
 
-    // Identity 1: Bank capital
+    // Identity 1: Bank capital (includes bond coupon income)
     val expectedBankCapChange = -flows.nplLoss +
-      flows.interestIncome * 0.3 + flows.hhDebtService * 0.3
+      flows.interestIncome * 0.3 + flows.hhDebtService * 0.3 +
+      flows.bankBondIncome * 0.3
     val actualBankCapChange = curr.bankCapital - prev.bankCapital
     val bankCapErr = actualBankCapChange - expectedBankCapChange
 
@@ -100,12 +113,18 @@ object SfcCheck:
     val actualNfaChange = curr.nfa - prev.nfa
     val nfaErr = actualNfaChange - expectedNfaChange
 
+    // Identity 5: Bond clearing
+    // All outstanding bonds must be held by bank + NBP (no other holders in Phase 2)
+    // When GovBondMarket=false: all bond fields = 0.0, trivially passes.
+    val bondClearingErr = (curr.bankBondHoldings + curr.nbpBondHoldings) - curr.bondsOutstanding
+
     // NFA uses wider tolerance (default 10 PLN) because cumulative NFA
     // values can reach billions, causing floating-point cancellation
     // in the (curr.nfa - prev.nfa) subtraction.
     val passed = Math.abs(bankCapErr) < tolerance &&
                  Math.abs(bankDepErr) < tolerance &&
                  Math.abs(govDebtErr) < tolerance &&
-                 Math.abs(nfaErr) < nfaTolerance
+                 Math.abs(nfaErr) < nfaTolerance &&
+                 Math.abs(bondClearingErr) < tolerance
 
-    SfcResult(month, bankCapErr, bankDepErr, govDebtErr, nfaErr, passed)
+    SfcResult(month, bankCapErr, bankDepErr, govDebtErr, nfaErr, bondClearingErr, passed)

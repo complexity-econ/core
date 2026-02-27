@@ -156,6 +156,29 @@ class SimulationPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPr
     }
   }
 
+  it should "include debtService in deficit calculation" in {
+    forAll(genGovInputs, Gen.choose(0.0, 1e7)) {
+      (inputs: (GovState, Double, Double, Boolean, Double, Double, Double), debtSvc: Double) =>
+        val (prev, cit, vat, active, bdp, price, unempBen) = inputs
+        val gov = Sectors.updateGov(prev, cit, vat, active, bdp, price, unempBen, debtSvc)
+        val totalRev = cit + vat
+        val bdpSpend = if active then Config.TotalPopulation.toDouble * bdp else 0.0
+        val totalSpend = bdpSpend + unempBen + Config.GovBaseSpending * price + debtSvc
+        gov.deficit shouldBe (totalSpend - totalRev +- 1.0)
+    }
+  }
+
+  it should "include nbpRemittance in revenue" in {
+    forAll(genGovInputs, Gen.choose(0.0, 1e7)) {
+      (inputs: (GovState, Double, Double, Boolean, Double, Double, Double), nbpRemit: Double) =>
+        val (prev, cit, vat, active, bdp, price, unempBen) = inputs
+        val govNoRemit = Sectors.updateGov(prev, cit, vat, active, bdp, price, unempBen)
+        val govWithRemit = Sectors.updateGov(prev, cit, vat, active, bdp, price, unempBen, 0.0, nbpRemit)
+        // nbpRemittance reduces deficit
+        govWithRemit.deficit shouldBe (govNoRemit.deficit - nbpRemit +- 1.0)
+    }
+  }
+
   // --- updateForeign properties ---
 
   "updateForeign" should "keep fixed exchange rate for EUR" in {

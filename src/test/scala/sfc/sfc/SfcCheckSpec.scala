@@ -238,6 +238,43 @@ class SfcCheckSpec extends AnyFlatSpec with Matchers:
     SfcCheck.validate(1, prev, curr, zeroFlows, tolerance = 10.0).passed shouldBe true
   }
 
+  // ---- Identity 5: Bond clearing ----
+
+  "SfcCheck.validate (bond clearing)" should "pass when holdings sum to outstanding" in {
+    val prev = SfcCheck.Snapshot(0, 0, 500000, 0, 200000, 1000000, 0, 0, 0.0,
+      bankBondHoldings = 5000.0, nbpBondHoldings = 3000.0, bondsOutstanding = 8000.0)
+    val result = SfcCheck.validate(1, prev, prev, zeroFlows)
+    result.bondClearingError shouldBe 0.0 +- 0.01
+    result.passed shouldBe true
+  }
+
+  it should "detect error when holdings don't sum to outstanding" in {
+    val prev = SfcCheck.Snapshot(0, 0, 500000, 0, 200000, 1000000, 0, 0, 0.0,
+      bankBondHoldings = 5000.0, nbpBondHoldings = 3000.0, bondsOutstanding = 10000.0)
+    val result = SfcCheck.validate(1, prev, prev, zeroFlows)
+    result.bondClearingError shouldBe -2000.0 +- 0.01
+    result.passed shouldBe false
+  }
+
+  it should "pass trivially when all bond fields are zero" in {
+    val prev = SfcCheck.Snapshot(0, 0, 500000, 0, 200000, 1000000, 0, 0)
+    val result = SfcCheck.validate(1, prev, prev, zeroFlows)
+    result.bondClearingError shouldBe 0.0
+    result.passed shouldBe true
+  }
+
+  // ---- Identity 1 with bond income ----
+
+  "SfcCheck.validate (bank capital with bond income)" should "include bankBondIncome in Identity 1" in {
+    val prev = SfcCheck.Snapshot(0, 0, 500000, 0, 200000, 1000000, 0, 0)
+    // bankBondIncome=6000 → 6000*0.3 = 1800 added to bank capital
+    val curr = prev.copy(bankCapital = prev.bankCapital + 1800)
+    val flows = zeroFlows.copy(bankBondIncome = 6000)
+    val result = SfcCheck.validate(1, prev, curr, flows)
+    result.bankCapitalError shouldBe 0.0 +- 0.01
+    result.passed shouldBe true
+  }
+
   // ---- Unemployment benefit SFC flow ----
 
   "SfcCheck.validate (gov debt with benefits)" should "pass when benefits included in govSpending" in {
