@@ -101,7 +101,16 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
     0, 0, Config.BaseRevenue * Config.FirmsCount,
     SECTORS.map(_.sigma).toVector,
     bankingSector = initBankingSector,
-    demographics = initDemographics)
+    demographics = initDemographics,
+    equity = if Config.GpwEnabled then
+      val initEq = EquityMarket.initial
+      // Aggregate mode: initial HH equity wealth = participation × avg savings × equity fraction
+      val initHhEq = if Config.GpwHhEquity then
+        Config.TotalPopulation * Config.GpwHhEquityFrac *
+          Math.exp(Config.HhSavingsMu) * 0.05
+      else 0.0
+      initEq.copy(hhEquityWealth = initHhEq)
+    else EquityMarket.zero)
 
   // Collect time-series: 120 rows x N columns
   // Columns: Month, Inflation, Unemployment, AutoRatio+HybridRatio, ExRate, MarketWage,
@@ -113,7 +122,7 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
   //          IoFlows: total intermediate market payments (Paper-07),
   //          IoGdpRatio: intermediate flows / GDP,
   //          InterbankRate, MinBankCAR, MaxBankNPL, BankFailures
-  val nCols = 82
+  val nCols = 92
   val results = Array.ofDim[Double](Config.Duration, nCols)
 
   for t <- 0 until Config.Duration do
@@ -261,7 +270,21 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
         val alive = bs.banks.filterNot(_.failed)
         if alive.isEmpty then 0.0
         else alive.map(b => Macroprudential.effectiveMinCar(b.id, world.macropru.ccyb)).max
-      }.getOrElse(Macroprudential.effectiveMinCar(0, world.macropru.ccyb))  // 81: EffectiveMinCar
+      }.getOrElse(Macroprudential.effectiveMinCar(0, world.macropru.ccyb)),  // 81: EffectiveMinCar
+      // GPW Equity Market
+      world.equity.index,           // 82: GpwIndex
+      world.equity.marketCap,       // 83: GpwMarketCap
+      (if world.equity.earningsYield > 0 then 1.0 / world.equity.earningsYield else 0.0),  // 84: GpwPE
+      world.equity.dividendYield,   // 85: GpwDivYield
+      // GPW Firm Issuance
+      world.equity.lastIssuance,    // 86: EquityIssuanceTotal
+      living.map(_.equityRaised).sum / Math.max(1.0, living.map(f => f.debt + f.equityRaised).sum),  // 87: EquityFinancedFrac
+      // GPW Household Equity
+      world.equity.hhEquityWealth,  // 88: HhEquityWealth
+      world.equity.lastWealthEffect, // 89: EquityWealthEffect
+      // GPW Dividends
+      world.equity.lastDomesticDividends,  // 90: DomesticDividends
+      world.equity.lastForeignDividends    // 91: ForeignDividendOutflow
     )
 
   RunResult(results, world.hhAgg)
@@ -337,7 +360,11 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
     "WIBOR_1M;WIBOR_3M;WIBOR_6M;" +
     "ZusContributions;ZusPensionPayments;ZusGovSubvention;FusBalance;" +
     "PpkContributions;PpkBondHoldings;NRetirees;WorkingAgePop;MonthlyRetirements;" +
-    "CCyB;CreditToGdpGap;EffectiveMinCar\n")
+    "CCyB;CreditToGdpGap;EffectiveMinCar;" +
+    "GpwIndex;GpwMarketCap;GpwPE;GpwDivYield;" +
+    "EquityIssuanceTotal;EquityFinancedFrac;" +
+    "HhEquityWealth;EquityWealthEffect;" +
+    "DomesticDividends;ForeignDividendOutflow\n")
   for seed <- 0 until nSeeds do
     val last = allRuns(seed)(nMonths - 1)
     termPw.write(s"${seed + 1}")
@@ -413,7 +440,11 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
     "WIBOR_1M", "WIBOR_3M", "WIBOR_6M",
     "ZusContributions", "ZusPensionPayments", "ZusGovSubvention", "FusBalance",
     "PpkContributions", "PpkBondHoldings", "NRetirees", "WorkingAgePop", "MonthlyRetirements",
-    "CCyB", "CreditToGdpGap", "EffectiveMinCar")
+    "CCyB", "CreditToGdpGap", "EffectiveMinCar",
+    "GpwIndex", "GpwMarketCap", "GpwPE", "GpwDivYield",
+    "EquityIssuanceTotal", "EquityFinancedFrac",
+    "HhEquityWealth", "EquityWealthEffect",
+    "DomesticDividends", "ForeignDividendOutflow")
   // Header: Month, then for each metric: mean, std, p05, p95
   aggPw.write("Month")
   for c <- 1 until nCols do

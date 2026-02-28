@@ -331,6 +331,28 @@ object Config:
   val OePortfolioSensitivity   = 0.20    // rate differential → portfolio flows
   val OeRiskPremiumSensitivity = 0.10    // NFA/GDP → risk premium on ER
 
+  // GPW Equity Market (v4.0)
+  val GpwEnabled: Boolean = sys.env.get("GPW_ENABLED").map(_.trim.toBoolean).getOrElse(false)
+  val GpwInitIndex: Double = sys.env.get("GPW_INIT_INDEX").map(_.trim.toDouble).getOrElse(2400.0)
+  val GpwInitMcap: Double = sys.env.get("GPW_INIT_MCAP").map(_.trim.toDouble).getOrElse(1.4e12) * ScaleFactor
+  val GpwPeMean: Double = sys.env.get("GPW_PE_MEAN").map(_.trim.toDouble).getOrElse(10.0)
+  val GpwDivYield: Double = sys.env.get("GPW_DIV_YIELD").map(_.trim.toDouble).getOrElse(0.057)
+  val GpwForeignShare: Double = sys.env.get("GPW_FOREIGN_SHARE").map(_.trim.toDouble).getOrElse(0.67)
+
+  // GPW Firm Equity Issuance
+  val GpwEquityIssuance: Boolean = sys.env.get("GPW_EQUITY_ISSUANCE").map(_.trim.toBoolean).getOrElse(false)
+  val GpwIssuanceFrac: Double = sys.env.get("GPW_ISSUANCE_FRAC").map(_.trim.toDouble).getOrElse(0.10)
+  val GpwIssuanceMinSize: Int = sys.env.get("GPW_ISSUANCE_MIN_SIZE").map(_.trim.toInt).getOrElse(5)
+
+  // GPW Household Equity Portfolio
+  val GpwHhEquity: Boolean = sys.env.get("GPW_HH_EQUITY").map(_.trim.toBoolean).getOrElse(false)
+  val GpwHhEquityFrac: Double = sys.env.get("GPW_HH_EQUITY_FRAC").map(_.trim.toDouble).getOrElse(0.07)
+  val GpwWealthEffectMpc: Double = sys.env.get("GPW_WEALTH_EFFECT_MPC").map(_.trim.toDouble).getOrElse(0.02)
+
+  // GPW Dividends
+  val GpwDividends: Boolean = sys.env.get("GPW_DIVIDENDS").map(_.trim.toBoolean).getOrElse(false)
+  val GpwDivTax: Double = sys.env.get("GPW_DIV_TAX").map(_.trim.toDouble).getOrElse(0.19)
+
   // Heterogeneous households (Paper-06)
   val HhCount = sys.env.get("HH_COUNT").map(_.trim.toInt).getOrElse(TotalPopulation)
 

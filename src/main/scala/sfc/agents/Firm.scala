@@ -25,7 +25,8 @@ case class Firm(
   digitalReadiness: Double,
   sector: Int,              // Index into SECTORS
   neighbors: Array[Int],    // Network adjacency (firm IDs)
-  bankId: Int = 0           // Multi-bank: index into BankingSectorState.banks
+  bankId: Int = 0,          // Multi-bank: index into BankingSectorState.banks
+  equityRaised: Double = 0.0 // GPW: cumulative equity raised via IPO/SPO
 )
 
 object FirmOps:
@@ -67,7 +68,7 @@ object FirmOps:
 // ---- Firm step result ----
 
 case class FirmResult(firm: Firm, taxPaid: Double, capexSpent: Double,
-  techImports: Double, newLoan: Double)
+  techImports: Double, newLoan: Double, equityIssuance: Double = 0.0)
 
 // ---- Firm decision logic ----
 

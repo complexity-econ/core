@@ -198,9 +198,11 @@ object Simulation:
                 BankingSector.hhDepositRate(w.nbp.referenceRate)).toArray
               case None => Array(BankingSector.hhDepositRate(w.nbp.referenceRate))
           ))
+          // Equity index return for HH wealth revaluation (lagged: uses previous month's return)
+          val eqReturn = w.equity.monthlyReturn
           // Household monthly step
           val (newHhs, agg, pbf) = HouseholdLogic.step(
-            afterWages, w, bdp, newWage, resWage, importAdj, Random, nBanksHh, hhBankRates)
+            afterWages, w, bdp, newWage, resWage, importAdj, Random, nBanksHh, hhBankRates, eqReturn)
           (agg.totalIncome, agg.consumption, agg.importConsumption,
            agg.domesticConsumption, Some(newHhs), Some(agg), pbf)
 
@@ -236,6 +238,7 @@ object Simulation:
     var sumCapex    = 0.0
     var sumTechImp  = 0.0
     var sumNewLoans = 0.0
+    var sumEquityIssuance = 0.0
 
     val macro4firms = w.copy(
       month = m, demandMultiplier = demandMult,
@@ -249,9 +252,26 @@ object Simulation:
       sumTax      += r.taxPaid
       sumCapex    += r.capexSpent
       sumTechImp  += r.techImports
-      sumNewLoans += r.newLoan
-      perBankNewLoans(f.bankId) += r.newLoan
-      r.firm
+
+      // GPW equity issuance: eligible firms replace fraction of loan with equity
+      val (actualLoan, equityAmt, updatedFirm) =
+        if Config.GpwEnabled && Config.GpwEquityIssuance && r.newLoan > 0 &&
+           FirmOps.workers(r.firm) >= Config.GpwIssuanceMinSize then
+          val eqAmt = r.newLoan * Config.GpwIssuanceFrac
+          val adjLoan = r.newLoan - eqAmt
+          // Firm: reduce debt by equity portion, track equityRaised
+          val f2 = r.firm.copy(
+            debt = r.firm.debt - eqAmt,
+            equityRaised = r.firm.equityRaised + eqAmt
+          )
+          (adjLoan, eqAmt, f2)
+        else
+          (r.newLoan, 0.0, r.firm)
+
+      sumNewLoans += actualLoan
+      sumEquityIssuance += equityAmt
+      perBankNewLoans(f.bankId) += actualLoan
+      updatedFirm
     }
 
     // Track per-bank workers for deposit partitioning
@@ -323,12 +343,42 @@ object Simulation:
     val (newInfl, newPrice) = Sectors.updateInflation(
       w.inflation, w.priceLevel, demandMult, wageGrowth, exDev, autoR, hybR, rc)
 
+    // Firm profits for equity market (sum of after-tax profits of living firms)
+    val firmProfits = living2.map { f =>
+      val rev = FirmOps.capacity(f) * demandMult * newPrice
+      val labor = FirmOps.workers(f) * newWage * SECTORS(f.sector).wageMultiplier
+      val other = Config.OtherCosts * newPrice
+      val aiMaint = f.tech match
+        case _: TechState.Automated => Config.AiOpex * (0.60 + 0.40 * newPrice)
+        case _: TechState.Hybrid    => Config.HybridOpex * (0.60 + 0.40 * newPrice)
+        case _                      => 0.0
+      val interest = f.debt * getLendRate(f.bankId) / 12.0
+      val gross = rev - labor - other - aiMaint - interest
+      val tax = Math.max(0.0, gross) * Config.CitRate
+      Math.max(0.0, gross - tax)
+    }.sum
+
+    // GPW equity market step
+    val prevGdp = if w.gdpProxy > 0 then w.gdpProxy else 1.0
+    val gdpGrowthForEquity = (gdp - prevGdp) / prevGdp
+    val equityAfterIndex = EquityMarket.step(w.equity, w.nbp.referenceRate, newInfl,
+      gdpGrowthForEquity, firmProfits)
+    val equityAfterIssuance = EquityMarket.processIssuance(sumEquityIssuance, equityAfterIndex)
+    // HH equity wealth updated later (after reassignedHouseholds is available)
+
+    // GPW dividends: firm profits → HH income + foreign outflow + tax
+    val (netDomesticDividends, foreignDividendOutflow, dividendTax) =
+      if Config.GpwEnabled && Config.GpwDividends then
+        EquityMarket.computeDividends(firmProfits, equityAfterIssuance.dividendYield,
+          equityAfterIssuance.marketCap, equityAfterIssuance.foreignOwnership)
+      else (0.0, 0.0, 0.0)
+
     // Open economy (Paper-08) or legacy foreign sector
     val sectorOutputs = (0 until 6).map { s =>
       living2.filter(_.sector == s).map(f => FirmOps.capacity(f) * demandMult * w.priceLevel).sum
     }.toVector
 
-    val (newForex, newBop, oeValuationEffect, fxResult) = if Config.OeEnabled then
+    val (newForex, newBop0, oeValuationEffect, fxResult) = if Config.OeEnabled then
       val oeResult = OpenEconomy.step(
         w.bop, w.forex, importCons, sumTechImp,
         autoR, w.nbp.referenceRate, gdp, w.priceLevel,
@@ -338,6 +388,14 @@ object Simulation:
     else
       val fx = Sectors.updateForeign(w.forex, importCons, sumTechImp, autoR, w.nbp.referenceRate, gdp, rc)
       (fx, w.bop, 0.0, CentralBankLogic.FxInterventionResult(0.0, 0.0, w.nbp.fxReserves))
+
+    // Adjust BOP for foreign dividend outflow (primary income component)
+    val newBop = if foreignDividendOutflow > 0 && Config.OeEnabled then
+      newBop0.copy(
+        currentAccount = newBop0.currentAccount - foreignDividendOutflow,
+        nfa = newBop0.nfa - foreignDividendOutflow
+      )
+    else newBop0
 
     val exRateChg = if rc.isEurozone then 0.0
                     else (newForex.exchangeRate / w.forex.exchangeRate) - 1.0
@@ -385,7 +443,7 @@ object Simulation:
 
     val vat = consumption * Config.VatRate
     val unempBenefitSpend = hhAgg.map(_.totalUnempBenefits).getOrElse(0.0)
-    val newGov = Sectors.updateGov(w.gov, sumTax, vat, bdpActive, bdp, newPrice, unempBenefitSpend,
+    val newGov = Sectors.updateGov(w.gov, sumTax + dividendTax, vat, bdpActive, bdp, newPrice, unempBenefitSpend,
       monthlyDebtService, nbpRemittance, newZus.govSubvention)
     val newGovWithYield = newGov.copy(bondYield = newBondYield)
 
@@ -401,7 +459,8 @@ object Simulation:
                    + bankBondIncome * 0.3 - depositInterestPaid * 0.3
                    + totalReserveInterest * 0.3 + totalStandingFacilityIncome * 0.3
                    + totalInterbankInterest * 0.3,
-      deposits   = w.bank.deposits + (totalIncome - consumption) + jstDepositChange)
+      deposits   = w.bank.deposits + (totalIncome - consumption) + jstDepositChange
+                   + netDomesticDividends - foreignDividendOutflow)
 
     // Recompute hhAgg from final households if in individual mode
     // Carry retraining counters from the monthly step (hhAgg) — not zeros
@@ -459,7 +518,11 @@ object Simulation:
           val bankSfInc = if perBankStandingFac.nonEmpty then perBankStandingFac(bId) else 0.0
           val bankIbInt = if perBankInterbankInt.nonEmpty then perBankInterbankInt(bId) else 0.0
           val newLoansTotal = Math.max(0, b.loans + perBankNewLoans(bId) - bankNplNew * Config.LoanRecovery)
-          val newDep = b.deposits + (bankIncomeShare - bankConsShare)
+          // Dividend deposit flows: proportional to worker share
+          val ws = if totalWorkers > 0 then perBankWorkers(bId) / totalWorkers else 0.0
+          val bankDivInflow = netDomesticDividends * ws
+          val bankDivOutflow = foreignDividendOutflow * ws
+          val newDep = b.deposits + (bankIncomeShare - bankConsShare) + bankDivInflow - bankDivOutflow
           b.copy(
             loans = newLoansTotal,
             nplAmount = Math.max(0, b.nplAmount + bankNplNew - b.nplAmount * 0.05),
@@ -516,6 +579,29 @@ object Simulation:
       Some(MonetaryAggregates.compute(resolvedBank.deposits, totalReserves))
     else None
 
+    // GPW: finalize equity state with HH equity wealth
+    val (totalHhEquityWealth, totalWealthEffectAgg) = reassignedHouseholds match
+      case Some(hhs) =>
+        (hhs.map(_.equityWealth).sum, 0.0)  // wealth effect already embedded in individual consumption
+      case None =>
+        // Aggregate mode: HH equity wealth = previous × (1 + return)
+        if Config.GpwHhEquity && Config.GpwEnabled then
+          val prevHhEq = w.equity.hhEquityWealth
+          val newHhEq = prevHhEq * (1.0 + equityAfterIssuance.monthlyReturn)
+          val wEffect = if equityAfterIssuance.monthlyReturn > 0 then
+            (newHhEq - prevHhEq) * Config.GpwWealthEffectMpc
+          else 0.0
+          (newHhEq, wEffect)
+        else (0.0, 0.0)
+
+    val equityAfterStep = equityAfterIssuance.copy(
+      hhEquityWealth = totalHhEquityWealth,
+      lastWealthEffect = totalWealthEffectAgg,
+      lastDomesticDividends = netDomesticDividends,
+      lastForeignDividends = foreignDividendOutflow,
+      lastDividendTax = dividendTax
+    )
+
     val newW = World(m, newInfl, newPrice, demandMult, newGovWithYield, postFxNbp,
       resolvedBank, newForex,
       HhState(employed, newWage, resWage, totalIncome, consumption, domesticCons, importCons),
@@ -530,7 +616,8 @@ object Simulation:
       zus = newZus,
       ppk = finalPpk,
       demographics = newDemographics,
-      macropru = newMacropru)
+      macropru = newMacropru,
+      equity = equityAfterStep)
 
     // SFC accounting check: verify exact balance-sheet identities every step
     val prevSnap = SfcCheck.snapshot(w, firms, households)
@@ -538,7 +625,7 @@ object Simulation:
     val sfcFlows = SfcCheck.MonthlyFlows(
       govSpending = newGovWithYield.bdpSpending + newGovWithYield.unempBenefitSpend
         + Config.GovBaseSpending * newPrice + monthlyDebtService + newZus.govSubvention,
-      govRevenue = sumTax + vat + nbpRemittance,
+      govRevenue = sumTax + dividendTax + vat + nbpRemittance,
       nplLoss = nplLoss,
       interestIncome = intIncome,
       hhDebtService = hhDebtService,
@@ -560,7 +647,10 @@ object Simulation:
       jstRevenue = newJst.revenue,
       zusContributions = newZus.contributions,
       zusPensionPayments = newZus.pensionPayments,
-      zusGovSubvention = newZus.govSubvention
+      zusGovSubvention = newZus.govSubvention,
+      dividendIncome = netDomesticDividends,
+      foreignDividendOutflow = foreignDividendOutflow,
+      dividendTax = dividendTax
     )
     val sfcResult = SfcCheck.validate(m, prevSnap, currSnap, sfcFlows)
     if !sfcResult.passed then

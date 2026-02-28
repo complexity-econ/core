@@ -61,7 +61,8 @@ object Generators:
     digiR  <- Gen.choose(0.02, 0.98)
     sector <- Gen.choose(0, 5)
     bankId <- Gen.choose(0, 6)
-  yield Firm(id, cash, debt, tech, risk, innov, digiR, sector, Array.empty, bankId)
+    eqR    <- Gen.choose(0.0, 1000000.0)
+  yield Firm(id, cash, debt, tech, risk, innov, digiR, sector, Array.empty, bankId, eqR)
 
   val genAliveFirm: Gen[Firm] = for
     id     <- Gen.choose(0, 9999)
@@ -73,7 +74,8 @@ object Generators:
     digiR  <- Gen.choose(0.02, 0.98)
     sector <- Gen.choose(0, 5)
     bankId <- Gen.choose(0, 6)
-  yield Firm(id, cash, debt, tech, risk, innov, digiR, sector, Array.empty, bankId)
+    eqR    <- Gen.choose(0.0, 1000000.0)
+  yield Firm(id, cash, debt, tech, risk, innov, digiR, sector, Array.empty, bankId, eqR)
 
   // --- Balance sheet state generators ---
 
@@ -152,7 +154,8 @@ object Generators:
     mpc     <- Gen.choose(0.5, 0.98)
     status  <- genHhStatus
     bankId  <- Gen.choose(0, 6)
-  yield Household(id, savings, debt, rent, skill, health, mpc, status, Array.empty, bankId)
+    eqW     <- Gen.choose(0.0, 100000.0)
+  yield Household(id, savings, debt, rent, skill, health, mpc, status, Array.empty, bankId, eqW)
 
   // --- World generator ---
 
@@ -226,12 +229,16 @@ object Generators:
     zusContrib   <- Gen.choose(0.0, 1e9)
     zusPension   <- Gen.choose(0.0, 1e9)
     zusGovSub    <- Gen.choose(0.0, 1e8)
+    divIncome    <- Gen.choose(0.0, 1e8)
+    foreignDiv   <- Gen.choose(0.0, 1e8)
+    divTax       <- Gen.choose(0.0, 1e7)
   yield SfcCheck.MonthlyFlows(govSpend, govRev, nplLoss, intIncome, hhDebtSvc,
     totIncome, totCons, newLoans, nplRecov, ca, valEff,
     bankBondInc, qePurchase, newBondIssue, depIntPaid,
     resInt, sfIncome, ibInterest,
     jstDepChg, jstSpend, jstRev,
-    zusContrib, zusPension, zusGovSub)
+    zusContrib, zusPension, zusGovSub,
+    divIncome, foreignDiv, divTax)
 
   /** Generate (prev, curr, flows) where all 5 SFC identities hold exactly. */
   val genConsistentFlowsAndSnapshots: Gen[(SfcCheck.Snapshot, SfcCheck.Snapshot, SfcCheck.MonthlyFlows)] =
@@ -243,7 +250,8 @@ object Generators:
         (flows.interestIncome + flows.hhDebtService + flows.bankBondIncome
          - flows.depositInterestPaid
          + flows.reserveInterest + flows.standingFacilityIncome + flows.interbankInterest) * 0.3
-      val expectedDepChange = flows.totalIncome - flows.totalConsumption + flows.jstDepositChange
+      val expectedDepChange = flows.totalIncome - flows.totalConsumption + flows.jstDepositChange +
+        flows.dividendIncome - flows.foreignDividendOutflow
       val expectedGovDebtChange = flows.govSpending - flows.govRevenue
       val expectedNfaChange = flows.currentAccount + flows.valuationEffect
       val expectedJstDebtChange = flows.jstSpending - flows.jstRevenue

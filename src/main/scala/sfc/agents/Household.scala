@@ -34,7 +34,8 @@ case class Household(
   mpc: Double,
   status: HhStatus,
   socialNeighbors: Array[Int],
-  bankId: Int = 0             // Multi-bank: index into BankingSectorState.banks
+  bankId: Int = 0,            // Multi-bank: index into BankingSectorState.banks
+  equityWealth: Double = 0.0  // GPW: value of equity holdings
 )
 
 /** Aggregate statistics computed from individual households (Paper-06). */
@@ -104,6 +105,11 @@ object HouseholdInit:
 
       val wage = Config.BaseWage * sfc.config.SECTORS(sectorIdx).wageMultiplier * skill
 
+      // GPW equity wealth: GpwHhEquityFrac of HH participate, with wealth ∝ savings
+      val eqWealth = if sfc.config.Config.GpwHhEquity && rng.nextDouble() < sfc.config.Config.GpwHhEquityFrac then
+        savings * 0.05  // ~5% of savings in equity (NBP household wealth survey)
+      else 0.0
+
       Household(
         id = i,
         savings = savings,
@@ -113,7 +119,8 @@ object HouseholdInit:
         healthPenalty = 0.0,
         mpc = Math.max(0.5, Math.min(0.98, mpc)),
         status = HhStatus.Employed(firmId, sectorIdx, wage),
-        socialNeighbors = if i < socialNetwork.length then socialNetwork(i) else Array.empty
+        socialNeighbors = if i < socialNetwork.length then socialNetwork(i) else Array.empty,
+        equityWealth = eqWealth
       )
     }.toVector
 

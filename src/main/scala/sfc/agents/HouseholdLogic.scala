@@ -31,12 +31,14 @@ object HouseholdLogic:
 
   /** Process one month for all households. Returns updated households + aggregate stats + optional per-bank flows.
     * This is the core individual-mode household step.
-    * When bankRates is provided, uses variable-rate debt service and deposit interest. */
+    * When bankRates is provided, uses variable-rate debt service and deposit interest.
+    * @param equityIndexReturn monthly return on equity index (for revaluation) */
   def step(households: Vector[Household], world: World, bdp: Double,
            marketWage: Double, reservationWage: Double,
            importAdj: Double, rng: Random,
            nBanks: Int = 1,
-           bankRates: Option[BankRates] = None
+           bankRates: Option[BankRates] = None,
+           equityIndexReturn: Double = 0.0
   ): (Vector[Household], HhAggregates, Option[PerBankHhFlows]) =
 
     var retrainingAttempts = 0
@@ -47,6 +49,8 @@ object HouseholdLogic:
     var actualTotalDepositInterest = 0.0
     var actualGoodsConsumption = 0.0
     var actualTotalRent = 0.0
+    var totalEquityWealth = 0.0
+    var totalWealthEffect = 0.0
 
     // Per-bank flow accumulators (only when bankRates provided)
     val br = bankRates.orNull
@@ -95,24 +99,35 @@ object HouseholdLogic:
           val neighborDistress = neighborDistressRatioFast(hh, distressedIds)
           val consumptionAdj = if neighborDistress > 0.30 then consumption * 0.90 else consumption
 
-          val newSavings = hh.savings + income - obligations - consumptionAdj
+          // GPW equity wealth effect
+          val newEquityWealth = Math.max(0.0, hh.equityWealth * (1.0 + equityIndexReturn))
+          val equityGain = newEquityWealth - hh.equityWealth
+          val wealthEffectBoost = if Config.GpwHhEquity && equityGain > 0 then
+            equityGain * Config.GpwWealthEffectMpc
+          else 0.0
+          val consumptionWithWealth = consumptionAdj + wealthEffectBoost
+          totalEquityWealth += newEquityWealth
+          totalWealthEffect += wealthEffectBoost
+
+          val newSavings = hh.savings + income - obligations - consumptionWithWealth
           val newDebt = Math.max(0.0, hh.debt - thisDebtService)
 
           // Accumulate actual consumption flows (used for SFC consistency)
-          actualGoodsConsumption += consumptionAdj
+          actualGoodsConsumption += consumptionWithWealth
           actualTotalRent += hh.monthlyRent
 
           // Per-bank accumulation
           if perBankInc != null then
             val bId = hh.bankId
             perBankInc(bId) += income
-            perBankCons(bId) += consumptionAdj + hh.monthlyRent
+            perBankCons(bId) += consumptionWithWealth + hh.monthlyRent
             perBankDSvc(bId) += thisDebtService
             perBankDepInt(bId) += Math.max(0.0, depInterest)
 
           // Bankruptcy test
           if newSavings < Config.HhBankruptcyThreshold * hh.monthlyRent then
-            hh.copy(savings = newSavings, debt = newDebt, status = HhStatus.Bankrupt)
+            hh.copy(savings = newSavings, debt = newDebt, status = HhStatus.Bankrupt,
+              equityWealth = 0.0)
           else
             val afterSkill = applySkillDecay(hh, newStatus)
             val afterHealth = applyHealthScarring(hh, newStatus)
@@ -156,7 +171,8 @@ object HouseholdLogic:
               skill = afterSkill,
               healthPenalty = afterHealth,
               mpc = hh.mpc,
-              status = finalStatus
+              status = finalStatus,
+              equityWealth = newEquityWealth
             )
     }
 

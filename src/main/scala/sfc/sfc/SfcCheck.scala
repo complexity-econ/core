@@ -52,7 +52,10 @@ object SfcCheck:
     jstRevenue: Double = 0.0,              // JST revenue
     zusContributions: Double = 0.0,        // ZUS contributions
     zusPensionPayments: Double = 0.0,      // ZUS pension payments
-    zusGovSubvention: Double = 0.0         // ZUS gov subvention
+    zusGovSubvention: Double = 0.0,        // ZUS gov subvention
+    dividendIncome: Double = 0.0,          // net domestic dividends → HH deposits
+    foreignDividendOutflow: Double = 0.0,  // foreign dividends → CA outflow
+    dividendTax: Double = 0.0             // Belka tax → gov revenue
   )
 
   /** Result of the SFC check: eight exact balance-sheet identity checks. */
@@ -101,9 +104,9 @@ object SfcCheck:
     * Instead we check identities that ARE exact by construction:
     *
     * 1. Bank capital:  Δ = -nplLoss + (interestIncome + hhDebtService + bankBondIncome - depositInterestPaid + reserveInterest + standingFacilityIncome + interbankInterest) × 0.3
-    * 2. Bank deposits: Δ = totalIncome - totalConsumption + jstDepositChange
-    * 3. Gov debt:      Δ = govSpending - govRevenue  (govSpending includes zusGovSubvention when ZUS enabled)
-    * 4. NFA:           Δ = currentAccount + valuationEffect
+    * 2. Bank deposits: Δ = totalIncome - totalConsumption + jstDepositChange + dividendIncome - foreignDividendOutflow
+    * 3. Gov debt:      Δ = govSpending - govRevenue  (govRevenue includes dividendTax + zusGovSubvention)
+    * 4. NFA:           Δ = currentAccount + valuationEffect  (currentAccount includes -foreignDividendOutflow)
     * 5. Bond clearing: bankBondHoldings + nbpBondHoldings + ppkBondHoldings = bondsOutstanding
     * 6. Interbank netting: Σ interbankNet_i = 0 (trivially 0 in single-bank mode)
     * 7. JST debt:      Δ = jstSpending - jstRevenue (trivially 0 when JST disabled)
@@ -125,12 +128,13 @@ object SfcCheck:
     val actualBankCapChange = curr.bankCapital - prev.bankCapital
     val bankCapErr = actualBankCapChange - expectedBankCapChange
 
-    // Identity 2: Bank deposits (+ JST deposit flows when JST enabled)
-    val expectedDepChange = flows.totalIncome - flows.totalConsumption + flows.jstDepositChange
+    // Identity 2: Bank deposits (+ JST deposit flows + dividend flows)
+    val expectedDepChange = flows.totalIncome - flows.totalConsumption + flows.jstDepositChange +
+      flows.dividendIncome - flows.foreignDividendOutflow
     val actualDepChange = curr.bankDeposits - prev.bankDeposits
     val bankDepErr = actualDepChange - expectedDepChange
 
-    // Identity 3: Government debt (deficit = spending - revenue)
+    // Identity 3: Government debt (deficit = spending - revenue, revenue includes dividendTax)
     val expectedGovDebtChange = flows.govSpending - flows.govRevenue
     val actualGovDebtChange = curr.govDebt - prev.govDebt
     val govDebtErr = actualGovDebtChange - expectedGovDebtChange
@@ -138,6 +142,7 @@ object SfcCheck:
     // Identity 4: NFA (Net Foreign Assets)
     // ΔNFA = currentAccount + valuationEffect
     // When OPEN_ECON=false: both sides = 0.0, trivially passes.
+    // currentAccount includes -foreignDividendOutflow (routed through OpenEconomy or legacy)
     val expectedNfaChange = flows.currentAccount + flows.valuationEffect
     val actualNfaChange = curr.nfa - prev.nfa
     val nfaErr = actualNfaChange - expectedNfaChange

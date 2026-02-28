@@ -352,3 +352,47 @@ class SfcCheckSpec extends AnyFlatSpec with Matchers:
     result.bankCapitalError shouldBe 1500.0 +- 0.01
     result.passed shouldBe false
   }
+
+  // ---- Identity 2 with dividend flows ----
+
+  "SfcCheck.validate (deposits with dividends)" should "pass when dividendIncome added to deposits" in {
+    val prev = SfcCheck.Snapshot(0, 0, 500000, 0, 200000, 1000000, 0, 0)
+    // dividendIncome=5000 → deposits increase by 5000
+    val curr = prev.copy(bankDeposits = prev.bankDeposits + 5000)
+    val flows = zeroFlows.copy(dividendIncome = 5000)
+    val result = SfcCheck.validate(1, prev, curr, flows)
+    result.bankDepositsError shouldBe 0.0 +- 0.01
+    result.passed shouldBe true
+  }
+
+  it should "pass when foreignDividendOutflow deducted from deposits" in {
+    val prev = SfcCheck.Snapshot(0, 0, 500000, 0, 200000, 1000000, 0, 0)
+    // foreignDividendOutflow=8000 → deposits decrease by 8000
+    val curr = prev.copy(bankDeposits = prev.bankDeposits - 8000)
+    val flows = zeroFlows.copy(foreignDividendOutflow = 8000)
+    val result = SfcCheck.validate(1, prev, curr, flows)
+    result.bankDepositsError shouldBe 0.0 +- 0.01
+    result.passed shouldBe true
+  }
+
+  it should "pass with combined dividend flows (income - outflow)" in {
+    val prev = SfcCheck.Snapshot(0, 0, 500000, 0, 200000, 1000000, 0, 0)
+    // totalIncome=50000, totalCons=40000, divIncome=3000, foreignDiv=7000
+    // expected deposit Δ = 50000 - 40000 + 3000 - 7000 = 6000
+    val curr = prev.copy(bankDeposits = prev.bankDeposits + 6000)
+    val flows = zeroFlows.copy(totalIncome = 50000, totalConsumption = 40000,
+      dividendIncome = 3000, foreignDividendOutflow = 7000)
+    val result = SfcCheck.validate(1, prev, curr, flows)
+    result.bankDepositsError shouldBe 0.0 +- 0.01
+    result.passed shouldBe true
+  }
+
+  it should "detect error when dividend income not added to deposits" in {
+    val prev = SfcCheck.Snapshot(0, 0, 500000, 0, 200000, 1000000, 0, 0)
+    // Bug: deposits unchanged despite dividend income
+    val curr = prev.copy(bankDeposits = prev.bankDeposits)
+    val flows = zeroFlows.copy(dividendIncome = 10000)
+    val result = SfcCheck.validate(1, prev, curr, flows)
+    result.bankDepositsError shouldBe -10000.0 +- 0.01
+    result.passed shouldBe false
+  }

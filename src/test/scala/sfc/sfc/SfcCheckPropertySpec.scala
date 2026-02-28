@@ -164,3 +164,30 @@ class SfcCheckPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckProp
       }
     }
   }
+
+  // --- Dividend flow consistency ---
+
+  it should "pass with non-zero dividend flows in consistent snapshots" in {
+    // Verify that genConsistentFlowsAndSnapshots correctly handles dividend fields
+    forAll(genConsistentFlowsAndSnapshots) { (triple: (SfcCheck.Snapshot, SfcCheck.Snapshot, SfcCheck.MonthlyFlows)) =>
+      val (prev, curr, flows) = triple
+      // genMonthlyFlows generates non-zero dividend fields — verify all 8 identities hold
+      val result = SfcCheck.validate(1, prev, curr, flows)
+      withClue(s"bankCapErr=${result.bankCapitalError} bankDepErr=${result.bankDepositsError} " +
+        s"govDebtErr=${result.govDebtError} nfaErr=${result.nfaError} divIncome=${flows.dividendIncome} " +
+        s"foreignDiv=${flows.foreignDividendOutflow} divTax=${flows.dividendTax}: ") {
+        result.passed shouldBe true
+      }
+    }
+  }
+
+  it should "detect perturbed deposits from dividend flow mismatch" in {
+    forAll(genConsistentFlowsAndSnapshots, Gen.choose(10.0, 1000.0)) {
+      (triple: (SfcCheck.Snapshot, SfcCheck.Snapshot, SfcCheck.MonthlyFlows), perturbation: Double) =>
+        val (prev, curr, flows) = triple
+        // Perturb dividendIncome without updating deposits → Identity 2 fails
+        val badFlows = flows.copy(dividendIncome = flows.dividendIncome + perturbation)
+        val result = SfcCheck.validate(1, prev, curr, badFlows)
+        Math.abs(result.bankDepositsError) should be > 0.0
+    }
+  }
