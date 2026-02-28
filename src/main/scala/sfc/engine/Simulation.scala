@@ -201,8 +201,8 @@ object Simulation:
           // Equity index return for HH wealth revaluation (lagged: uses previous month's return)
           val eqReturn = w.equity.monthlyReturn
           // Sectoral mobility signals (computed from lagged state)
-          val secWages = if Config.LmSectoralMobility then SectoralMobility.sectorWages(afterWages) else null
-          val secVacancies = if Config.LmSectoralMobility then SectoralMobility.sectorVacancies(afterWages, firms) else null
+          val secWages = if Config.LmSectoralMobility then Some(SectoralMobility.sectorWages(afterWages)) else None
+          val secVacancies = if Config.LmSectoralMobility then Some(SectoralMobility.sectorVacancies(afterWages, firms)) else None
           // Household monthly step
           val (newHhs, agg, pbf) = HouseholdLogic.step(
             afterWages, w, bdp, newWage, resWage, importAdj, Random, nBanksHh, hhBankRates, eqReturn,

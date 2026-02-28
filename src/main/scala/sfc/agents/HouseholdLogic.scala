@@ -39,8 +39,8 @@ object HouseholdLogic:
            nBanks: Int = 1,
            bankRates: Option[BankRates] = None,
            equityIndexReturn: Double = 0.0,
-           sectorWages: Array[Double] = null,
-           sectorVacancies: Array[Int] = null
+           sectorWages: Option[Array[Double]] = None,
+           sectorVacancies: Option[Array[Int]] = None
   ): (Vector[Household], HhAggregates, Option[PerBankHhFlows]) =
 
     var retrainingAttempts = 0
@@ -138,12 +138,14 @@ object HouseholdLogic:
             // Voluntary cross-sector search (employed workers only, sectoral mobility ON)
             val (afterVoluntary, vQuit) = newStatus match
               case HhStatus.Employed(firmId, sectorIdx, wage)
-                if Config.LmSectoralMobility && sectorWages != null &&
+                if Config.LmSectoralMobility && sectorWages.isDefined &&
                    rng.nextDouble() < Config.LmVoluntarySearchProb =>
+                val sw = sectorWages.get
+                val sv = sectorVacancies.get
                 val targetSector = SectoralMobility.selectTargetSector(
-                  sectorIdx, sectorWages, sectorVacancies,
+                  sectorIdx, sw, sv,
                   Config.LmFrictionMatrix, Config.LmVacancyWeight, rng)
-                val targetAvgWage = sectorWages(targetSector)
+                val targetAvgWage = sw(targetSector)
                 if targetAvgWage > wage * (1.0 + Config.LmVoluntaryWageThreshold) then
                   val friction = Config.LmFrictionMatrix(sectorIdx)(targetSector)
                   if friction < Config.LmAdjacentFrictionMax then
@@ -166,11 +168,13 @@ object HouseholdLogic:
                 val retrainProb = Config.HhRetrainingProb +
                   (if neighborDistress > 0.30 then 0.05 else 0.0)
                 if hh.savings > Config.HhRetrainingCost && rng.nextDouble() < retrainProb then
-                  if Config.LmSectoralMobility && sectorWages != null then
+                  if Config.LmSectoralMobility && sectorWages.isDefined then
                     // Friction-aware target selection
+                    val sw = sectorWages.get
+                    val sv = sectorVacancies.get
                     val fromSector = if hh.lastSectorIdx >= 0 then hh.lastSectorIdx else 0
                     val targetSector = SectoralMobility.selectTargetSector(
-                      fromSector, sectorWages, sectorVacancies,
+                      fromSector, sw, sv,
                       Config.LmFrictionMatrix, Config.LmVacancyWeight, rng)
                     val friction = Config.LmFrictionMatrix(fromSector)(targetSector)
                     val (adjDur, adjCost) = SectoralMobility.frictionAdjustedParams(
