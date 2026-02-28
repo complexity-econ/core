@@ -18,7 +18,7 @@ object CentralBankLogic:
     if !Config.GovBondMarket then refRate
     else
       val termPremium = Config.GovTermPremium
-      val fiscalRisk = Config.GovFiscalRiskBeta * Math.max(0.0, debtToGdp - 0.40)
+      val fiscalRisk = Math.min(0.10, Config.GovFiscalRiskBeta * Math.max(0.0, debtToGdp - 0.40))
       val qeCompress = 0.5 * nbpBondGdpShare
       val foreignDemand = if nfa > 0 then 0.005 else 0.0
       Math.max(0.0, refRate + termPremium + fiscalRisk - qeCompress - foreignDemand)

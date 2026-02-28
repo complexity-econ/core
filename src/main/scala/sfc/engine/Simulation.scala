@@ -420,7 +420,9 @@ object Simulation:
     val newBondYield = CentralBankLogic.bondYield(newRefRate, debtToGdp, nbpBondGdpShare, w.bop.nfa)
 
     // Debt service: use LAGGED bond stock (standard SFC approach — avoids circular dependency)
-    val monthlyDebtService = w.gov.bondsOutstanding * newBondYield / 12.0
+    // Cap at 50% of monthly GDP (implicit sovereign default ceiling — only activates in pathological scenarios)
+    val rawDebtService = w.gov.bondsOutstanding * newBondYield / 12.0
+    val monthlyDebtService = Math.min(rawDebtService, w.gdpProxy * 0.50)
     val bankBondIncome = w.bank.govBondHoldings * newBondYield / 12.0
     val nbpBondIncome = w.nbp.govBondHoldings * newBondYield / 12.0
     // NBP remittance: bond income minus reserve interest paid to banks

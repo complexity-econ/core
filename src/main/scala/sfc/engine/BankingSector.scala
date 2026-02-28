@@ -253,18 +253,26 @@ object BankingSector:
 
   /** Allocate new bond issuance to banks proportional to their deposits.
     * Falls back to equal shares when total deposits are non-positive
-    * (can happen when large foreign dividend outflows drain the system). */
+    * (can happen when large foreign dividend outflows drain the system).
+    * Last alive bank gets residual to guarantee exact aggregate preservation. */
   def allocateBonds(banks: Vector[IndividualBankState], deficit: Double): Vector[IndividualBankState] =
     if deficit == 0.0 then return banks
     val aliveBanks = banks.filterNot(_.failed)
     val nAlive = aliveBanks.length
     if nAlive == 0 then return banks
     val totalDep = aliveBanks.map(_.deposits).sum
+    val lastAliveId = aliveBanks.last.id
+    var allocated = 0.0
     banks.map { b =>
       if b.failed then b
+      else if b.id == lastAliveId then
+        // Residual: guarantees Σ bond changes = deficit exactly
+        b.copy(govBondHoldings = b.govBondHoldings + (deficit - allocated))
       else
         val share = if totalDep > 0 then b.deposits / totalDep else 1.0 / nAlive
-        b.copy(govBondHoldings = b.govBondHoldings + deficit * share)
+        val amount = deficit * share
+        allocated += amount
+        b.copy(govBondHoldings = b.govBondHoldings + amount)
     }
 
   /** Compute reserve interest for a single bank (monthly).
@@ -312,18 +320,27 @@ object BankingSector:
     }
     (perBank, perBank.sum)
 
-  /** Allocate QE purchases from banks proportional to their bond holdings. */
+  /** Allocate QE purchases from banks proportional to their bond holdings.
+    * Last eligible bank gets residual to guarantee exact aggregate preservation. */
   def allocateQePurchases(banks: Vector[IndividualBankState],
                           qeTotal: Double): Vector[IndividualBankState] =
     if qeTotal <= 0 then banks
     else
-      val totalBonds = banks.filterNot(_.failed).map(_.govBondHoldings).sum
+      val eligible = banks.filter(b => !b.failed && b.govBondHoldings > 0)
+      val totalBonds = eligible.map(_.govBondHoldings).sum
       if totalBonds <= 0 then banks
       else
+        val lastEligibleId = eligible.last.id
+        var allocated = 0.0
         banks.map { b =>
           if b.failed || b.govBondHoldings <= 0 then b
+          else if b.id == lastEligibleId then
+            val residual = qeTotal - allocated
+            val sold = Math.min(b.govBondHoldings, residual)
+            b.copy(govBondHoldings = b.govBondHoldings - sold)
           else
             val share = b.govBondHoldings / totalBonds
             val sold = Math.min(b.govBondHoldings, qeTotal * share)
+            allocated += sold
             b.copy(govBondHoldings = b.govBondHoldings - sold)
         }

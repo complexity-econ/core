@@ -28,15 +28,26 @@ class BankingSectorPropertySpec extends AnyFlatSpec with Matchers with ScalaChec
 
   // ---- allocateBonds increment sums to deficit ----
 
-  "allocateBonds" should "change total bond holdings by exactly deficit" in {
+  "allocateBonds" should "have individual deltas summing to exactly deficit (residual)" in {
     forAll(genBankingSectorState, Gen.choose(-1e8, 1e8)) { (bs: BankingSectorState, deficit: Double) =>
-      // Skip when all banks are failed or total deposits <= 0 (allocateBonds no-ops)
       val aliveDep = bs.banks.filterNot(_.failed).map(_.deposits).sum
       whenever(aliveDep > 0 && deficit != 0.0) {
+        val after = BankingSector.allocateBonds(bs.banks, deficit)
+        // Per-bank deltas sum to exactly deficit (residual-based allocation)
+        val deltas = after.zip(bs.banks).map((a, b) => a.govBondHoldings - b.govBondHoldings)
+        deltas.sum shouldBe deficit +- 1e-6
+      }
+    }
+  }
+
+  it should "keep aggregate bond change within tight tolerance for large deficits" in {
+    forAll(genBankingSectorState, Gen.choose(1e10, 1e14)) { (bs: BankingSectorState, deficit: Double) =>
+      val alive = bs.banks.filterNot(_.failed)
+      whenever(alive.nonEmpty) {
         val before = bs.banks.map(_.govBondHoldings).sum
         val after = BankingSector.allocateBonds(bs.banks, deficit)
         val afterSum = after.map(_.govBondHoldings).sum
-        (afterSum - before) shouldBe deficit +- 1.0
+        (afterSum - before) shouldBe deficit +- 1.0  // well within SFC tolerance
       }
     }
   }

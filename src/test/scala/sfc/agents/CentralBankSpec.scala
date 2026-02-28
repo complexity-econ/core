@@ -8,14 +8,14 @@ class CentralBankSpec extends AnyFlatSpec with Matchers:
 
   // --- bondYield ---
 
-  "CentralBankLogic.bondYield" should "return refRate when GovBondMarket disabled" in {
+  "CentralBankLogic.bondYield" should "include capped fiscal risk premium" in {
     // When bond market off, yield = refRate (no risk premium, no QE)
     // This test depends on Config.GovBondMarket which is true by default.
     // We test the positive path instead.
     val y = CentralBankLogic.bondYield(0.05, 0.50, 0.0, 0.0)
-    // debtToGdp=0.50 > 0.40 → fiscalRisk = 2.0 * 0.10 = 0.20
-    // yield = 0.05 + 0.005 + 0.20 - 0 - 0 = 0.255
-    y shouldBe 0.255 +- 0.001
+    // debtToGdp=0.50 > 0.40 → raw fiscalRisk = 2.0 * 0.10 = 0.20, capped at 0.10
+    // yield = 0.05 + 0.005 + 0.10 - 0 - 0 = 0.155
+    y shouldBe 0.155 +- 0.001
   }
 
   it should "increase with debtToGdp (fiscal risk premium)" in {

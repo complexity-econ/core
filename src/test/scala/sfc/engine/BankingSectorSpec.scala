@@ -191,6 +191,26 @@ class BankingSectorSpec extends AnyFlatSpec with Matchers:
     result(1).govBondHoldings shouldBe 0.0 +- 0.01     // 2000 + (-4000 * 0.5)
   }
 
+  it should "have per-bank deltas summing to exactly deficit (residual-based)" in {
+    // 7 banks with irrational deposit ratios → FP rounding inevitable without residual
+    val banks = (0 until 7).map(i =>
+      IndividualBankState(i, 1e6 / 7.0 * (i + 1), 0, 1e5, 0, 1000.0 * (i + 1), 0, 0, false, 0, 0)
+    ).toVector
+    val deficit = 123456.789
+    val result = BankingSector.allocateBonds(banks, deficit)
+    val deltas = result.zip(banks).map((a, b) => a.govBondHoldings - b.govBondHoldings)
+    deltas.sum shouldBe deficit +- 1e-6
+  }
+
+  it should "keep aggregate within tight tolerance with large deficit (1e13)" in {
+    val banks = BankingSector.initialize(1e9, 1e8, configs).banks
+    val deficit = 1e13
+    val before = banks.map(_.govBondHoldings).sum
+    val result = BankingSector.allocateBonds(banks, deficit)
+    val after = result.map(_.govBondHoldings).sum
+    (after - before) shouldBe deficit +- 0.01  // well within SFC tolerance of 1.0
+  }
+
   // ---- allocateQePurchases ----
 
   "BankingSector.allocateQePurchases" should "sell proportional to bond holdings" in {
