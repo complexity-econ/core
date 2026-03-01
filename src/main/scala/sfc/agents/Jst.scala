@@ -25,13 +25,17 @@ object JstLogic:
     * @param nFirms number of living firms (for property tax)
     * @return (newJstState, depositChange) where depositChange affects bank deposits (SFC Identity 2) */
   def step(prev: JstState, govTaxRevenue: Double, totalWageIncome: Double,
-           gdp: Double, nFirms: Int): (JstState, Double) =
+           gdp: Double, nFirms: Int,
+           pitRevenue: Double = 0.0): (JstState, Double) =
     if !Config.JstEnabled then (prev, 0.0)
     else
       // Revenue sources:
-      // 1. PIT share: JST gets ~38.46% of PIT collected (simplified as % of wage income × effective PIT rate)
-      val effectivePitRate = 0.12  // progressive 12%/32% + kwota wolna → effective ~12%
-      val pitRevenue = totalWageIncome * effectivePitRate * Config.JstPitShare
+      // 1. PIT share: JST gets ~38.46% of PIT collected
+      //    When PIT mechanism enabled, use actual pitRevenue; otherwise proxy from wage income
+      val jstPitIncome = if Config.PitEnabled && pitRevenue > 0 then
+        pitRevenue * Config.JstPitShare
+      else
+        totalWageIncome * 0.12 * Config.JstPitShare  // fallback proxy
       // 2. CIT share: JST gets ~6.71% of CIT
       val citRevenue = govTaxRevenue * Config.JstCitShare  // govTaxRevenue includes CIT
       // 3. Property tax: fixed per firm per year
@@ -41,7 +45,7 @@ object JstLogic:
       // 5. Dotacje celowe (targeted grants): ~1% of GDP annually
       val dotacje = gdp * Config.JstDotacjeShare / 12.0
 
-      val totalRevenue = pitRevenue + citRevenue + propertyTax + subvention + dotacje
+      val totalRevenue = jstPitIncome + citRevenue + propertyTax + subvention + dotacje
       // JST spending: revenue × spending multiplier (slightly > 1 → deficit bias)
       val totalSpending = totalRevenue * Config.JstSpendingMult
       val deficit = totalSpending - totalRevenue

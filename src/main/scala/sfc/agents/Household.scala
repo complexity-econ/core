@@ -74,7 +74,8 @@ case class HhAggregates(
   crossSectorHires: Int = 0,
   voluntaryQuits: Int = 0,
   sectorMobilityRate: Double = 0.0,
-  totalRemittances: Double = 0.0
+  totalRemittances: Double = 0.0,
+  totalPit: Double = 0.0
 )
 
 object HouseholdInit:
