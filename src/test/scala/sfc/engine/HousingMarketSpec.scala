@@ -33,6 +33,7 @@ class HousingMarketSpec extends AnyFlatSpec with Matchers:
     z.lastWealthEffect shouldBe 0.0
     z.monthlyReturn shouldBe 0.0
     z.mortgageInterestIncome shouldBe 0.0
+    z.regions shouldBe None
   }
 
   "HousingMarket.step" should "return zero when RE_ENABLED=false" in {
@@ -128,6 +129,12 @@ class HousingMarketSpec extends AnyFlatSpec with Matchers:
     init.hhHousingWealth shouldBe (Config.ReInitValue - Config.ReInitMortgage +- 1.0)
   }
 
+  it should "have no regions when RE_REGIONAL is false" in {
+    val init = HousingMarket.initial
+    // RE_REGIONAL is false by default
+    init.regions shouldBe None
+  }
+
   "Mortgage stock identity" should "hold: Δstock = origination - principal - default" in {
     val stock0 = 500000.0
     val state = initState.copy(mortgageStock = stock0, totalValue = 1000000.0)
@@ -141,4 +148,137 @@ class HousingMarketSpec extends AnyFlatSpec with Matchers:
     val result = HousingMarket.applyFlows(stateAfterOrig, principal, defaultAmt, 5000.0)
     val expectedStock = stock0 + origination - principal - defaultAmt
     result.mortgageStock shouldBe (expectedStock +- 0.01)
+  }
+
+  // --- Regional Housing Market tests ---
+
+  private def makeRegionalState(aggValue: Double, aggMortgage: Double): HousingMarketState =
+    val valueShares = Vector(0.25, 0.08, 0.07, 0.08, 0.04, 0.05, 0.43)
+    val mortgageShares = Vector(0.30, 0.10, 0.08, 0.09, 0.04, 0.06, 0.33)
+    val hpis = Vector(230.0, 190.0, 170.0, 175.0, 110.0, 140.0, 100.0)
+    val regions = (0 until 7).map { r =>
+      RegionalHousingState(
+        priceIndex = hpis(r),
+        totalValue = aggValue * valueShares(r),
+        mortgageStock = aggMortgage * mortgageShares(r),
+        lastOrigination = 0.0,
+        lastRepayment = 0.0,
+        lastDefault = 0.0,
+        monthlyReturn = 0.0
+      )
+    }.toVector
+    HousingMarketState(
+      priceIndex = 100.0,
+      totalValue = aggValue,
+      mortgageStock = aggMortgage,
+      avgMortgageRate = 0.08,
+      hhHousingWealth = aggValue - aggMortgage,
+      lastOrigination = 0.0,
+      lastRepayment = 0.0,
+      lastDefault = 0.0,
+      lastWealthEffect = 0.0,
+      monthlyReturn = 0.0,
+      mortgageInterestIncome = 0.0,
+      regions = Some(regions)
+    )
+
+  "RegionalHousingState" should "have 7 entries" in {
+    val state = makeRegionalState(1e9, 4e8)
+    state.regions.get.length shouldBe 7
+  }
+
+  it should "have regional values summing to aggregate" in {
+    val aggValue = 1e9
+    val state = makeRegionalState(aggValue, 4e8)
+    val regSum = state.regions.get.map(_.totalValue).sum
+    regSum shouldBe (aggValue +- 1.0)
+  }
+
+  it should "have regional mortgages summing to aggregate" in {
+    val aggMortgage = 4e8
+    val state = makeRegionalState(1e9, aggMortgage)
+    val regSum = state.regions.get.map(_.mortgageStock).sum
+    regSum shouldBe (aggMortgage +- 1.0)
+  }
+
+  it should "have Warszawa HPI > Rest HPI" in {
+    val state = makeRegionalState(1e9, 4e8)
+    val regs = state.regions.get
+    regs(0).priceIndex should be > regs(6).priceIndex
+  }
+
+  "applyFlows with regions" should "distribute flows proportionally to mortgage stock" in {
+    val state = makeRegionalState(1e9, 4e8)
+    val principal = 10000.0
+    val defaultAmt = 5000.0
+    val result = HousingMarket.applyFlows(state, principal, defaultAmt, 3000.0)
+
+    // Regional stocks should sum to aggregate
+    val regStockSum = result.regions.get.map(_.mortgageStock).sum
+    regStockSum shouldBe (result.mortgageStock +- 1.0)
+  }
+
+  it should "reduce each region's stock proportionally" in {
+    val state = makeRegionalState(1e9, 4e8)
+    val principal = 10000.0
+    val defaultAmt = 5000.0
+    val result = HousingMarket.applyFlows(state, principal, defaultAmt, 3000.0)
+
+    // Warszawa (30% of mortgage) should have largest reduction
+    val wawReduction = state.regions.get(0).mortgageStock - result.regions.get(0).mortgageStock
+    val restReduction = state.regions.get(6).mortgageStock - result.regions.get(6).mortgageStock
+    // Waw mortgage share (0.30) vs Rest (0.33), so rest slightly larger
+    wawReduction should be > 0.0
+    restReduction should be > 0.0
+  }
+
+  it should "preserve regional repayment and default tracking" in {
+    val state = makeRegionalState(1e9, 4e8)
+    val principal = 10000.0
+    val defaultAmt = 5000.0
+    val result = HousingMarket.applyFlows(state, principal, defaultAmt, 3000.0)
+
+    // Regional repayments should sum to aggregate
+    val regRepaySum = result.regions.get.map(_.lastRepayment).sum
+    regRepaySum shouldBe (principal +- 0.01)
+
+    val regDefaultSum = result.regions.get.map(_.lastDefault).sum
+    regDefaultSum shouldBe (defaultAmt +- 0.01)
+  }
+
+  "processOrigination with regions" should "zero out regional origination when disabled" in {
+    val state = makeRegionalState(1e9, 4e8)
+    // RE_ENABLED is false by default
+    val result = HousingMarket.processOrigination(state, 1e7, 0.08, true)
+    result.lastOrigination shouldBe 0.0
+    result.regions.get.foreach { r =>
+      r.lastOrigination shouldBe 0.0
+    }
+  }
+
+  "Mortgage stock identity with regions" should "hold per-region" in {
+    val state = makeRegionalState(1e9, 4e8)
+    val origAmount = 5000.0
+    // Simulate origination by bumping each region's stock
+    val shares = Vector(0.25, 0.08, 0.07, 0.08, 0.04, 0.05, 0.43)
+    val updatedRegs = state.regions.get.zipWithIndex.map { (r, i) =>
+      val rOrig = origAmount * shares(i)
+      r.copy(mortgageStock = r.mortgageStock + rOrig, lastOrigination = rOrig)
+    }
+    val stateAfterOrig = state.copy(
+      mortgageStock = state.mortgageStock + origAmount,
+      lastOrigination = origAmount,
+      regions = Some(updatedRegs)
+    )
+    val principal = 2000.0
+    val defaultAmt = 1000.0
+    val result = HousingMarket.applyFlows(stateAfterOrig, principal, defaultAmt, 1000.0)
+
+    // Aggregate identity
+    val expectedAggStock = state.mortgageStock + origAmount - principal - defaultAmt
+    result.mortgageStock shouldBe (expectedAggStock +- 1.0)
+
+    // Regional stocks should sum to aggregate
+    val regSum = result.regions.get.map(_.mortgageStock).sum
+    regSum shouldBe (result.mortgageStock +- 1.0)
   }

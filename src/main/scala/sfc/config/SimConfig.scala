@@ -373,6 +373,41 @@ object Config:
   val ReWealthMpc: Double = sys.env.get("RE_WEALTH_MPC").map(_.trim.toDouble).getOrElse(0.05)
   val ReRentalYield: Double = sys.env.get("RE_RENTAL_YIELD").map(_.trim.toDouble).getOrElse(0.045)
 
+  // Regional Housing Market (v5.0 #21)
+  val ReRegional: Boolean = sys.env.get("RE_REGIONAL").map(_.trim.toBoolean).getOrElse(false)
+  val ReRegionalHpi: Vector[Double] = sys.env.get("RE_REGIONAL_HPI") match
+    case Some(s) if s.nonEmpty =>
+      val v = s.split(",").map(_.trim.toDouble).toVector
+      require(v.length == 7, s"RE_REGIONAL_HPI must have 7 values, got ${v.length}")
+      v
+    case _ => Vector(230.0, 190.0, 170.0, 175.0, 110.0, 140.0, 100.0)
+  val ReRegionalValueShares: Vector[Double] = sys.env.get("RE_REGIONAL_VALUE_SHARES") match
+    case Some(s) if s.nonEmpty =>
+      val v = s.split(",").map(_.trim.toDouble).toVector
+      require(v.length == 7, s"RE_REGIONAL_VALUE_SHARES must have 7 values, got ${v.length}")
+      require(Math.abs(v.sum - 1.0) < 0.01, s"RE_REGIONAL_VALUE_SHARES must sum to ~1.0, got ${v.sum}")
+      v
+    case _ => Vector(0.25, 0.08, 0.07, 0.08, 0.04, 0.05, 0.43)
+  val ReRegionalMortgageShares: Vector[Double] = sys.env.get("RE_REGIONAL_MORTGAGE_SHARES") match
+    case Some(s) if s.nonEmpty =>
+      val v = s.split(",").map(_.trim.toDouble).toVector
+      require(v.length == 7, s"RE_REGIONAL_MORTGAGE_SHARES must have 7 values, got ${v.length}")
+      require(Math.abs(v.sum - 1.0) < 0.01, s"RE_REGIONAL_MORTGAGE_SHARES must sum to ~1.0, got ${v.sum}")
+      v
+    case _ => Vector(0.30, 0.10, 0.08, 0.09, 0.04, 0.06, 0.33)
+  val ReRegionalGammas: Vector[Double] = sys.env.get("RE_REGIONAL_GAMMAS") match
+    case Some(s) if s.nonEmpty =>
+      val v = s.split(",").map(_.trim.toDouble).toVector
+      require(v.length == 7, s"RE_REGIONAL_GAMMAS must have 7 values, got ${v.length}")
+      v
+    case _ => Vector(0.03, 0.04, 0.04, 0.04, 0.06, 0.05, 0.06)
+  val ReRegionalIncomeMult: Vector[Double] = sys.env.get("RE_REGIONAL_INCOME_MULT") match
+    case Some(s) if s.nonEmpty =>
+      val v = s.split(",").map(_.trim.toDouble).toVector
+      require(v.length == 7, s"RE_REGIONAL_INCOME_MULT must have 7 values, got ${v.length}")
+      v
+    case _ => Vector(1.35, 1.15, 1.10, 1.12, 0.95, 1.05, 0.82)
+
   // GVC / Deep External Sector (v5.0)
   val GvcEnabled: Boolean = sys.env.get("GVC_ENABLED").map(_.trim.toBoolean).getOrElse(false)
   val GvcEuTradeShare: Double = sys.env.get("GVC_EU_TRADE_SHARE").map(_.trim.toDouble).getOrElse(0.70)
