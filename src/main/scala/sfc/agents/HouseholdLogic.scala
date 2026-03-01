@@ -22,6 +22,20 @@ case class PerBankHhFlows(
 
 object HouseholdLogic:
 
+  /** Compute monthly PIT using progressive Polish brackets (2022+).
+    * 12% on income ≤ 120k PLN/year, 32% above, minus kwota wolna tax credit.
+    * Returns 0 when PIT_ENABLED=false or income ≤ 0. */
+  def computeMonthlyPit(monthlyIncome: Double): Double =
+    if !Config.PitEnabled || monthlyIncome <= 0 then 0.0
+    else
+      val annualized = monthlyIncome * 12.0
+      val grossTax = if annualized <= Config.PitBracket1Annual then
+        annualized * Config.PitRate1
+      else
+        Config.PitBracket1Annual * Config.PitRate1 +
+          (annualized - Config.PitBracket1Annual) * Config.PitRate2
+      Math.max(0.0, grossTax - Config.PitTaxCreditAnnual) / 12.0
+
   /** Compute unemployment benefit based on months unemployed.
     * Polish zasilek: 1500 PLN months 1-3, 1200 PLN months 4-6, 0 after. */
   def computeBenefit(monthsUnemployed: Int): Double =
@@ -56,6 +70,7 @@ object HouseholdLogic:
     var totalEquityWealth = 0.0
     var totalWealthEffect = 0.0
     var totalRemittances = 0.0
+    var totalPit = 0.0
 
     // Per-bank flow accumulators (only when bankRates provided)
     val br = bankRates.orNull
@@ -89,14 +104,17 @@ object HouseholdLogic:
             br.depositRates(hh.bankId) / 12.0 * hh.savings
           else 0.0
 
-          val income = baseIncome + Math.max(0.0, depInterest)  // floor at 0 (no negative interest on negative savings)
+          val grossIncome = baseIncome + Math.max(0.0, depInterest)  // floor at 0 (no negative interest on negative savings)
+          val pitTax = computeMonthlyPit(grossIncome)
+          totalPit += pitTax
+          val income = grossIncome - pitTax
           actualTotalIncome += income
           totalUnempBenefits += benefit
           val thisDebtService = hh.debt * debtServiceRate
           actualTotalDebtService += thisDebtService
           actualTotalDepositInterest += Math.max(0.0, depInterest)
 
-          // Immigrant remittance: fraction of income sent abroad (deposit outflow)
+          // Immigrant remittance: fraction of net-of-PIT income sent abroad (deposit outflow)
           val remittance = if hh.isImmigrant && Config.ImmigEnabled then
             income * Config.ImmigRemittanceRate
           else 0.0
@@ -260,7 +278,8 @@ object HouseholdLogic:
       totalRent = actualTotalRent,
       voluntaryQuits = voluntaryQuits,
       sectorMobilityRate = smRate,
-      totalRemittances = totalRemittances
+      totalRemittances = totalRemittances,
+      totalPit = totalPit
     )
     val pbf = if perBankInc != null then
       Some(PerBankHhFlows(perBankInc, perBankCons, perBankDSvc, perBankDepInt))

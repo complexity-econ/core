@@ -195,10 +195,12 @@ object Simulation:
     val (totalIncome, consumption, importCons, domesticCons, updatedHouseholds, hhAgg, perBankHhFlowsOpt) =
       households match
         case None =>
-          // Aggregate mode (+ ZUS deductions/pensions)
+          // Aggregate mode (+ ZUS deductions/pensions + PIT)
           val wageIncome = employed.toDouble * newWage
           val bdpIncome  = if bdpActive then Config.TotalPopulation.toDouble * bdp else 0.0
-          val ti = wageIncome + bdpIncome - newZus.contributions + newZus.pensionPayments
+          val grossIncome = wageIncome + bdpIncome
+          val pitDeduction = if Config.PitEnabled then grossIncome * Config.PitEffectiveRate else 0.0
+          val ti = grossIncome - newZus.contributions + newZus.pensionPayments - pitDeduction
           val cons = ti * Config.Mpc
           val ic = cons * Math.min(0.65, importAdj)
           val dc = cons - ic
@@ -233,6 +235,16 @@ object Simulation:
             secWages, secVacancies)
           (agg.totalIncome, agg.consumption, agg.importConsumption,
            agg.domesticConsumption, Some(newHhs), Some(agg), pbf)
+
+    // PIT revenue: individual mode uses per-HH accumulation, aggregate mode uses flat effective rate
+    val pitRevenue = if Config.PitEnabled then
+      hhAgg.map(_.totalPit).getOrElse {
+        // Aggregate mode: pitDeduction was computed inside the match arm
+        val wageIncome = employed.toDouble * newWage
+        val bdpIncome  = if bdpActive then Config.TotalPopulation.toDouble * bdp else 0.0
+        (wageIncome + bdpIncome) * Config.PitEffectiveRate
+      }
+    else 0.0
 
     val baseIncome = Config.TotalPopulation.toDouble * Config.BaseWage
     // Channel 4: Real rate effect — negative real rate boosts demand, positive dampens
@@ -522,14 +534,14 @@ object Simulation:
 
     val vat = consumption * Config.VatRate
     val unempBenefitSpend = hhAgg.map(_.totalUnempBenefits).getOrElse(0.0)
-    val newGov = Sectors.updateGov(w.gov, sumTax + dividendTax, vat, bdpActive, bdp, newPrice, unempBenefitSpend,
+    val newGov = Sectors.updateGov(w.gov, sumTax + dividendTax + pitRevenue, vat, bdpActive, bdp, newPrice, unempBenefitSpend,
       monthlyDebtService, nbpRemittance, newZus.govSubvention)
     val newGovWithYield = newGov.copy(bondYield = newBondYield)
 
     // JST (local government) — must precede newBank (JST deposits flow into bank)
     val nLivingFirms = living2.length
     val (newJst, jstDepositChange) = JstLogic.step(
-      w.jst, newGovWithYield.taxRevenue, totalIncome, gdp, nLivingFirms)
+      w.jst, newGovWithYield.taxRevenue, totalIncome, gdp, nLivingFirms, pitRevenue)
 
     // ---- Housing market step ----
     val unempRate = 1.0 - employed.toDouble / Config.TotalPopulation
@@ -747,7 +759,7 @@ object Simulation:
     val sfcFlows = SfcCheck.MonthlyFlows(
       govSpending = newGovWithYield.bdpSpending + newGovWithYield.unempBenefitSpend
         + Config.GovBaseSpending * newPrice + monthlyDebtService + newZus.govSubvention,
-      govRevenue = sumTax + dividendTax + vat + nbpRemittance,
+      govRevenue = sumTax + dividendTax + pitRevenue + vat + nbpRemittance,
       nplLoss = nplLoss,
       interestIncome = intIncome,
       hhDebtService = hhDebtService,

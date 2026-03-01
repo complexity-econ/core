@@ -500,6 +500,14 @@ object Config:
   val ImmigWageDiscount: Double = sys.env.get("IMMIG_WAGE_DISCOUNT").map(_.trim.toDouble).getOrElse(0.20)
   val ImmigInitStock: Int = sys.env.get("IMMIG_INIT_STOCK").map(_.trim.toInt).getOrElse(0)
 
+  // Progressive PIT (#25)
+  val PitEnabled: Boolean = sys.env.get("PIT_ENABLED").map(_.trim.toBoolean).getOrElse(false)
+  val PitRate1: Double = sys.env.get("PIT_RATE_1").map(_.trim.toDouble).getOrElse(0.12)
+  val PitRate2: Double = sys.env.get("PIT_RATE_2").map(_.trim.toDouble).getOrElse(0.32)
+  val PitBracket1Annual: Double = sys.env.get("PIT_BRACKET_1").map(_.trim.toDouble).getOrElse(120000.0)
+  val PitTaxCreditAnnual: Double = sys.env.get("PIT_TAX_CREDIT").map(_.trim.toDouble).getOrElse(3600.0)
+  val PitEffectiveRate: Double = sys.env.get("PIT_EFFECTIVE_RATE").map(_.trim.toDouble).getOrElse(0.09)
+
   // Heterogeneous households (Paper-06)
   val HhCount = sys.env.get("HH_COUNT").map(_.trim.toInt).getOrElse(TotalPopulation)
 
