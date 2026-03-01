@@ -149,7 +149,21 @@ object Simulation:
       else 1.0
       Math.max(0.0, Math.min(bdpUnconstrained, maxBdpPerCapita * austerityMult))
     else bdpUnconstrained
-    val resWage = Config.BaseReservationWage + bdp * Config.ReservationBdpMult
+    val (baseMinWage, updatedMinWagePriceLevel) = if Config.MinWageEnabled then
+      val isAdjustMonth = m > 0 && m % Config.MinWageAdjustMonths == 0
+      if isAdjustMonth then
+        val cumInfl = if Config.MinWageInflationIndex && w.hh.minWagePriceLevel > 0 then
+          w.priceLevel / w.hh.minWagePriceLevel - 1.0 else 0.0
+        val inflIndexed = w.hh.minWageLevel * (1.0 + Math.max(0.0, cumInfl))
+        val target = w.hh.marketWage * Config.MinWageTargetRatio
+        val gap = target - inflIndexed
+        val adjusted = if gap > 0 then inflIndexed + gap * Config.MinWageConvergenceSpeed
+                       else inflIndexed
+        (Math.max(w.hh.minWageLevel, adjusted), w.priceLevel)
+      else (w.hh.minWageLevel, w.hh.minWagePriceLevel)
+    else (Config.BaseReservationWage, w.hh.minWagePriceLevel)
+
+    val resWage = baseMinWage + bdp * Config.ReservationBdpMult
 
     // When term structure is enabled, use WIBOR 3M as lending base rate
     // instead of refRate. Uses LAGGED interbankRate (standard SFC approach).
@@ -773,7 +787,8 @@ object Simulation:
 
     val newW = World(m, newInfl, newPrice, demandMult, newGovWithYield, postFxNbp,
       resolvedBank, newForex,
-      HhState(employed, newWage, resWage, totalIncome, consumption, domesticCons, importCons),
+      HhState(employed, newWage, resWage, totalIncome, consumption, domesticCons, importCons,
+        minWageLevel = baseMinWage, minWagePriceLevel = updatedMinWagePriceLevel),
       autoR, hybR, gdp, newSigmas,
       ioFlows = totalIoPaid,
       bop = newBop,

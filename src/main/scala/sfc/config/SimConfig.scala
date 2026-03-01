@@ -155,6 +155,13 @@ object Config:
   val EuCofinanceRate: Double = sys.env.get("EU_COFINANCE_RATE").map(_.trim.toDouble).getOrElse(0.15)
   val EuCapitalShare: Double = sys.env.get("EU_CAPITAL_SHARE").map(_.trim.toDouble).getOrElse(0.60)
 
+  // Minimum Wage Dynamics (#29)
+  val MinWageEnabled: Boolean = sys.env.get("MIN_WAGE_ENABLED").map(_.trim.toBoolean).getOrElse(false)
+  val MinWageAdjustMonths: Int = sys.env.get("MIN_WAGE_ADJUST_MONTHS").map(_.trim.toInt).getOrElse(12)
+  val MinWageInflationIndex: Boolean = sys.env.get("MIN_WAGE_INFLATION_INDEX").map(_.trim.toBoolean).getOrElse(true)
+  val MinWageTargetRatio: Double = sys.env.get("MIN_WAGE_TARGET_RATIO").map(_.trim.toDouble).getOrElse(0.50)
+  val MinWageConvergenceSpeed: Double = sys.env.get("MIN_WAGE_CONVERGENCE_SPEED").map(_.trim.toDouble).getOrElse(0.33)
+
   // NBP (NBP data 2024)
   val NbpInitialRate   = 0.0575      // NBP reference rate 2024
   val NbpTargetInfl    = 0.025       // NBP target 2.5% +/- 1pp
