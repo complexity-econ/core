@@ -13,7 +13,9 @@ case class HhState(
   totalIncome: Double,
   consumption: Double,
   domesticConsumption: Double,
-  importConsumption: Double
+  importConsumption: Double,
+  minWageLevel: Double = 4666.0,
+  minWagePriceLevel: Double = 1.0
 )
 
 // ---- Individual household types (Paper-06) ----
