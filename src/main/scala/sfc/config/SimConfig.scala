@@ -162,6 +162,29 @@ object Config:
   val MinWageTargetRatio: Double = sys.env.get("MIN_WAGE_TARGET_RATIO").map(_.trim.toDouble).getOrElse(0.50)
   val MinWageConvergenceSpeed: Double = sys.env.get("MIN_WAGE_CONVERGENCE_SPEED").map(_.trim.toDouble).getOrElse(0.33)
 
+  // Flow-of-Funds: sector-level demand multipliers (#30)
+  val FofConsWeights: Vector[Double] = sys.env.get("FOF_CONS_WEIGHTS") match
+    case Some(s) if s.nonEmpty =>
+      val v = s.split(",").map(_.trim.toDouble).toVector
+      require(v.length == 6 && Math.abs(v.sum - 1.0) < 0.01,
+        s"FOF_CONS_WEIGHTS must have 6 values summing to ~1.0, got ${v.length} summing to ${v.sum}")
+      v
+    case _ => Vector(0.03, 0.20, 0.55, 0.08, 0.05, 0.09)
+  val FofGovWeights: Vector[Double] = sys.env.get("FOF_GOV_WEIGHTS") match
+    case Some(s) if s.nonEmpty =>
+      val v = s.split(",").map(_.trim.toDouble).toVector
+      require(v.length == 6 && Math.abs(v.sum - 1.0) < 0.01,
+        s"FOF_GOV_WEIGHTS must have 6 values summing to ~1.0, got ${v.length} summing to ${v.sum}")
+      v
+    case _ => Vector(0.05, 0.15, 0.10, 0.15, 0.45, 0.10)
+  val FofExportShares: Vector[Double] = sys.env.get("FOF_EXPORT_SHARES") match
+    case Some(s) if s.nonEmpty =>
+      val v = s.split(",").map(_.trim.toDouble).toVector
+      require(v.length == 6 && Math.abs(v.sum - 1.0) < 0.01,
+        s"FOF_EXPORT_SHARES must have 6 values summing to ~1.0, got ${v.length} summing to ${v.sum}")
+      v
+    case _ => Vector(0.05, 0.55, 0.15, 0.02, 0.03, 0.20)
+
   // NBP (NBP data 2024)
   val NbpInitialRate   = 0.0575      // NBP reference rate 2024
   val NbpTargetInfl    = 0.025       // NBP target 2.5% +/- 1pp
