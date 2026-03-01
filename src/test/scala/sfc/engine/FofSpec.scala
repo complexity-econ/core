@@ -99,7 +99,7 @@ class FofSpec extends AnyFlatSpec with Matchers:
     val totalExports = 1000000.0
     val distributed = Config.FofExportShares.map(_ * totalExports)
     Math.abs(distributed.sum - totalExports) should be < 0.01
-    distributed(1) shouldBe 550000.0 // Manufacturing gets 55%
+    distributed(1) shouldBe 520000.0 // Manufacturing gets 52%
   }
 
   "SfcCheck Identity 10" should "pass when fofResidual is zero" in {
