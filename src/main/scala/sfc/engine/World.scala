@@ -32,5 +32,6 @@ case class World(
   equity: EquityMarketState = EquityMarket.zero,
   housing: HousingMarketState = HousingMarket.zero,
   sectoralMobility: SectoralMobilityState = SectoralMobility.zero,
-  gvc: GvcState = ExternalSector.zero
+  gvc: GvcState = ExternalSector.zero,
+  expectations: ExpectationsState = Expectations.zero
 )

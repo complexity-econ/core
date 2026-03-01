@@ -1,0 +1,107 @@
+package sfc.engine
+
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import org.scalacheck.Gen
+import sfc.config.{Config, RunConfig, MonetaryRegime}
+
+class ExpectationsPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks:
+
+  private val plnRc = RunConfig(2000.0, 1, "test", MonetaryRegime.Pln)
+
+  private val inflationGen = Gen.choose(-0.10, 0.20)
+  private val rateGen = Gen.choose(0.001, 0.25)
+  private val credGen = Gen.choose(0.01, 1.0)
+  private val unempGen = Gen.choose(0.01, 0.50)
+
+  "Expectations.step" should "always bound credibility in [0.01, 1.0]" in {
+    forAll(inflationGen, rateGen, credGen, unempGen) {
+      (infl: Double, rate: Double, cred: Double, unemp: Double) =>
+        val prev = Expectations.initial.copy(credibility = cred)
+        val r = Expectations.step(prev, infl, rate, unemp, plnRc)
+        r.credibility should be >= 0.01
+        r.credibility should be <= 1.0
+    }
+  }
+
+  it should "produce finite expected inflation" in {
+    forAll(inflationGen, rateGen, credGen, unempGen) {
+      (infl: Double, rate: Double, cred: Double, unemp: Double) =>
+        val prev = Expectations.initial.copy(credibility = cred)
+        val r = Expectations.step(prev, infl, rate, unemp, plnRc)
+        r.expectedInflation.isFinite shouldBe true
+    }
+  }
+
+  it should "produce finite expected rate" in {
+    forAll(inflationGen, rateGen, credGen, unempGen) {
+      (infl: Double, rate: Double, cred: Double, unemp: Double) =>
+        val prev = Expectations.initial.copy(credibility = cred)
+        val r = Expectations.step(prev, infl, rate, unemp, plnRc)
+        r.expectedRate.isFinite shouldBe true
+    }
+  }
+
+  it should "compute correct forecast error" in {
+    forAll(inflationGen, rateGen, unempGen) {
+      (infl: Double, rate: Double, unemp: Double) =>
+        val prev = Expectations.initial
+        val r = Expectations.step(prev, infl, rate, unemp, plnRc)
+        r.forecastError shouldBe (infl - prev.expectedInflation) +- 1e-10
+    }
+  }
+
+  it should "increase credibility monotonically as deviation decreases (at fixed credibility)" in {
+    val prev = Expectations.initial.copy(credibility = 0.5)
+    val target = Config.NbpTargetInfl
+    // Low deviation
+    val r1 = Expectations.step(prev, target + 0.005, 0.0575, 0.05, plnRc)
+    // High deviation
+    val r2 = Expectations.step(prev, target + 0.10, 0.0575, 0.05, plnRc)
+    r1.credibility should be > r2.credibility
+  }
+
+  it should "keep expected inflation between target and adaptive" in {
+    forAll(inflationGen, credGen) { (infl: Double, cred: Double) =>
+      val prev = Expectations.initial.copy(credibility = cred)
+      val r = Expectations.step(prev, infl, 0.0575, 0.05, plnRc)
+      val target = Config.NbpTargetInfl
+      val adaptive = prev.expectedInflation + Config.ExpLambda * (infl - prev.expectedInflation)
+      val lo = Math.min(target, adaptive)
+      val hi = Math.max(target, adaptive)
+      r.expectedInflation should be >= lo - 1e-10
+      r.expectedInflation should be <= hi + 1e-10
+    }
+  }
+
+  it should "produce finite forward guidance rate" in {
+    forAll(inflationGen, rateGen, credGen, unempGen) {
+      (infl: Double, rate: Double, cred: Double, unemp: Double) =>
+        val prev = Expectations.initial.copy(credibility = cred)
+        val r = Expectations.step(prev, infl, rate, unemp, plnRc)
+        r.forwardGuidanceRate.isFinite shouldBe true
+    }
+  }
+
+  "zero and initial" should "have well-defined fields" in {
+    val z = Expectations.zero
+    z.expectedInflation.isFinite shouldBe true
+    z.expectedRate.isFinite shouldBe true
+    z.credibility should be >= 0.0
+    z.credibility should be <= 1.0
+
+    val i = Expectations.initial
+    i.expectedInflation.isFinite shouldBe true
+    i.expectedRate.isFinite shouldBe true
+    i.credibility should be >= 0.01
+    i.credibility should be <= 1.0
+  }
+
+  "step with no change" should "preserve stability at target" in {
+    val prev = Expectations.initial
+    val r = Expectations.step(prev, Config.NbpTargetInfl, Config.NbpInitialRate, 0.05, plnRc)
+    // Expectations should stay near initial values
+    Math.abs(r.expectedInflation - Config.NbpTargetInfl) should be < 0.01
+    r.credibility should be >= prev.credibility
+  }
