@@ -277,14 +277,14 @@ object Simulation:
     // Flow-of-funds: sector-level demand multipliers
     val govPurchases = Config.GovBaseSpending * w.priceLevel
     val laggedExports = w.forex.exports
-    val sectorCap = (0 until 6).map { s =>
+    val sectorCap = (0 until SECTORS.length).map { s =>
       living.filter(_.sector == s).kahanSumBy(f => FirmOps.capacity(f).toDouble)
     }.toVector
     val sectorExports = if Config.GvcEnabled && Config.OeEnabled then
       w.gvc.sectorExports
     else
       Config.FofExportShares.map(_ * laggedExports)
-    val sectorDemand = (0 until 6).map { s =>
+    val sectorDemand = (0 until SECTORS.length).map { s =>
       Config.FofConsWeights(s) * domesticCons +
       Config.FofGovWeights(s) * govPurchases +
       sectorExports(s)
@@ -503,7 +503,7 @@ object Simulation:
       else (0.0, 0.0, 0.0)
 
     // Open economy (Paper-08) or legacy foreign sector
-    val sectorOutputs = (0 until 6).map { s =>
+    val sectorOutputs = (0 until SECTORS.length).map { s =>
       living2.filter(_.sector == s).kahanSumBy(f => FirmOps.capacity(f) * sectorMults(f.sector) * w.priceLevel)
     }.toVector
 
@@ -807,7 +807,7 @@ object Simulation:
     // Flow-of-funds residual: closes by construction (should be ~0)
     // Uses pre-processing living firms (same as sectorCap computation)
     val fofResidual = {
-      val totalFirmRev = (0 until 6).map { s =>
+      val totalFirmRev = (0 until SECTORS.length).map { s =>
         living.filter(_.sector == s).kahanSumBy(f =>
           FirmOps.capacity(f).toDouble * sectorMults(s) * w.priceLevel)
       }.kahanSum
