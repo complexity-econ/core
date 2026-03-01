@@ -140,15 +140,29 @@ object Simulation:
 
     // When term structure is enabled, use WIBOR 3M as lending base rate
     // instead of refRate. Uses LAGGED interbankRate (standard SFC approach).
-    val lendingBaseRate = if Config.InterbankTermStructure then
+    val rawLendingBaseRate = if Config.InterbankTermStructure then
       w.bankingSector.map { bs =>
         YieldCurve.compute(bs.interbankRate).wibor3m
       }.getOrElse(w.nbp.referenceRate)
     else w.nbp.referenceRate
 
+    // Channel 2: Firm CAPEX via expected rate — firms partially factor expected future rate
+    val lendingBaseRate = if Config.ExpEnabled then
+      0.5 * rawLendingBaseRate + 0.5 * w.expectations.expectedRate
+    else rawLendingBaseRate
+
     val living = firms.filter(FirmOps.isAlive)
     val laborDemand = living.map(FirmOps.workers).sum
-    val (newWage, rawEmployed) = Sectors.updateLaborMarket(w.hh.marketWage, resWage, laborDemand)
+    val (rawWage, rawEmployed) = Sectors.updateLaborMarket(w.hh.marketWage, resWage, laborDemand)
+
+    // Channel 1: Expectations-augmented wage Phillips curve
+    // Asymmetric: only upward pressure (Bewley 1999 — workers don't demand wage cuts)
+    val newWage = if Config.ExpEnabled then
+      val target = if rc.isEurozone then Config.EcbTargetInfl else Config.NbpTargetInfl
+      val expWagePressure = Config.ExpWagePassthrough *
+        Math.max(0.0, w.expectations.expectedInflation - target) / 12.0
+      Math.max(resWage, rawWage * (1.0 + expWagePressure))
+    else rawWage
 
     // Demographics caps employment at working-age population
     val employed = if Config.DemEnabled then
@@ -211,8 +225,13 @@ object Simulation:
            agg.domesticConsumption, Some(newHhs), Some(agg), pbf)
 
     val baseIncome = Config.TotalPopulation.toDouble * Config.BaseWage
+    // Channel 4: Real rate effect — negative real rate boosts demand, positive dampens
+    val realRateEffect = if Config.ExpEnabled then
+      val realRate = w.nbp.referenceRate - w.expectations.expectedInflation
+      -realRate * 0.02
+    else 0.0
     val demandMult = 1.0 + (totalIncome / baseIncome - 1.0) *
-      Config.Mpc * (1.0 - Math.min(0.65, importAdj)) * Config.DemandPassthrough
+      Config.Mpc * (1.0 - Math.min(0.65, importAdj)) * Config.DemandPassthrough + realRateEffect
 
     // ---- Lending dispatch: single-bank vs multi-bank ----
     val nBanks = w.bankingSector.map(_.banks.length).getOrElse(1)
@@ -419,6 +438,12 @@ object Simulation:
                     else (newForex.exchangeRate / w.forex.exchangeRate) - 1.0
     val newRefRate = Sectors.updateCbRate(w.nbp.referenceRate, newInfl, exRateChg, employed, rc)
 
+    // Expectations step: update after inflation + rate computed
+    val unempRateForExp = 1.0 - employed.toDouble / Config.TotalPopulation
+    val newExp = if Config.ExpEnabled then
+      Expectations.step(w.expectations, newInfl, newRefRate, unempRateForExp, rc)
+    else w.expectations
+
     // Reserve interest, standing facilities, interbank interest
     // These flows are zero in single-bank mode (no reserves/interbank tracked)
     // Computed from LAGGED bank state (w.bankingSector) — avoids circular dependency
@@ -435,7 +460,14 @@ object Simulation:
     val annualGdpForBonds = w.gdpProxy * 12.0
     val debtToGdp = if annualGdpForBonds > 0 then w.gov.cumulativeDebt / annualGdpForBonds else 0.0
     val nbpBondGdpShare = if annualGdpForBonds > 0 then w.nbp.govBondHoldings / annualGdpForBonds else 0.0
-    val newBondYield = CentralBankLogic.bondYield(newRefRate, debtToGdp, nbpBondGdpShare, w.bop.nfa)
+    // Channel 3: De-anchored expectations → higher bond yields
+    val credPremium = if Config.ExpEnabled then
+      val target = if rc.isEurozone then Config.EcbTargetInfl else Config.NbpTargetInfl
+      (1.0 - w.expectations.credibility) *
+        Math.abs(w.expectations.expectedInflation - target) *
+        Config.ExpBondSensitivity
+    else 0.0
+    val newBondYield = CentralBankLogic.bondYield(newRefRate, debtToGdp, nbpBondGdpShare, w.bop.nfa, credPremium)
 
     // Debt service: use LAGGED bond stock (standard SFC approach — avoids circular dependency)
     // Cap at 50% of monthly GDP (implicit sovereign default ceiling — only activates in pathological scenarios)
@@ -677,7 +709,8 @@ object Simulation:
         voluntaryQuits = hhAgg.map(_.voluntaryQuits).getOrElse(0),
         sectorMobilityRate = finalHhAgg.map(_.sectorMobilityRate).getOrElse(0.0)
       ),
-      gvc = newGvc)
+      gvc = newGvc,
+      expectations = newExp)
 
     // SFC accounting check: verify exact balance-sheet identities every step
     val prevSnap = SfcCheck.snapshot(w, firms, households)

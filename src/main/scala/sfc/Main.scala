@@ -114,7 +114,9 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
     housing = if Config.ReEnabled then HousingMarket.initial
               else HousingMarket.zero,
     gvc = if Config.GvcEnabled && Config.OeEnabled then ExternalSector.initial
-          else ExternalSector.zero)
+          else ExternalSector.zero,
+    expectations = if Config.ExpEnabled then Expectations.initial
+                   else Expectations.zero)
 
   // Collect time-series: 120 rows x N columns
   // Columns: Month, Inflation, Unemployment, AutoRatio+HybridRatio, ExRate, MarketWage,
@@ -129,7 +131,7 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
   //          Housing: HPI, MarketValue, MortgageStock, MortgageRate, Origination,
   //                   Repayment, Default, MortgageInterest, HhHousingWealth,
   //                   HousingWealthEffect, MortgageToGdp
-  val nCols = 111
+  val nCols = 115
   val results = Array.ofDim[Double](Config.Duration, nCols)
 
   for t <- 0 until Config.Duration do
@@ -314,7 +316,12 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
       world.gvc.foreignPriceIndex,      // 107: ForeignPriceIndex
       world.gvc.tradeConcentration,     // 108: GvcTradeConcentration
       world.gvc.exportDemandShockMag,   // 109: GvcExportDemandShock
-      world.gvc.importCostIndex         // 110: GvcImportCostIndex
+      world.gvc.importCostIndex,         // 110: GvcImportCostIndex
+      // Forward-Looking Expectations
+      world.expectations.expectedInflation,   // 111: ExpectedInflation
+      world.expectations.credibility,         // 112: NbpCredibility
+      world.expectations.forwardGuidanceRate, // 113: ForwardGuidanceRate
+      world.expectations.forecastError        // 114: InflationForecastError
     )
 
   RunResult(results, world.hhAgg)
@@ -347,7 +354,7 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
 
   // Aggregation arrays
   val nMonths = Config.Duration
-  val nCols   = 106
+  val nCols   = 115
   val allRuns = Array.ofDim[Double](nSeeds, nMonths, nCols)
   val allHhAgg = new Array[Option[HhAggregates]](nSeeds)
 
@@ -399,7 +406,8 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
     "MortgageOrigination;MortgageRepayment;MortgageDefault;MortgageInterestIncome;" +
     "HhHousingWealth;HousingWealthEffect;MortgageToGdp;" +
     "SectorMobilityRate;CrossSectorHires;VoluntaryQuits;" +
-    "GvcDisruptionIndex;ForeignPriceIndex;GvcTradeConcentration;GvcExportDemandShock;GvcImportCostIndex\n")
+    "GvcDisruptionIndex;ForeignPriceIndex;GvcTradeConcentration;GvcExportDemandShock;GvcImportCostIndex;" +
+    "ExpectedInflation;NbpCredibility;ForwardGuidanceRate;InflationForecastError\n")
   for seed <- 0 until nSeeds do
     val last = allRuns(seed)(nMonths - 1)
     termPw.write(s"${seed + 1}")
@@ -485,7 +493,8 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
     "HhHousingWealth", "HousingWealthEffect", "MortgageToGdp",
     "SectorMobilityRate", "CrossSectorHires", "VoluntaryQuits",
     "GvcDisruptionIndex", "ForeignPriceIndex", "GvcTradeConcentration",
-    "GvcExportDemandShock", "GvcImportCostIndex")
+    "GvcExportDemandShock", "GvcImportCostIndex",
+    "ExpectedInflation", "NbpCredibility", "ForwardGuidanceRate", "InflationForecastError")
   // Header: Month, then for each metric: mean, std, p05, p95
   aggPw.write("Month")
   for c <- 1 until nCols do

@@ -415,6 +415,16 @@ object Config:
   val LmVacancyWeight: Double = sys.env.get("LM_VACANCY_WEIGHT").map(_.trim.toDouble).getOrElse(2.0)
   val LmAdjacentFrictionMax: Double = sys.env.get("LM_ADJACENT_FRICTION_MAX").map(_.trim.toDouble).getOrElse(0.4)
 
+  // Forward-looking expectations (v5.0)
+  val ExpEnabled: Boolean = sys.env.get("EXPECTATIONS_ENABLED").map(_.trim.toBoolean).getOrElse(false)
+  val ExpLambda: Double = sys.env.get("EXPECTATIONS_LAMBDA").map(_.trim.toDouble).getOrElse(0.70)
+  val ExpCredibilityInit: Double = sys.env.get("EXPECTATIONS_CREDIBILITY_INIT").map(_.trim.toDouble).getOrElse(0.80)
+  val ExpCredibilitySpeed: Double = sys.env.get("EXPECTATIONS_CREDIBILITY_SPEED").map(_.trim.toDouble).getOrElse(0.05)
+  val ExpCredibilityThreshold: Double = sys.env.get("EXPECTATIONS_CREDIBILITY_THRESHOLD").map(_.trim.toDouble).getOrElse(0.02)
+  val ExpWagePassthrough: Double = sys.env.get("EXPECTATIONS_WAGE_PASSTHROUGH").map(_.trim.toDouble).getOrElse(0.50)
+  val ExpBondSensitivity: Double = sys.env.get("EXPECTATIONS_BOND_SENSITIVITY").map(_.trim.toDouble).getOrElse(0.50)
+  val NbpForwardGuidance: Boolean = sys.env.get("NBP_FORWARD_GUIDANCE").map(_.trim.toBoolean).getOrElse(false)
+
   // Heterogeneous households (Paper-06)
   val HhCount = sys.env.get("HH_COUNT").map(_.trim.toInt).getOrElse(TotalPopulation)
 
