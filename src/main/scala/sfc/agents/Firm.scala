@@ -66,13 +66,20 @@ object FirmOps:
       base * capitalFactor
     else base
 
-  /** Effective AI CAPEX for sector — sublinear in firm size (exponent 0.6). */
+  /** Effective AI CAPEX for sector — sublinear in firm size (exponent 0.6), digital readiness discount. */
   def aiCapex(f: Firm): Double =
     val sizeFactor = Math.pow(f.initialSize.toDouble / Config.WorkersPerFirm, 0.6)
-    Config.AiCapex * SECTORS(f.sector).aiCapexMultiplier * f.innovationCostFactor * sizeFactor
+    val digiDiscount = 1.0 - Config.DigiCapexDiscount * f.digitalReadiness
+    Config.AiCapex * SECTORS(f.sector).aiCapexMultiplier * f.innovationCostFactor * sizeFactor * digiDiscount
   def hybridCapex(f: Firm): Double =
     val sizeFactor = Math.pow(f.initialSize.toDouble / Config.WorkersPerFirm, 0.6)
-    Config.HybridCapex * SECTORS(f.sector).hybridCapexMultiplier * f.innovationCostFactor * sizeFactor
+    val digiDiscount = 1.0 - Config.DigiCapexDiscount * f.digitalReadiness
+    Config.HybridCapex * SECTORS(f.sector).hybridCapexMultiplier * f.innovationCostFactor * sizeFactor * digiDiscount
+
+  /** Digital investment cost — sublinear in firm size (exponent 0.5). */
+  def digiInvestCost(f: Firm): Double =
+    val sizeFactor = Math.pow(f.initialSize.toDouble / Config.WorkersPerFirm, 0.5)
+    Config.DigiInvestCost * sizeFactor
 
   /** sigma-based threshold modifier: high sigma sectors find automation profitable at lower cost gap.
    *  Only used for profitability threshold, NOT for probability multiplier.
@@ -90,6 +97,14 @@ case class FirmResult(firm: Firm, taxPaid: Double, capexSpent: Double,
 // ---- Firm decision logic ----
 
 object FirmLogic:
+  /** Apply natural digital drift to all living firms (always-on). */
+  private def applyDigitalDrift(r: FirmResult): FirmResult =
+    if Config.DigiDrift <= 0.0 then return r
+    val f = r.firm
+    if !FirmOps.isAlive(f) then return r
+    val newDR = Math.min(1.0, f.digitalReadiness + Config.DigiDrift)
+    r.copy(firm = f.copy(digitalReadiness = newDR))
+
   /** Apply physical capital investment after firm decision.
     * Depreciation, replacement + expansion investment, cash-constrained. */
   private def applyInvestment(r: FirmResult): FirmResult =
@@ -154,8 +169,9 @@ object FirmLogic:
         val ready2 = Math.min(1.0, firm.digitalReadiness + 0.005)
 
         val upSizeFactor = Math.pow(firm.initialSize.toDouble / Config.WorkersPerFirm, 0.6)
+        val upDigiDiscount = 1.0 - Config.DigiCapexDiscount * firm.digitalReadiness
         val upCapex = Config.AiCapex * SECTORS(firm.sector).aiCapexMultiplier *
-          firm.innovationCostFactor * 0.6 * upSizeFactor
+          firm.innovationCostFactor * 0.6 * upSizeFactor * upDigiDiscount
         val upLoan  = upCapex * 0.85
         val upDown  = upCapex * 0.15
         val wMult   = SECTORS(firm.sector).wageMultiplier
@@ -295,11 +311,23 @@ object FirmLogic:
             cash = firm.cash + net), tax, 0, 0, 0)
 
         else
+          // Digital investment attempt (always-on, #37)
+          val digiCost = FirmOps.digiInvestCost(firm)
           val nc = firm.cash + net
-          if nc < 0 then
+          val canAfford = nc > digiCost * 2.0
+          val competitive = w.automationRatio + w.hybridRatio * 0.5
+          val diminishing = 1.0 - firm.digitalReadiness
+          val digiProb = Config.DigiInvestBaseProb * firm.riskProfile *
+            diminishing * (0.5 + competitive)
+          if canAfford && Random.nextDouble() < digiProb then
+            val boost = Config.DigiInvestBoost * diminishing
+            val newDR = Math.min(1.0, firm.digitalReadiness + boost)
+            FirmResult(firm.copy(cash = nc - digiCost, digitalReadiness = newDR),
+              tax, 0, 0, 0)
+          else if nc < 0 then
             FirmResult(firm.copy(cash = nc,
               tech = TechState.Bankrupt("Niewyplacalnosc (koszty pracy)")), tax, 0, 0, 0)
           else
             FirmResult(firm.copy(cash = nc), tax, 0, 0, 0)
 
-    applyInvestment(rawResult)
+    applyDigitalDrift(applyInvestment(rawResult))
