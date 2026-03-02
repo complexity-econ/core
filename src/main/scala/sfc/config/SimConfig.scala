@@ -588,6 +588,14 @@ object Config:
   val Social800ChildrenPerHh: Double = sys.env.get("SOCIAL_800_CHILDREN").map(_.trim.toDouble).getOrElse(0.35)
   val Social800ImmigrantEligible: Boolean = sys.env.get("SOCIAL_800_IMMIGRANT").map(_.trim.toBoolean).getOrElse(true)
 
+  // Consumer Credit
+  val CcSpread: Double = sys.env.get("CC_SPREAD").map(_.trim.toDouble).getOrElse(0.04)
+  val CcMaxDti: Double = sys.env.get("CC_MAX_DTI").map(_.trim.toDouble).getOrElse(0.40)
+  val CcMaxLoan: Double = sys.env.get("CC_MAX_LOAN").map(_.trim.toDouble).getOrElse(50000.0)
+  val CcAmortRate: Double = sys.env.get("CC_AMORT_RATE").map(_.trim.toDouble).getOrElse(0.025)
+  val CcNplRecovery: Double = sys.env.get("CC_NPL_RECOVERY").map(_.trim.toDouble).getOrElse(0.15)
+  val CcEligRate: Double = sys.env.get("CC_ELIG_RATE").map(_.trim.toDouble).getOrElse(0.30)
+
   // Heterogeneous households (Paper-06)
   val HhCount = sys.env.get("HH_COUNT").map(_.trim.toInt).getOrElse(TotalPopulation)
 

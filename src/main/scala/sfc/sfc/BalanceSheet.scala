@@ -24,14 +24,18 @@ case class BankState(
   nplAmount: Double,
   capital: Double,
   deposits: Double,
-  govBondHoldings: Double = 0.0
+  govBondHoldings: Double = 0.0,
+  consumerLoans: Double = 0.0,
+  consumerNpl: Double = 0.0
 ):
   def nplRatio: Double = if totalLoans > 1.0 then nplAmount / totalLoans else 0.0
-  def car: Double = if totalLoans > 1.0 then capital / totalLoans else 10.0
+  def car: Double =
+    val totalRwa = totalLoans + consumerLoans
+    if totalRwa > 1.0 then capital / totalRwa else 10.0
   def lendingRate(refRate: Double): Double =
     refRate + Config.BaseSpread + Math.min(0.15, nplRatio * Config.NplSpreadFactor)
   def canLend(amount: Double): Boolean =
-    val projected = capital / (totalLoans + amount)
+    val projected = capital / (totalLoans + consumerLoans + amount)
     projected >= Config.MinCar
 
 case class ForexState(
