@@ -470,6 +470,24 @@ object Config:
   val GpwDividends: Boolean = sys.env.get("GPW_DIVIDENDS").map(_.trim.toBoolean).getOrElse(false)
   val GpwDivTax: Double = sys.env.get("GPW_DIV_TAX").map(_.trim.toDouble).getOrElse(0.19)
 
+  // Corporate Bonds / Catalyst (#40) — always-on
+  val CorpBondSpread: Double = sys.env.get("CORPBOND_SPREAD").map(_.trim.toDouble).getOrElse(0.025)
+    // 250 bps over gov bond yield (Polish BBB/BBB+ avg, RRRF 2024)
+  val CorpBondInitStock: Double = sys.env.get("CORPBOND_INIT_STOCK").map(_.trim.toDouble).getOrElse(90e9) * ScaleFactor
+    // ~90 bln PLN outstanding (Catalyst + non-public, KNF 2024)
+  val CorpBondMinSize: Int = sys.env.get("CORPBOND_MIN_SIZE").map(_.trim.toInt).getOrElse(50)
+    // Only firms with ≥50 workers can issue bonds (medium/large)
+  val CorpBondIssuanceFrac: Double = sys.env.get("CORPBOND_ISSUANCE_FRAC").map(_.trim.toDouble).getOrElse(0.15)
+    // 15% of new CAPEX loan replaced by bond issuance (eligible firms)
+  val CorpBondBankShare: Double = sys.env.get("CORPBOND_BANK_SHARE").map(_.trim.toDouble).getOrElse(0.30)
+    // Banks hold 30% of outstanding corporate bonds
+  val CorpBondPpkShare: Double = sys.env.get("CORPBOND_PPK_SHARE").map(_.trim.toDouble).getOrElse(0.15)
+    // PPK holds 15% of outstanding corporate bonds
+  val CorpBondRecovery: Double = sys.env.get("CORPBOND_RECOVERY").map(_.trim.toDouble).getOrElse(0.30)
+    // 30% recovery rate on defaulted corporate bonds (lower than bank loans 50%)
+  val CorpBondMaturity: Double = sys.env.get("CORPBOND_MATURITY").map(_.trim.toDouble).getOrElse(60.0)
+    // Average maturity 5 years = 60 months → amortization = 1/60 per month
+
   // Real Estate / Housing Market (v4.0 Tier 2)
   val ReEnabled: Boolean = sys.env.get("RE_ENABLED").map(_.trim.toBoolean).getOrElse(false)
   val ReMortgage: Boolean = sys.env.get("RE_MORTGAGE").map(_.trim.toBoolean).getOrElse(true)

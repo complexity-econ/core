@@ -28,7 +28,8 @@ case class Firm(
   bankId: Int = 0,          // Multi-bank: index into BankingSectorState.banks
   equityRaised: Double = 0.0, // GPW: cumulative equity raised via IPO/SPO
   initialSize: Int = 10,    // Firm size at creation (v6.0: heterogeneous when FIRM_SIZE_DIST=gus)
-  capitalStock: Double = 0.0 // Physical capital stock (PLN), #31
+  capitalStock: Double = 0.0, // Physical capital stock (PLN), #31
+  bondDebt: Double = 0.0     // Outstanding corporate bond debt (#40)
 )
 
 object FirmOps:
@@ -98,7 +99,7 @@ object FirmOps:
 
 case class FirmResult(firm: Firm, taxPaid: Double, capexSpent: Double,
   techImports: Double, newLoan: Double, equityIssuance: Double = 0.0,
-  grossInvestment: Double = 0.0)
+  grossInvestment: Double = 0.0, bondIssuance: Double = 0.0)
 
 // ---- Firm decision logic ----
 
@@ -145,7 +146,7 @@ object FirmLogic:
       case _: TechState.Automated => Config.AiOpex * (0.60 + 0.40 * price) * opexSizeFactor
       case _: TechState.Hybrid    => Config.HybridOpex * (0.60 + 0.40 * price) * opexSizeFactor
       case _                      => 0.0
-    val interest = firm.debt * (lendRate / 12.0)
+    val interest = (firm.debt + firm.bondDebt) * (lendRate / 12.0)
     val costs    = labor + other + depnCost + aiMaint + interest
     val profit   = revenue - costs
     val tax      = Math.max(0.0, profit) * Config.CitRate
