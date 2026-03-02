@@ -40,7 +40,8 @@ case class Household(
   equityWealth: Double = 0.0, // GPW: value of equity holdings
   lastSectorIdx: Int = -1,    // Sectoral mobility: last sector employed in (-1 = never)
   isImmigrant: Boolean = false, // Immigration: tracks immigrant status for wage discount + remittances
-  numDependentChildren: Int = 0 // 800+: children ≤ 18 for social transfers
+  numDependentChildren: Int = 0, // 800+: children ≤ 18 for social transfers
+  consumerDebt: Double = 0.0    // Consumer credit: outstanding unsecured consumer loan
 )
 
 /** Aggregate statistics computed from individual households (Paper-06). */
@@ -79,7 +80,10 @@ case class HhAggregates(
   sectorMobilityRate: Double = 0.0,
   totalRemittances: Double = 0.0,
   totalPit: Double = 0.0,
-  totalSocialTransfers: Double = 0.0
+  totalSocialTransfers: Double = 0.0,
+  totalConsumerDebtService: Double = 0.0,
+  totalConsumerOrigination: Double = 0.0,
+  totalConsumerDefault: Double = 0.0
 )
 
 object HouseholdInit:
@@ -127,6 +131,11 @@ object HouseholdInit:
             HouseholdInit.poissonSample(sfc.config.Config.Social800ChildrenPerHh, rng)
           else 0
 
+          // Consumer credit: 40% of HH have small consumer loans (reuse HhDebtFraction)
+          val consDebt = if rng.nextDouble() < Config.HhDebtFraction then
+            Math.exp(Config.HhDebtMu + Config.HhDebtSigma * rng.nextGaussian()) * 0.3
+          else 0.0
+
           builder += Household(
             id = hhId,
             savings = savings,
@@ -139,7 +148,8 @@ object HouseholdInit:
             socialNeighbors = if hhId < socialNetwork.length then socialNetwork(hhId) else Array.empty,
             equityWealth = eqWealth,
             lastSectorIdx = sectorIdx,
-            numDependentChildren = numChildren
+            numDependentChildren = numChildren,
+            consumerDebt = consDebt
           )
           hhId += 1
 

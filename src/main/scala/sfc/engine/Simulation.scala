@@ -421,6 +421,17 @@ object Simulation:
     val depositInterestPaid = hhAgg.map(_.totalDepositInterest).getOrElse(0.0)
     // SFC: remittance outflow (immigrant wages sent abroad — deposit outflow + current account)
     val remittanceOutflow = hhAgg.map(_.totalRemittances).getOrElse(newImmig.remittanceOutflow)
+
+    // Consumer credit flows
+    val aggConsumerDS = w.bank.consumerLoans * (Config.CcAmortRate + (lendingBaseRate + Config.CcSpread) / 12.0)
+    val aggConsumerOrig = domesticCons * 0.02  // ~2% of consumption financed by credit
+    val consumerDebtService = hhAgg.map(_.totalConsumerDebtService).getOrElse(aggConsumerDS)
+    val consumerOrigination = hhAgg.map(_.totalConsumerOrigination).getOrElse(aggConsumerOrig)
+    val consumerDefaultAmt = hhAgg.map(_.totalConsumerDefault).getOrElse(0.0)
+    val consumerNplLoss = consumerDefaultAmt * (1.0 - Config.CcNplRecovery)
+    val consumerPrincipal = if Config.CcAmortRate + (lendingBaseRate + Config.CcSpread) / 12.0 > 0 then
+      consumerDebtService * (Config.CcAmortRate / (Config.CcAmortRate + (lendingBaseRate + Config.CcSpread) / 12.0))
+    else 0.0
     // Note: newBank construction deferred until after bond market block (needs bankBondIncome)
 
     val living2 = ioFirms.filter(FirmOps.isAlive)
@@ -645,14 +656,18 @@ object Simulation:
     val newBank = w.bank.copy(
       totalLoans = Math.max(0, w.bank.totalLoans + sumNewLoans - nplNew * Config.LoanRecovery),
       nplAmount  = Math.max(0, w.bank.nplAmount + nplNew - w.bank.nplAmount * 0.05),
-      capital    = w.bank.capital - nplLoss - mortgageDefaultLoss
+      capital    = w.bank.capital - nplLoss - mortgageDefaultLoss - consumerNplLoss
                    + intIncome * 0.3 + hhDebtService * 0.3
                    + bankBondIncome * 0.3 - depositInterestPaid * 0.3
                    + totalReserveInterest * 0.3 + totalStandingFacilityIncome * 0.3
                    + totalInterbankInterest * 0.3
-                   + mortgageInterestIncome * 0.3,
+                   + mortgageInterestIncome * 0.3
+                   + consumerDebtService * 0.3,
       deposits   = w.bank.deposits + (totalIncome - consumption) + jstDepositChange
-                   + netDomesticDividends - foreignDividendOutflow - remittanceOutflow)
+                   + netDomesticDividends - foreignDividendOutflow - remittanceOutflow
+                   + consumerOrigination,
+      consumerLoans = Math.max(0.0, w.bank.consumerLoans + consumerOrigination - consumerPrincipal - consumerDefaultAmt),
+      consumerNpl = Math.max(0.0, w.bank.consumerNpl + consumerDefaultAmt - w.bank.consumerNpl * 0.05))
 
     // Recompute hhAgg from final households if in individual mode
     // Carry retraining counters from the monthly step (hhAgg) — not zeros
@@ -700,14 +715,19 @@ object Simulation:
           val bankNplLoss = bankNplNew * (1.0 - Config.LoanRecovery)
           val bankIntIncome = perBankIntIncome(bId)
           // Per-bank HH flows: exact from individual HH data, or worker-proportional proxy
-          val (bankIncomeShare, bankConsShare, bankHhDebtService, bankDepInterest) =
+          val (bankIncomeShare, bankConsShare, bankHhDebtService, bankDepInterest,
+               bankCcDSvc, bankCcOrig, bankCcDef) =
             perBankHhFlowsOpt match
               case Some(pbf) =>
-                (pbf.income(bId), pbf.consumption(bId), pbf.debtService(bId), pbf.depositInterest(bId))
+                (pbf.income(bId), pbf.consumption(bId), pbf.debtService(bId), pbf.depositInterest(bId),
+                 if pbf.consumerDebtService.nonEmpty then pbf.consumerDebtService(bId) else 0.0,
+                 if pbf.consumerOrigination.nonEmpty then pbf.consumerOrigination(bId) else 0.0,
+                 if pbf.consumerDefault.nonEmpty then pbf.consumerDefault(bId) else 0.0)
               case None =>
                 // Aggregate HH mode fallback: worker-proportional proxy
                 val ws = if totalWorkers > 0 then perBankWorkers(bId) / totalWorkers else 0.0
-                (totalIncome * ws, consumption * ws, hhDebtService * ws, 0.0)
+                (totalIncome * ws, consumption * ws, hhDebtService * ws, 0.0,
+                 consumerDebtService * ws, consumerOrigination * ws, consumerDefaultAmt * ws)
           val bankBondInc = b.govBondHoldings * newBondYield / 12.0
           // Per-bank monetary plumbing flows
           val bankResInt = if perBankReserveInt.nonEmpty then perBankReserveInt(bId) else 0.0
@@ -719,25 +739,32 @@ object Simulation:
           val bankDivInflow = netDomesticDividends * ws
           val bankDivOutflow = foreignDividendOutflow * ws
           val bankRemittance = remittanceOutflow * ws
-          val newDep = b.deposits + (bankIncomeShare - bankConsShare) + bankDivInflow - bankDivOutflow - bankRemittance
+          val newDep = b.deposits + (bankIncomeShare - bankConsShare) + bankDivInflow - bankDivOutflow - bankRemittance + bankCcOrig
           // Per-bank mortgage flows (proportional to deposit share)
           val bankDepShare = if totalWorkers > 0 then perBankWorkers(bId) / totalWorkers else 0.0
           val bankMortgageIntIncome = mortgageInterestIncome * bankDepShare
           val bankMortgageNplLoss = mortgageDefaultLoss * bankDepShare
+          val bankCcNplLoss = bankCcDef * (1.0 - Config.CcNplRecovery)
+          val bankCcPrincipal = if Config.CcAmortRate + (lendingBaseRate + Config.CcSpread) / 12.0 > 0 then
+            bankCcDSvc * (Config.CcAmortRate / (Config.CcAmortRate + (lendingBaseRate + Config.CcSpread) / 12.0))
+          else 0.0
           b.copy(
             loans = newLoansTotal,
             nplAmount = Math.max(0, b.nplAmount + bankNplNew - b.nplAmount * 0.05),
-            capital = b.capital - bankNplLoss - bankMortgageNplLoss + bankIntIncome * 0.3 +
+            capital = b.capital - bankNplLoss - bankMortgageNplLoss - bankCcNplLoss + bankIntIncome * 0.3 +
               bankHhDebtService * 0.3 + bankBondInc * 0.3 - bankDepInterest * 0.3
               + bankResInt * 0.3 + bankSfInc * 0.3 + bankIbInt * 0.3
-              + bankMortgageIntIncome * 0.3,
+              + bankMortgageIntIncome * 0.3
+              + bankCcDSvc * 0.3,
             deposits = newDep,
             // Deposit split + loan maturity tracking
             demandDeposits = newDep * (1.0 - Config.BankTermDepositFrac),
             termDeposits = newDep * Config.BankTermDepositFrac,
             loansShort = newLoansTotal * 0.20,   // 20% short-term
             loansMedium = newLoansTotal * 0.30,   // 30% medium-term
-            loansLong = newLoansTotal * 0.50       // 50% long-term
+            loansLong = newLoansTotal * 0.50,      // 50% long-term
+            consumerLoans = Math.max(0.0, b.consumerLoans + bankCcOrig - bankCcPrincipal - bankCcDef),
+            consumerNpl = Math.max(0.0, b.consumerNpl + bankCcDef - b.consumerNpl * 0.05)
           )
         }
         // 2. Interbank clearing
@@ -883,7 +910,12 @@ object Simulation:
       mortgagePrincipalRepaid = mortgagePrincipal,
       mortgageDefaultAmount = mortgageDefaultAmount,
       remittanceOutflow = remittanceOutflow,
-      fofResidual = fofResidual
+      fofResidual = fofResidual,
+      consumerDebtService = consumerDebtService,
+      consumerNplLoss = consumerNplLoss,
+      consumerOrigination = consumerOrigination,
+      consumerPrincipalRepaid = consumerPrincipal,
+      consumerDefaultAmount = consumerDefaultAmt
     )
     val sfcResult = SfcCheck.validate(m, prevSnap, currSnap, sfcFlows)
     if !sfcResult.passed then
@@ -898,6 +930,7 @@ object Simulation:
         f" jstDebt=${sfcResult.jstDebtError}%.2f" +
         f" fusBal=${sfcResult.fusBalanceError}%.2f" +
         f" mortgage=${sfcResult.mortgageStockError}%.2f" +
-        f" fof=${sfcResult.fofError}%.2f")
+        f" fof=${sfcResult.fofError}%.2f" +
+        f" ccStock=${sfcResult.consumerCreditError}%.2f")
 
     (newW, reassignedFirms, reassignedHouseholds)

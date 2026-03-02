@@ -34,10 +34,14 @@ case class IndividualBankState(
   termDeposits: Double = 0.0,      // term deposits
   loansShort: Double = 0.0,        // short-term loans (< 1 year)
   loansMedium: Double = 0.0,       // medium-term (1-5 years)
-  loansLong: Double = 0.0          // long-term (> 5 years)
+  loansLong: Double = 0.0,         // long-term (> 5 years)
+  consumerLoans: Double = 0.0,     // consumer credit: outstanding unsecured HH loans
+  consumerNpl: Double = 0.0        // consumer credit: NPL stock
 ):
   def nplRatio: Double = if loans > 1.0 then nplAmount / loans else 0.0
-  def car: Double = if loans > 1.0 then capital / loans else 10.0
+  def car: Double =
+    val totalRwa = loans + consumerLoans
+    if totalRwa > 1.0 then capital / totalRwa else 10.0
 
   /** High Quality Liquid Assets: reserves + gov bonds (Level 1 assets). */
   def hqla: Double = reservesAtNbp + govBondHoldings
@@ -70,7 +74,9 @@ case class BankingSectorState(
       nplAmount = banks.kahanSumBy(_.nplAmount),
       capital = banks.kahanSumBy(_.capital),
       deposits = banks.kahanSumBy(_.deposits),
-      govBondHoldings = banks.kahanSumBy(_.govBondHoldings)
+      govBondHoldings = banks.kahanSumBy(_.govBondHoldings),
+      consumerLoans = banks.kahanSumBy(_.consumerLoans),
+      consumerNpl = banks.kahanSumBy(_.consumerNpl)
     )
 
 object BankingSector:
@@ -140,7 +146,7 @@ object BankingSector:
               ccyb: Double = 0.0): Boolean =
     if bank.failed then false
     else
-      val projectedCar = bank.capital / (bank.loans + amount)
+      val projectedCar = bank.capital / (bank.loans + bank.consumerLoans + amount)
       val approvalP = Math.max(0.1, 1.0 - bank.nplRatio * 3.0)
       // Use effective MinCAR (base + CCyB + OSII) when macropru enabled
       val minCar = Macroprudential.effectiveMinCar(bank.id, ccyb)

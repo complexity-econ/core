@@ -17,7 +17,10 @@ case class PerBankHhFlows(
   income: Array[Double],          // per-bank total income (incl. deposit interest)
   consumption: Array[Double],     // per-bank total consumption (goods + rent)
   debtService: Array[Double],     // per-bank total debt service
-  depositInterest: Array[Double]  // per-bank total deposit interest paid
+  depositInterest: Array[Double], // per-bank total deposit interest paid
+  consumerDebtService: Array[Double] = Array.empty, // per-bank consumer debt service
+  consumerOrigination: Array[Double] = Array.empty,  // per-bank consumer loan origination
+  consumerDefault: Array[Double] = Array.empty       // per-bank consumer loan defaults
 )
 
 object HouseholdLogic:
@@ -77,6 +80,9 @@ object HouseholdLogic:
     var totalRemittances = 0.0
     var totalPit = 0.0
     var totalSocialTransfers = 0.0
+    var totalConsumerDebtService = 0.0
+    var totalConsumerOrigination = 0.0
+    var totalConsumerDefault = 0.0
 
     // Per-bank flow accumulators (only when bankRates provided)
     val br = bankRates.orNull
@@ -84,6 +90,9 @@ object HouseholdLogic:
     val perBankCons   = if br != null then new Array[Double](nBanks) else null
     val perBankDSvc   = if br != null then new Array[Double](nBanks) else null
     val perBankDepInt = if br != null then new Array[Double](nBanks) else null
+    val perBankCcDSvc = if br != null then new Array[Double](nBanks) else null
+    val perBankCcOrig = if br != null then new Array[Double](nBanks) else null
+    val perBankCcDef  = if br != null then new Array[Double](nBanks) else null
 
     // Pre-compute distressed HH set: O(N_hh) instead of O(N_hh x k) per-HH lookup
     val distressedIds = new java.util.BitSet(households.length)
@@ -122,15 +131,33 @@ object HouseholdLogic:
           actualTotalDebtService += thisDebtService
           actualTotalDepositInterest += Math.max(0.0, depInterest)
 
+          // Consumer credit debt service
+          val consumerRate = if br != null then
+            br.lendingRates(hh.bankId) + Config.CcSpread
+          else world.nbp.referenceRate + Config.CcSpread
+          val consumerDebtSvc = hh.consumerDebt * (Config.CcAmortRate + consumerRate / 12.0)
+          totalConsumerDebtService += consumerDebtSvc
+
           // Immigrant remittance: fraction of net-of-PIT income sent abroad (deposit outflow)
           val remittance = if hh.isImmigrant && Config.ImmigEnabled then
             income * Config.ImmigRemittanceRate
           else 0.0
           totalRemittances += remittance
 
-          val obligations = hh.monthlyRent + thisDebtService + remittance
+          val obligations = hh.monthlyRent + thisDebtService + consumerDebtSvc + remittance
           val disposable = Math.max(0.0, income - obligations)
-          val consumption = disposable * hh.mpc
+
+          // Consumer credit origination: employed HH with low disposable income can borrow
+          val newConsumerLoan = hh.status match
+            case HhStatus.Employed(_, _, wage) if disposable < wage * 0.3 && rng.nextDouble() < Config.CcEligRate =>
+              val existingDti = (thisDebtService + consumerDebtSvc) / Math.max(1.0, income)
+              val headroom = Math.max(0.0, Config.CcMaxDti - existingDti) * income
+              val desired = Math.min(headroom, Config.CcMaxLoan)
+              if desired > 100.0 then desired else 0.0
+            case _ => 0.0
+          totalConsumerOrigination += newConsumerLoan
+
+          val consumption = (disposable + newConsumerLoan) * hh.mpc
 
           // Social network precautionary effect (uses pre-computed distress set)
           val neighborDistress = neighborDistressRatioFast(hh, distressedIds)
@@ -146,8 +173,9 @@ object HouseholdLogic:
           totalEquityWealth += newEquityWealth
           totalWealthEffect += wealthEffectBoost
 
-          val newSavings = hh.savings + income - obligations - consumptionWithWealth
+          val newSavings = hh.savings + income - obligations + newConsumerLoan - consumptionWithWealth
           val newDebt = Math.max(0.0, hh.debt - thisDebtService)
+          val newConsumerDebt = Math.max(0.0, hh.consumerDebt + newConsumerLoan - consumerDebtSvc)
 
           // Accumulate actual consumption flows (used for SFC consistency)
           actualGoodsConsumption += consumptionWithWealth
@@ -160,11 +188,17 @@ object HouseholdLogic:
             perBankCons(bId) += consumptionWithWealth + hh.monthlyRent
             perBankDSvc(bId) += thisDebtService
             perBankDepInt(bId) += Math.max(0.0, depInterest)
+            perBankCcDSvc(bId) += consumerDebtSvc
+            perBankCcOrig(bId) += newConsumerLoan
+          // end per-bank
 
           // Bankruptcy test
           if newSavings < Config.HhBankruptcyThreshold * hh.monthlyRent then
-            hh.copy(savings = newSavings, debt = newDebt, status = HhStatus.Bankrupt,
-              equityWealth = 0.0)
+            val ccDefaultAmt = hh.consumerDebt + newConsumerLoan
+            totalConsumerDefault += ccDefaultAmt
+            if perBankCcDef != null then perBankCcDef(hh.bankId) += ccDefaultAmt
+            hh.copy(savings = newSavings, debt = newDebt, consumerDebt = 0.0,
+              status = HhStatus.Bankrupt, equityWealth = 0.0)
           else
             val afterSkill = applySkillDecay(hh, newStatus)
             val afterHealth = applyHealthScarring(hh, newStatus)
@@ -252,6 +286,7 @@ object HouseholdLogic:
             hh.copy(
               savings = newSavings - retrainingCostThisMonth,
               debt = newDebt,
+              consumerDebt = newConsumerDebt,
               skill = afterSkill,
               healthPenalty = afterHealth,
               mpc = hh.mpc,
@@ -288,10 +323,14 @@ object HouseholdLogic:
       sectorMobilityRate = smRate,
       totalRemittances = totalRemittances,
       totalPit = totalPit,
-      totalSocialTransfers = totalSocialTransfers
+      totalSocialTransfers = totalSocialTransfers,
+      totalConsumerDebtService = totalConsumerDebtService,
+      totalConsumerOrigination = totalConsumerOrigination,
+      totalConsumerDefault = totalConsumerDefault
     )
     val pbf = if perBankInc != null then
-      Some(PerBankHhFlows(perBankInc, perBankCons, perBankDSvc, perBankDepInt))
+      Some(PerBankHhFlows(perBankInc, perBankCons, perBankDSvc, perBankDepInt,
+        perBankCcDSvc, perBankCcOrig, perBankCcDef))
     else None
     (updated, correctedAgg, pbf)
 
