@@ -184,12 +184,19 @@ object Simulation:
 
     // Channel 1: Expectations-augmented wage Phillips curve
     // Asymmetric: only upward pressure (Bewley 1999 — workers don't demand wage cuts)
-    val newWage = if Config.ExpEnabled then
+    val wageAfterExp = if Config.ExpEnabled then
       val target = if rc.isEurozone then Config.EcbTargetInfl else Config.NbpTargetInfl
       val expWagePressure = Config.ExpWagePassthrough *
         Math.max(0.0, w.expectations.expectedInflation - target) / 12.0
       Math.max(resWage, rawWage * (1.0 + expWagePressure))
     else rawWage
+
+    // Union downward wage rigidity (#44): dampen wage declines in proportion to aggregate union density
+    val newWage = if Config.UnionEnabled && wageAfterExp < w.hh.marketWage then
+      val aggDensity = SECTORS.zipWithIndex.map((s, i) => s.share * Config.UnionDensity(i)).sum
+      val decline = w.hh.marketWage - wageAfterExp
+      Math.max(resWage, wageAfterExp + decline * Config.UnionRigidity * aggDensity)
+    else wageAfterExp
 
     // Demographics caps employment at working-age population
     val employed = if Config.DemEnabled then

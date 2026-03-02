@@ -546,6 +546,17 @@ object Config:
   val LmVacancyWeight: Double = sys.env.get("LM_VACANCY_WEIGHT").map(_.trim.toDouble).getOrElse(2.0)
   val LmAdjacentFrictionMax: Double = sys.env.get("LM_ADJACENT_FRICTION_MAX").map(_.trim.toDouble).getOrElse(0.4)
 
+  // Labor Unions (#44)
+  val UnionEnabled: Boolean = sys.env.get("UNION_ENABLED").map(_.trim.toBoolean).getOrElse(false)
+  val UnionDensity: Vector[Double] = sys.env.get("UNION_DENSITY") match
+    case Some(s) if s.nonEmpty =>
+      val v = s.split(",").map(_.trim.toDouble).toVector
+      require(v.length == 6, s"UNION_DENSITY must have 6 values, got ${v.length}")
+      v
+    case _ => Vector(0.02, 0.15, 0.03, 0.12, 0.30, 0.04)
+  val UnionWagePremium: Double = sys.env.get("UNION_WAGE_PREMIUM").map(_.trim.toDouble).getOrElse(0.08)
+  val UnionRigidity: Double = sys.env.get("UNION_RIGIDITY").map(_.trim.toDouble).getOrElse(0.50)
+
   // Forward-looking expectations (v5.0)
   val ExpEnabled: Boolean = sys.env.get("EXPECTATIONS_ENABLED").map(_.trim.toBoolean).getOrElse(false)
   val ExpLambda: Double = sys.env.get("EXPECTATIONS_LAMBDA").map(_.trim.toDouble).getOrElse(0.70)
