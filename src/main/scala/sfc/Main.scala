@@ -117,7 +117,8 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
 
   var world = World(0, 0.02, 1.0,
     GovState(false, 0, 0, 0, 0, 0), NbpState(initRate),
-    BankState(0, 0, Config.InitBankCapital, initCash, consumerLoans = initConsumerLoans),
+    BankState(0, 0, Config.InitBankCapital, initCash, consumerLoans = initConsumerLoans,
+      corpBondHoldings = Config.CorpBondInitStock * Config.CorpBondBankShare),
     ForexState(Config.BaseExRate, 0, Config.ExportBase, 0, 0),
     HhState(Config.TotalPopulation, Config.BaseWage, Config.BaseReservationWage, 0, 0, 0, 0),
     0, 0, Config.BaseRevenue * Config.FirmsCount,
@@ -141,7 +142,8 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
                    else Expectations.zero,
     immigration = if Config.ImmigEnabled then
       ImmigrationState(Config.ImmigInitStock, 0, 0, 0.0)
-    else ImmigrationState.zero)
+    else ImmigrationState.zero,
+    corporateBonds = CorporateBondMarket.initial)
 
   // Collect time-series: 120 rows x N columns
   // Columns: Month, Inflation, Unemployment, AutoRatio+HybridRatio, ExRate, MarketWage,
@@ -156,7 +158,7 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
   //          Housing: HPI, MarketValue, MortgageStock, MortgageRate, Origination,
   //                   Repayment, Default, MortgageInterest, HhHousingWealth,
   //                   HousingWealthEffect, MortgageToGdp
-  val nCols = 145
+  val nCols = 151
   val results = Array.ofDim[Double](Config.Duration, nCols)
 
   for t <- 0 until Config.Duration do
@@ -397,7 +399,14 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
       else 0.0),
       // Excise & Customs
       world.gov.exciseRevenue,                                       // 143: ExciseRevenue
-      world.gov.customsDutyRevenue                                   // 144: CustomsDutyRevenue
+      world.gov.customsDutyRevenue,                                  // 144: CustomsDutyRevenue
+      // Corporate Bonds / Catalyst (#40)
+      world.corporateBonds.outstanding,                              // 145: CorpBondOutstanding
+      world.corporateBonds.corpBondYield,                            // 146: CorpBondYield
+      world.corporateBonds.lastIssuance,                             // 147: CorpBondIssuance
+      world.corporateBonds.creditSpread,                             // 148: CorpBondSpread
+      world.corporateBonds.bankHoldings,                             // 149: BankCorpBondHoldings
+      world.corporateBonds.ppkHoldings                               // 150: PpkCorpBondHoldings
     )
 
   RunResult(results, world.hhAgg)
@@ -430,7 +439,7 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
 
   // Aggregation arrays
   val nMonths = Config.Duration
-  val nCols   = 145
+  val nCols   = 151
   val allRuns = Array.ofDim[Double](nSeeds, nMonths, nCols)
   val allHhAgg = new Array[Option[HhAggregates]](nSeeds)
 
@@ -491,7 +500,8 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
     "EuCofinancing;EuFundsMonthly;EuCumulativeAbsorption;MinWageLevel;FofResidual;" +
     "ConsumerLoans;ConsumerNplRatio;ConsumerOrigination;ConsumerDebtService;" +
     "AggCapitalStock;GrossInvestment;CapitalDepreciation;" +
-    "ExciseRevenue;CustomsDutyRevenue\n")
+    "ExciseRevenue;CustomsDutyRevenue;" +
+    "CorpBondOutstanding;CorpBondYield;CorpBondIssuance;CorpBondSpread;BankCorpBondHoldings;PpkCorpBondHoldings\n")
   for seed <- 0 until nSeeds do
     val last = allRuns(seed)(nMonths - 1)
     termPw.write(s"${seed + 1}")
@@ -587,7 +597,9 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
     "MinWageLevel", "FofResidual",
     "ConsumerLoans", "ConsumerNplRatio", "ConsumerOrigination", "ConsumerDebtService",
     "AggCapitalStock", "GrossInvestment", "CapitalDepreciation",
-    "ExciseRevenue", "CustomsDutyRevenue")
+    "ExciseRevenue", "CustomsDutyRevenue",
+    "CorpBondOutstanding", "CorpBondYield", "CorpBondIssuance",
+    "CorpBondSpread", "BankCorpBondHoldings", "PpkCorpBondHoldings")
   // Header: Month, then for each metric: mean, std, p05, p95
   aggPw.write("Month")
   for c <- 1 until nCols do

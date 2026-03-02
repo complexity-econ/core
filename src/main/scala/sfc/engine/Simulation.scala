@@ -342,6 +342,7 @@ object Simulation:
     var sumNewLoans = 0.0
     var sumEquityIssuance = 0.0
     var sumGrossInvestment = 0.0
+    var sumBondIssuance = 0.0
 
     val macro4firms = w.copy(
       month = m, sectorDemandMult = sectorMults,
@@ -372,10 +373,24 @@ object Simulation:
         else
           (r.newLoan, 0.0, r.firm)
 
-      sumNewLoans += actualLoan
+      // Corporate bond issuance: eligible firms replace fraction of loan with bonds (#40)
+      val (finalLoan, bondAmt, bondUpdatedFirm) =
+        if actualLoan > 0 && FirmOps.workers(updatedFirm) >= Config.CorpBondMinSize then
+          val ba = actualLoan * Config.CorpBondIssuanceFrac
+          val adjLoan = actualLoan - ba
+          val f3 = updatedFirm.copy(
+            debt = updatedFirm.debt - ba,
+            bondDebt = updatedFirm.bondDebt + ba
+          )
+          (adjLoan, ba, f3)
+        else
+          (actualLoan, 0.0, updatedFirm)
+
+      sumNewLoans += finalLoan
       sumEquityIssuance += equityAmt
-      perBankNewLoans(f.bankId) += actualLoan
-      updatedFirm
+      sumBondIssuance += bondAmt
+      perBankNewLoans(f.bankId) += finalLoan
+      bondUpdatedFirm
     }
 
     // Track per-bank workers for deposit partitioning
@@ -417,6 +432,7 @@ object Simulation:
     val newlyDead = ioFirms.filter(f => !FirmOps.isAlive(f) && prevAlive.contains(f.id))
     val nplNew    = newlyDead.kahanSumBy(_.debt)
     val nplLoss   = nplNew * (1.0 - Config.LoanRecovery)
+    val totalBondDefault = newlyDead.kahanSumBy(_.bondDebt)
 
     // Per-bank NPL attribution
     for f <- newlyDead do perBankNplDebt(f.bankId) += f.debt
@@ -631,6 +647,15 @@ object Simulation:
       lastFxTraded = fxResult.eurTraded
     )
 
+    // --- Corporate bond market step (#40) ---
+    val corpBondAmort = CorporateBondMarket.amortization(w.corporateBonds)
+    val newCorpBonds = CorporateBondMarket.step(w.corporateBonds, newBondYield,
+      w.bank.nplRatio, totalBondDefault, sumBondIssuance)
+    // Coupon computed from LAGGED state (standard SFC approach)
+    val (_, corpBondBankCoupon, _) = CorporateBondMarket.computeCoupon(w.corporateBonds)
+    val (_, _, corpBondBankDefaultLoss, _) = CorporateBondMarket.processDefaults(
+      w.corporateBonds, totalBondDefault)
+
     val vat = consumption * Config.FofConsWeights.zip(Config.VatRates).map((w, r) => w * r).kahanSum
     val exciseRevenue = consumption * Config.FofConsWeights.zip(Config.ExciseRates).map((w, r) => w * r).kahanSum
     val customsDutyRevenue = if Config.OeEnabled then
@@ -679,17 +704,20 @@ object Simulation:
       totalLoans = Math.max(0, w.bank.totalLoans + sumNewLoans - nplNew * Config.LoanRecovery),
       nplAmount  = Math.max(0, w.bank.nplAmount + nplNew - w.bank.nplAmount * 0.05),
       capital    = w.bank.capital - nplLoss - mortgageDefaultLoss - consumerNplLoss
+                   - corpBondBankDefaultLoss
                    + intIncome * 0.3 + hhDebtService * 0.3
                    + bankBondIncome * 0.3 - depositInterestPaid * 0.3
                    + totalReserveInterest * 0.3 + totalStandingFacilityIncome * 0.3
                    + totalInterbankInterest * 0.3
                    + mortgageInterestIncome * 0.3
-                   + consumerDebtService * 0.3,
+                   + consumerDebtService * 0.3
+                   + corpBondBankCoupon * 0.3,
       deposits   = w.bank.deposits + (totalIncome - consumption) + jstDepositChange
                    + netDomesticDividends - foreignDividendOutflow - remittanceOutflow
                    + consumerOrigination,
       consumerLoans = Math.max(0.0, w.bank.consumerLoans + consumerOrigination - consumerPrincipal - consumerDefaultAmt),
-      consumerNpl = Math.max(0.0, w.bank.consumerNpl + consumerDefaultAmt - w.bank.consumerNpl * 0.05))
+      consumerNpl = Math.max(0.0, w.bank.consumerNpl + consumerDefaultAmt - w.bank.consumerNpl * 0.05),
+      corpBondHoldings = newCorpBonds.bankHoldings)
 
     // Recompute hhAgg from final households if in individual mode
     // Carry retraining counters from the monthly step (hhAgg) — not zeros
@@ -770,14 +798,19 @@ object Simulation:
           val bankCcPrincipal = if Config.CcAmortRate + (lendingBaseRate + Config.CcSpread) / 12.0 > 0 then
             bankCcDSvc * (Config.CcAmortRate / (Config.CcAmortRate + (lendingBaseRate + Config.CcSpread) / 12.0))
           else 0.0
+          // Per-bank corp bond flows (proportional to deposit share)
+          val bankCorpBondCoupon = corpBondBankCoupon * bankDepShare
+          val bankCorpBondDefaultLoss = corpBondBankDefaultLoss * bankDepShare
           b.copy(
             loans = newLoansTotal,
             nplAmount = Math.max(0, b.nplAmount + bankNplNew - b.nplAmount * 0.05),
-            capital = b.capital - bankNplLoss - bankMortgageNplLoss - bankCcNplLoss + bankIntIncome * 0.3 +
+            capital = b.capital - bankNplLoss - bankMortgageNplLoss - bankCcNplLoss
+              - bankCorpBondDefaultLoss + bankIntIncome * 0.3 +
               bankHhDebtService * 0.3 + bankBondInc * 0.3 - bankDepInterest * 0.3
               + bankResInt * 0.3 + bankSfInc * 0.3 + bankIbInt * 0.3
               + bankMortgageIntIncome * 0.3
-              + bankCcDSvc * 0.3,
+              + bankCcDSvc * 0.3
+              + bankCorpBondCoupon * 0.3,
             deposits = newDep,
             // Deposit split + loan maturity tracking
             demandDeposits = newDep * (1.0 - Config.BankTermDepositFrac),
@@ -786,7 +819,8 @@ object Simulation:
             loansMedium = newLoansTotal * 0.30,   // 30% medium-term
             loansLong = newLoansTotal * 0.50,      // 50% long-term
             consumerLoans = Math.max(0.0, b.consumerLoans + bankCcOrig - bankCcPrincipal - bankCcDef),
-            consumerNpl = Math.max(0.0, b.consumerNpl + bankCcDef - b.consumerNpl * 0.05)
+            consumerNpl = Math.max(0.0, b.consumerNpl + bankCcDef - b.consumerNpl * 0.05),
+            corpBondHoldings = newCorpBonds.bankHoldings * bankDepShare
           )
         }
         // 2. Interbank clearing
@@ -889,6 +923,7 @@ object Simulation:
       gvc = newGvc,
       expectations = newExp,
       immigration = newImmig,
+      corporateBonds = newCorpBonds,
       sectorDemandMult = sectorMults,
       fofResidual = fofResidual,
       grossInvestment = sumGrossInvestment)
@@ -938,7 +973,12 @@ object Simulation:
       consumerNplLoss = consumerNplLoss,
       consumerOrigination = consumerOrigination,
       consumerPrincipalRepaid = consumerPrincipal,
-      consumerDefaultAmount = consumerDefaultAmt
+      consumerDefaultAmount = consumerDefaultAmt,
+      corpBondCouponIncome = corpBondBankCoupon,
+      corpBondDefaultLoss = corpBondBankDefaultLoss,
+      corpBondIssuance = sumBondIssuance,
+      corpBondAmortization = corpBondAmort,
+      corpBondDefaultAmount = totalBondDefault
     )
     val sfcResult = SfcCheck.validate(m, prevSnap, currSnap, sfcFlows)
     if !sfcResult.passed then
@@ -954,6 +994,7 @@ object Simulation:
         f" fusBal=${sfcResult.fusBalanceError}%.2f" +
         f" mortgage=${sfcResult.mortgageStockError}%.2f" +
         f" fof=${sfcResult.fofError}%.2f" +
-        f" ccStock=${sfcResult.consumerCreditError}%.2f")
+        f" ccStock=${sfcResult.consumerCreditError}%.2f" +
+        f" corpBond=${sfcResult.corpBondStockError}%.2f")
 
     (newW, reassignedFirms, reassignedHouseholds)

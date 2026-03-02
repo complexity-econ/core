@@ -26,7 +26,8 @@ object SfcCheck:
     fusBalance: Double = 0.0,     // ZUS/FUS raw surplus/deficit
     ppkBondHoldings: Double = 0.0, // PPK government bond holdings
     mortgageStock: Double = 0.0,  // Outstanding mortgage debt
-    consumerLoans: Double = 0.0   // Outstanding consumer credit stock
+    consumerLoans: Double = 0.0,  // Outstanding consumer credit stock
+    corpBondsOutstanding: Double = 0.0  // #40: corporate bond stock
   )
 
   /** Flows observed during a single month (computed in Simulation.step).
@@ -70,7 +71,12 @@ object SfcCheck:
     consumerNplLoss: Double = 0.0,        // consumer credit: NPL loss (after recovery)
     consumerOrigination: Double = 0.0,    // consumer credit: new loan origination
     consumerPrincipalRepaid: Double = 0.0, // consumer credit: principal portion of debt service
-    consumerDefaultAmount: Double = 0.0   // consumer credit: gross default amount (before recovery)
+    consumerDefaultAmount: Double = 0.0,  // consumer credit: gross default amount (before recovery)
+    corpBondCouponIncome: Double = 0.0,   // #40: bank coupon income from corp bonds
+    corpBondDefaultLoss: Double = 0.0,    // #40: bank loss from corp bond defaults
+    corpBondIssuance: Double = 0.0,       // #40: new corp bonds issued this month
+    corpBondAmortization: Double = 0.0,   // #40: corp bond principal repaid
+    corpBondDefaultAmount: Double = 0.0   // #40: gross corp bond defaults
   )
 
   /** Result of the SFC check: ten exact balance-sheet identity checks. */
@@ -87,6 +93,7 @@ object SfcCheck:
     mortgageStockError: Double = 0.0,  // Mortgage stock identity
     fofError: Double = 0.0,           // Flow-of-funds residual
     consumerCreditError: Double = 0.0, // Consumer credit stock identity
+    corpBondStockError: Double = 0.0,  // #40: Corporate bond stock identity
     passed: Boolean
   )
 
@@ -114,7 +121,8 @@ object SfcCheck:
       fusBalance = w.zus.fusBalance,
       ppkBondHoldings = w.ppk.bondHoldings,
       mortgageStock = w.housing.mortgageStock,
-      consumerLoans = w.bank.consumerLoans
+      consumerLoans = w.bank.consumerLoans,
+      corpBondsOutstanding = w.corporateBonds.outstanding
     )
 
   /** Validate ten exact balance-sheet identities.
@@ -132,6 +140,7 @@ object SfcCheck:
     * 9. Mortgage stock: Δ = origination - principalRepaid - defaultAmount (trivially 0 when RE disabled)
     * 10. Flow-of-funds: Σ firmRevenue = domesticCons + govPurchases + exports (closes by construction)
     * 11. Consumer credit: Δ consumerLoans = origination - principalRepaid - defaultAmount
+    * 12. Corp bond stock: Δ corpBondsOutstanding = issuance - amortization - defaultAmount
     *
     * These catch: mis-routed flows (e.g. rent subtracted from HH but not added
     * to bank/consumption), refactoring errors in balance sheet updates, and
@@ -141,12 +150,14 @@ object SfcCheck:
                nfaTolerance: Double = 1.0): SfcResult =
 
     // Identity 1: Bank capital (includes bond coupon income, mortgage interest income,
-    // consumer credit debt service income, minus deposit interest paid, minus mortgage NPL loss,
-    // minus consumer NPL loss,
+    // consumer credit debt service income, corp bond coupon income, minus deposit interest paid,
+    // minus mortgage NPL loss, minus consumer NPL loss, minus corp bond default loss,
     // plus reserve interest, standing facility income, interbank interest — all × 0.3 profit retention)
-    val expectedBankCapChange = -flows.nplLoss - flows.mortgageNplLoss - flows.consumerNplLoss +
+    val expectedBankCapChange = -flows.nplLoss - flows.mortgageNplLoss - flows.consumerNplLoss
+      - flows.corpBondDefaultLoss +
       (flows.interestIncome + flows.hhDebtService + flows.bankBondIncome
-       + flows.mortgageInterestIncome + flows.consumerDebtService - flows.depositInterestPaid
+       + flows.mortgageInterestIncome + flows.consumerDebtService + flows.corpBondCouponIncome
+       - flows.depositInterestPaid
        + flows.reserveInterest + flows.standingFacilityIncome + flows.interbankInterest) * 0.3
     val actualBankCapChange = curr.bankCapital - prev.bankCapital
     val bankCapErr = actualBankCapChange - expectedBankCapChange
@@ -205,6 +216,11 @@ object SfcCheck:
     val actualCcChange = curr.consumerLoans - prev.consumerLoans
     val ccErr = actualCcChange - expectedCcChange
 
+    // Identity 12: Corporate bond stock — Δ corpBondsOutstanding = issuance - amortization - defaultAmount
+    val expectedCorpBondChange = flows.corpBondIssuance - flows.corpBondAmortization - flows.corpBondDefaultAmount
+    val actualCorpBondChange = curr.corpBondsOutstanding - prev.corpBondsOutstanding
+    val corpBondErr = actualCorpBondChange - expectedCorpBondChange
+
     // NFA uses wider tolerance (default 10 PLN) because cumulative NFA
     // values can reach billions, causing floating-point cancellation
     // in the (curr.nfa - prev.nfa) subtraction.
@@ -218,7 +234,8 @@ object SfcCheck:
                  Math.abs(fusErr) < tolerance &&
                  Math.abs(mortgageErr) < tolerance &&
                  Math.abs(fofErr) < tolerance &&
-                 Math.abs(ccErr) < tolerance
+                 Math.abs(ccErr) < tolerance &&
+                 Math.abs(corpBondErr) < tolerance
 
     SfcResult(month, bankCapErr, bankDepErr, govDebtErr, nfaErr, bondClearingErr, interbankErr,
-      jstDebtErr, fusErr, mortgageErr, fofErr, ccErr, passed)
+      jstDebtErr, fusErr, mortgageErr, fofErr, ccErr, corpBondErr, passed)

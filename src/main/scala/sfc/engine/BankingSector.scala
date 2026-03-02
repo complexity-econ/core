@@ -36,11 +36,12 @@ case class IndividualBankState(
   loansMedium: Double = 0.0,       // medium-term (1-5 years)
   loansLong: Double = 0.0,         // long-term (> 5 years)
   consumerLoans: Double = 0.0,     // consumer credit: outstanding unsecured HH loans
-  consumerNpl: Double = 0.0        // consumer credit: NPL stock
+  consumerNpl: Double = 0.0,       // consumer credit: NPL stock
+  corpBondHoldings: Double = 0.0   // #40: corporate bond holdings (bank share)
 ):
   def nplRatio: Double = if loans > 1.0 then nplAmount / loans else 0.0
   def car: Double =
-    val totalRwa = loans + consumerLoans
+    val totalRwa = loans + consumerLoans + corpBondHoldings * 0.50  // 50% RW for corp bonds (Basel III BBB)
     if totalRwa > 1.0 then capital / totalRwa else 10.0
 
   /** High Quality Liquid Assets: reserves + gov bonds (Level 1 assets). */
@@ -55,8 +56,8 @@ case class IndividualBankState(
   /** Available Stable Funding: capital + term deposits × 0.95 + demand deposits × 0.90. */
   def asf: Double = capital + termDeposits * 0.95 + demandDeposits * 0.90
 
-  /** Required Stable Funding: short × 0.50 + medium × 0.65 + long × 0.85 + bonds × 0.05. */
-  def rsf: Double = loansShort * 0.50 + loansMedium * 0.65 + loansLong * 0.85 + govBondHoldings * 0.05
+  /** Required Stable Funding: short × 0.50 + medium × 0.65 + long × 0.85 + gov bonds × 0.05 + corp bonds × 0.50. */
+  def rsf: Double = loansShort * 0.50 + loansMedium * 0.65 + loansLong * 0.85 + govBondHoldings * 0.05 + corpBondHoldings * 0.50
 
   /** NSFR = ASF / RSF. */
   def nsfr: Double = if rsf > 1.0 then asf / rsf else 10.0
@@ -76,7 +77,8 @@ case class BankingSectorState(
       deposits = banks.kahanSumBy(_.deposits),
       govBondHoldings = banks.kahanSumBy(_.govBondHoldings),
       consumerLoans = banks.kahanSumBy(_.consumerLoans),
-      consumerNpl = banks.kahanSumBy(_.consumerNpl)
+      consumerNpl = banks.kahanSumBy(_.consumerNpl),
+      corpBondHoldings = banks.kahanSumBy(_.corpBondHoldings)
     )
 
 object BankingSector:
@@ -146,7 +148,7 @@ object BankingSector:
               ccyb: Double = 0.0): Boolean =
     if bank.failed then false
     else
-      val projectedCar = bank.capital / (bank.loans + bank.consumerLoans + amount)
+      val projectedCar = bank.capital / (bank.loans + bank.consumerLoans + bank.corpBondHoldings * 0.50 + amount)
       val approvalP = Math.max(0.1, 1.0 - bank.nplRatio * 3.0)
       // Use effective MinCAR (base + CCyB + OSII) when macropru enabled
       val minCar = Macroprudential.effectiveMinCar(bank.id, ccyb)
@@ -233,16 +235,19 @@ object BankingSector:
         if b.failed && b.deposits > 0 then
           // Wipe this bank's balance sheet
           b.copy(deposits = 0.0, loans = 0.0, govBondHoldings = 0.0,
-            nplAmount = 0.0, interbankNet = 0.0, reservesAtNbp = 0.0)
+            nplAmount = 0.0, interbankNet = 0.0, reservesAtNbp = 0.0,
+            corpBondHoldings = 0.0)
         else if b.id == absorberId then
           // Absorb deposits, performing loans, bonds from failed banks
           val addedDeposits = newlyFailed.kahanSumBy(_.deposits)
           val addedLoans = newlyFailed.kahanSumBy(f => f.loans - f.nplAmount)
           val addedBonds = newlyFailed.kahanSumBy(_.govBondHoldings)
+          val addedCorpBonds = newlyFailed.kahanSumBy(_.corpBondHoldings)
           b.copy(
             deposits = b.deposits + addedDeposits,
             loans = b.loans + Math.max(0, addedLoans),
-            govBondHoldings = b.govBondHoldings + addedBonds
+            govBondHoldings = b.govBondHoldings + addedBonds,
+            corpBondHoldings = b.corpBondHoldings + addedCorpBonds
           )
         else b
       }
