@@ -141,6 +141,44 @@ class CorporateBondSpec extends AnyFlatSpec with Matchers:
     Config.CorpBondMinSize shouldBe 50
   }
 
+  "computeAbsorption" should "return 1.0 when spread = base and CAR comfortable" in {
+    val state = initState.copy(creditSpread = Config.CorpBondSpread)
+    val absorption = CorporateBondMarket.computeAbsorption(state, 1000.0, 0.15, 0.08)
+    absorption shouldBe 1.0
+  }
+
+  it should "return 1.0 for zero issuance" in {
+    val absorption = CorporateBondMarket.computeAbsorption(initState, 0.0, 0.05, 0.08)
+    absorption shouldBe 1.0
+  }
+
+  it should "decrease with widening spread" in {
+    val normalState = initState.copy(creditSpread = Config.CorpBondSpread)
+    val wideState = initState.copy(creditSpread = Config.CorpBondSpread + 0.05)
+    val a1 = CorporateBondMarket.computeAbsorption(normalState, 1000.0, 0.15, 0.08)
+    val a2 = CorporateBondMarket.computeAbsorption(wideState, 1000.0, 0.15, 0.08)
+    a2 should be < a1
+  }
+
+  it should "return 0.3 floor at extreme spread" in {
+    val extremeState = initState.copy(creditSpread = Config.CorpBondSpread + 0.15)
+    val absorption = CorporateBondMarket.computeAbsorption(extremeState, 1000.0, 0.15, 0.08)
+    absorption shouldBe (0.3 +- 0.001)
+  }
+
+  it should "decrease when CAR near minimum" in {
+    val state = initState.copy(creditSpread = Config.CorpBondSpread)
+    val a1 = CorporateBondMarket.computeAbsorption(state, 1000.0, 0.15, 0.08)
+    val a2 = CorporateBondMarket.computeAbsorption(state, 1000.0, 0.09, 0.08)
+    a2 should be < a1
+  }
+
+  it should "return 0.3 when CAR at or below minimum" in {
+    val state = initState.copy(creditSpread = Config.CorpBondSpread)
+    val absorption = CorporateBondMarket.computeAbsorption(state, 1000.0, 0.08, 0.08)
+    absorption shouldBe (0.3 +- 0.001)
+  }
+
   "BankState.car" should "include corpBondHoldings at 50% risk weight" in {
     import sfc.sfc.BankState
     val bank = BankState(totalLoans = 1000.0, nplAmount = 0.0, capital = 200.0,

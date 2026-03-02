@@ -14,7 +14,8 @@ case class CorporateBondMarketState(
   lastCouponIncome: Double = 0.0,   // bank + ppk coupon income
   lastDefaultLoss: Double = 0.0,    // net loss after recovery
   lastDefaultAmount: Double = 0.0,  // gross default amount
-  creditSpread: Double = 0.025      // current credit spread
+  creditSpread: Double = 0.025,     // current credit spread
+  lastAbsorptionRate: Double = 1.0  // demand-side absorption rate [0.3, 1.0]
 )
 
 object CorporateBondMarket:
@@ -62,6 +63,24 @@ object CorporateBondMarket:
   /** Monthly amortization: outstanding / maturity. */
   def amortization(state: CorporateBondMarketState): Double =
     state.outstanding / Math.max(1.0, Config.CorpBondMaturity)
+
+  /** Compute market absorption rate for new bond issuance.
+    * Gate 1: spread-based investor appetite (cyclical).
+    * Gate 2: bank CAR headroom (banks hold CorpBondBankShare at 50% RW).
+    * Returns absorption rate in [0.3, 1.0]. */
+  def computeAbsorption(state: CorporateBondMarketState,
+                        tentativeIssuance: Double,
+                        aggBankCar: Double, minCar: Double): Double =
+    if tentativeIssuance <= 0 then return 1.0
+    // Gate 1: spread-based appetite
+    val excessSpread = Math.max(0.0, state.creditSpread - Config.CorpBondSpread)
+    val spreadAbsorption = Math.max(0.3, 1.0 - excessSpread / 0.10)
+    // Gate 2: bank CAR headroom (linear ramp in 200 bps buffer zone)
+    val carAbsorption =
+      if aggBankCar <= minCar then 0.3
+      else if aggBankCar >= minCar + 0.02 then 1.0
+      else 0.3 + 0.7 * (aggBankCar - minCar) / 0.02
+    Math.max(0.3, Math.min(1.0, spreadAbsorption * carAbsorption))
 
   /** Process new issuance: allocate to holders proportionally. */
   def processIssuance(state: CorporateBondMarketState,

@@ -348,6 +348,9 @@ object Simulation:
       month = m, sectorDemandMult = sectorMults,
       hh = w.hh.copy(marketWage = newWage, reservationWage = resWage))
 
+    // Per-firm bond issuance amounts (for demand-side constraint revert)
+    val firmBondAmounts = scala.collection.mutable.HashMap.empty[Int, Double]
+
     // Process firms -- per-firm dispatch to bank, accumulate per-bank flows
     val newFirms = firms.map { f =>
       val firmRate = getLendRate(f.bankId)
@@ -389,21 +392,44 @@ object Simulation:
       sumNewLoans += finalLoan
       sumEquityIssuance += equityAmt
       sumBondIssuance += bondAmt
+      if bondAmt > 0 then firmBondAmounts(f.id) = bondAmt
       perBankNewLoans(f.bankId) += finalLoan
       bondUpdatedFirm
     }
 
+    // Corporate bond demand-side constraint: compute absorption and revert unsold to bank loans
+    val corpBondAbsorption = CorporateBondMarket.computeAbsorption(
+      w.corporateBonds, sumBondIssuance, w.bank.car, Config.MinCar)
+    val actualBondIssuance = sumBondIssuance * corpBondAbsorption
+    val revertRatio = 1.0 - corpBondAbsorption
+    val adjustedFirms = if revertRatio > 0.001 then
+      newFirms.map { f =>
+        val ba = firmBondAmounts.getOrElse(f.id, 0.0)
+        if ba > 0 then
+          val revert = ba * revertRatio
+          f.copy(bondDebt = f.bondDebt - revert, debt = f.debt + revert)
+        else f
+      }
+    else newFirms
+    // Revert unsold bonds to bank loans
+    if revertRatio > 0.001 then
+      val unsoldBonds = sumBondIssuance * revertRatio
+      sumNewLoans += unsoldBonds
+      for (fid, ba) <- firmBondAmounts do
+        val revert = ba * revertRatio
+        adjustedFirms.find(_.id == fid).foreach(ff => perBankNewLoans(ff.bankId) += revert)
+
     // Track per-bank workers for deposit partitioning
-    for f <- newFirms if FirmOps.isAlive(f) do
+    for f <- adjustedFirms if FirmOps.isAlive(f) do
       perBankWorkers(f.bankId) += FirmOps.workers(f)
 
     // I-O intermediate market (Paper-07)
     val (ioFirms, totalIoPaid) = if Config.IoEnabled then
-      val r = IntermediateMarket.process(newFirms, sectorMults, w.priceLevel,
+      val r = IntermediateMarket.process(adjustedFirms, sectorMults, w.priceLevel,
         Config.IoMatrix, Config.IoColumnSums, Config.IoScale)
       (r.firms, r.totalPaid)
     else
-      (newFirms, 0.0)
+      (adjustedFirms, 0.0)
 
     // Individual mode: post-firm-processing labor market update
     var postFirmCrossSectorHires = 0
@@ -650,7 +676,8 @@ object Simulation:
     // --- Corporate bond market step (#40) ---
     val corpBondAmort = CorporateBondMarket.amortization(w.corporateBonds)
     val newCorpBonds = CorporateBondMarket.step(w.corporateBonds, newBondYield,
-      w.bank.nplRatio, totalBondDefault, sumBondIssuance)
+      w.bank.nplRatio, totalBondDefault, actualBondIssuance)
+      .copy(lastAbsorptionRate = corpBondAbsorption)
     // Coupon computed from LAGGED state (standard SFC approach)
     val (_, corpBondBankCoupon, _) = CorporateBondMarket.computeCoupon(w.corporateBonds)
     val (_, _, corpBondBankDefaultLoss, _) = CorporateBondMarket.processDefaults(
@@ -976,7 +1003,7 @@ object Simulation:
       consumerDefaultAmount = consumerDefaultAmt,
       corpBondCouponIncome = corpBondBankCoupon,
       corpBondDefaultLoss = corpBondBankDefaultLoss,
-      corpBondIssuance = sumBondIssuance,
+      corpBondIssuance = actualBondIssuance,
       corpBondAmortization = corpBondAmort,
       corpBondDefaultAmount = totalBondDefault
     )
