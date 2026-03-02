@@ -690,6 +690,13 @@ object Config:
       i += 1
     shares.length - 1
 
+  // Staged Digitalization (#37) — always-on, no master toggle
+  val DigiDrift: Double = sys.env.get("DIGI_DRIFT").map(_.trim.toDouble).getOrElse(0.001)
+  val DigiInvestCost: Double = sys.env.get("DIGI_INVEST_COST").map(_.trim.toDouble).getOrElse(50000.0)
+  val DigiInvestBoost: Double = sys.env.get("DIGI_INVEST_BOOST").map(_.trim.toDouble).getOrElse(0.05)
+  val DigiCapexDiscount: Double = sys.env.get("DIGI_CAPEX_DISCOUNT").map(_.trim.toDouble).getOrElse(0.30)
+  val DigiInvestBaseProb: Double = sys.env.get("DIGI_INVEST_BASE_PROB").map(_.trim.toDouble).getOrElse(0.08)
+
   // Physical Capital & Depreciation (#31) — always-on, no master toggle
   val PhysCapEnabled: Boolean = sys.env.get("PHYS_CAPITAL_ENABLED").map(_.trim.toBoolean).getOrElse(true)
   val PhysCapKLRatios: Vector[Double] = sys.env.get("PHYS_CAPITAL_KL_RATIOS") match
