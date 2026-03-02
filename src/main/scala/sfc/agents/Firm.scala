@@ -46,6 +46,12 @@ object FirmOps:
   def skeletonCrew(f: Firm): Int =
     Math.max(Config.AutoSkeletonCrew, (f.initialSize * 0.02).toInt)
 
+  /** Effective wage multiplier including union wage premium (#44). */
+  def effectiveWageMult(sectorIdx: Int): Double =
+    val base = SECTORS(sectorIdx).wageMultiplier
+    if Config.UnionEnabled then base * (1.0 + Config.UnionWagePremium * Config.UnionDensity(sectorIdx))
+    else base
+
   def capacity(f: Firm): Double =
     val sec = SECTORS(f.sector)
     val sizeScale = f.initialSize.toDouble / Config.WorkersPerFirm
@@ -125,7 +131,7 @@ object FirmLogic:
   private def calcPnL(firm: Firm, wage: Double, sectorDemandMult: Double,
     price: Double, lendRate: Double): (Double, Double, Double) =
     val revenue = FirmOps.capacity(firm) * sectorDemandMult * price
-    val labor   = FirmOps.workers(firm) * wage * SECTORS(firm.sector).wageMultiplier
+    val labor   = FirmOps.workers(firm) * wage * FirmOps.effectiveWageMult(firm.sector)
     val sizeFactor = firm.initialSize.toDouble / Config.WorkersPerFirm
     val rawOther = Config.OtherCosts * price * sizeFactor
     val depnCost = if Config.PhysCapEnabled then
@@ -174,7 +180,7 @@ object FirmLogic:
           firm.innovationCostFactor * 0.6 * upSizeFactor * upDigiDiscount
         val upLoan  = upCapex * 0.85
         val upDown  = upCapex * 0.15
-        val wMult   = SECTORS(firm.sector).wageMultiplier
+        val wMult   = FirmOps.effectiveWageMult(firm.sector)
         val upOpexSizeFactor = Math.pow(firm.initialSize.toDouble / Config.WorkersPerFirm, 0.5)
         val upOtherSizeFactor = firm.initialSize.toDouble / Config.WorkersPerFirm
         val upCost  = Config.AiOpex * (0.60 + 0.40 * w.priceLevel) * upOpexSizeFactor +
@@ -209,7 +215,7 @@ object FirmLogic:
         val tax = Math.max(0.0, rev - costs) * Config.CitRate
 
         // Full AI
-        val sWm    = SECTORS(firm.sector).wageMultiplier
+        val sWm    = FirmOps.effectiveWageMult(firm.sector)
         val fCapex = FirmOps.aiCapex(firm)
         val fLoan  = fCapex * 0.85
         val fDown  = fCapex * 0.15

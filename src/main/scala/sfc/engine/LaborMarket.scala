@@ -109,7 +109,7 @@ object LaborMarket:
 
         bestFirmId.foreach { fid =>
           val f = firms(fid)
-          val sectorMult = SECTORS(f.sector).wageMultiplier
+          val sectorMult = FirmOps.effectiveWageMult(f.sector)
           val isCrossSector = f.sector != prevSector
           // Cross-sector wage penalty when sectoral mobility is enabled
           val penalty = if Config.LmSectoralMobility && isCrossSector then
@@ -140,7 +140,7 @@ object LaborMarket:
           val immigrantDiscount = if hh.isImmigrant && Config.ImmigEnabled then
             1.0 - Config.ImmigWageDiscount
           else 1.0
-          SECTORS(sectorIdx).wageMultiplier * hh.skill * (1.0 - hh.healthPenalty) * immigrantDiscount *
+          FirmOps.effectiveWageMult(sectorIdx) * hh.skill * (1.0 - hh.healthPenalty) * immigrantDiscount *
             Config.eduWagePremium(hh.education)
         case _ => 0.0
     }
