@@ -331,6 +331,7 @@ object Simulation:
     var sumTechImp  = 0.0
     var sumNewLoans = 0.0
     var sumEquityIssuance = 0.0
+    var sumGrossInvestment = 0.0
 
     val macro4firms = w.copy(
       month = m, sectorDemandMult = sectorMults,
@@ -344,6 +345,7 @@ object Simulation:
       sumTax      += r.taxPaid
       sumCapex    += r.capexSpent
       sumTechImp  += r.techImports
+      sumGrossInvestment += r.grossInvestment
 
       // GPW equity issuance: eligible firms replace fraction of loan with equity
       val (actualLoan, equityAmt, updatedFirm) =
@@ -457,7 +459,11 @@ object Simulation:
       (euCofin - euProjectCapital).max(0.0) * Config.GovCurrentMultiplier
     else if Config.EuFundsEnabled then euCofin
     else 0.0
-    val gdp     = domesticCons + govGdpContribution + euGdpContribution + w.forex.exports
+    val domesticGFCF = if Config.PhysCapEnabled then
+      sumGrossInvestment * (1.0 - Config.PhysCapImportShare) else 0.0
+    val investmentImports = if Config.PhysCapEnabled then
+      sumGrossInvestment * Config.PhysCapImportShare else 0.0
+    val gdp     = domesticCons + govGdpContribution + euGdpContribution + w.forex.exports + domesticGFCF
 
     // Macroprudential — compute CCyB from credit-to-GDP gap
     val totalSystemLoans = w.bankingSector.map(_.banks.kahanSumBy(_.loans)).getOrElse(w.bank.totalLoans)
@@ -528,9 +534,10 @@ object Simulation:
       (Some(newGvc.totalExports), Some(newGvc.sectorImports))
     else (None, None)
 
+    val totalTechAndInvImports = sumTechImp + investmentImports
     val (newForex, newBop0, oeValuationEffect, fxResult) = if Config.OeEnabled then
       val oeResult = OpenEconomy.step(
-        w.bop, w.forex, importCons, sumTechImp,
+        w.bop, w.forex, importCons, totalTechAndInvImports,
         autoR, w.nbp.referenceRate, gdp, w.priceLevel,
         sectorOutputs, m, rc,
         nbpFxReserves = w.nbp.fxReserves,
@@ -540,7 +547,7 @@ object Simulation:
         euFundsMonthly = euMonthly)
       (oeResult.forex, oeResult.bop, oeResult.valuationEffect, oeResult.fxIntervention)
     else
-      val fx = Sectors.updateForeign(w.forex, importCons, sumTechImp, autoR, w.nbp.referenceRate, gdp, rc)
+      val fx = Sectors.updateForeign(w.forex, importCons, totalTechAndInvImports, autoR, w.nbp.referenceRate, gdp, rc)
       (fx, w.bop, 0.0, CentralBankLogic.FxInterventionResult(0.0, 0.0, w.nbp.fxReserves))
 
     // Adjust BOP for foreign dividend outflow (primary income component) + EU funds tracking
@@ -868,7 +875,8 @@ object Simulation:
       expectations = newExp,
       immigration = newImmig,
       sectorDemandMult = sectorMults,
-      fofResidual = fofResidual)
+      fofResidual = fofResidual,
+      grossInvestment = sumGrossInvestment)
 
     // SFC accounting check: verify exact balance-sheet identities every step
     val prevSnap = SfcCheck.snapshot(w, firms, households)

@@ -596,6 +596,25 @@ object Config:
   val CcNplRecovery: Double = sys.env.get("CC_NPL_RECOVERY").map(_.trim.toDouble).getOrElse(0.15)
   val CcEligRate: Double = sys.env.get("CC_ELIG_RATE").map(_.trim.toDouble).getOrElse(0.30)
 
+  // Physical Capital & Depreciation (#31) — always-on, no master toggle
+  val PhysCapEnabled: Boolean = sys.env.get("PHYS_CAPITAL_ENABLED").map(_.trim.toBoolean).getOrElse(true)
+  val PhysCapKLRatios: Vector[Double] = sys.env.get("PHYS_CAPITAL_KL_RATIOS") match
+    case Some(s) if s.nonEmpty =>
+      val v = s.split(",").map(_.trim.toDouble).toVector
+      require(v.length == 6, s"PHYS_CAPITAL_KL_RATIOS must have 6 values, got ${v.length}")
+      v
+    case _ => Vector(120000.0, 250000.0, 80000.0, 200000.0, 150000.0, 180000.0)
+  val PhysCapDepRates: Vector[Double] = sys.env.get("PHYS_CAPITAL_DEP_RATES") match
+    case Some(s) if s.nonEmpty =>
+      val v = s.split(",").map(_.trim.toDouble).toVector
+      require(v.length == 6, s"PHYS_CAPITAL_DEP_RATES must have 6 values, got ${v.length}")
+      v
+    case _ => Vector(0.15, 0.08, 0.10, 0.07, 0.05, 0.08)
+  val PhysCapImportShare: Double = sys.env.get("PHYS_CAPITAL_IMPORT_SHARE").map(_.trim.toDouble).getOrElse(0.35)
+  val PhysCapAdjustSpeed: Double = sys.env.get("PHYS_CAPITAL_ADJUST_SPEED").map(_.trim.toDouble).getOrElse(0.10)
+  val PhysCapProdElast: Double = sys.env.get("PHYS_CAPITAL_PROD_ELAST").map(_.trim.toDouble).getOrElse(0.30)
+  val PhysCapCostReplace: Double = sys.env.get("PHYS_CAPITAL_COST_REPLACE").map(_.trim.toDouble).getOrElse(0.50)
+
   // Heterogeneous households (Paper-06)
   val HhCount = sys.env.get("HH_COUNT").map(_.trim.toInt).getOrElse(TotalPopulation)
 

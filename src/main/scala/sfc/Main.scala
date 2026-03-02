@@ -69,6 +69,11 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
   val actualTotalPop = firms.map(f => FirmOps.workers(f)).sum
   Config.setTotalPopulation(actualTotalPop)
 
+  // Initialize physical capital stock
+  if Config.PhysCapEnabled then
+    firms = firms.map(f =>
+      f.copy(capitalStock = FirmOps.workers(f).toDouble * Config.PhysCapKLRatios(f.sector)))
+
   // Multi-bank: assign firms to banks
   if Config.BankMulti then
     firms = firms.map(f =>
@@ -151,7 +156,7 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
   //          Housing: HPI, MarketValue, MortgageStock, MortgageRate, Origination,
   //                   Repayment, Default, MortgageInterest, HhHousingWealth,
   //                   HousingWealthEffect, MortgageToGdp
-  val nCols = 140
+  val nCols = 143
   val results = Array.ofDim[Double](Config.Duration, nCols)
 
   for t <- 0 until Config.Duration do
@@ -383,7 +388,13 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
       world.bank.consumerLoans,                            // 136: ConsumerLoans
       (if world.bank.consumerLoans > 0 then world.bank.consumerNpl / world.bank.consumerLoans else 0.0), // 137: ConsumerNplRatio
       world.hhAgg.map(_.totalConsumerOrigination).getOrElse(0.0), // 138: ConsumerOrigination
-      world.hhAgg.map(_.totalConsumerDebtService).getOrElse(0.0)  // 139: ConsumerDebtService
+      world.hhAgg.map(_.totalConsumerDebtService).getOrElse(0.0), // 139: ConsumerDebtService
+      // Physical Capital
+      living.kahanSumBy(_.capitalStock),                           // 140: AggCapitalStock
+      world.grossInvestment,                                       // 141: GrossInvestment
+      (if Config.PhysCapEnabled then                               // 142: CapitalDepreciation
+        living.kahanSumBy(f => f.capitalStock * Config.PhysCapDepRates(f.sector) / 12.0)
+      else 0.0)
     )
 
   RunResult(results, world.hhAgg)
@@ -416,7 +427,7 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
 
   // Aggregation arrays
   val nMonths = Config.Duration
-  val nCols   = 140
+  val nCols   = 143
   val allRuns = Array.ofDim[Double](nSeeds, nMonths, nCols)
   val allHhAgg = new Array[Option[HhAggregates]](nSeeds)
 
@@ -475,7 +486,8 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
     "EffectivePitRate;SocialTransferSpend;" +
     "GovCurrentSpend;GovCapitalSpend;PublicCapitalStock;" +
     "EuCofinancing;EuFundsMonthly;EuCumulativeAbsorption;MinWageLevel;FofResidual;" +
-    "ConsumerLoans;ConsumerNplRatio;ConsumerOrigination;ConsumerDebtService\n")
+    "ConsumerLoans;ConsumerNplRatio;ConsumerOrigination;ConsumerDebtService;" +
+    "AggCapitalStock;GrossInvestment;CapitalDepreciation\n")
   for seed <- 0 until nSeeds do
     val last = allRuns(seed)(nMonths - 1)
     termPw.write(s"${seed + 1}")
@@ -569,7 +581,8 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
     "GovCurrentSpend", "GovCapitalSpend", "PublicCapitalStock",
     "EuCofinancing", "EuFundsMonthly", "EuCumulativeAbsorption",
     "MinWageLevel", "FofResidual",
-    "ConsumerLoans", "ConsumerNplRatio", "ConsumerOrigination", "ConsumerDebtService")
+    "ConsumerLoans", "ConsumerNplRatio", "ConsumerOrigination", "ConsumerDebtService",
+    "AggCapitalStock", "GrossInvestment", "CapitalDepreciation")
   // Header: Month, then for each metric: mean, std, p05, p95
   aggPw.write("Month")
   for c <- 1 until nCols do

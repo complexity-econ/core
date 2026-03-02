@@ -78,7 +78,9 @@ object DynamicNetwork:
             SECTORS(sec).baseDigitalReadiness + (Random.nextGaussian() * 0.20))),
           sector = sec,
           neighbors = adj(i).toArray,
-          initialSize = newSize
+          initialSize = newSize,
+          capitalStock = if Config.PhysCapEnabled then
+            newSize.toDouble * Config.PhysCapKLRatios(sec) else 0.0
         )
       else
         val newNb = adj(i).toArray

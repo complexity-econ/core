@@ -27,7 +27,8 @@ case class Firm(
   neighbors: Array[Int],    // Network adjacency (firm IDs)
   bankId: Int = 0,          // Multi-bank: index into BankingSectorState.banks
   equityRaised: Double = 0.0, // GPW: cumulative equity raised via IPO/SPO
-  initialSize: Int = 10     // Firm size at creation (v6.0: heterogeneous when FIRM_SIZE_DIST=gus)
+  initialSize: Int = 10,    // Firm size at creation (v6.0: heterogeneous when FIRM_SIZE_DIST=gus)
+  capitalStock: Double = 0.0 // Physical capital stock (PLN), #31
 )
 
 object FirmOps:
@@ -48,7 +49,7 @@ object FirmOps:
   def capacity(f: Firm): Double =
     val sec = SECTORS(f.sector)
     val sizeScale = f.initialSize.toDouble / Config.WorkersPerFirm
-    f.tech match
+    val base = f.tech match
       case TechState.Traditional(w) =>
         Config.BaseRevenue * sizeScale * sec.revenueMultiplier *
           Math.sqrt(w.toDouble / f.initialSize)
@@ -58,6 +59,12 @@ object FirmOps:
       case TechState.Automated(eff) =>
         Config.BaseRevenue * sizeScale * sec.revenueMultiplier * eff
       case _: TechState.Bankrupt => 0.0
+    if Config.PhysCapEnabled && f.capitalStock > 0 && base > 0 then
+      val targetK = workers(f).toDouble * Config.PhysCapKLRatios(f.sector)
+      val kRatio = if targetK > 0 then f.capitalStock / targetK else 1.0
+      val capitalFactor = Math.pow(Math.min(2.0, Math.max(0.1, kRatio)), Config.PhysCapProdElast)
+      base * capitalFactor
+    else base
 
   /** Effective AI CAPEX for sector — sublinear in firm size (exponent 0.6). */
   def aiCapex(f: Firm): Double =
@@ -77,17 +84,39 @@ object FirmOps:
 // ---- Firm step result ----
 
 case class FirmResult(firm: Firm, taxPaid: Double, capexSpent: Double,
-  techImports: Double, newLoan: Double, equityIssuance: Double = 0.0)
+  techImports: Double, newLoan: Double, equityIssuance: Double = 0.0,
+  grossInvestment: Double = 0.0)
 
 // ---- Firm decision logic ----
 
 object FirmLogic:
+  /** Apply physical capital investment after firm decision.
+    * Depreciation, replacement + expansion investment, cash-constrained. */
+  private def applyInvestment(r: FirmResult): FirmResult =
+    if !Config.PhysCapEnabled then return r
+    val f = r.firm
+    if !FirmOps.isAlive(f) then return r.copy(firm = f.copy(capitalStock = 0.0))
+    val depRate = Config.PhysCapDepRates(f.sector) / 12.0
+    val depn = f.capitalStock * depRate
+    val postDepK = f.capitalStock - depn
+    val targetK = FirmOps.workers(f).toDouble * Config.PhysCapKLRatios(f.sector)
+    val gap = Math.max(0.0, targetK - postDepK)
+    val desiredInv = depn + gap * Config.PhysCapAdjustSpeed
+    val actualInv = Math.min(desiredInv, Math.max(0.0, f.cash))
+    val newK = postDepK + actualInv
+    r.copy(firm = f.copy(cash = f.cash - actualInv, capitalStock = newK),
+           grossInvestment = actualInv)
+
   private def calcPnL(firm: Firm, wage: Double, sectorDemandMult: Double,
     price: Double, lendRate: Double): (Double, Double, Double) =
     val revenue = FirmOps.capacity(firm) * sectorDemandMult * price
     val labor   = FirmOps.workers(firm) * wage * SECTORS(firm.sector).wageMultiplier
     val sizeFactor = firm.initialSize.toDouble / Config.WorkersPerFirm
-    val other   = Config.OtherCosts * price * sizeFactor
+    val rawOther = Config.OtherCosts * price * sizeFactor
+    val depnCost = if Config.PhysCapEnabled then
+      firm.capitalStock * Config.PhysCapDepRates(firm.sector) / 12.0 else 0.0
+    val other = if Config.PhysCapEnabled then
+      rawOther * (1.0 - Config.PhysCapCostReplace) else rawOther
     // AI/hybrid opex is partially imported (40%) -- not fully domestic price-sensitive
     // OPEX scales sublinearly with firm size (exponent 0.5)
     val opexSizeFactor = Math.pow(firm.initialSize.toDouble / Config.WorkersPerFirm, 0.5)
@@ -96,7 +125,7 @@ object FirmLogic:
       case _: TechState.Hybrid    => Config.HybridOpex * (0.60 + 0.40 * price) * opexSizeFactor
       case _                      => 0.0
     val interest = firm.debt * (lendRate / 12.0)
-    val costs    = labor + other + aiMaint + interest
+    val costs    = labor + other + depnCost + aiMaint + interest
     val profit   = revenue - costs
     val tax      = Math.max(0.0, profit) * Config.CitRate
     (revenue, costs, profit - tax)
@@ -106,7 +135,7 @@ object FirmLogic:
     allFirms: Array[Firm],
     rc: RunConfig): FirmResult =
 
-    firm.tech match
+    val rawResult: FirmResult = firm.tech match
       case _: TechState.Bankrupt =>
         FirmResult(firm, 0, 0, 0, 0)
 
@@ -272,3 +301,5 @@ object FirmLogic:
               tech = TechState.Bankrupt("Niewyplacalnosc (koszty pracy)")), tax, 0, 0, 0)
           else
             FirmResult(firm.copy(cash = nc), tax, 0, 0, 0)
+
+    applyInvestment(rawResult)
