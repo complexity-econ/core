@@ -888,6 +888,13 @@ object Config:
   val GreenInitRatio: Double = sys.env.get("GREEN_INIT_RATIO").map(_.trim.toDouble).getOrElse(0.10)
   val GreenBudgetShare: Double = sys.env.get("GREEN_BUDGET_SHARE").map(_.trim.toDouble).getOrElse(0.20)
 
+  // Diaspora Remittances (#46)
+  val RemittanceEnabled: Boolean = sys.env.get("REMITTANCE_ENABLED").map(_.trim.toBoolean).getOrElse(false)
+  val RemittancePerCapita: Double = sys.env.get("REMITTANCE_PER_CAPITA").map(_.trim.toDouble).getOrElse(40.0)
+  val RemittanceErElasticity: Double = sys.env.get("REMITTANCE_ER_ELASTICITY").map(_.trim.toDouble).getOrElse(0.5)
+  val RemittanceGrowthRate: Double = sys.env.get("REMITTANCE_GROWTH_RATE").map(_.trim.toDouble).getOrElse(0.02)
+  val RemittanceCyclicalSens: Double = sys.env.get("REMITTANCE_CYCLICAL_SENS").map(_.trim.toDouble).getOrElse(0.3)
+
   // Heterogeneous households (Paper-06)
   val HhCount = sys.env.get("HH_COUNT").map(_.trim.toInt).getOrElse(TotalPopulation)
 
