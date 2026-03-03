@@ -95,6 +95,13 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
       f.copy(inventory = targetInv * Config.InventoryInitRatio)
     }
 
+  // Initialize green capital stock (#36)
+  if Config.EnergyEnabled then
+    firms = firms.map { f =>
+      val targetGK = FirmOps.workers(f).toDouble * Config.GreenKLRatios(f.sector)
+      f.copy(greenCapital = targetGK * Config.GreenInitRatio)
+    }
+
   // Initialize households (individual mode only)
   var households: Option[Vector[Household]] = HH_MODE match
     case HhMode.Individual =>
@@ -184,7 +191,7 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
   //          Housing: HPI, MarketValue, MortgageStock, MortgageRate, Origination,
   //                   Repayment, Default, MortgageInterest, HhHousingWealth,
   //                   HousingWealthEffect, MortgageToGdp
-  val nCols = 182
+  val nCols = 188
   val results = Array.ofDim[Double](Config.Duration, nCols)
 
   for t <- 0 until Config.Duration do
@@ -472,7 +479,19 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
       else 0.0),                                                                     // 178: EffectiveShadowShare
       world.taxEvasionLoss,                                                            // 179: TaxEvasionLoss
       world.informalEmployed,                                                          // 180: InformalEmployment
-      (if world.gdpProxy > 0 then world.taxEvasionLoss / world.gdpProxy else 0.0)     // 181: EvasionToGdpRatio
+      (if world.gdpProxy > 0 then world.taxEvasionLoss / world.gdpProxy else 0.0),    // 181: EvasionToGdpRatio
+      // Energy / Climate (#36)
+      world.aggEnergyCost,                                                             // 182: AggEnergyCost
+      (if world.gdpProxy > 0 then world.aggEnergyCost / world.gdpProxy else 0.0),     // 183: EnergyCostToGdp
+      (if Config.EnergyEnabled then
+        Config.EtsBasePrice * Math.pow(1.0 + Config.EtsPriceDrift / 12.0, (t + 1).toDouble)
+      else 0.0),                                                                       // 184: EtsPrice
+      world.aggGreenCapital,                                                            // 185: AggGreenCapital
+      world.aggGreenInvestment,                                                         // 186: GreenInvestment
+      {                                                                                 // 187: GreenCapitalRatio
+        val aggK = living.kahanSumBy(_.capitalStock)
+        if world.aggGreenCapital > 0 && aggK > 0 then world.aggGreenCapital / aggK else 0.0
+      }
     )
 
   RunResult(results, world.hhAgg)
@@ -505,7 +524,7 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
 
   // Aggregation arrays
   val nMonths = Config.Duration
-  val nCols   = 182
+  val nCols   = 188
   val allRuns = Array.ofDim[Double](nSeeds, nMonths, nCols)
   val allHhAgg = new Array[Option[HhAggregates]](nSeeds)
 
@@ -573,7 +592,8 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
     "FdiProfitShifting;FdiRepatriation;FdiGrossOutflow;ForeignOwnedFrac;FdiCitLoss;" +
     "FirmBirths;FirmDeaths;NetEntry;LivingFirmCount;" +
     "AggInventoryStock;InventoryChange;InventoryToGdp;" +
-    "EffectiveShadowShare;TaxEvasionLoss;InformalEmployment;EvasionToGdpRatio\n")
+    "EffectiveShadowShare;TaxEvasionLoss;InformalEmployment;EvasionToGdpRatio;" +
+    "AggEnergyCost;EnergyCostToGdp;EtsPrice;AggGreenCapital;GreenInvestment;GreenCapitalRatio\n")
   for seed <- 0 until nSeeds do
     val last = allRuns(seed)(nMonths - 1)
     termPw.write(s"${seed + 1}")
@@ -680,7 +700,8 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
     "FdiProfitShifting", "FdiRepatriation", "FdiGrossOutflow", "ForeignOwnedFrac", "FdiCitLoss",
     "FirmBirths", "FirmDeaths", "NetEntry", "LivingFirmCount",
     "AggInventoryStock", "InventoryChange", "InventoryToGdp",
-    "EffectiveShadowShare", "TaxEvasionLoss", "InformalEmployment", "EvasionToGdpRatio")
+    "EffectiveShadowShare", "TaxEvasionLoss", "InformalEmployment", "EvasionToGdpRatio",
+    "AggEnergyCost", "EnergyCostToGdp", "EtsPrice", "AggGreenCapital", "GreenInvestment", "GreenCapitalRatio")
   // Header: Month, then for each metric: mean, std, p05, p95
   aggPw.write("Month")
   for c <- 1 until nCols do

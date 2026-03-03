@@ -347,6 +347,8 @@ object Simulation:
     var sumFdiRepatriation = 0.0
     var sumInventoryChange = 0.0
     var sumCitEvasion = 0.0
+    var sumEnergyCost = 0.0
+    var sumGreenInvestment = 0.0
 
     val macro4firms = w.copy(
       month = m, sectorDemandMult = sectorMults,
@@ -368,6 +370,8 @@ object Simulation:
       sumFdiRepatriation += r.fdiRepatriation
       sumInventoryChange += r.inventoryChange
       sumCitEvasion += r.citEvasion
+      sumEnergyCost += r.energyCost
+      sumGreenInvestment += r.greenInvestment
 
       // GPW equity issuance: eligible firms replace fraction of loan with equity
       val (actualLoan, equityAmt, updatedFirm) =
@@ -503,6 +507,8 @@ object Simulation:
     val hybR    = if nLiving > 0 then living2.count(_.tech.isInstanceOf[TechState.Hybrid]) / nLiving else 0.0
     val aggInventoryStock = if Config.InventoryEnabled then
       living2.kahanSumBy(_.inventory) else 0.0
+    val aggGreenCapital = if Config.EnergyEnabled then
+      living2.kahanSumBy(_.greenCapital) else 0.0
 
     // EU Funds: time-varying absorption curve or flat legacy transfer
     val euMonthly = if Config.EuFundsEnabled then EuFunds.monthlyTransfer(m)
@@ -522,10 +528,13 @@ object Simulation:
       (euCofin - euProjectCapital).max(0.0) * Config.GovCurrentMultiplier
     else if Config.EuFundsEnabled then euCofin
     else 0.0
-    val domesticGFCF = if Config.PhysCapEnabled then
-      sumGrossInvestment * (1.0 - Config.PhysCapImportShare) else 0.0
-    val investmentImports = if Config.PhysCapEnabled then
-      sumGrossInvestment * Config.PhysCapImportShare else 0.0
+    val greenDomesticGFCF = if Config.EnergyEnabled then
+      sumGreenInvestment * (1.0 - Config.GreenImportShare) else 0.0
+    val domesticGFCF = (if Config.PhysCapEnabled then
+      sumGrossInvestment * (1.0 - Config.PhysCapImportShare) else 0.0) + greenDomesticGFCF
+    val investmentImports = (if Config.PhysCapEnabled then
+      sumGrossInvestment * Config.PhysCapImportShare else 0.0) +
+      (if Config.EnergyEnabled then sumGreenInvestment * Config.GreenImportShare else 0.0)
     val aggInventoryChange = if Config.InventoryEnabled then sumInventoryChange else 0.0
     val gdp     = domesticCons + govGdpContribution + euGdpContribution + w.forex.exports + domesticGFCF + aggInventoryChange
 
@@ -1051,7 +1060,10 @@ object Simulation:
       aggInventoryChange = aggInventoryChange,
       informalCyclicalAdj = newInformalCyclicalAdj,
       taxEvasionLoss = taxEvasionLoss,
-      informalEmployed = informalEmployed)
+      informalEmployed = informalEmployed,
+      aggEnergyCost = sumEnergyCost,
+      aggGreenCapital = aggGreenCapital,
+      aggGreenInvestment = sumGreenInvestment)
 
     // SFC accounting check: verify exact balance-sheet identities every step
     val prevSnap = SfcCheck.snapshot(w, firms, households)
@@ -1219,6 +1231,10 @@ object Simulation:
               cap * Config.InventoryTargetRatios(newSector) * Config.InventoryInitRatio
             else 0.0
 
+            val initGreenK = if Config.EnergyEnabled then
+              firmSize.toDouble * Config.GreenKLRatios(newSector) * Config.GreenInitRatio
+            else 0.0
+
             Firm(
               id = f.id,
               cash = Config.FirmEntryStartupCash * sizeMult,
@@ -1233,7 +1249,8 @@ object Simulation:
               initialSize = firmSize,
               capitalStock = capitalStock,
               foreignOwned = foreignOwned,
-              inventory = initInventory
+              inventory = initInventory,
+              greenCapital = initGreenK
             )
           else f
         else f
