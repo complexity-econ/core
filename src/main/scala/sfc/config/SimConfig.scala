@@ -895,6 +895,18 @@ object Config:
   val RemittanceGrowthRate: Double = sys.env.get("REMITTANCE_GROWTH_RATE").map(_.trim.toDouble).getOrElse(0.02)
   val RemittanceCyclicalSens: Double = sys.env.get("REMITTANCE_CYCLICAL_SENS").map(_.trim.toDouble).getOrElse(0.3)
 
+  // Tourism (#47)
+  val TourismEnabled: Boolean = sys.env.get("TOURISM_ENABLED").map(_.trim.toBoolean).getOrElse(false)
+  val TourismInboundShare: Double = sys.env.get("TOURISM_INBOUND_SHARE").map(_.trim.toDouble).getOrElse(0.05)
+  val TourismOutboundShare: Double = sys.env.get("TOURISM_OUTBOUND_SHARE").map(_.trim.toDouble).getOrElse(0.03)
+  val TourismErElasticity: Double = sys.env.get("TOURISM_ER_ELASTICITY").map(_.trim.toDouble).getOrElse(0.6)
+  val TourismSeasonality: Double = sys.env.get("TOURISM_SEASONALITY").map(_.trim.toDouble).getOrElse(0.40)
+  val TourismPeakMonth: Int = sys.env.get("TOURISM_PEAK_MONTH").map(_.trim.toInt).getOrElse(7)
+  val TourismGrowthRate: Double = sys.env.get("TOURISM_GROWTH_RATE").map(_.trim.toDouble).getOrElse(0.03)
+  val TourismShockMonth: Int = sys.env.get("TOURISM_SHOCK_MONTH").map(_.trim.toInt).getOrElse(0)
+  val TourismShockSize: Double = sys.env.get("TOURISM_SHOCK_SIZE").map(_.trim.toDouble).getOrElse(0.80)
+  val TourismShockRecovery: Double = sys.env.get("TOURISM_SHOCK_RECOVERY").map(_.trim.toDouble).getOrElse(0.03)
+
   // Heterogeneous households (Paper-06)
   val HhCount = sys.env.get("HH_COUNT").map(_.trim.toInt).getOrElse(TotalPopulation)
 

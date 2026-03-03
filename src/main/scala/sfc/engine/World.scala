@@ -53,5 +53,7 @@ case class World(
   aggEnergyCost: Double = 0.0,
   aggGreenCapital: Double = 0.0,
   aggGreenInvestment: Double = 0.0,
-  diasporaRemittanceInflow: Double = 0.0
+  diasporaRemittanceInflow: Double = 0.0,
+  tourismExport: Double = 0.0,
+  tourismImport: Double = 0.0
 )

@@ -3,6 +3,7 @@ package sfc.engine
 import sfc.config.{Config, SECTORS, RunConfig}
 import sfc.sfc.{ForexState, BopState}
 import sfc.agents.CentralBankLogic
+import sfc.engine.KahanSum.*
 
 case class OpenEconResult(
   forex: ForexState,
@@ -25,7 +26,9 @@ object OpenEconomy:
            gvcIntermImports: Option[Vector[Double]] = None,
            remittanceOutflow: Double = 0.0,
            euFundsMonthly: Double = 0.0,
-           diasporaInflow: Double = 0.0): OpenEconResult =
+           diasporaInflow: Double = 0.0,
+           tourismExport: Double = 0.0,
+           tourismImport: Double = 0.0): OpenEconResult =
 
     val nSectors = SECTORS.length
 
@@ -45,6 +48,7 @@ object OpenEconomy:
     val exports = gvcExports.getOrElse {
       Config.OeExportBase * foreignGdpFactor * realExRate * ulcEffect
     }
+    val totalExportsIncTourism = exports + tourismExport
 
     // B. Imported intermediates (cross-border I-O)
     // Intermediate imports = real domestic output × import share × ER net effect.
@@ -61,13 +65,13 @@ object OpenEconomy:
         realOutput * Config.OeImportContent(s) * erNetEffect
       }.toVector
     }
-    val totalImportedInterm = importedInterm.sum
+    val totalImportedInterm = importedInterm.kahanSum
 
     // C. Total imports
-    val totalImports = importCons + techImports + totalImportedInterm
+    val totalImports = importCons + techImports + totalImportedInterm + tourismImport
 
     // D. Trade balance
-    val tradeBalance = exports - totalImports
+    val tradeBalance = totalExportsIncTourism - totalImports
 
     // E. Current account
     val primaryIncome = prevBop.nfa * Config.OeNfaReturnRate / 12.0
@@ -112,7 +116,7 @@ object OpenEconomy:
     val newForeignAssets = prevBop.foreignAssets + Math.max(0.0, capitalAccount)
     val newForeignLiabilities = prevBop.foreignLiabilities + Math.max(0.0, -capitalAccount)
 
-    val newForex = ForexState(newExRate, totalImports, exports, tradeBalance, techImports)
+    val newForex = ForexState(newExRate, totalImports, totalExportsIncTourism, tradeBalance, techImports)
 
     val newBop = BopState(
       nfa = newNfa,
@@ -126,7 +130,7 @@ object OpenEconomy:
       fdi = fdi,
       portfolioFlows = portfolioFlows,
       reserves = prevBop.reserves + deltaReserves,
-      exports = exports,
+      exports = totalExportsIncTourism,
       totalImports = totalImports,
       importedIntermediates = totalImportedInterm
     )

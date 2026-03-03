@@ -500,6 +500,27 @@ object Simulation:
       base * erAdj * trendAdj * cyclicalAdj
     else 0.0
 
+    // Tourism services export/import (#47)
+    val (tourismExport, tourismImport) = if Config.TourismEnabled then
+      val monthInYear = (m % 12) + 1
+      val seasonalFactor = 1.0 + Config.TourismSeasonality *
+        Math.cos(2 * Math.PI * (monthInYear - Config.TourismPeakMonth) / 12.0)
+      val inboundErAdj = Math.pow(w.forex.exchangeRate / Config.BaseExRate, Config.TourismErElasticity)
+      val outboundErAdj = Math.pow(Config.BaseExRate / w.forex.exchangeRate, Config.TourismErElasticity)
+      val trendAdj = Math.pow(1.0 + Config.TourismGrowthRate / 12.0, m.toDouble)
+      val disruption = if Config.TourismShockMonth > 0 && m >= Config.TourismShockMonth then
+        Config.TourismShockSize * Math.pow(1.0 - Config.TourismShockRecovery,
+          (m - Config.TourismShockMonth).toDouble)
+      else 0.0
+      val shockFactor = 1.0 - disruption
+      val baseGdp = Math.max(0.0, w.gdpProxy)
+      val inbound = Math.max(0.0, baseGdp * Config.TourismInboundShare *
+        seasonalFactor * inboundErAdj * trendAdj * shockFactor)
+      val outbound = Math.max(0.0, baseGdp * Config.TourismOutboundShare *
+        seasonalFactor * outboundErAdj * trendAdj * shockFactor)
+      (inbound, outbound)
+    else (0.0, 0.0)
+
     // Consumer credit flows
     val aggConsumerDS = w.bank.consumerLoans * (Config.CcAmortRate + (lendingBaseRate + Config.CcSpread) / 12.0)
     val aggConsumerOrig = domesticCons * 0.02  // ~2% of consumption financed by credit
@@ -629,7 +650,9 @@ object Simulation:
         gvcIntermImports = gvcImp,
         remittanceOutflow = remittanceOutflow,
         euFundsMonthly = euMonthly,
-        diasporaInflow = diasporaInflow)
+        diasporaInflow = diasporaInflow,
+        tourismExport = tourismExport,
+        tourismImport = tourismImport)
       (oeResult.forex, oeResult.bop, oeResult.valuationEffect, oeResult.fxIntervention)
     else
       val fx = Sectors.updateForeign(w.forex, importCons, totalTechAndInvImports, autoR, w.nbp.referenceRate, gdp, rc)
@@ -818,6 +841,7 @@ object Simulation:
                    + corpBondBankCoupon * 0.3,
       deposits   = w.bank.deposits + (totalIncome - consumption) + jstDepositChange
                    + netDomesticDividends - foreignDividendOutflow - remittanceOutflow + diasporaInflow
+                   + tourismExport - tourismImport
                    + consumerOrigination + insNetDepositChange + nbfiDepositDrain,
       consumerLoans = Math.max(0.0, w.bank.consumerLoans + consumerOrigination - consumerPrincipal - consumerDefaultAmt),
       consumerNpl = Math.max(0.0, w.bank.consumerNpl + consumerDefaultAmt - w.bank.consumerNpl * 0.05),
@@ -909,9 +933,11 @@ object Simulation:
           val bankDivOutflow = foreignDividendOutflow * ws
           val bankRemittance = remittanceOutflow * ws
           val bankDiasporaInflow = diasporaInflow * ws
+          val bankTourismExport = tourismExport * ws
+          val bankTourismImport = tourismImport * ws
           val bankInsDepChange = insNetDepositChange * ws
           val bankNbfiDepDrain = nbfiDepositDrain * ws
-          val newDep = b.deposits + (bankIncomeShare - bankConsShare) + bankDivInflow - bankDivOutflow - bankRemittance + bankDiasporaInflow + bankCcOrig + bankInsDepChange + bankNbfiDepDrain
+          val newDep = b.deposits + (bankIncomeShare - bankConsShare) + bankDivInflow - bankDivOutflow - bankRemittance + bankDiasporaInflow + bankTourismExport - bankTourismImport + bankCcOrig + bankInsDepChange + bankNbfiDepDrain
           // Per-bank mortgage flows (proportional to deposit share)
           val bankDepShare = if totalWorkers > 0 then perBankWorkers(bId) / totalWorkers else 0.0
           val bankMortgageIntIncome = mortgageInterestIncome * bankDepShare
@@ -1077,7 +1103,9 @@ object Simulation:
       aggEnergyCost = sumEnergyCost,
       aggGreenCapital = aggGreenCapital,
       aggGreenInvestment = sumGreenInvestment,
-      diasporaRemittanceInflow = diasporaInflow)
+      diasporaRemittanceInflow = diasporaInflow,
+      tourismExport = tourismExport,
+      tourismImport = tourismImport)
 
     // SFC accounting check: verify exact balance-sheet identities every step
     val prevSnap = SfcCheck.snapshot(w, firms, households)
@@ -1137,7 +1165,9 @@ object Simulation:
       nbfiDefaultAmount = finalNbfi.lastNbfiDefaultAmount,
       fdiProfitShifting = sumProfitShifting,
       fdiRepatriation = sumFdiRepatriation,
-      diasporaInflow = diasporaInflow
+      diasporaInflow = diasporaInflow,
+      tourismExport = tourismExport,
+      tourismImport = tourismImport
     )
     val sfcResult = SfcCheck.validate(m, prevSnap, currSnap, sfcFlows)
     if !sfcResult.passed then
