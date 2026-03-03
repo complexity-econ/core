@@ -859,6 +859,35 @@ object Config:
   val InformalUnempThreshold: Double = sys.env.get("INFORMAL_UNEMP_THRESHOLD").map(_.trim.toDouble).getOrElse(0.05)
   val InformalCyclicalSens: Double = sys.env.get("INFORMAL_CYCLICAL_SENS").map(_.trim.toDouble).getOrElse(0.50)
 
+  // Energy / Climate Policy (#36)
+  val EnergyEnabled: Boolean = sys.env.get("ENERGY_ENABLED").map(_.trim.toBoolean).getOrElse(false)
+  val EnergyCostShares: Vector[Double] = sys.env.get("ENERGY_COST_SHARES") match
+    case Some(s) if s.nonEmpty =>
+      val v = s.split(",").map(_.trim.toDouble).toVector
+      require(v.length == SECTORS.length, s"ENERGY_COST_SHARES must have ${SECTORS.length} values, got ${v.length}")
+      v
+    case _ => Vector(0.02, 0.10, 0.04, 0.05, 0.03, 0.06)
+  val EnergyCarbonIntensity: Vector[Double] = sys.env.get("ENERGY_CARBON_INTENSITY") match
+    case Some(s) if s.nonEmpty =>
+      val v = s.split(",").map(_.trim.toDouble).toVector
+      require(v.length == SECTORS.length, s"ENERGY_CARBON_INTENSITY must have ${SECTORS.length} values, got ${v.length}")
+      v
+    case _ => Vector(0.01, 0.08, 0.02, 0.01, 0.02, 0.04)
+  val EtsBasePrice: Double = sys.env.get("ETS_BASE_PRICE").map(_.trim.toDouble).getOrElse(80.0)
+  val EtsPriceDrift: Double = sys.env.get("ETS_PRICE_DRIFT").map(_.trim.toDouble).getOrElse(0.03)
+  val GreenKLRatios: Vector[Double] = sys.env.get("GREEN_KL_RATIOS") match
+    case Some(s) if s.nonEmpty =>
+      val v = s.split(",").map(_.trim.toDouble).toVector
+      require(v.length == SECTORS.length, s"GREEN_KL_RATIOS must have ${SECTORS.length} values, got ${v.length}")
+      v
+    case _ => Vector(5000.0, 30000.0, 10000.0, 15000.0, 8000.0, 20000.0)
+  val GreenDepRate: Double = sys.env.get("GREEN_DEP_RATE").map(_.trim.toDouble).getOrElse(0.04)
+  val GreenAdjustSpeed: Double = sys.env.get("GREEN_ADJUST_SPEED").map(_.trim.toDouble).getOrElse(0.08)
+  val GreenMaxDiscount: Double = sys.env.get("GREEN_MAX_DISCOUNT").map(_.trim.toDouble).getOrElse(0.30)
+  val GreenImportShare: Double = sys.env.get("GREEN_IMPORT_SHARE").map(_.trim.toDouble).getOrElse(0.35)
+  val GreenInitRatio: Double = sys.env.get("GREEN_INIT_RATIO").map(_.trim.toDouble).getOrElse(0.10)
+  val GreenBudgetShare: Double = sys.env.get("GREEN_BUDGET_SHARE").map(_.trim.toDouble).getOrElse(0.20)
+
   // Heterogeneous households (Paper-06)
   val HhCount = sys.env.get("HH_COUNT").map(_.trim.toInt).getOrElse(TotalPopulation)
 

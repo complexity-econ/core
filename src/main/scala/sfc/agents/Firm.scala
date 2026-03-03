@@ -31,7 +31,8 @@ case class Firm(
   capitalStock: Double = 0.0, // Physical capital stock (PLN), #31
   bondDebt: Double = 0.0,    // Outstanding corporate bond debt (#40)
   foreignOwned: Boolean = false,  // FDI (#33)
-  inventory: Double = 0.0  // Inventory stock (PLN), #43
+  inventory: Double = 0.0,  // Inventory stock (PLN), #43
+  greenCapital: Double = 0.0  // Green capital stock (PLN), #36
 )
 
 object FirmOps:
@@ -104,7 +105,9 @@ case class FirmResult(firm: Firm, taxPaid: Double, capexSpent: Double,
   grossInvestment: Double = 0.0, bondIssuance: Double = 0.0,
   profitShiftCost: Double = 0.0, fdiRepatriation: Double = 0.0,
   inventoryChange: Double = 0.0,
-  citEvasion: Double = 0.0)
+  citEvasion: Double = 0.0,
+  energyCost: Double = 0.0,
+  greenInvestment: Double = 0.0)
 
 // ---- Firm decision logic ----
 
@@ -135,7 +138,7 @@ object FirmLogic:
            grossInvestment = actualInv)
 
   private def calcPnL(firm: Firm, wage: Double, sectorDemandMult: Double,
-    price: Double, lendRate: Double): (Double, Double, Double, Double) =
+    price: Double, lendRate: Double, month: Int): (Double, Double, Double, Double, Double) =
     val revenue = FirmOps.capacity(firm) * sectorDemandMult * price
     val labor   = FirmOps.workers(firm) * wage * FirmOps.effectiveWageMult(firm.sector)
     val sizeFactor = firm.initialSize.toDouble / Config.WorkersPerFirm
@@ -154,7 +157,19 @@ object FirmLogic:
     val interest = (firm.debt + firm.bondDebt) * (lendRate / 12.0)
     val inventoryCost = if Config.InventoryEnabled then
       firm.inventory * Config.InventoryCarryingCost / 12.0 else 0.0
-    val prePsCosts = labor + other + depnCost + aiMaint + interest + inventoryCost
+    // Energy cost + EU ETS carbon surcharge (#36)
+    val energyCost = if Config.EnergyEnabled then
+      val baseEnergy = revenue * Config.EnergyCostShares(firm.sector)
+      val etsPrice = Config.EtsBasePrice * Math.pow(1.0 + Config.EtsPriceDrift / 12.0, month.toDouble)
+      val carbonSurcharge = Config.EnergyCarbonIntensity(firm.sector) * (etsPrice / Config.EtsBasePrice - 1.0)
+      val greenDiscount = if firm.greenCapital > 0 then
+        val targetGK = FirmOps.workers(firm).toDouble * Config.GreenKLRatios(firm.sector)
+        if targetGK > 0 then Math.min(Config.GreenMaxDiscount, firm.greenCapital / targetGK * Config.GreenMaxDiscount)
+        else 0.0
+      else 0.0
+      baseEnergy * (1.0 + Math.max(0.0, carbonSurcharge)) * (1.0 - greenDiscount)
+    else 0.0
+    val prePsCosts = labor + other + depnCost + aiMaint + interest + inventoryCost + energyCost
     val grossProfit = revenue - prePsCosts
     val profitShiftCost = if Config.FdiEnabled && firm.foreignOwned then
       Math.max(0.0, grossProfit) * Config.FdiProfitShiftRate
@@ -162,7 +177,26 @@ object FirmLogic:
     val costs    = prePsCosts + profitShiftCost
     val profit   = revenue - costs
     val tax      = Math.max(0.0, profit) * Config.CitRate
-    (revenue, costs, profit - tax, profitShiftCost)
+    (revenue, costs, profit - tax, profitShiftCost, energyCost)
+
+  /** Apply green capital investment — separate cash pool (#36).
+    * Firms earmark GreenBudgetShare of cash for green investment;
+    * physical capital (applyInvestment) uses the remainder. */
+  private def applyGreenInvestment(r: FirmResult): FirmResult =
+    if !Config.EnergyEnabled then return r
+    val f = r.firm
+    if !FirmOps.isAlive(f) then return r.copy(firm = f.copy(greenCapital = 0.0))
+    val depRate = Config.GreenDepRate / 12.0
+    val depn = f.greenCapital * depRate
+    val postDepGK = f.greenCapital - depn
+    val targetGK = FirmOps.workers(f).toDouble * Config.GreenKLRatios(f.sector)
+    val gap = Math.max(0.0, targetGK - postDepGK)
+    val desiredInv = depn + gap * Config.GreenAdjustSpeed
+    val greenBudget = Math.max(0.0, f.cash) * Config.GreenBudgetShare
+    val actualInv = Math.min(desiredInv, greenBudget)
+    val newGK = postDepGK + actualInv
+    r.copy(firm = f.copy(cash = f.cash - actualInv, greenCapital = newGK),
+           greenInvestment = actualInv)
 
   /** Apply inventory accumulation/drawdown after firm decision (#43). */
   private def applyInventory(r: FirmResult, sectorDemandMult: Double): FirmResult =
@@ -204,16 +238,16 @@ object FirmLogic:
         FirmResult(firm, 0, 0, 0, 0)
 
       case _: TechState.Automated =>
-        val (rev, costs, net, psCost) = calcPnL(firm, w.hh.marketWage, w.sectorDemandMult(firm.sector), w.priceLevel, lendRate)
+        val (rev, costs, net, psCost, eCost) = calcPnL(firm, w.hh.marketWage, w.sectorDemandMult(firm.sector), w.priceLevel, lendRate, w.month)
         val tax = Math.max(0.0, rev - costs) * Config.CitRate
         val nc  = firm.cash + net
         if nc < 0 then
-          FirmResult(firm.copy(cash = nc, tech = TechState.Bankrupt("Pulapka plynnosci (dlug AI)")), tax, 0, 0, 0, profitShiftCost = psCost)
+          FirmResult(firm.copy(cash = nc, tech = TechState.Bankrupt("Pulapka plynnosci (dlug AI)")), tax, 0, 0, 0, profitShiftCost = psCost, energyCost = eCost)
         else
-          FirmResult(firm.copy(cash = nc), tax, 0, 0, 0, profitShiftCost = psCost)
+          FirmResult(firm.copy(cash = nc), tax, 0, 0, 0, profitShiftCost = psCost, energyCost = eCost)
 
       case TechState.Hybrid(wkrs, aiEff) =>
-        val (rev, costs, net, psCost) = calcPnL(firm, w.hh.marketWage, w.sectorDemandMult(firm.sector), w.priceLevel, lendRate)
+        val (rev, costs, net, psCost, eCost) = calcPnL(firm, w.hh.marketWage, w.sectorDemandMult(firm.sector), w.priceLevel, lendRate, w.month)
         val tax = Math.max(0.0, rev - costs) * Config.CitRate
         val ready2 = Math.min(1.0, firm.digitalReadiness + 0.005)
 
@@ -244,17 +278,17 @@ object FirmLogic:
           FirmResult(
             firm.copy(tech = TechState.Automated(eff), debt = firm.debt + upLoan,
               cash = firm.cash + net - upDown, digitalReadiness = ready2),
-            tax, upCapex, tImp, upLoan, profitShiftCost = psCost)
+            tax, upCapex, tImp, upLoan, profitShiftCost = psCost, energyCost = eCost)
         else
           val nc = firm.cash + net
           if nc < 0 then
             FirmResult(firm.copy(cash = nc, tech = TechState.Bankrupt("Niewyplacalnosc (hybryda)")),
-              tax, 0, 0, 0, profitShiftCost = psCost)
+              tax, 0, 0, 0, profitShiftCost = psCost, energyCost = eCost)
           else
-            FirmResult(firm.copy(cash = nc, digitalReadiness = ready2), tax, 0, 0, 0, profitShiftCost = psCost)
+            FirmResult(firm.copy(cash = nc, digitalReadiness = ready2), tax, 0, 0, 0, profitShiftCost = psCost, energyCost = eCost)
 
       case TechState.Traditional(wkrs) =>
-        val (rev, costs, net, psCost) = calcPnL(firm, w.hh.marketWage, w.sectorDemandMult(firm.sector), w.priceLevel, lendRate)
+        val (rev, costs, net, psCost, eCost) = calcPnL(firm, w.hh.marketWage, w.sectorDemandMult(firm.sector), w.priceLevel, lendRate, w.month)
         val tax = Math.max(0.0, rev - costs) * Config.CitRate
 
         // Full AI
@@ -326,12 +360,12 @@ object FirmLogic:
             FirmResult(firm.copy(cash = firm.cash + net - fDown * 0.5,
               debt = firm.debt + fLoan * 0.3,
               tech = TechState.Bankrupt("Porazka implementacji AI")),
-              tax, fCapex * 0.5, tImp * 0.5, fLoan * 0.3, profitShiftCost = psCost)
+              tax, fCapex * 0.5, tImp * 0.5, fLoan * 0.3, profitShiftCost = psCost, energyCost = eCost)
           else
             val eff = 1.0 + Random.between(0.05, 0.6) * firm.digitalReadiness
             FirmResult(firm.copy(tech = TechState.Automated(eff),
               debt = firm.debt + fLoan, cash = firm.cash + net - fDown),
-              tax, fCapex, tImp, fLoan, profitShiftCost = psCost)
+              tax, fCapex, tImp, fLoan, profitShiftCost = psCost, energyCost = eCost)
 
         else if roll < pFull + pHyb then
           val failRate = 0.03 + (1.0 - firm.digitalReadiness) * 0.07
@@ -341,23 +375,23 @@ object FirmLogic:
             FirmResult(firm.copy(cash = firm.cash + net - hDown * 0.5,
               debt = firm.debt + hLoan * 0.3,
               tech = TechState.Bankrupt("Porazka implementacji hybrydy")),
-              tax, hCapex * 0.5, tImp * 0.5, hLoan * 0.3, profitShiftCost = psCost)
+              tax, hCapex * 0.5, tImp * 0.5, hLoan * 0.3, profitShiftCost = psCost, energyCost = eCost)
           else if ir < failRate then
             val badEff = 0.85 + Random.between(0.0, 0.20)
             FirmResult(firm.copy(tech = TechState.Hybrid(hWkrs, badEff),
               debt = firm.debt + hLoan, cash = firm.cash + net - hDown),
-              tax, hCapex, tImp, hLoan, profitShiftCost = psCost)
+              tax, hCapex, tImp, hLoan, profitShiftCost = psCost, energyCost = eCost)
           else
             val goodEff = 1.0 + (0.05 + Random.between(0.0, 0.15)) *
               (0.5 + firm.digitalReadiness * 0.5)
             FirmResult(firm.copy(tech = TechState.Hybrid(hWkrs, goodEff),
               debt = firm.debt + hLoan, cash = firm.cash + net - hDown),
-              tax, hCapex, tImp, hLoan, profitShiftCost = psCost)
+              tax, hCapex, tImp, hLoan, profitShiftCost = psCost, energyCost = eCost)
 
         else if canReduce && Random.nextDouble() < 0.10 then
           val reductionAmt = Math.max(1, (wkrs * 0.05).toInt)
           FirmResult(firm.copy(tech = TechState.Traditional(Math.max(3, wkrs - reductionAmt)),
-            cash = firm.cash + net), tax, 0, 0, 0, profitShiftCost = psCost)
+            cash = firm.cash + net), tax, 0, 0, 0, profitShiftCost = psCost, energyCost = eCost)
 
         else
           // Digital investment attempt (always-on, #37)
@@ -372,16 +406,16 @@ object FirmLogic:
             val boost = Config.DigiInvestBoost * diminishing
             val newDR = Math.min(1.0, firm.digitalReadiness + boost)
             FirmResult(firm.copy(cash = nc - digiCost, digitalReadiness = newDR),
-              tax, 0, 0, 0, profitShiftCost = psCost)
+              tax, 0, 0, 0, profitShiftCost = psCost, energyCost = eCost)
           else if nc < 0 then
             FirmResult(firm.copy(cash = nc,
-              tech = TechState.Bankrupt("Niewyplacalnosc (koszty pracy)")), tax, 0, 0, 0, profitShiftCost = psCost)
+              tech = TechState.Bankrupt("Niewyplacalnosc (koszty pracy)")), tax, 0, 0, 0, profitShiftCost = psCost, energyCost = eCost)
           else
-            FirmResult(firm.copy(cash = nc), tax, 0, 0, 0, profitShiftCost = psCost)
+            FirmResult(firm.copy(cash = nc), tax, 0, 0, 0, profitShiftCost = psCost, energyCost = eCost)
 
     val sectorDemandMult = w.sectorDemandMult(firm.sector)
     applyInformalCitEvasion(
-      applyFdiFlows(applyInventory(applyDigitalDrift(applyInvestment(rawResult)), sectorDemandMult)),
+      applyFdiFlows(applyInventory(applyDigitalDrift(applyInvestment(applyGreenInvestment(rawResult))), sectorDemandMult)),
       w.informalCyclicalAdj)
 
   /** Apply informal CIT evasion — firm keeps evaded tax (#45). */

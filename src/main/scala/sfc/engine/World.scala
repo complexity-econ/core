@@ -49,5 +49,8 @@ case class World(
   aggInventoryChange: Double = 0.0,
   informalCyclicalAdj: Double = 0.0,
   taxEvasionLoss: Double = 0.0,
-  informalEmployed: Double = 0.0
+  informalEmployed: Double = 0.0,
+  aggEnergyCost: Double = 0.0,
+  aggGreenCapital: Double = 0.0,
+  aggGreenInvestment: Double = 0.0
 )
