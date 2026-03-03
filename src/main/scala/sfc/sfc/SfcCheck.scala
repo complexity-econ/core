@@ -87,7 +87,9 @@ object SfcCheck:
     nbfiDefaultAmount: Double = 0.0,     // #42: NBFI gross monthly defaults
     fdiProfitShifting: Double = 0.0,     // #33: FDI profit shifting (service import)
     fdiRepatriation: Double = 0.0,       // #33: FDI dividend repatriation (primary income debit)
-    diasporaInflow: Double = 0.0         // #46: diaspora remittance inflow → deposit inflow
+    diasporaInflow: Double = 0.0,        // #46: diaspora remittance inflow → deposit inflow
+    tourismExport: Double = 0.0,         // #47: inbound tourism → deposit inflow + export
+    tourismImport: Double = 0.0          // #47: outbound tourism → deposit outflow + import
   )
 
   /** Result of the SFC check: ten exact balance-sheet identity checks. */
@@ -145,7 +147,7 @@ object SfcCheck:
     * The monetary circuit closes via sector-level flow-of-funds (Identity 10).
     *
     * 1. Bank capital:  Δ = -nplLoss - mortgageNplLoss - consumerNplLoss + (interestIncome + hhDebtService + bankBondIncome + mortgageInterestIncome + consumerDebtService - depositInterestPaid + reserveInterest + standingFacilityIncome + interbankInterest) × 0.3
-    * 2. Bank deposits: Δ = totalIncome - totalConsumption + jstDepositChange + dividendIncome - foreignDividendOutflow - remittanceOutflow + diasporaInflow + consumerOrigination + insNetDepositChange + nbfiDepositDrain
+    * 2. Bank deposits: Δ = totalIncome - totalConsumption + jstDepositChange + dividendIncome - foreignDividendOutflow - remittanceOutflow + diasporaInflow + tourismExport - tourismImport + consumerOrigination + insNetDepositChange + nbfiDepositDrain
     * 3. Gov debt:      Δ = govSpending - govRevenue  (govRevenue includes dividendTax + zusGovSubvention)
     * 4. NFA:           Δ = currentAccount + valuationEffect  (currentAccount includes -foreignDividendOutflow, -fdiProfitShifting, -fdiRepatriation, +diasporaInflow)
     * 5. Bond clearing: bankBondHoldings + nbpBondHoldings + ppkBondHoldings + insuranceGovBondHoldings + tfiGovBondHoldings = bondsOutstanding
@@ -178,9 +180,10 @@ object SfcCheck:
     val actualBankCapChange = curr.bankCapital - prev.bankCapital
     val bankCapErr = actualBankCapChange - expectedBankCapChange
 
-    // Identity 2: Bank deposits (+ JST deposit flows + dividend flows - remittance outflow + diaspora inflow + consumer origination + insurance + NBFI)
+    // Identity 2: Bank deposits (+ JST deposit flows + dividend flows - remittance outflow + diaspora inflow + tourism + consumer origination + insurance + NBFI)
     val expectedDepChange = flows.totalIncome - flows.totalConsumption + flows.jstDepositChange +
       flows.dividendIncome - flows.foreignDividendOutflow - flows.remittanceOutflow + flows.diasporaInflow +
+      flows.tourismExport - flows.tourismImport +
       flows.consumerOrigination + flows.insNetDepositChange + flows.nbfiDepositDrain
     val actualDepChange = curr.bankDeposits - prev.bankDeposits
     val bankDepErr = actualDepChange - expectedDepChange

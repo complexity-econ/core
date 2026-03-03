@@ -191,7 +191,7 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
   //          Housing: HPI, MarketValue, MortgageStock, MortgageRate, Origination,
   //                   Repayment, Default, MortgageInterest, HhHousingWealth,
   //                   HousingWealthEffect, MortgageToGdp
-  val nCols = 190
+  val nCols = 194
   val results = Array.ofDim[Double](Config.Duration, nCols)
 
   for t <- 0 until Config.Duration do
@@ -494,7 +494,16 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
       },
       // Diaspora Remittances (#46)
       world.diasporaRemittanceInflow,                                                     // 188: DiasporaRemittanceInflow
-      world.diasporaRemittanceInflow - world.immigration.remittanceOutflow                 // 189: NetRemittances
+      world.diasporaRemittanceInflow - world.immigration.remittanceOutflow,                // 189: NetRemittances
+      // Tourism (#47)
+      world.tourismExport,                                                               // 190: TourismExport
+      world.tourismImport,                                                               // 191: TourismImport
+      world.tourismExport - world.tourismImport,                                         // 192: NetTourismBalance
+      {                                                                                  // 193: TourismSeasonalFactor
+        val monthInYear = (t % 12) + 1
+        1.0 + Config.TourismSeasonality *
+          Math.cos(2 * Math.PI * (monthInYear - Config.TourismPeakMonth) / 12.0)
+      }
     )
 
   RunResult(results, world.hhAgg)
@@ -527,7 +536,7 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
 
   // Aggregation arrays
   val nMonths = Config.Duration
-  val nCols   = 190
+  val nCols   = 194
   val allRuns = Array.ofDim[Double](nSeeds, nMonths, nCols)
   val allHhAgg = new Array[Option[HhAggregates]](nSeeds)
 
@@ -597,7 +606,8 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
     "AggInventoryStock;InventoryChange;InventoryToGdp;" +
     "EffectiveShadowShare;TaxEvasionLoss;InformalEmployment;EvasionToGdpRatio;" +
     "AggEnergyCost;EnergyCostToGdp;EtsPrice;AggGreenCapital;GreenInvestment;GreenCapitalRatio;" +
-    "DiasporaRemittanceInflow;NetRemittances\n")
+    "DiasporaRemittanceInflow;NetRemittances;" +
+    "TourismExport;TourismImport;NetTourismBalance;TourismSeasonalFactor\n")
   for seed <- 0 until nSeeds do
     val last = allRuns(seed)(nMonths - 1)
     termPw.write(s"${seed + 1}")
@@ -706,7 +716,8 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
     "AggInventoryStock", "InventoryChange", "InventoryToGdp",
     "EffectiveShadowShare", "TaxEvasionLoss", "InformalEmployment", "EvasionToGdpRatio",
     "AggEnergyCost", "EnergyCostToGdp", "EtsPrice", "AggGreenCapital", "GreenInvestment", "GreenCapitalRatio",
-    "DiasporaRemittanceInflow", "NetRemittances")
+    "DiasporaRemittanceInflow", "NetRemittances",
+    "TourismExport", "TourismImport", "NetTourismBalance", "TourismSeasonalFactor")
   // Header: Month, then for each metric: mean, std, p05, p95
   aggPw.write("Month")
   for c <- 1 until nCols do
