@@ -30,7 +30,8 @@ case class Firm(
   initialSize: Int = 10,    // Firm size at creation (v6.0: heterogeneous when FIRM_SIZE_DIST=gus)
   capitalStock: Double = 0.0, // Physical capital stock (PLN), #31
   bondDebt: Double = 0.0,    // Outstanding corporate bond debt (#40)
-  foreignOwned: Boolean = false  // FDI (#33)
+  foreignOwned: Boolean = false,  // FDI (#33)
+  inventory: Double = 0.0  // Inventory stock (PLN), #43
 )
 
 object FirmOps:
@@ -101,7 +102,8 @@ object FirmOps:
 case class FirmResult(firm: Firm, taxPaid: Double, capexSpent: Double,
   techImports: Double, newLoan: Double, equityIssuance: Double = 0.0,
   grossInvestment: Double = 0.0, bondIssuance: Double = 0.0,
-  profitShiftCost: Double = 0.0, fdiRepatriation: Double = 0.0)
+  profitShiftCost: Double = 0.0, fdiRepatriation: Double = 0.0,
+  inventoryChange: Double = 0.0)
 
 // ---- Firm decision logic ----
 
@@ -149,7 +151,9 @@ object FirmLogic:
       case _: TechState.Hybrid    => Config.HybridOpex * (0.60 + 0.40 * price) * opexSizeFactor
       case _                      => 0.0
     val interest = (firm.debt + firm.bondDebt) * (lendRate / 12.0)
-    val prePsCosts = labor + other + depnCost + aiMaint + interest
+    val inventoryCost = if Config.InventoryEnabled then
+      firm.inventory * Config.InventoryCarryingCost / 12.0 else 0.0
+    val prePsCosts = labor + other + depnCost + aiMaint + interest + inventoryCost
     val grossProfit = revenue - prePsCosts
     val profitShiftCost = if Config.FdiEnabled && firm.foreignOwned then
       Math.max(0.0, grossProfit) * Config.FdiProfitShiftRate
@@ -158,6 +162,36 @@ object FirmLogic:
     val profit   = revenue - costs
     val tax      = Math.max(0.0, profit) * Config.CitRate
     (revenue, costs, profit - tax, profitShiftCost)
+
+  /** Apply inventory accumulation/drawdown after firm decision (#43). */
+  private def applyInventory(r: FirmResult, sectorDemandMult: Double): FirmResult =
+    if !Config.InventoryEnabled then return r
+    val f = r.firm
+    if !FirmOps.isAlive(f) then return r.copy(firm = f.copy(inventory = 0.0))
+    val capacity = FirmOps.capacity(f).toDouble
+    val productionValue = capacity * Config.InventoryCostFraction
+    val salesValue = productionValue * Math.min(1.0, sectorDemandMult)
+    val unsoldValue = Math.max(0.0, productionValue - salesValue)
+    // Spoilage
+    val spoilRate = Config.InventorySpoilageRates(f.sector) / 12.0
+    val postSpoilage = f.inventory * (1.0 - spoilRate)
+    // Target-based adjustment
+    val revenue = capacity * sectorDemandMult
+    val targetInv = revenue * Config.InventoryTargetRatios(f.sector)
+    val desired = (targetInv - postSpoilage) * Config.InventoryAdjustSpeed
+    // Accumulate unsold + adjust toward target
+    val rawChange = unsoldValue + desired
+    // Can't draw down more than available
+    val invChange = Math.max(-postSpoilage, rawChange)
+    val newInv = Math.max(0.0, postSpoilage + invChange)
+    // Stress liquidation: if cash < 0, sell inventory at discount
+    val (finalInv, cashBoost) = if f.cash < 0.0 && newInv > 0.0 then
+      val liquidate = Math.min(newInv, Math.abs(f.cash) / Config.InventoryLiquidationDisc)
+      (newInv - liquidate, liquidate * Config.InventoryLiquidationDisc)
+    else (newInv, 0.0)
+    val actualChange = finalInv - f.inventory
+    r.copy(firm = f.copy(inventory = finalInv, cash = f.cash + cashBoost),
+           inventoryChange = actualChange)
 
   def process(firm: Firm, w: World, lendRate: Double,
     bankCanLend: Double => Boolean,
@@ -344,7 +378,8 @@ object FirmLogic:
           else
             FirmResult(firm.copy(cash = nc), tax, 0, 0, 0, profitShiftCost = psCost)
 
-    applyFdiFlows(applyDigitalDrift(applyInvestment(rawResult)))
+    val sectorDemandMult = w.sectorDemandMult(firm.sector)
+    applyFdiFlows(applyInventory(applyDigitalDrift(applyInvestment(rawResult)), sectorDemandMult))
 
   /** Apply FDI dividend repatriation for foreign-owned firms (post-tax, cash-constrained). */
   private def applyFdiFlows(r: FirmResult): FirmResult =

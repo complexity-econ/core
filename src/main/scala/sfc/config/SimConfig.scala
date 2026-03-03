@@ -824,6 +824,26 @@ object Config:
   val PhysCapProdElast: Double = sys.env.get("PHYS_CAPITAL_PROD_ELAST").map(_.trim.toDouble).getOrElse(0.30)
   val PhysCapCostReplace: Double = sys.env.get("PHYS_CAPITAL_COST_REPLACE").map(_.trim.toDouble).getOrElse(0.50)
 
+  // Inventories (#43)
+  val InventoryEnabled: Boolean = sys.env.get("INVENTORY_ENABLED").map(_.trim.toBoolean).getOrElse(false)
+  val InventoryTargetRatios: Vector[Double] = sys.env.get("INVENTORY_TARGET_RATIOS") match
+    case Some(s) if s.nonEmpty =>
+      val v = s.split(",").map(_.trim.toDouble).toVector
+      require(v.length == SECTORS.length, s"INVENTORY_TARGET_RATIOS must have ${SECTORS.length} values, got ${v.length}")
+      v
+    case _ => Vector(0.05, 0.25, 0.15, 0.10, 0.02, 0.30)
+  val InventoryAdjustSpeed: Double = sys.env.get("INVENTORY_ADJUST_SPEED").map(_.trim.toDouble).getOrElse(0.10)
+  val InventoryCarryingCost: Double = sys.env.get("INVENTORY_CARRYING_COST").map(_.trim.toDouble).getOrElse(0.06)
+  val InventorySpoilageRates: Vector[Double] = sys.env.get("INVENTORY_SPOILAGE_RATES") match
+    case Some(s) if s.nonEmpty =>
+      val v = s.split(",").map(_.trim.toDouble).toVector
+      require(v.length == SECTORS.length, s"INVENTORY_SPOILAGE_RATES must have ${SECTORS.length} values, got ${v.length}")
+      v
+    case _ => Vector(0.0, 0.02, 0.05, 0.03, 0.0, 0.10)
+  val InventoryCostFraction: Double = sys.env.get("INVENTORY_COST_FRACTION").map(_.trim.toDouble).getOrElse(0.50)
+  val InventoryLiquidationDisc: Double = sys.env.get("INVENTORY_LIQUIDATION_DISC").map(_.trim.toDouble).getOrElse(0.50)
+  val InventoryInitRatio: Double = sys.env.get("INVENTORY_INIT_RATIO").map(_.trim.toDouble).getOrElse(0.80)
+
   // Heterogeneous households (Paper-06)
   val HhCount = sys.env.get("HH_COUNT").map(_.trim.toInt).getOrElse(TotalPopulation)
 

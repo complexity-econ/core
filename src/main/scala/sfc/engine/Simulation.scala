@@ -345,6 +345,7 @@ object Simulation:
     var sumBondIssuance = 0.0
     var sumProfitShifting = 0.0
     var sumFdiRepatriation = 0.0
+    var sumInventoryChange = 0.0
 
     val macro4firms = w.copy(
       month = m, sectorDemandMult = sectorMults,
@@ -364,6 +365,7 @@ object Simulation:
       sumGrossInvestment += r.grossInvestment
       sumProfitShifting += r.profitShiftCost
       sumFdiRepatriation += r.fdiRepatriation
+      sumInventoryChange += r.inventoryChange
 
       // GPW equity issuance: eligible firms replace fraction of loan with equity
       val (actualLoan, equityAmt, updatedFirm) =
@@ -497,6 +499,8 @@ object Simulation:
     val nLiving = living2.length.toDouble
     val autoR   = if nLiving > 0 then living2.count(_.tech.isInstanceOf[TechState.Automated]) / nLiving else 0.0
     val hybR    = if nLiving > 0 then living2.count(_.tech.isInstanceOf[TechState.Hybrid]) / nLiving else 0.0
+    val aggInventoryStock = if Config.InventoryEnabled then
+      living2.kahanSumBy(_.inventory) else 0.0
 
     // EU Funds: time-varying absorption curve or flat legacy transfer
     val euMonthly = if Config.EuFundsEnabled then EuFunds.monthlyTransfer(m)
@@ -520,7 +524,8 @@ object Simulation:
       sumGrossInvestment * (1.0 - Config.PhysCapImportShare) else 0.0
     val investmentImports = if Config.PhysCapEnabled then
       sumGrossInvestment * Config.PhysCapImportShare else 0.0
-    val gdp     = domesticCons + govGdpContribution + euGdpContribution + w.forex.exports + domesticGFCF
+    val aggInventoryChange = if Config.InventoryEnabled then sumInventoryChange else 0.0
+    val gdp     = domesticCons + govGdpContribution + euGdpContribution + w.forex.exports + domesticGFCF + aggInventoryChange
 
     // Macroprudential — compute CCyB from credit-to-GDP gap
     val totalSystemLoans = w.bankingSector.map(_.banks.kahanSumBy(_.loans)).getOrElse(w.bank.totalLoans)
@@ -1013,7 +1018,9 @@ object Simulation:
       grossInvestment = sumGrossInvestment,
       fdiProfitShifting = sumProfitShifting,
       fdiRepatriation = sumFdiRepatriation,
-      fdiCitLoss = fdiCitLoss)
+      fdiCitLoss = fdiCitLoss,
+      aggInventoryStock = aggInventoryStock,
+      aggInventoryChange = aggInventoryChange)
 
     // SFC accounting check: verify exact balance-sheet identities every step
     val prevSnap = SfcCheck.snapshot(w, firms, households)
@@ -1175,6 +1182,12 @@ object Simulation:
               firmSize.toDouble * Config.PhysCapKLRatios(newSector)
             else 0.0
 
+            val initInventory = if Config.InventoryEnabled then
+              val cap = Config.BaseRevenue * (firmSize.toDouble / Config.WorkersPerFirm) *
+                SECTORS(newSector).revenueMultiplier
+              cap * Config.InventoryTargetRatios(newSector) * Config.InventoryInitRatio
+            else 0.0
+
             Firm(
               id = f.id,
               cash = Config.FirmEntryStartupCash * sizeMult,
@@ -1188,7 +1201,8 @@ object Simulation:
               bankId = bankId,
               initialSize = firmSize,
               capitalStock = capitalStock,
-              foreignOwned = foreignOwned
+              foreignOwned = foreignOwned,
+              inventory = initInventory
             )
           else f
         else f
