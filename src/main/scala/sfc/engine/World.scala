@@ -52,5 +52,6 @@ case class World(
   informalEmployed: Double = 0.0,
   aggEnergyCost: Double = 0.0,
   aggGreenCapital: Double = 0.0,
-  aggGreenInvestment: Double = 0.0
+  aggGreenInvestment: Double = 0.0,
+  diasporaRemittanceInflow: Double = 0.0
 )

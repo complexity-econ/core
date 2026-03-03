@@ -191,7 +191,7 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
   //          Housing: HPI, MarketValue, MortgageStock, MortgageRate, Origination,
   //                   Repayment, Default, MortgageInterest, HhHousingWealth,
   //                   HousingWealthEffect, MortgageToGdp
-  val nCols = 188
+  val nCols = 190
   val results = Array.ofDim[Double](Config.Duration, nCols)
 
   for t <- 0 until Config.Duration do
@@ -491,7 +491,10 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
       {                                                                                 // 187: GreenCapitalRatio
         val aggK = living.kahanSumBy(_.capitalStock)
         if world.aggGreenCapital > 0 && aggK > 0 then world.aggGreenCapital / aggK else 0.0
-      }
+      },
+      // Diaspora Remittances (#46)
+      world.diasporaRemittanceInflow,                                                     // 188: DiasporaRemittanceInflow
+      world.diasporaRemittanceInflow - world.immigration.remittanceOutflow                 // 189: NetRemittances
     )
 
   RunResult(results, world.hhAgg)
@@ -524,7 +527,7 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
 
   // Aggregation arrays
   val nMonths = Config.Duration
-  val nCols   = 188
+  val nCols   = 190
   val allRuns = Array.ofDim[Double](nSeeds, nMonths, nCols)
   val allHhAgg = new Array[Option[HhAggregates]](nSeeds)
 
@@ -593,7 +596,8 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
     "FirmBirths;FirmDeaths;NetEntry;LivingFirmCount;" +
     "AggInventoryStock;InventoryChange;InventoryToGdp;" +
     "EffectiveShadowShare;TaxEvasionLoss;InformalEmployment;EvasionToGdpRatio;" +
-    "AggEnergyCost;EnergyCostToGdp;EtsPrice;AggGreenCapital;GreenInvestment;GreenCapitalRatio\n")
+    "AggEnergyCost;EnergyCostToGdp;EtsPrice;AggGreenCapital;GreenInvestment;GreenCapitalRatio;" +
+    "DiasporaRemittanceInflow;NetRemittances\n")
   for seed <- 0 until nSeeds do
     val last = allRuns(seed)(nMonths - 1)
     termPw.write(s"${seed + 1}")
@@ -701,7 +705,8 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
     "FirmBirths", "FirmDeaths", "NetEntry", "LivingFirmCount",
     "AggInventoryStock", "InventoryChange", "InventoryToGdp",
     "EffectiveShadowShare", "TaxEvasionLoss", "InformalEmployment", "EvasionToGdpRatio",
-    "AggEnergyCost", "EnergyCostToGdp", "EtsPrice", "AggGreenCapital", "GreenInvestment", "GreenCapitalRatio")
+    "AggEnergyCost", "EnergyCostToGdp", "EtsPrice", "AggGreenCapital", "GreenInvestment", "GreenCapitalRatio",
+    "DiasporaRemittanceInflow", "NetRemittances")
   // Header: Month, then for each metric: mean, std, p05, p95
   aggPw.write("Month")
   for c <- 1 until nCols do

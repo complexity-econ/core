@@ -489,6 +489,17 @@ object Simulation:
     // SFC: remittance outflow (immigrant wages sent abroad — deposit outflow + current account)
     val remittanceOutflow = hhAgg.map(_.totalRemittances).getOrElse(newImmig.remittanceOutflow)
 
+    // Diaspora remittance inflow (#46)
+    val diasporaInflow = if Config.RemittanceEnabled then
+      val wap = if Config.DemEnabled then w.demographics.workingAgePop else Config.TotalPopulation
+      val base = Config.RemittancePerCapita * wap.toDouble
+      val erAdj = Math.pow(w.forex.exchangeRate / Config.BaseExRate, Config.RemittanceErElasticity)
+      val trendAdj = Math.pow(1.0 + Config.RemittanceGrowthRate / 12.0, m.toDouble)
+      val unempForRemit = 1.0 - employed.toDouble / Config.TotalPopulation
+      val cyclicalAdj = 1.0 + Config.RemittanceCyclicalSens * Math.max(0.0, unempForRemit - 0.05)
+      base * erAdj * trendAdj * cyclicalAdj
+    else 0.0
+
     // Consumer credit flows
     val aggConsumerDS = w.bank.consumerLoans * (Config.CcAmortRate + (lendingBaseRate + Config.CcSpread) / 12.0)
     val aggConsumerOrig = domesticCons * 0.02  // ~2% of consumption financed by credit
@@ -617,7 +628,8 @@ object Simulation:
         gvcExports = gvcExp,
         gvcIntermImports = gvcImp,
         remittanceOutflow = remittanceOutflow,
-        euFundsMonthly = euMonthly)
+        euFundsMonthly = euMonthly,
+        diasporaInflow = diasporaInflow)
       (oeResult.forex, oeResult.bop, oeResult.valuationEffect, oeResult.fxIntervention)
     else
       val fx = Sectors.updateForeign(w.forex, importCons, totalTechAndInvImports, autoR, w.nbp.referenceRate, gdp, rc)
@@ -805,7 +817,7 @@ object Simulation:
                    + consumerDebtService * 0.3
                    + corpBondBankCoupon * 0.3,
       deposits   = w.bank.deposits + (totalIncome - consumption) + jstDepositChange
-                   + netDomesticDividends - foreignDividendOutflow - remittanceOutflow
+                   + netDomesticDividends - foreignDividendOutflow - remittanceOutflow + diasporaInflow
                    + consumerOrigination + insNetDepositChange + nbfiDepositDrain,
       consumerLoans = Math.max(0.0, w.bank.consumerLoans + consumerOrigination - consumerPrincipal - consumerDefaultAmt),
       consumerNpl = Math.max(0.0, w.bank.consumerNpl + consumerDefaultAmt - w.bank.consumerNpl * 0.05),
@@ -896,9 +908,10 @@ object Simulation:
           val bankDivInflow = netDomesticDividends * ws
           val bankDivOutflow = foreignDividendOutflow * ws
           val bankRemittance = remittanceOutflow * ws
+          val bankDiasporaInflow = diasporaInflow * ws
           val bankInsDepChange = insNetDepositChange * ws
           val bankNbfiDepDrain = nbfiDepositDrain * ws
-          val newDep = b.deposits + (bankIncomeShare - bankConsShare) + bankDivInflow - bankDivOutflow - bankRemittance + bankCcOrig + bankInsDepChange + bankNbfiDepDrain
+          val newDep = b.deposits + (bankIncomeShare - bankConsShare) + bankDivInflow - bankDivOutflow - bankRemittance + bankDiasporaInflow + bankCcOrig + bankInsDepChange + bankNbfiDepDrain
           // Per-bank mortgage flows (proportional to deposit share)
           val bankDepShare = if totalWorkers > 0 then perBankWorkers(bId) / totalWorkers else 0.0
           val bankMortgageIntIncome = mortgageInterestIncome * bankDepShare
@@ -1063,7 +1076,8 @@ object Simulation:
       informalEmployed = informalEmployed,
       aggEnergyCost = sumEnergyCost,
       aggGreenCapital = aggGreenCapital,
-      aggGreenInvestment = sumGreenInvestment)
+      aggGreenInvestment = sumGreenInvestment,
+      diasporaRemittanceInflow = diasporaInflow)
 
     // SFC accounting check: verify exact balance-sheet identities every step
     val prevSnap = SfcCheck.snapshot(w, firms, households)
@@ -1122,7 +1136,8 @@ object Simulation:
       nbfiRepayment = finalNbfi.lastNbfiRepayment,
       nbfiDefaultAmount = finalNbfi.lastNbfiDefaultAmount,
       fdiProfitShifting = sumProfitShifting,
-      fdiRepatriation = sumFdiRepatriation
+      fdiRepatriation = sumFdiRepatriation,
+      diasporaInflow = diasporaInflow
     )
     val sfcResult = SfcCheck.validate(m, prevSnap, currSnap, sfcFlows)
     if !sfcResult.passed then
