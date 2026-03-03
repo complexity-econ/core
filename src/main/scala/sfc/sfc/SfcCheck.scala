@@ -89,7 +89,9 @@ object SfcCheck:
     fdiRepatriation: Double = 0.0,       // #33: FDI dividend repatriation (primary income debit)
     diasporaInflow: Double = 0.0,        // #46: diaspora remittance inflow → deposit inflow
     tourismExport: Double = 0.0,         // #47: inbound tourism → deposit inflow + export
-    tourismImport: Double = 0.0          // #47: outbound tourism → deposit outflow + import
+    tourismImport: Double = 0.0,         // #47: outbound tourism → deposit outflow + import
+    bfgLevy: Double = 0.0,              // #48: BFG levy (bank capital expense)
+    bailInLoss: Double = 0.0            // #48: bail-in deposit destruction
   )
 
   /** Result of the SFC check: ten exact balance-sheet identity checks. */
@@ -146,8 +148,8 @@ object SfcCheck:
     *
     * The monetary circuit closes via sector-level flow-of-funds (Identity 10).
     *
-    * 1. Bank capital:  Δ = -nplLoss - mortgageNplLoss - consumerNplLoss + (interestIncome + hhDebtService + bankBondIncome + mortgageInterestIncome + consumerDebtService - depositInterestPaid + reserveInterest + standingFacilityIncome + interbankInterest) × 0.3
-    * 2. Bank deposits: Δ = totalIncome - totalConsumption + jstDepositChange + dividendIncome - foreignDividendOutflow - remittanceOutflow + diasporaInflow + tourismExport - tourismImport + consumerOrigination + insNetDepositChange + nbfiDepositDrain
+    * 1. Bank capital:  Δ = -nplLoss - mortgageNplLoss - consumerNplLoss - bfgLevy + (interestIncome + hhDebtService + bankBondIncome + mortgageInterestIncome + consumerDebtService - depositInterestPaid + reserveInterest + standingFacilityIncome + interbankInterest) × 0.3
+    * 2. Bank deposits: Δ = totalIncome - totalConsumption + jstDepositChange + dividendIncome - foreignDividendOutflow - remittanceOutflow + diasporaInflow + tourismExport - tourismImport - bailInLoss + consumerOrigination + insNetDepositChange + nbfiDepositDrain
     * 3. Gov debt:      Δ = govSpending - govRevenue  (govRevenue includes dividendTax + zusGovSubvention)
     * 4. NFA:           Δ = currentAccount + valuationEffect  (currentAccount includes -foreignDividendOutflow, -fdiProfitShifting, -fdiRepatriation, +diasporaInflow)
     * 5. Bond clearing: bankBondHoldings + nbpBondHoldings + ppkBondHoldings + insuranceGovBondHoldings + tfiGovBondHoldings = bondsOutstanding
@@ -170,9 +172,10 @@ object SfcCheck:
     // Identity 1: Bank capital (includes bond coupon income, mortgage interest income,
     // consumer credit debt service income, corp bond coupon income, minus deposit interest paid,
     // minus mortgage NPL loss, minus consumer NPL loss, minus corp bond default loss,
+    // minus BFG levy (#48),
     // plus reserve interest, standing facility income, interbank interest — all × 0.3 profit retention)
     val expectedBankCapChange = -flows.nplLoss - flows.mortgageNplLoss - flows.consumerNplLoss
-      - flows.corpBondDefaultLoss +
+      - flows.corpBondDefaultLoss - flows.bfgLevy +
       (flows.interestIncome + flows.hhDebtService + flows.bankBondIncome
        + flows.mortgageInterestIncome + flows.consumerDebtService + flows.corpBondCouponIncome
        - flows.depositInterestPaid
@@ -180,10 +183,10 @@ object SfcCheck:
     val actualBankCapChange = curr.bankCapital - prev.bankCapital
     val bankCapErr = actualBankCapChange - expectedBankCapChange
 
-    // Identity 2: Bank deposits (+ JST deposit flows + dividend flows - remittance outflow + diaspora inflow + tourism + consumer origination + insurance + NBFI)
+    // Identity 2: Bank deposits (+ JST deposit flows + dividend flows - remittance outflow + diaspora inflow + tourism + consumer origination + insurance + NBFI - bail-in)
     val expectedDepChange = flows.totalIncome - flows.totalConsumption + flows.jstDepositChange +
       flows.dividendIncome - flows.foreignDividendOutflow - flows.remittanceOutflow + flows.diasporaInflow +
-      flows.tourismExport - flows.tourismImport +
+      flows.tourismExport - flows.tourismImport - flows.bailInLoss +
       flows.consumerOrigination + flows.insNetDepositChange + flows.nbfiDepositDrain
     val actualDepChange = curr.bankDeposits - prev.bankDeposits
     val bankDepErr = actualDepChange - expectedDepChange

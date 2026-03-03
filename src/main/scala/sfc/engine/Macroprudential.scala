@@ -27,14 +27,19 @@ object Macroprudential:
     case 1 => Config.OsiiPekao   // Pekao
     case _ => 0.0
 
-  /** Effective minimum CAR for a specific bank: base MinCar + CCyB + OSII. */
+  /** Effective minimum CAR for a specific bank: base MinCar + CCyB + OSII + P2R. */
   def effectiveMinCar(bankId: Int, ccyb: Double): Double =
     if !Config.MacropruEnabled then Config.MinCar
-    else Config.MinCar + ccyb + osiiBufferInternal(bankId)
+    else Config.MinCar + ccyb + osiiBufferInternal(bankId) + p2rAddon(bankId)
 
   /** Internal effectiveMinCar (always computes, for testing). */
   private[engine] def effectiveMinCarInternal(bankId: Int, ccyb: Double): Double =
-    Config.MinCar + ccyb + osiiBufferInternal(bankId)
+    Config.MinCar + ccyb + osiiBufferInternal(bankId) + p2rAddon(bankId)
+
+  /** Pillar 2 Requirement (P2R) for a specific bank (KNF BION/SREP). */
+  private[engine] def p2rAddon(bankId: Int): Double =
+    if bankId >= 0 && bankId < Config.P2rAddons.length then Config.P2rAddons(bankId)
+    else Config.P2rAddons.last
 
   /** Update macroprudential state. Computes credit-to-GDP gap and CCyB.
     *

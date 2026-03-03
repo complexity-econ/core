@@ -62,28 +62,28 @@ class MacroprudentialSpec extends AnyFlatSpec with Matchers:
   // effectiveMinCar (internal)
   // ==========================================================================
 
-  "effectiveMinCarInternal" should "equal MinCar when ccyb=0 and OSII=0" in {
-    // Bank id=3 has no OSII buffer
+  "effectiveMinCarInternal" should "equal MinCar + P2R when ccyb=0 and OSII=0" in {
+    // Bank id=3 has no OSII buffer, but has P2R
     val eff = Macroprudential.effectiveMinCarInternal(3, 0.0)
-    eff shouldBe sfc.config.Config.MinCar +- 1e-10
+    eff shouldBe (sfc.config.Config.MinCar + sfc.config.Config.P2rAddons(3)) +- 1e-10
   }
 
-  it should "add CCyB to MinCar" in {
+  it should "add CCyB to MinCar + P2R" in {
     val ccyb = 0.015
     val eff = Macroprudential.effectiveMinCarInternal(3, ccyb)
-    eff shouldBe (sfc.config.Config.MinCar + ccyb) +- 1e-10
+    eff shouldBe (sfc.config.Config.MinCar + ccyb + sfc.config.Config.P2rAddons(3)) +- 1e-10
   }
 
-  it should "add both CCyB and OSII for PKO BP" in {
+  it should "add both CCyB and OSII and P2R for PKO BP" in {
     val ccyb = 0.01
     val eff = Macroprudential.effectiveMinCarInternal(0, ccyb)
-    eff shouldBe (sfc.config.Config.MinCar + ccyb + 0.01) +- 1e-10
+    eff shouldBe (sfc.config.Config.MinCar + ccyb + 0.01 + sfc.config.Config.P2rAddons(0)) +- 1e-10
   }
 
-  it should "add CCyB and OSII for Pekao" in {
+  it should "add CCyB and OSII and P2R for Pekao" in {
     val ccyb = 0.02
     val eff = Macroprudential.effectiveMinCarInternal(1, ccyb)
-    eff shouldBe (sfc.config.Config.MinCar + ccyb + 0.005) +- 1e-10
+    eff shouldBe (sfc.config.Config.MinCar + ccyb + 0.005 + sfc.config.Config.P2rAddons(1)) +- 1e-10
   }
 
   // ==========================================================================

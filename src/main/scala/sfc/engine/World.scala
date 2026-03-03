@@ -55,5 +55,7 @@ case class World(
   aggGreenInvestment: Double = 0.0,
   diasporaRemittanceInflow: Double = 0.0,
   tourismExport: Double = 0.0,
-  tourismImport: Double = 0.0
+  tourismImport: Double = 0.0,
+  bfgFundBalance: Double = 0.0,
+  bailInLoss: Double = 0.0
 )

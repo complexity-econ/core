@@ -225,6 +225,31 @@ object BankingSector:
       }
       (updated, anyFailed)
 
+  /** Compute monthly BFG levy for all banks. Returns per-bank vector + total. */
+  def computeBfgLevy(banks: Vector[IndividualBankState]): (Vector[Double], Double) =
+    val perBank = banks.map { b =>
+      if b.failed then 0.0
+      else b.deposits * Config.BfgLevyRate / 12.0
+    }
+    (perBank, perBank.kahanSum)
+
+  /** Apply bail-in: haircut uninsured deposits on newly failed banks.
+    * Returns (updated banks, total bail-in loss). */
+  def applyBailIn(banks: Vector[IndividualBankState]): (Vector[IndividualBankState], Double) =
+    if !Config.BailInEnabled then (banks, 0.0)
+    else
+      var totalBailIn = 0.0
+      val updated = banks.map { b =>
+        if b.failed && b.deposits > 0 then
+          val guaranteed = Math.min(b.deposits, Config.BfgDepositGuarantee)
+          val uninsured = b.deposits - guaranteed
+          val haircut = uninsured * Config.BailInDepositHaircut
+          totalBailIn += haircut
+          b.copy(deposits = b.deposits - haircut)
+        else b
+      }
+      (updated, totalBailIn)
+
   /** BFG resolution: transfer deposits, bonds, performing loans to healthiest bank. */
   def resolveFailures(banks: Vector[IndividualBankState]): Vector[IndividualBankState] =
     val newlyFailed = banks.filter(b => b.failed && b.deposits > 0)
