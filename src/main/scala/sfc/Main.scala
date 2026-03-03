@@ -87,6 +87,14 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
       else f
     }
 
+  // Initialize inventory stock (#43)
+  if Config.InventoryEnabled then
+    firms = firms.map { f =>
+      val capacity = FirmOps.capacity(f).toDouble
+      val targetInv = capacity * Config.InventoryTargetRatios(f.sector)
+      f.copy(inventory = targetInv * Config.InventoryInitRatio)
+    }
+
   // Initialize households (individual mode only)
   var households: Option[Vector[Household]] = HH_MODE match
     case HhMode.Individual =>
@@ -176,7 +184,7 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
   //          Housing: HPI, MarketValue, MortgageStock, MortgageRate, Origination,
   //                   Repayment, Default, MortgageInterest, HhHousingWealth,
   //                   HousingWealthEffect, MortgageToGdp
-  val nCols = 175
+  val nCols = 178
   val results = Array.ofDim[Double](Config.Duration, nCols)
 
   for t <- 0 until Config.Duration do
@@ -452,7 +460,11 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
       world.firmBirths.toDouble,                                              // 171: FirmBirths
       world.firmDeaths.toDouble,                                              // 172: FirmDeaths
       (world.firmBirths - world.firmDeaths).toDouble,                         // 173: NetEntry
-      nLiving.toDouble                                                        // 174: LivingFirmCount
+      nLiving.toDouble,                                                        // 174: LivingFirmCount
+      // Inventories (#43)
+      world.aggInventoryStock,                                                 // 175: AggInventoryStock
+      world.aggInventoryChange,                                                // 176: InventoryChange
+      (if world.gdpProxy > 0 then world.aggInventoryStock / world.gdpProxy else 0.0) // 177: InventoryToGdp
     )
 
   RunResult(results, world.hhAgg)
@@ -485,7 +497,7 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
 
   // Aggregation arrays
   val nMonths = Config.Duration
-  val nCols   = 175
+  val nCols   = 178
   val allRuns = Array.ofDim[Double](nSeeds, nMonths, nCols)
   val allHhAgg = new Array[Option[HhAggregates]](nSeeds)
 
@@ -551,7 +563,8 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
     "InsLifeReserves;InsNonLifeReserves;InsGovBondHoldings;InsLifePremium;InsNonLifePremium;InsLifeClaims;InsNonLifeClaims;" +
     "NbfiTfiAum;NbfiTfiGovBondHoldings;NbfiLoanStock;NbfiOrigination;NbfiDefaults;NbfiBankTightness;NbfiDepositDrain;" +
     "FdiProfitShifting;FdiRepatriation;FdiGrossOutflow;ForeignOwnedFrac;FdiCitLoss;" +
-    "FirmBirths;FirmDeaths;NetEntry;LivingFirmCount\n")
+    "FirmBirths;FirmDeaths;NetEntry;LivingFirmCount;" +
+    "AggInventoryStock;InventoryChange;InventoryToGdp\n")
   for seed <- 0 until nSeeds do
     val last = allRuns(seed)(nMonths - 1)
     termPw.write(s"${seed + 1}")
@@ -656,7 +669,8 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
     "NbfiTfiAum", "NbfiTfiGovBondHoldings", "NbfiLoanStock",
     "NbfiOrigination", "NbfiDefaults", "NbfiBankTightness", "NbfiDepositDrain",
     "FdiProfitShifting", "FdiRepatriation", "FdiGrossOutflow", "ForeignOwnedFrac", "FdiCitLoss",
-    "FirmBirths", "FirmDeaths", "NetEntry", "LivingFirmCount")
+    "FirmBirths", "FirmDeaths", "NetEntry", "LivingFirmCount",
+    "AggInventoryStock", "InventoryChange", "InventoryToGdp")
   // Header: Month, then for each metric: mean, std, p05, p95
   aggPw.write("Month")
   for c <- 1 until nCols do

@@ -44,5 +44,7 @@ case class World(
   fdiRepatriation: Double = 0.0,
   fdiCitLoss: Double = 0.0,
   firmBirths: Int = 0,
-  firmDeaths: Int = 0
+  firmDeaths: Int = 0,
+  aggInventoryStock: Double = 0.0,
+  aggInventoryChange: Double = 0.0
 )
