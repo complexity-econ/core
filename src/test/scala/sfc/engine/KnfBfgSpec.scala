@@ -200,7 +200,7 @@ class KnfBfgSpec extends AnyFlatSpec with Matchers:
     // With bail-in disabled (default), bail-in returns unchanged banks
     val (afterBailIn, _) = BankingSector.applyBailIn(banks)
     // Then resolve: failed bank deposits transfer to absorber
-    val afterResolve = BankingSector.resolveFailures(afterBailIn)
+    val (afterResolve, _) = BankingSector.resolveFailures(afterBailIn)
     afterResolve(0).deposits shouldBe 0.0  // failed bank wiped
     afterResolve(1).deposits shouldBe 3000000.0  // absorbed
   }
@@ -299,7 +299,7 @@ class KnfBfgSpec extends AnyFlatSpec with Matchers:
         failed = true, failedMonth = 3, consecutiveLowCar = 3)
     )
     val totalBondsBefore = banks.map(_.govBondHoldings).sum
-    val resolved = BankingSector.resolveFailures(banks)
+    val (resolved, _) = BankingSector.resolveFailures(banks)
     val totalBondsAfter = resolved.map(_.govBondHoldings).sum
     totalBondsAfter shouldBe totalBondsBefore +- 1.0
     // Bridge bank (highest capital = bank 1) should be resurrected
@@ -320,7 +320,7 @@ class KnfBfgSpec extends AnyFlatSpec with Matchers:
         nplAmount = 20000, govBondHoldings = 0, reservesAtNbp = 0, interbankNet = -400.0,
         failed = true, failedMonth = 3, consecutiveLowCar = 3)
     )
-    val resolved = BankingSector.resolveFailures(banks)
+    val (resolved, _) = BankingSector.resolveFailures(banks)
     // All interbank nets should sum to the original total (zero-sum preserved)
     val totalInterbankAfter = resolved.map(_.interbankNet).sum
     val totalInterbankBefore = banks.map(_.interbankNet).sum
@@ -336,7 +336,7 @@ class KnfBfgSpec extends AnyFlatSpec with Matchers:
         nplAmount = 0, govBondHoldings = 5e9, reservesAtNbp = 0, interbankNet = 0,
         failed = false, failedMonth = 0, consecutiveLowCar = 0)
     )
-    val resolved = BankingSector.resolveFailures(banks)
+    val (resolved, _) = BankingSector.resolveFailures(banks)
     resolved(0).govBondHoldings shouldBe 0.0
     resolved(1).govBondHoldings shouldBe 15e9 +- 1.0
   }

@@ -126,11 +126,34 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
     households = households.map(hhs => hhs ++ immigrants)
     Config.setTotalPopulation(Config.TotalPopulation + Config.ImmigInitStock)
 
+  // Distribute firm cash/debt proportionally to firm size (realistic initialization)
+  val totalWorkers = firms.map(f => FirmOps.workers(f)).sum
+  val firmDepositShare = 0.35  // ~35% of deposits are corporate (NBP M3 2024)
+  val totalFirmCash = Config.InitBankDeposits * firmDepositShare
+  firms = firms.map { f =>
+    val workerShare = FirmOps.workers(f).toDouble / totalWorkers
+    f.copy(
+      cash = totalFirmCash * workerShare,
+      debt = Config.InitBankLoans * workerShare
+    )
+  }
+
   val initCash = firms.kahanSumBy(_.cash)
-  val initConsumerLoans = households.map(_.kahanSumBy(_.consumerDebt)).getOrElse(0.0)
+  val initConsumerLoans = households.map(_.kahanSumBy(_.consumerDebt)).getOrElse(Config.InitConsumerLoans)
   val initRate = if rc.isEurozone then Config.EcbInitialRate else Config.NbpInitialRate
   val initBankingSector = if Config.BankMulti then
-    Some(BankingSector.initialize(initCash, Config.InitBankCapital, BankingSector.DefaultConfigs))
+    val bs0 = BankingSector.initialize(Config.InitBankDeposits, Config.InitBankCapital,
+      Config.InitBankLoans, Config.InitBankGovBonds, initConsumerLoans,
+      BankingSector.DefaultConfigs)
+    // Override per-bank consumer loans with actual per-bank HH consumer debt sums
+    val fixedBanks = households match
+      case Some(hhs) =>
+        val nBanks = bs0.banks.length
+        val perBankCcDebt = new Array[Double](nBanks)
+        hhs.foreach(h => if h.bankId >= 0 && h.bankId < nBanks then perBankCcDebt(h.bankId) += h.consumerDebt)
+        bs0.banks.map(b => b.copy(consumerLoans = perBankCcDebt(b.id)))
+      case None => bs0.banks
+    Some(bs0.copy(banks = fixedBanks))
   else None
 
   // Initialize demographics with configured initial retirees
@@ -144,11 +167,14 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
   // Initial NBFI TFI gov bond holdings → must be reflected in bondsOutstanding (Identity 5)
   val initNbfi = if Config.NbfiEnabled then ShadowBanking.initial
                  else ShadowBanking.zero
-  val initBondsOutstanding = initInsurance.govBondHoldings + initNbfi.tfiGovBondHoldings
+  val initBondsOutstanding = Config.InitBankGovBonds + Config.InitNbpGovBonds +
+    initInsurance.govBondHoldings + initNbfi.tfiGovBondHoldings
 
   var world = World(0, 0.02, 1.0,
-    GovState(false, 0, 0, 0, 0, 0, bondsOutstanding = initBondsOutstanding), NbpState(initRate),
-    BankState(0, 0, Config.InitBankCapital, initCash, consumerLoans = initConsumerLoans,
+    GovState(false, 0, 0, 0, Config.InitGovDebt, 0, bondsOutstanding = initBondsOutstanding),
+    NbpState(initRate, govBondHoldings = Config.InitNbpGovBonds),
+    BankState(Config.InitBankLoans, 0, Config.InitBankCapital, Config.InitBankDeposits,
+      govBondHoldings = Config.InitBankGovBonds, consumerLoans = initConsumerLoans,
       corpBondHoldings = Config.CorpBondInitStock * Config.CorpBondBankShare),
     ForexState(Config.BaseExRate, 0, Config.ExportBase, 0, 0),
     HhState(Config.TotalPopulation, Config.BaseWage, Config.BaseReservationWage, 0, 0, 0, 0),

@@ -130,6 +130,22 @@ object Config:
 
   // Firm (base -- sectors modify these values)
   val BaseRevenue      = 100000.0   // Scaled to GUS 2024 wage level
+
+  // GdpRatio: auto-scales real-economy stock variables to match model size.
+  // When FirmsCount or FirmSizeDist changes, GdpRatio adjusts so that
+  // InitBankDeposits, InitBankLoans, etc. scale proportionally to model GDP.
+  private val ExpectedAvgWorkers: Double = FirmSizeDist match
+    case "gus" =>
+      val microMean = 5.0; val smallMean = 29.5; val mediumMean = 149.5
+      val largeMean = (250.0 + FirmSizeLargeMax.toDouble) / 2.0
+      val mediumShare = 1.0 - FirmSizeMicroShare - FirmSizeSmallShare - FirmSizeLargeShare
+      FirmSizeMicroShare * microMean + FirmSizeSmallShare * smallMean +
+        mediumShare * mediumMean + FirmSizeLargeShare * largeMean
+    case _ => WorkersPerFirm.toDouble
+  val RealGdp: Double = sys.env.get("REAL_GDP").map(_.trim.toDouble).getOrElse(3500e9)
+  private val GdpRatio: Double =
+    (FirmsCount.toDouble * ExpectedAvgWorkers / WorkersPerFirm.toDouble * BaseRevenue * 12.0) / RealGdp
+
   val OtherCosts       = 16667.0
   val AiCapex          = 1200000.0
   val HybridCapex      = 350000.0
@@ -288,18 +304,25 @@ object Config:
 
   // QE (Mechanism 4)
   val NbpQe: Boolean = sys.env.get("NBP_QE").map(_.trim.toBoolean).getOrElse(false)
-  val NbpQePace: Double = sys.env.get("NBP_QE_PACE").map(_.trim.toDouble).getOrElse(5e9) * ScaleFactor
+  val NbpQePace: Double = sys.env.get("NBP_QE_PACE").map(_.trim.toDouble).getOrElse(5e9) * GdpRatio
   val NbpQeMaxGdpShare: Double = sys.env.get("NBP_QE_MAX_GDP_SHARE").map(_.trim.toDouble).getOrElse(0.30)
 
   // FX Intervention (Mechanism 5)
   val NbpFxIntervention: Boolean = sys.env.get("NBP_FX_INTERVENTION").map(_.trim.toBoolean).getOrElse(false)
   val NbpFxBand: Double = sys.env.get("NBP_FX_BAND").map(_.trim.toDouble).getOrElse(0.10)
-  val NbpFxReserves: Double = sys.env.get("NBP_FX_RESERVES").map(_.trim.toDouble).getOrElse(185e9) * ScaleFactor  // EUR-equivalent total
+  val NbpFxReserves: Double = sys.env.get("NBP_FX_RESERVES").map(_.trim.toDouble).getOrElse(185e9) * GdpRatio  // EUR-equivalent total
   val NbpFxMaxMonthly: Double = sys.env.get("NBP_FX_MAX_MONTHLY").map(_.trim.toDouble).getOrElse(0.03)
   val NbpFxStrength: Double = sys.env.get("NBP_FX_STRENGTH").map(_.trim.toDouble).getOrElse(0.5)
 
   // Banking system
-  val InitBankCapital  = 500000000.0 * ScaleFactor
+  // Monetary initialization (NBP/KNF/MF 2024)
+  val InitBankCapital: Double  = sys.env.get("INIT_BANK_CAPITAL").map(_.trim.toDouble).getOrElse(270e9) * GdpRatio
+  val InitBankDeposits: Double = sys.env.get("INIT_BANK_DEPOSITS").map(_.trim.toDouble).getOrElse(1900e9) * GdpRatio
+  val InitBankLoans: Double    = sys.env.get("INIT_BANK_LOANS").map(_.trim.toDouble).getOrElse(700e9) * GdpRatio
+  val InitBankGovBonds: Double = sys.env.get("INIT_BANK_GOV_BONDS").map(_.trim.toDouble).getOrElse(400e9) * GdpRatio
+  val InitNbpGovBonds: Double  = sys.env.get("INIT_NBP_GOV_BONDS").map(_.trim.toDouble).getOrElse(300e9) * GdpRatio
+  val InitGovDebt: Double      = sys.env.get("INIT_GOV_DEBT").map(_.trim.toDouble).getOrElse(1600e9) * GdpRatio
+  val InitConsumerLoans: Double = sys.env.get("INIT_CONSUMER_LOANS").map(_.trim.toDouble).getOrElse(200e9) * GdpRatio
   val BaseSpread       = 0.015       // NBP MIR corporate spread 2024
   val NplSpreadFactor  = 5.0
   val MinCar           = 0.08
@@ -478,7 +501,7 @@ object Config:
   // GPW Equity Market (v4.0)
   val GpwEnabled: Boolean = sys.env.get("GPW_ENABLED").map(_.trim.toBoolean).getOrElse(false)
   val GpwInitIndex: Double = sys.env.get("GPW_INIT_INDEX").map(_.trim.toDouble).getOrElse(2400.0)
-  val GpwInitMcap: Double = sys.env.get("GPW_INIT_MCAP").map(_.trim.toDouble).getOrElse(1.4e12) * ScaleFactor
+  val GpwInitMcap: Double = sys.env.get("GPW_INIT_MCAP").map(_.trim.toDouble).getOrElse(1.4e12) * GdpRatio
   val GpwPeMean: Double = sys.env.get("GPW_PE_MEAN").map(_.trim.toDouble).getOrElse(10.0)
   val GpwDivYield: Double = sys.env.get("GPW_DIV_YIELD").map(_.trim.toDouble).getOrElse(0.057)
   val GpwForeignShare: Double = sys.env.get("GPW_FOREIGN_SHARE").map(_.trim.toDouble).getOrElse(0.67)
@@ -500,7 +523,7 @@ object Config:
   // Corporate Bonds / Catalyst (#40) — always-on
   val CorpBondSpread: Double = sys.env.get("CORPBOND_SPREAD").map(_.trim.toDouble).getOrElse(0.025)
     // 250 bps over gov bond yield (Polish BBB/BBB+ avg, RRRF 2024)
-  val CorpBondInitStock: Double = sys.env.get("CORPBOND_INIT_STOCK").map(_.trim.toDouble).getOrElse(90e9) * ScaleFactor
+  val CorpBondInitStock: Double = sys.env.get("CORPBOND_INIT_STOCK").map(_.trim.toDouble).getOrElse(90e9) * GdpRatio
     // ~90 bln PLN outstanding (Catalyst + non-public, KNF 2024)
   val CorpBondMinSize: Int = sys.env.get("CORPBOND_MIN_SIZE").map(_.trim.toInt).getOrElse(50)
     // Only firms with ≥50 workers can issue bonds (medium/large)
@@ -517,8 +540,8 @@ object Config:
 
   // Insurance Sector (#41)
   val InsEnabled: Boolean = sys.env.get("INSURANCE_ENABLED").map(_.trim.toBoolean).getOrElse(false)
-  val InsLifeReserves: Double = sys.env.get("INS_LIFE_RESERVES").map(_.trim.toDouble).getOrElse(110e9) * ScaleFactor
-  val InsNonLifeReserves: Double = sys.env.get("INS_NONLIFE_RESERVES").map(_.trim.toDouble).getOrElse(90e9) * ScaleFactor
+  val InsLifeReserves: Double = sys.env.get("INS_LIFE_RESERVES").map(_.trim.toDouble).getOrElse(110e9) * GdpRatio
+  val InsNonLifeReserves: Double = sys.env.get("INS_NONLIFE_RESERVES").map(_.trim.toDouble).getOrElse(90e9) * GdpRatio
   val InsGovBondShare: Double = sys.env.get("INS_GOVBOND_SHARE").map(_.trim.toDouble).getOrElse(0.35)
   val InsCorpBondShare: Double = sys.env.get("INS_CORPBOND_SHARE").map(_.trim.toDouble).getOrElse(0.08)
   val InsEquityShare: Double = sys.env.get("INS_EQUITY_SHARE").map(_.trim.toDouble).getOrElse(0.12)
@@ -531,13 +554,13 @@ object Config:
 
   // Shadow Banking / NBFI (#42)
   val NbfiEnabled: Boolean = sys.env.get("NBFI_ENABLED").map(_.trim.toBoolean).getOrElse(false)
-  val NbfiTfiInitAum: Double = sys.env.get("NBFI_TFI_INIT_AUM").map(_.trim.toDouble).getOrElse(380e9) * ScaleFactor
+  val NbfiTfiInitAum: Double = sys.env.get("NBFI_TFI_INIT_AUM").map(_.trim.toDouble).getOrElse(380e9) * GdpRatio
   val NbfiTfiGovBondShare: Double = sys.env.get("NBFI_TFI_GOVBOND_SHARE").map(_.trim.toDouble).getOrElse(0.40)
   val NbfiTfiCorpBondShare: Double = sys.env.get("NBFI_TFI_CORPBOND_SHARE").map(_.trim.toDouble).getOrElse(0.10)
   val NbfiTfiEquityShare: Double = sys.env.get("NBFI_TFI_EQUITY_SHARE").map(_.trim.toDouble).getOrElse(0.10)
   val NbfiTfiInflowRate: Double = sys.env.get("NBFI_TFI_INFLOW_RATE").map(_.trim.toDouble).getOrElse(0.001)
   val NbfiTfiRebalanceSpeed: Double = sys.env.get("NBFI_TFI_REBALANCE_SPEED").map(_.trim.toDouble).getOrElse(0.05)
-  val NbfiCreditInitStock: Double = sys.env.get("NBFI_CREDIT_INIT_STOCK").map(_.trim.toDouble).getOrElse(231e9) * ScaleFactor
+  val NbfiCreditInitStock: Double = sys.env.get("NBFI_CREDIT_INIT_STOCK").map(_.trim.toDouble).getOrElse(231e9) * GdpRatio
   val NbfiCreditBaseRate: Double = sys.env.get("NBFI_CREDIT_BASE_RATE").map(_.trim.toDouble).getOrElse(0.005)
   val NbfiCreditRate: Double = sys.env.get("NBFI_CREDIT_RATE").map(_.trim.toDouble).getOrElse(0.10)
   val NbfiCountercyclical: Double = sys.env.get("NBFI_COUNTERCYCLICAL").map(_.trim.toDouble).getOrElse(2.0)
@@ -563,8 +586,8 @@ object Config:
   val ReMortgage: Boolean = sys.env.get("RE_MORTGAGE").map(_.trim.toBoolean).getOrElse(true)
   val ReHhHousing: Boolean = sys.env.get("RE_HH_HOUSING").map(_.trim.toBoolean).getOrElse(true)
   val ReInitHpi: Double = sys.env.get("RE_INIT_HPI").map(_.trim.toDouble).getOrElse(100.0)
-  val ReInitValue: Double = sys.env.get("RE_INIT_VALUE").map(_.trim.toDouble).getOrElse(3.0e12) * ScaleFactor
-  val ReInitMortgage: Double = sys.env.get("RE_INIT_MORTGAGE").map(_.trim.toDouble).getOrElse(485e9) * ScaleFactor
+  val ReInitValue: Double = sys.env.get("RE_INIT_VALUE").map(_.trim.toDouble).getOrElse(3.0e12) * GdpRatio
+  val ReInitMortgage: Double = sys.env.get("RE_INIT_MORTGAGE").map(_.trim.toDouble).getOrElse(485e9) * GdpRatio
   val RePriceIncomeElast: Double = sys.env.get("RE_PRICE_INCOME_ELAST").map(_.trim.toDouble).getOrElse(1.2)
   val RePriceRateElast: Double = sys.env.get("RE_PRICE_RATE_ELAST").map(_.trim.toDouble).getOrElse(-0.8)
   val RePriceReversion: Double = sys.env.get("RE_PRICE_REVERSION").map(_.trim.toDouble).getOrElse(0.05)

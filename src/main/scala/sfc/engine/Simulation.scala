@@ -528,9 +528,13 @@ object Simulation:
     val consumerOrigination = hhAgg.map(_.totalConsumerOrigination).getOrElse(aggConsumerOrig)
     val consumerDefaultAmt = hhAgg.map(_.totalConsumerDefault).getOrElse(0.0)
     val consumerNplLoss = consumerDefaultAmt * (1.0 - Config.CcNplRecovery)
-    val consumerPrincipal = if Config.CcAmortRate + (lendingBaseRate + Config.CcSpread) / 12.0 > 0 then
-      consumerDebtService * (Config.CcAmortRate / (Config.CcAmortRate + (lendingBaseRate + Config.CcSpread) / 12.0))
-    else 0.0
+    // Per-HH principal tracking (rate-independent): D * CcAmortRate per HH
+    // Falls back to rate-ratio derivation in aggregate mode
+    val consumerPrincipal = hhAgg.map(_.totalConsumerPrincipal).getOrElse {
+      if Config.CcAmortRate + (lendingBaseRate + Config.CcSpread) / 12.0 > 0 then
+        consumerDebtService * (Config.CcAmortRate / (Config.CcAmortRate + (lendingBaseRate + Config.CcSpread) / 12.0))
+      else 0.0
+    }
     // Note: newBank construction deferred until after bond market block (needs bankBondIncome)
 
     val living2 = ioFirms.filter(FirmOps.isAlive)
@@ -705,7 +709,10 @@ object Simulation:
     // --- Bond market + QE ---
     val annualGdpForBonds = w.gdpProxy * 12.0
     val debtToGdp = if annualGdpForBonds > 0 then w.gov.cumulativeDebt / annualGdpForBonds else 0.0
-    val nbpBondGdpShare = if annualGdpForBonds > 0 then w.nbp.govBondHoldings / annualGdpForBonds else 0.0
+    // QE compression: use qeCumulative (active purchases), not total govBondHoldings.
+    // Initial NBP holdings (COVID-era legacy) are already priced into the market;
+    // only active QE purchases create additional term premium compression.
+    val nbpBondGdpShare = if annualGdpForBonds > 0 then w.nbp.qeCumulative / annualGdpForBonds else 0.0
     // Channel 3: De-anchored expectations → higher bond yields
     val credPremium = if Config.ExpEnabled then
       val target = if rc.isEurozone then Config.EcbTargetInfl else Config.NbpTargetInfl
@@ -908,7 +915,7 @@ object Simulation:
         case None =>
           (Vector.empty[Double], Vector.empty[Double], Vector.empty[Double])
 
-    val (finalBankingSector, reassignedFirms, reassignedHouseholds, bailInLoss) = w.bankingSector match
+    val (finalBankingSector, reassignedFirms, reassignedHouseholds, bailInLoss, multiCapDestruction) = w.bankingSector match
       case Some(bs) =>
         val totalWorkers = perBankWorkers.kahanSumBy(_.toDouble)
         // 1. Update each bank with its per-bank flows
@@ -947,15 +954,20 @@ object Simulation:
           val bankTourismImport = tourismImport * ws
           val bankInsDepChange = insNetDepositChange * ws
           val bankNbfiDepDrain = nbfiDepositDrain * ws
-          val newDep = b.deposits + (bankIncomeShare - bankConsShare) + bankDivInflow - bankDivOutflow - bankRemittance + bankDiasporaInflow + bankTourismExport - bankTourismImport + bankCcOrig + bankInsDepChange + bankNbfiDepDrain
+          val bankJstDepChange = jstDepositChange * ws
+          val newDep = b.deposits + (bankIncomeShare - bankConsShare) + bankJstDepChange + bankDivInflow - bankDivOutflow - bankRemittance + bankDiasporaInflow + bankTourismExport - bankTourismImport + bankCcOrig + bankInsDepChange + bankNbfiDepDrain
           // Per-bank mortgage flows (proportional to deposit share)
           val bankDepShare = if totalWorkers > 0 then perBankWorkers(bId) / totalWorkers else 0.0
           val bankMortgageIntIncome = mortgageInterestIncome * bankDepShare
           val bankMortgageNplLoss = mortgageDefaultLoss * bankDepShare
           val bankCcNplLoss = bankCcDef * (1.0 - Config.CcNplRecovery)
-          val bankCcPrincipal = if Config.CcAmortRate + (lendingBaseRate + Config.CcSpread) / 12.0 > 0 then
-            bankCcDSvc * (Config.CcAmortRate / (Config.CcAmortRate + (lendingBaseRate + Config.CcSpread) / 12.0))
-          else 0.0
+          // Per-bank consumer principal: use HH-tracked data when available
+          val bankCcPrincipal = perBankHhFlowsOpt match
+            case Some(pbf) if pbf.consumerPrincipal.nonEmpty => pbf.consumerPrincipal(bId)
+            case _ =>
+              if Config.CcAmortRate + (lendingBaseRate + Config.CcSpread) / 12.0 > 0 then
+                bankCcDSvc * (Config.CcAmortRate / (Config.CcAmortRate + (lendingBaseRate + Config.CcSpread) / 12.0))
+              else 0.0
           // Per-bank corp bond flows (proportional to deposit share)
           val bankCorpBondCoupon = corpBondBankCoupon * bankDepShare
           val bankCorpBondDefaultLoss = corpBondBankDefaultLoss * bankDepShare
@@ -1004,23 +1016,35 @@ object Simulation:
         val (afterFailCheck, anyFailed) = BankingSector.checkFailures(afterTfi, m,
           ccyb = newMacropru.ccyb)
         val (afterBailIn, multiBailInLoss) = if anyFailed then BankingSector.applyBailIn(afterFailCheck) else (afterFailCheck, 0.0)
-        val afterResolve = if anyFailed then BankingSector.resolveFailures(afterBailIn)
-                           else afterBailIn
+        val (afterResolve, absorberId) = if anyFailed then BankingSector.resolveFailures(afterBailIn)
+                           else (afterBailIn, -1)
+        // Track capital destruction: sum of capital wiped when banks fail
+        val multiCapDestruction = if anyFailed then
+          afterTfi.zip(afterFailCheck).map { (pre, post) =>
+            if !pre.failed && post.failed then pre.capital else 0.0
+          }.kahanSum
+        else 0.0
         // Compute term structure from O/N rate when enabled
         val curve = if Config.InterbankTermStructure then Some(YieldCurve.compute(ibRate)) else None
         val newBs = bs.copy(banks = afterResolve, interbankRate = ibRate, interbankCurve = curve)
-        // 6. Reassign firm/HH bankIds if any failure occurred
+        // 6. Reassign firm/HH bankIds: use absorber ID directly for consistency
         val reFirms = if anyFailed then
-          rewiredFirms.map(f => f.copy(bankId = BankingSector.reassignBankId(f.bankId, afterResolve)))
+          rewiredFirms.map { f =>
+            if f.bankId < afterResolve.length && afterResolve(f.bankId).failed then f.copy(bankId = absorberId)
+            else f
+          }
         else rewiredFirms
         val reHouseholds = if anyFailed then
-          finalHouseholds.map(_.map(h => h.copy(bankId = BankingSector.reassignBankId(h.bankId, afterResolve))))
+          finalHouseholds.map(_.map { h =>
+            if h.bankId < afterResolve.length && afterResolve(h.bankId).failed then h.copy(bankId = absorberId)
+            else h
+          })
         else finalHouseholds
         // 7. Sync aggregate BankState from individual banks
         val aggBank = newBs.aggregate
-        (Some(newBs), reFirms, reHouseholds, multiBailInLoss)
+        (Some(newBs), reFirms, reHouseholds, multiBailInLoss, multiCapDestruction)
       case None =>
-        (None, rewiredFirms, finalHouseholds, 0.0)
+        (None, rewiredFirms, finalHouseholds, 0.0, 0.0)
 
     // Use multi-bank aggregate if present, otherwise use single-bank finalBank
     val resolvedBank = finalBankingSector.map(_.aggregate).getOrElse(finalBank)
@@ -1186,7 +1210,8 @@ object Simulation:
       tourismExport = tourismExport,
       tourismImport = tourismImport,
       bfgLevy = bfgLevy,
-      bailInLoss = bailInLoss
+      bailInLoss = bailInLoss,
+      bankCapitalDestruction = multiCapDestruction
     )
     val sfcResult = SfcCheck.validate(m, prevSnap, currSnap, sfcFlows)
     if !sfcResult.passed then

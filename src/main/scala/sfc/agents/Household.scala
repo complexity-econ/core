@@ -84,7 +84,8 @@ case class HhAggregates(
   totalSocialTransfers: Double = 0.0,
   totalConsumerDebtService: Double = 0.0,
   totalConsumerOrigination: Double = 0.0,
-  totalConsumerDefault: Double = 0.0
+  totalConsumerDefault: Double = 0.0,
+  totalConsumerPrincipal: Double = 0.0
 )
 
 object HouseholdInit:

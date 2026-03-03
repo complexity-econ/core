@@ -91,7 +91,8 @@ object SfcCheck:
     tourismExport: Double = 0.0,         // #47: inbound tourism → deposit inflow + export
     tourismImport: Double = 0.0,         // #47: outbound tourism → deposit outflow + import
     bfgLevy: Double = 0.0,              // #48: BFG levy (bank capital expense)
-    bailInLoss: Double = 0.0            // #48: bail-in deposit destruction
+    bailInLoss: Double = 0.0,           // #48: bail-in deposit destruction
+    bankCapitalDestruction: Double = 0.0 // Capital wiped when bank fails (shareholders wiped)
   )
 
   /** Result of the SFC check: ten exact balance-sheet identity checks. */
@@ -148,7 +149,7 @@ object SfcCheck:
     *
     * The monetary circuit closes via sector-level flow-of-funds (Identity 10).
     *
-    * 1. Bank capital:  Δ = -nplLoss - mortgageNplLoss - consumerNplLoss - bfgLevy + (interestIncome + hhDebtService + bankBondIncome + mortgageInterestIncome + consumerDebtService - depositInterestPaid + reserveInterest + standingFacilityIncome + interbankInterest) × 0.3
+    * 1. Bank capital:  Δ = -nplLoss - mortgageNplLoss - consumerNplLoss - bfgLevy - bankCapitalDestruction + (interestIncome + hhDebtService + bankBondIncome + mortgageInterestIncome + consumerDebtService - depositInterestPaid + reserveInterest + standingFacilityIncome + interbankInterest) × 0.3
     * 2. Bank deposits: Δ = totalIncome - totalConsumption + jstDepositChange + dividendIncome - foreignDividendOutflow - remittanceOutflow + diasporaInflow + tourismExport - tourismImport - bailInLoss + consumerOrigination + insNetDepositChange + nbfiDepositDrain
     * 3. Gov debt:      Δ = govSpending - govRevenue  (govRevenue includes dividendTax + zusGovSubvention)
     * 4. NFA:           Δ = currentAccount + valuationEffect  (currentAccount includes -foreignDividendOutflow, -fdiProfitShifting, -fdiRepatriation, +diasporaInflow)
@@ -175,7 +176,7 @@ object SfcCheck:
     // minus BFG levy (#48),
     // plus reserve interest, standing facility income, interbank interest — all × 0.3 profit retention)
     val expectedBankCapChange = -flows.nplLoss - flows.mortgageNplLoss - flows.consumerNplLoss
-      - flows.corpBondDefaultLoss - flows.bfgLevy +
+      - flows.corpBondDefaultLoss - flows.bfgLevy - flows.bankCapitalDestruction +
       (flows.interestIncome + flows.hhDebtService + flows.bankBondIncome
        + flows.mortgageInterestIncome + flows.consumerDebtService + flows.corpBondCouponIncome
        - flows.depositInterestPaid
