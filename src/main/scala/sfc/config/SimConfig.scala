@@ -360,6 +360,18 @@ object Config:
   val OsiiPekao: Double = sys.env.get("OSII_PEKAO").map(_.trim.toDouble).getOrElse(0.005)  // 0.5% for Pekao
   val ConcentrationLimit: Double = sys.env.get("CONCENTRATION_LIMIT").map(_.trim.toDouble).getOrElse(0.25)  // Art. 395 CRR
 
+  // KNF/BFG Detail (#48)
+  val P2rAddons: Vector[Double] = sys.env.get("P2R_ADDONS") match
+    case Some(s) =>
+      val v = s.split(",").map(_.trim.toDouble).toVector
+      require(v.length == 7, s"P2R_ADDONS must have 7 values (one per bank), got ${v.length}")
+      v
+    case _ => Vector(0.015, 0.010, 0.030, 0.015, 0.020, 0.025, 0.020)
+  val BfgLevyRate: Double = sys.env.get("BFG_LEVY_RATE").map(_.trim.toDouble).getOrElse(0.0024)
+  val BailInEnabled: Boolean = sys.env.get("BAIL_IN_ENABLED").map(_.trim.toBoolean).getOrElse(false)
+  val BailInDepositHaircut: Double = sys.env.get("BAIL_IN_DEPOSIT_HAIRCUT").map(_.trim.toDouble).getOrElse(0.08)
+  val BfgDepositGuarantee: Double = sys.env.get("BFG_DEPOSIT_GUARANTEE").map(_.trim.toDouble).getOrElse(400000.0)
+
   // Reserve interest: NBP pays fraction of refRate on required reserves
   // Uchwała RPP nr 7/2003: oprocentowanie = 0.9 × stopa referencyjna (currently 0.5 in model for visibility)
   val NbpReserveRateMult: Double = sys.env.get("NBP_RESERVE_RATE_MULT").map(_.trim.toDouble).getOrElse(0.5)

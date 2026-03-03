@@ -827,11 +827,21 @@ object Simulation:
     val housingAfterFlows = HousingMarket.applyFlows(housingAfterOrig,
       mortgagePrincipal, mortgageDefaultAmount, mortgageInterestIncome)
 
+    // BFG levy (#48): computed from lagged bank state
+    val bfgLevy = if Config.BankFailureEnabled then
+      w.bankingSector match
+        case Some(bs) =>
+          val (_, total) = BankingSector.computeBfgLevy(bs.banks)
+          total
+        case None =>
+          w.bank.deposits * Config.BfgLevyRate / 12.0
+    else 0.0
+
     val newBank = w.bank.copy(
       totalLoans = Math.max(0, w.bank.totalLoans + sumNewLoans - nplNew * Config.LoanRecovery),
       nplAmount  = Math.max(0, w.bank.nplAmount + nplNew - w.bank.nplAmount * 0.05),
       capital    = w.bank.capital - nplLoss - mortgageDefaultLoss - consumerNplLoss
-                   - corpBondBankDefaultLoss
+                   - corpBondBankDefaultLoss - bfgLevy
                    + intIncome * 0.3 + hhDebtService * 0.3
                    + bankBondIncome * 0.3 - depositInterestPaid * 0.3
                    + totalReserveInterest * 0.3 + totalStandingFacilityIncome * 0.3
@@ -898,7 +908,7 @@ object Simulation:
         case None =>
           (Vector.empty[Double], Vector.empty[Double], Vector.empty[Double])
 
-    val (finalBankingSector, reassignedFirms, reassignedHouseholds) = w.bankingSector match
+    val (finalBankingSector, reassignedFirms, reassignedHouseholds, bailInLoss) = w.bankingSector match
       case Some(bs) =>
         val totalWorkers = perBankWorkers.kahanSumBy(_.toDouble)
         // 1. Update each bank with its per-bank flows
@@ -949,11 +959,15 @@ object Simulation:
           // Per-bank corp bond flows (proportional to deposit share)
           val bankCorpBondCoupon = corpBondBankCoupon * bankDepShare
           val bankCorpBondDefaultLoss = corpBondBankDefaultLoss * bankDepShare
+          // BFG levy (#48): per-bank monthly levy on lagged deposits
+          val bankBfgLevy = if Config.BankFailureEnabled && !b.failed then
+            b.deposits * Config.BfgLevyRate / 12.0
+          else 0.0
           b.copy(
             loans = newLoansTotal,
             nplAmount = Math.max(0, b.nplAmount + bankNplNew - b.nplAmount * 0.05),
             capital = b.capital - bankNplLoss - bankMortgageNplLoss - bankCcNplLoss
-              - bankCorpBondDefaultLoss + bankIntIncome * 0.3 +
+              - bankCorpBondDefaultLoss - bankBfgLevy + bankIntIncome * 0.3 +
               bankHhDebtService * 0.3 + bankBondInc * 0.3 - bankDepInterest * 0.3
               + bankResInt * 0.3 + bankSfInc * 0.3 + bankIbInt * 0.3
               + bankMortgageIntIncome * 0.3
@@ -986,11 +1000,12 @@ object Simulation:
         val afterIns = BankingSector.allocateQePurchases(afterPpk, insBondPurchase)
         // 4d. TFI gov bond purchases (#42)
         val afterTfi = BankingSector.allocateQePurchases(afterIns, tfiBondPurchase)
-        // 5. Failure checks + BFG resolution (pass ccyb for effective MinCAR)
+        // 5. Failure checks + bail-in + BFG resolution (pass ccyb for effective MinCAR)
         val (afterFailCheck, anyFailed) = BankingSector.checkFailures(afterTfi, m,
           ccyb = newMacropru.ccyb)
-        val afterResolve = if anyFailed then BankingSector.resolveFailures(afterFailCheck)
-                           else afterFailCheck
+        val (afterBailIn, multiBailInLoss) = if anyFailed then BankingSector.applyBailIn(afterFailCheck) else (afterFailCheck, 0.0)
+        val afterResolve = if anyFailed then BankingSector.resolveFailures(afterBailIn)
+                           else afterBailIn
         // Compute term structure from O/N rate when enabled
         val curve = if Config.InterbankTermStructure then Some(YieldCurve.compute(ibRate)) else None
         val newBs = bs.copy(banks = afterResolve, interbankRate = ibRate, interbankCurve = curve)
@@ -1003,9 +1018,9 @@ object Simulation:
         else finalHouseholds
         // 7. Sync aggregate BankState from individual banks
         val aggBank = newBs.aggregate
-        (Some(newBs), reFirms, reHouseholds)
+        (Some(newBs), reFirms, reHouseholds, multiBailInLoss)
       case None =>
-        (None, rewiredFirms, finalHouseholds)
+        (None, rewiredFirms, finalHouseholds, 0.0)
 
     // Use multi-bank aggregate if present, otherwise use single-bank finalBank
     val resolvedBank = finalBankingSector.map(_.aggregate).getOrElse(finalBank)
@@ -1105,7 +1120,9 @@ object Simulation:
       aggGreenInvestment = sumGreenInvestment,
       diasporaRemittanceInflow = diasporaInflow,
       tourismExport = tourismExport,
-      tourismImport = tourismImport)
+      tourismImport = tourismImport,
+      bfgFundBalance = w.bfgFundBalance + bfgLevy,
+      bailInLoss = bailInLoss)
 
     // SFC accounting check: verify exact balance-sheet identities every step
     val prevSnap = SfcCheck.snapshot(w, firms, households)
@@ -1167,7 +1184,9 @@ object Simulation:
       fdiRepatriation = sumFdiRepatriation,
       diasporaInflow = diasporaInflow,
       tourismExport = tourismExport,
-      tourismImport = tourismImport
+      tourismImport = tourismImport,
+      bfgLevy = bfgLevy,
+      bailInLoss = bailInLoss
     )
     val sfcResult = SfcCheck.validate(m, prevSnap, currSnap, sfcFlows)
     if !sfcResult.passed then

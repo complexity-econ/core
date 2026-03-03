@@ -191,7 +191,7 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
   //          Housing: HPI, MarketValue, MortgageStock, MortgageRate, Origination,
   //                   Repayment, Default, MortgageInterest, HhHousingWealth,
   //                   HousingWealthEffect, MortgageToGdp
-  val nCols = 194
+  val nCols = 197
   val results = Array.ofDim[Double](Config.Duration, nCols)
 
   for t <- 0 until Config.Duration do
@@ -503,7 +503,15 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
         val monthInYear = (t % 12) + 1
         1.0 + Config.TourismSeasonality *
           Math.cos(2 * Math.PI * (monthInYear - Config.TourismPeakMonth) / 12.0)
-      }
+      },
+      // KNF/BFG (#48)
+      (if Config.BankFailureEnabled then
+        world.bankingSector.map(bs => bs.banks.filterNot(_.failed).map(b =>
+          b.deposits * Config.BfgLevyRate / 12.0).sum).getOrElse(
+          world.bank.deposits * Config.BfgLevyRate / 12.0)
+      else 0.0),                                                                     // 194: BfgLevyTotal
+      world.bfgFundBalance,                                                           // 195: BfgFundBalance
+      world.bailInLoss                                                                // 196: BailInLoss
     )
 
   RunResult(results, world.hhAgg)
@@ -536,7 +544,7 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
 
   // Aggregation arrays
   val nMonths = Config.Duration
-  val nCols   = 194
+  val nCols   = 197
   val allRuns = Array.ofDim[Double](nSeeds, nMonths, nCols)
   val allHhAgg = new Array[Option[HhAggregates]](nSeeds)
 
@@ -607,7 +615,8 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
     "EffectiveShadowShare;TaxEvasionLoss;InformalEmployment;EvasionToGdpRatio;" +
     "AggEnergyCost;EnergyCostToGdp;EtsPrice;AggGreenCapital;GreenInvestment;GreenCapitalRatio;" +
     "DiasporaRemittanceInflow;NetRemittances;" +
-    "TourismExport;TourismImport;NetTourismBalance;TourismSeasonalFactor\n")
+    "TourismExport;TourismImport;NetTourismBalance;TourismSeasonalFactor;" +
+    "BfgLevyTotal;BfgFundBalance;BailInLoss\n")
   for seed <- 0 until nSeeds do
     val last = allRuns(seed)(nMonths - 1)
     termPw.write(s"${seed + 1}")
@@ -717,7 +726,8 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
     "EffectiveShadowShare", "TaxEvasionLoss", "InformalEmployment", "EvasionToGdpRatio",
     "AggEnergyCost", "EnergyCostToGdp", "EtsPrice", "AggGreenCapital", "GreenInvestment", "GreenCapitalRatio",
     "DiasporaRemittanceInflow", "NetRemittances",
-    "TourismExport", "TourismImport", "NetTourismBalance", "TourismSeasonalFactor")
+    "TourismExport", "TourismImport", "NetTourismBalance", "TourismSeasonalFactor",
+    "BfgLevyTotal", "BfgFundBalance", "BailInLoss")
   // Header: Month, then for each metric: mean, std, p05, p95
   aggPw.write("Month")
   for c <- 1 until nCols do
