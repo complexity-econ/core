@@ -1016,8 +1016,12 @@ object Simulation:
         val (afterFailCheck, anyFailed) = BankingSector.checkFailures(afterTfi, m,
           ccyb = newMacropru.ccyb)
         val (afterBailIn, multiBailInLoss) = if anyFailed then BankingSector.applyBailIn(afterFailCheck) else (afterFailCheck, 0.0)
-        val (afterResolve, absorberId) = if anyFailed then BankingSector.resolveFailures(afterBailIn)
+        val (afterResolve, rawAbsorberId) = if anyFailed then BankingSector.resolveFailures(afterBailIn)
                            else (afterBailIn, -1)
+        // Guard: resolveFailures returns -1 when no newly-failed bank has deposits > 0
+        // (e.g. bank failed with zero deposits). Fall back to healthiest bank.
+        val absorberId = if rawAbsorberId >= 0 then rawAbsorberId
+                         else BankingSector.healthiestBankId(afterResolve)
         // Track capital destruction: sum of capital wiped when banks fail
         val multiCapDestruction = if anyFailed then
           afterTfi.zip(afterFailCheck).map { (pre, post) =>
