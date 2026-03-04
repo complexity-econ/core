@@ -92,7 +92,8 @@ object SfcCheck:
     tourismImport: Double = 0.0,         // #47: outbound tourism → deposit outflow + import
     bfgLevy: Double = 0.0,              // #48: BFG levy (bank capital expense)
     bailInLoss: Double = 0.0,           // #48: bail-in deposit destruction
-    bankCapitalDestruction: Double = 0.0 // Capital wiped when bank fails (shareholders wiped)
+    bankCapitalDestruction: Double = 0.0, // Capital wiped when bank fails (shareholders wiped)
+    investNetDepositFlow: Double = 0.0  // Investment demand net flow: lagged revenue - current spending
   )
 
   /** Result of the SFC check: ten exact balance-sheet identity checks. */
@@ -150,7 +151,7 @@ object SfcCheck:
     * The monetary circuit closes via sector-level flow-of-funds (Identity 10).
     *
     * 1. Bank capital:  Δ = -nplLoss - mortgageNplLoss - consumerNplLoss - bfgLevy - bankCapitalDestruction + (interestIncome + hhDebtService + bankBondIncome + mortgageInterestIncome + consumerDebtService - depositInterestPaid + reserveInterest + standingFacilityIncome + interbankInterest) × 0.3
-    * 2. Bank deposits: Δ = totalIncome - totalConsumption + jstDepositChange + dividendIncome - foreignDividendOutflow - remittanceOutflow + diasporaInflow + tourismExport - tourismImport - bailInLoss + consumerOrigination + insNetDepositChange + nbfiDepositDrain
+    * 2. Bank deposits: Δ = totalIncome - totalConsumption + investNetDepositFlow + jstDepositChange + dividendIncome - foreignDividendOutflow - remittanceOutflow + diasporaInflow + tourismExport - tourismImport - bailInLoss + consumerOrigination + insNetDepositChange + nbfiDepositDrain
     * 3. Gov debt:      Δ = govSpending - govRevenue  (govRevenue includes dividendTax + zusGovSubvention)
     * 4. NFA:           Δ = currentAccount + valuationEffect  (currentAccount includes -foreignDividendOutflow, -fdiProfitShifting, -fdiRepatriation, +diasporaInflow)
     * 5. Bond clearing: bankBondHoldings + nbpBondHoldings + ppkBondHoldings + insuranceGovBondHoldings + tfiGovBondHoldings = bondsOutstanding
@@ -158,7 +159,7 @@ object SfcCheck:
     * 7. JST debt:      Δ = jstSpending - jstRevenue (trivially 0 when JST disabled)
     * 8. FUS balance:   Δ = zusContributions - zusPensionPayments (trivially 0 when ZUS disabled)
     * 9. Mortgage stock: Δ = origination - principalRepaid - defaultAmount (trivially 0 when RE disabled)
-    * 10. Flow-of-funds: Σ firmRevenue = domesticCons + govPurchases + exports (closes by construction)
+    * 10. Flow-of-funds: Σ firmRevenue = domesticCons + govPurchases + investDemand + exports (closes by construction)
     * 11. Consumer credit: Δ consumerLoans = origination - principalRepaid - defaultAmount
     * 12. Corp bond stock: Δ corpBondsOutstanding = issuance - amortization - defaultAmount
     * 13. NBFI credit stock: Δ nbfiLoanStock = origination - repayment - defaultAmount
@@ -184,8 +185,9 @@ object SfcCheck:
     val actualBankCapChange = curr.bankCapital - prev.bankCapital
     val bankCapErr = actualBankCapChange - expectedBankCapChange
 
-    // Identity 2: Bank deposits (+ JST deposit flows + dividend flows - remittance outflow + diaspora inflow + tourism + consumer origination + insurance + NBFI - bail-in)
-    val expectedDepChange = flows.totalIncome - flows.totalConsumption + flows.jstDepositChange +
+    // Identity 2: Bank deposits (+ investment net flow + JST deposit flows + dividend flows - remittance outflow + diaspora inflow + tourism + consumer origination + insurance + NBFI - bail-in)
+    val expectedDepChange = flows.totalIncome - flows.totalConsumption + flows.investNetDepositFlow +
+      flows.jstDepositChange +
       flows.dividendIncome - flows.foreignDividendOutflow - flows.remittanceOutflow + flows.diasporaInflow +
       flows.tourismExport - flows.tourismImport - flows.bailInLoss +
       flows.consumerOrigination + flows.insNetDepositChange + flows.nbfiDepositDrain

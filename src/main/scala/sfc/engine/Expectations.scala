@@ -54,7 +54,8 @@ object Expectations:
     val alpha = if rc.isEurozone then Config.EcbAlpha else Config.TaylorAlpha
     val delta = if rc.isEurozone then 0.0 else Config.TaylorDelta
     val nairu = Config.NbpNairu
-    val outputGap = (unemployment - nairu) / nairu
+    val rawOutputGap = (unemployment - nairu) / nairu
+    val outputGap = Math.max(-0.30, Math.min(0.30, rawOutputGap))
 
     val fgRate = if Config.NbpForwardGuidance then
       val rawFg = neutral + alpha * (expected - target) - delta * outputGap

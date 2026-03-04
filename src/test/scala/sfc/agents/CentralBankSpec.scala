@@ -51,9 +51,9 @@ class CentralBankSpec extends AnyFlatSpec with Matchers:
 
   // --- shouldActivateQe ---
 
-  "CentralBankLogic.shouldActivateQe" should "be false when NbpQe is disabled" in {
-    // Config.NbpQe defaults to false
-    CentralBankLogic.shouldActivateQe(Config.RateFloor, -0.05) shouldBe false
+  "CentralBankLogic.shouldActivateQe" should "be true at ZLB with deflation" in {
+    // Config.NbpQe defaults to true (NBP March 2020 precedent)
+    CentralBankLogic.shouldActivateQe(Config.RateFloor, -0.05) shouldBe true
   }
 
   // --- shouldTaperQe ---

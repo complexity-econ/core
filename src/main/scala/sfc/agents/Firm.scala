@@ -145,8 +145,11 @@ object FirmLogic:
     val rawOther = Config.OtherCosts * price * sizeFactor
     val depnCost = if Config.PhysCapEnabled then
       firm.capitalStock * Config.PhysCapDepRates(firm.sector) / 12.0 else 0.0
-    val other = if Config.PhysCapEnabled then
+    val otherAfterCap = if Config.PhysCapEnabled then
       rawOther * (1.0 - Config.PhysCapCostReplace) else rawOther
+    // Reduce other costs when energy is explicit (was implicit in OtherCosts)
+    val other = if Config.EnergyEnabled then
+      otherAfterCap * (1.0 - Config.EnergyCostReplace) else otherAfterCap
     // AI/hybrid opex is partially imported (40%) -- not fully domestic price-sensitive
     // OPEX scales sublinearly with firm size (exponent 0.5)
     val opexSizeFactor = Math.pow(firm.initialSize.toDouble / Config.WorkersPerFirm, 0.5)
@@ -155,8 +158,12 @@ object FirmLogic:
       case _: TechState.Hybrid    => Config.HybridOpex * (0.60 + 0.40 * price) * opexSizeFactor
       case _                      => 0.0
     val interest = (firm.debt + firm.bondDebt) * (lendRate / 12.0)
+    // Inventory carrying cost: storage, insurance, obsolescence (previously implicit in OtherCosts)
     val inventoryCost = if Config.InventoryEnabled then
       firm.inventory * Config.InventoryCarryingCost / 12.0 else 0.0
+    // Reduce other costs when inventory is explicit (was implicit in OtherCosts)
+    val otherAfterInv = if Config.InventoryEnabled then
+      other * (1.0 - Config.InventoryCostReplace) else other
     // Energy cost + EU ETS carbon surcharge (#36)
     val energyCost = if Config.EnergyEnabled then
       val baseEnergy = revenue * Config.EnergyCostShares(firm.sector)
@@ -169,7 +176,7 @@ object FirmLogic:
       else 0.0
       baseEnergy * (1.0 + Math.max(0.0, carbonSurcharge)) * (1.0 - greenDiscount)
     else 0.0
-    val prePsCosts = labor + other + depnCost + aiMaint + interest + inventoryCost + energyCost
+    val prePsCosts = labor + otherAfterInv + depnCost + aiMaint + interest + inventoryCost + energyCost
     val grossProfit = revenue - prePsCosts
     val profitShiftCost = if Config.FdiEnabled && firm.foreignOwned then
       Math.max(0.0, grossProfit) * Config.FdiProfitShiftRate
@@ -282,8 +289,25 @@ object FirmLogic:
         else
           val nc = firm.cash + net
           if nc < 0 then
-            FirmResult(firm.copy(cash = nc, tech = TechState.Bankrupt("Niewyplacalnosc (hybryda)")),
-              tax, 0, 0, 0, profitShiftCost = psCost, energyCost = eCost)
+            // Forced downsizing for hybrid firms
+            if wkrs > 3 then
+              val laborPerWorker = w.hh.marketWage * FirmOps.effectiveWageMult(firm.sector)
+              val maxCut = Math.max(1, (wkrs * 0.30).toInt)
+              val newWkrs = Math.max(3, wkrs - maxCut)
+              val laborSaved = (wkrs - newWkrs) * laborPerWorker
+              val revRatio = Math.sqrt(newWkrs.toDouble / wkrs.toDouble)
+              val revLost = rev * (1.0 - revRatio)
+              val adjustedNc = nc + laborSaved - revLost
+              if adjustedNc >= 0 then
+                FirmResult(firm.copy(cash = adjustedNc,
+                  tech = TechState.Hybrid(newWkrs, aiEff), digitalReadiness = ready2),
+                  tax, 0, 0, 0, profitShiftCost = psCost, energyCost = eCost)
+              else
+                FirmResult(firm.copy(cash = nc, tech = TechState.Bankrupt("Niewyplacalnosc (hybryda)")),
+                  tax, 0, 0, 0, profitShiftCost = psCost, energyCost = eCost)
+            else
+              FirmResult(firm.copy(cash = nc, tech = TechState.Bankrupt("Niewyplacalnosc (hybryda)")),
+                tax, 0, 0, 0, profitShiftCost = psCost, energyCost = eCost)
           else
             FirmResult(firm.copy(cash = nc, digitalReadiness = ready2), tax, 0, 0, 0, profitShiftCost = psCost, energyCost = eCost)
 
@@ -408,8 +432,29 @@ object FirmLogic:
             FirmResult(firm.copy(cash = nc - digiCost, digitalReadiness = newDR),
               tax, 0, 0, 0, profitShiftCost = psCost, energyCost = eCost)
           else if nc < 0 then
-            FirmResult(firm.copy(cash = nc,
-              tech = TechState.Bankrupt("Niewyplacalnosc (koszty pracy)")), tax, 0, 0, 0, profitShiftCost = psCost, energyCost = eCost)
+            // Forced downsizing before bankruptcy (zwolnienia grupowe)
+            // Firms shed workers to survive — realistic Polish labor code adjustment
+            if wkrs > 3 then
+              val laborPerWorker = w.hh.marketWage * FirmOps.effectiveWageMult(firm.sector)
+              // Max 30% cut per month, minimum 3 workers retained
+              val maxCut = Math.max(1, (wkrs * 0.30).toInt)
+              val newWkrs = Math.max(3, wkrs - maxCut)
+              val laborSaved = (wkrs - newWkrs) * laborPerWorker
+              val revRatio = Math.sqrt(newWkrs.toDouble / wkrs.toDouble)
+              val revLost = rev * (1.0 - revRatio)
+              val adjustedNc = nc + laborSaved - revLost
+              if adjustedNc >= 0 then
+                FirmResult(firm.copy(cash = adjustedNc,
+                  tech = TechState.Traditional(newWkrs)),
+                  tax, 0, 0, 0, profitShiftCost = psCost, energyCost = eCost)
+              else
+                FirmResult(firm.copy(cash = nc,
+                  tech = TechState.Bankrupt("Niewyplacalnosc (koszty pracy)")),
+                  tax, 0, 0, 0, profitShiftCost = psCost, energyCost = eCost)
+            else
+              FirmResult(firm.copy(cash = nc,
+                tech = TechState.Bankrupt("Niewyplacalnosc (koszty pracy)")),
+                tax, 0, 0, 0, profitShiftCost = psCost, energyCost = eCost)
           else
             FirmResult(firm.copy(cash = nc), tax, 0, 0, 0, profitShiftCost = psCost, energyCost = eCost)
 

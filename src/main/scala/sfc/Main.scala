@@ -156,8 +156,12 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
     Some(bs0.copy(banks = fixedBanks))
   else None
 
-  // Initialize demographics with configured initial retirees
+  // Initialize demographics with configured initial retirees.
+  // When ZUS is enabled without full demographics, still initialize retirees
+  // so pension payments offset contributions (otherwise ZUS is pure demand drain).
   val initDemographics = if Config.DemEnabled then
+    DemographicsState(Config.DemInitialRetirees, Config.TotalPopulation, 0)
+  else if Config.ZusEnabled && Config.DemInitialRetirees > 0 then
     DemographicsState(Config.DemInitialRetirees, Config.TotalPopulation, 0)
   else DemographicsState.zero
 
@@ -169,6 +173,14 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
                  else ShadowBanking.zero
   val initBondsOutstanding = Config.InitBankGovBonds + Config.InitNbpGovBonds +
     initInsurance.govBondHoldings + initNbfi.tfiGovBondHoldings
+
+  // Steady-state gross investment = depreciation (capital at target level at t=0)
+  val initGrossInvestment = if Config.PhysCapEnabled then
+    firms.kahanSumBy(f => f.capitalStock * Config.PhysCapDepRates(f.sector) / 12.0)
+  else 0.0
+  val initGreenInvestment = if Config.EnergyEnabled then
+    firms.kahanSumBy(f => f.greenCapital * Config.GreenDepRate / 12.0)
+  else 0.0
 
   var world = World(0, 0.02, 1.0,
     GovState(false, 0, 0, 0, Config.InitGovDebt, 0, bondsOutstanding = initBondsOutstanding),
@@ -202,7 +214,9 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
     else ImmigrationState.zero,
     corporateBonds = CorporateBondMarket.initial,
     insurance = initInsurance,
-    nbfi = initNbfi)
+    nbfi = initNbfi,
+    grossInvestment = initGrossInvestment,
+    aggGreenInvestment = initGreenInvestment)
 
   // Collect time-series: 120 rows x N columns
   // Columns: Month, Inflation, Unemployment, AutoRatio+HybridRatio, ExRate, MarketWage,
