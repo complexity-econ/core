@@ -1,7 +1,7 @@
 package sfc.engine
 
 import sfc.config.{Config, RunConfig}
-import KahanSum.*
+import sfc.util.KahanSum.*
 
 case class ForeignFirm(
   id: Int,

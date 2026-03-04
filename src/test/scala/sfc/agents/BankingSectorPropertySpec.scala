@@ -1,11 +1,12 @@
-package sfc.engine
+package sfc.agents
 
+import org.scalacheck.Gen
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import org.scalacheck.Gen
-import sfc.testutil.Generators.*
+import sfc.agents.{BankingSector, BankingSectorState, IndividualBankState}
 import sfc.config.Config
+import sfc.testutil.Generators.*
 
 import scala.util.Random
 

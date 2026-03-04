@@ -2,6 +2,7 @@ package sfc.engine
 
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import sfc.agents.BankingSectorState
 
 /** Interbank term structure tests. */
 class YieldCurveSpec extends AnyFlatSpec with Matchers:

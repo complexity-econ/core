@@ -2,7 +2,7 @@ package sfc.sfc
 
 import sfc.agents.{Firm, Household}
 import sfc.engine.World
-import sfc.engine.KahanSum.*
+import sfc.util.KahanSum.*
 
 object SfcCheck:
 

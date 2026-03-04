@@ -3,7 +3,7 @@ package sfc.engine
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import sfc.config.{Config, SECTORS}
-import sfc.engine.KahanSum.*
+import sfc.util.KahanSum.*
 
 class ExciseCustomsSpec extends AnyFlatSpec with Matchers:
 
