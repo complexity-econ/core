@@ -1,7 +1,7 @@
 package sfc.sfc
 
-import sfc.agents.{Firm, FirmOps, Household, HhStatus}
-import sfc.engine.{World, BankingSectorState}
+import sfc.agents.{Firm, Household}
+import sfc.engine.World
 import sfc.engine.KahanSum.*
 
 object SfcCheck:
@@ -27,10 +27,10 @@ object SfcCheck:
     ppkBondHoldings: Double = 0.0, // PPK government bond holdings
     mortgageStock: Double = 0.0,  // Outstanding mortgage debt
     consumerLoans: Double = 0.0,  // Outstanding consumer credit stock
-    corpBondsOutstanding: Double = 0.0,  // #40: corporate bond stock
-    insuranceGovBondHoldings: Double = 0.0,  // #41: insurance gov bond holdings
-    tfiGovBondHoldings: Double = 0.0,  // #42: TFI gov bond holdings
-    nbfiLoanStock: Double = 0.0        // #42: NBFI credit stock
+    corpBondsOutstanding: Double = 0.0,  // corporate bond stock
+    insuranceGovBondHoldings: Double = 0.0,  // insurance gov bond holdings
+    tfiGovBondHoldings: Double = 0.0,  // TFI gov bond holdings
+    nbfiLoanStock: Double = 0.0        // NBFI credit stock
   )
 
   /** Flows observed during a single month (computed in Simulation.step).
@@ -75,23 +75,23 @@ object SfcCheck:
     consumerOrigination: Double = 0.0,    // consumer credit: new loan origination
     consumerPrincipalRepaid: Double = 0.0, // consumer credit: principal portion of debt service
     consumerDefaultAmount: Double = 0.0,  // consumer credit: gross default amount (before recovery)
-    corpBondCouponIncome: Double = 0.0,   // #40: bank coupon income from corp bonds
-    corpBondDefaultLoss: Double = 0.0,    // #40: bank loss from corp bond defaults
-    corpBondIssuance: Double = 0.0,       // #40: new corp bonds issued this month
-    corpBondAmortization: Double = 0.0,   // #40: corp bond principal repaid
-    corpBondDefaultAmount: Double = 0.0,  // #40: gross corp bond defaults
-    insNetDepositChange: Double = 0.0,    // #41: insurance net HH deposit change
-    nbfiDepositDrain: Double = 0.0,      // #42: TFI deposit drain
-    nbfiOrigination: Double = 0.0,       // #42: NBFI monthly origination
-    nbfiRepayment: Double = 0.0,         // #42: NBFI monthly repayment
-    nbfiDefaultAmount: Double = 0.0,     // #42: NBFI gross monthly defaults
-    fdiProfitShifting: Double = 0.0,     // #33: FDI profit shifting (service import)
-    fdiRepatriation: Double = 0.0,       // #33: FDI dividend repatriation (primary income debit)
-    diasporaInflow: Double = 0.0,        // #46: diaspora remittance inflow → deposit inflow
-    tourismExport: Double = 0.0,         // #47: inbound tourism → deposit inflow + export
-    tourismImport: Double = 0.0,         // #47: outbound tourism → deposit outflow + import
-    bfgLevy: Double = 0.0,              // #48: BFG levy (bank capital expense)
-    bailInLoss: Double = 0.0,           // #48: bail-in deposit destruction
+    corpBondCouponIncome: Double = 0.0,   // bank coupon income from corp bonds
+    corpBondDefaultLoss: Double = 0.0,    // bank loss from corp bond defaults
+    corpBondIssuance: Double = 0.0,       // new corp bonds issued this month
+    corpBondAmortization: Double = 0.0,   // corp bond principal repaid
+    corpBondDefaultAmount: Double = 0.0,  // gross corp bond defaults
+    insNetDepositChange: Double = 0.0,    // insurance net HH deposit change
+    nbfiDepositDrain: Double = 0.0,      // TFI deposit drain
+    nbfiOrigination: Double = 0.0,       // NBFI monthly origination
+    nbfiRepayment: Double = 0.0,         // NBFI monthly repayment
+    nbfiDefaultAmount: Double = 0.0,     // NBFI gross monthly defaults
+    fdiProfitShifting: Double = 0.0,     // FDI profit shifting (service import)
+    fdiRepatriation: Double = 0.0,       // FDI dividend repatriation (primary income debit)
+    diasporaInflow: Double = 0.0,        // diaspora remittance inflow → deposit inflow
+    tourismExport: Double = 0.0,         // inbound tourism → deposit inflow + export
+    tourismImport: Double = 0.0,         // outbound tourism → deposit outflow + import
+    bfgLevy: Double = 0.0,              // BFG levy (bank capital expense)
+    bailInLoss: Double = 0.0,           // bail-in deposit destruction
     bankCapitalDestruction: Double = 0.0, // Capital wiped when bank fails (shareholders wiped)
     investNetDepositFlow: Double = 0.0, // Investment demand net flow: lagged revenue - current spending
     // Identity 14 (sectoral balances): (S−I) + (G−T) + (X−M) = 0
@@ -116,9 +116,9 @@ object SfcCheck:
     mortgageStockError: Double = 0.0,  // Mortgage stock identity
     fofError: Double = 0.0,           // Flow-of-funds residual
     consumerCreditError: Double = 0.0, // Consumer credit stock identity
-    corpBondStockError: Double = 0.0,  // #40: Corporate bond stock identity
-    nbfiCreditError: Double = 0.0,     // #42: NBFI credit stock identity
-    sectoralBalancesError: Double = 0.0, // #14: (S−I) + (G−T) + (X−M) = 0 (Godley & Lavoie 2007)
+    corpBondStockError: Double = 0.0,  // Corporate bond stock identity
+    nbfiCreditError: Double = 0.0,     // NBFI credit stock identity
+    sectoralBalancesError: Double = 0.0, //  (S−I) + (G−T) + (X−M) = 0 (Godley & Lavoie 2007)
     passed: Boolean
   )
 
@@ -170,8 +170,6 @@ object SfcCheck:
     * 11. Consumer credit: Δ consumerLoans = origination - principalRepaid - defaultAmount
     * 12. Corp bond stock: Δ corpBondsOutstanding = issuance - amortization - defaultAmount
     * 13. NBFI credit stock: Δ nbfiLoanStock = origination - repayment - defaultAmount
-    *
-    * Planned:
     * 14. Sectoral balances (Godley & Lavoie 2007): (S − I) + (G − T) + (X − M) = 0
     *     where (S − I) = private sector balance (savings minus investment),
     *           (G − T) = public sector balance (gov spending minus taxes),
