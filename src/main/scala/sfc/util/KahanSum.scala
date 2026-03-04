@@ -1,4 +1,4 @@
-package sfc.engine
+package sfc.util
 
 object KahanSum:
   /** Kahan compensated summation — O(n) time, O(1) space, error bound O(ε) instead of O(nε). */

@@ -2,7 +2,7 @@ package sfc.engine
 
 import sfc.config.{Config, SECTORS}
 import sfc.agents.*
-import KahanSum.*
+import sfc.util.KahanSum.*
 
 import scala.util.Random
 

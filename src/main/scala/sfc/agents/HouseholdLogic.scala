@@ -2,7 +2,7 @@ package sfc.agents
 
 import sfc.config.Config
 import sfc.engine.{World, SectoralMobility}
-import sfc.engine.KahanSum.*
+import sfc.util.KahanSum.*
 
 import scala.util.Random
 

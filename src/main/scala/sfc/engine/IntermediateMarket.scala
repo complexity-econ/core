@@ -2,7 +2,7 @@ package sfc.engine
 
 import sfc.agents.{Firm, FirmOps, TechState}
 import sfc.config.Config
-import KahanSum.*
+import sfc.util.KahanSum.*
 
 case class IoResult(firms: Array[Firm], totalPaid: Double)
 

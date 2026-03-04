@@ -3,7 +3,7 @@ package sfc.agents
 import sfc.config.Config
 import sfc.engine.*
 import sfc.sfc.BankState
-import KahanSum.*
+import sfc.util.KahanSum.*
 
 import scala.util.Random
 

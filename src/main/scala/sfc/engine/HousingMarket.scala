@@ -1,7 +1,7 @@
 package sfc.engine
 
 import sfc.config.Config
-import KahanSum.*
+import sfc.util.KahanSum.*
 
 /** Per-region housing state: only fields that vary regionally. */
 case class RegionalHousingState(

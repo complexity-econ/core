@@ -5,7 +5,7 @@ import org.scalatest.matchers.should.Matchers
 import sfc.config.{Config, SECTORS}
 import sfc.agents.{Firm, FirmOps, TechState}
 import sfc.sfc.SfcCheck
-import KahanSum.*
+import sfc.util.KahanSum.*
 
 class FofSpec extends AnyFlatSpec with Matchers:
 

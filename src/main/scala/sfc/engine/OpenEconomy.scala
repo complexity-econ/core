@@ -3,7 +3,7 @@ package sfc.engine
 import sfc.config.{Config, SECTORS, RunConfig}
 import sfc.sfc.{ForexState, BopState}
 import sfc.agents.CentralBankLogic
-import sfc.engine.KahanSum.*
+import sfc.util.KahanSum.*
 
 case class OpenEconResult(
   forex: ForexState,

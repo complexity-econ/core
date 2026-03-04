@@ -6,7 +6,7 @@ import sfc.agents.{ImmigrationState, ImmigrationLogic}
 import sfc.sfc.*
 import sfc.networks.Network
 import sfc.dynamics.{SigmaDynamics, DynamicNetwork}
-import KahanSum.*
+import sfc.util.KahanSum.*
 
 import scala.util.Random
 
