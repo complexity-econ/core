@@ -20,7 +20,8 @@ case class PerBankHhFlows(
   depositInterest: Array[Double], // per-bank total deposit interest paid
   consumerDebtService: Array[Double] = Array.empty, // per-bank consumer debt service
   consumerOrigination: Array[Double] = Array.empty,  // per-bank consumer loan origination
-  consumerDefault: Array[Double] = Array.empty       // per-bank consumer loan defaults
+  consumerDefault: Array[Double] = Array.empty,      // per-bank consumer loan defaults
+  consumerPrincipal: Array[Double] = Array.empty     // per-bank consumer loan principal repaid
 )
 
 object HouseholdLogic:
@@ -93,6 +94,8 @@ object HouseholdLogic:
     val perBankCcDSvc = if br != null then new Array[Double](nBanks) else null
     val perBankCcOrig = if br != null then new Array[Double](nBanks) else null
     val perBankCcDef  = if br != null then new Array[Double](nBanks) else null
+    val perBankCcPrin = if br != null then new Array[Double](nBanks) else null
+    var totalConsumerPrincipal = 0.0
 
     // Pre-compute distressed HH set: O(N_hh) instead of O(N_hh x k) per-HH lookup
     val distressedIds = new java.util.BitSet(households.length)
@@ -137,6 +140,8 @@ object HouseholdLogic:
           else world.nbp.referenceRate + Config.CcSpread
           val consumerDebtSvc = hh.consumerDebt * (Config.CcAmortRate + consumerRate / 12.0)
           totalConsumerDebtService += consumerDebtSvc
+          val consumerPrin = hh.consumerDebt * Config.CcAmortRate
+          totalConsumerPrincipal += consumerPrin
 
           // Immigrant remittance: fraction of net-of-PIT income sent abroad (deposit outflow)
           val remittance = if hh.isImmigrant && Config.ImmigEnabled then
@@ -190,11 +195,13 @@ object HouseholdLogic:
             perBankDepInt(bId) += Math.max(0.0, depInterest)
             perBankCcDSvc(bId) += consumerDebtSvc
             perBankCcOrig(bId) += newConsumerLoan
+            perBankCcPrin(bId) += consumerPrin
           // end per-bank
 
           // Bankruptcy test
           if newSavings < Config.HhBankruptcyThreshold * hh.monthlyRent then
-            val ccDefaultAmt = hh.consumerDebt + newConsumerLoan
+            // Default amount: remaining consumer debt after this month's principal repayment + new loan
+            val ccDefaultAmt = hh.consumerDebt * (1.0 - Config.CcAmortRate) + newConsumerLoan
             totalConsumerDefault += ccDefaultAmt
             if perBankCcDef != null then perBankCcDef(hh.bankId) += ccDefaultAmt
             hh.copy(savings = newSavings, debt = newDebt, consumerDebt = 0.0,
@@ -326,11 +333,12 @@ object HouseholdLogic:
       totalSocialTransfers = totalSocialTransfers,
       totalConsumerDebtService = totalConsumerDebtService,
       totalConsumerOrigination = totalConsumerOrigination,
-      totalConsumerDefault = totalConsumerDefault
+      totalConsumerDefault = totalConsumerDefault,
+      totalConsumerPrincipal = totalConsumerPrincipal
     )
     val pbf = if perBankInc != null then
       Some(PerBankHhFlows(perBankInc, perBankCons, perBankDSvc, perBankDepInt,
-        perBankCcDSvc, perBankCcOrig, perBankCcDef))
+        perBankCcDSvc, perBankCcOrig, perBankCcDef, perBankCcPrin))
     else None
     (updated, correctedAgg, pbf)
 

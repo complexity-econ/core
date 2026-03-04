@@ -94,22 +94,25 @@ object BankingSector:
     BankConfig(6, "Others",     0.425, 0.165,  0.001, Vector(0.15, 0.17, 0.17, 0.17, 0.17, 0.17))
   )
 
-  /** Initialize banking sector from total deposits and capital. */
+  /** Initialize banking sector from total deposits, capital, loans, bonds, consumer loans. */
   def initialize(totalDeposits: Double, totalCapital: Double,
+                 totalLoans: Double = 0.0, totalGovBonds: Double = 0.0,
+                 totalConsumerLoans: Double = 0.0,
                  configs: Vector[BankConfig]): BankingSectorState =
     val banks = configs.map { cfg =>
       IndividualBankState(
         id = cfg.id,
         deposits = totalDeposits * cfg.initMarketShare,
-        loans = 0.0,
+        loans = totalLoans * cfg.initMarketShare,
         capital = totalCapital * cfg.initMarketShare,
         nplAmount = 0.0,
-        govBondHoldings = 0.0,
+        govBondHoldings = totalGovBonds * cfg.initMarketShare,
         reservesAtNbp = 0.0,
         interbankNet = 0.0,
         failed = false,
         failedMonth = 0,
-        consecutiveLowCar = 0
+        consecutiveLowCar = 0,
+        consumerLoans = totalConsumerLoans * cfg.initMarketShare
       )
     }
     BankingSectorState(banks, 0.0, configs)
@@ -250,29 +253,32 @@ object BankingSector:
       }
       (updated, totalBailIn)
 
-  /** BFG resolution: transfer deposits, bonds, performing loans to healthiest bank.
+  /** BFG resolution: transfer deposits, bonds, performing loans, consumer loans to healthiest bank.
+    * Returns (resolved banks, absorber bank ID) so callers can reassign HH/firms consistently.
     * Absorber branch is checked FIRST so that when the absorber is itself failed
     * (all-banks-fail scenario) it gets resurrected as a bridge bank before the
     * zero-out branch can wipe it. */
-  def resolveFailures(banks: Vector[IndividualBankState]): Vector[IndividualBankState] =
+  def resolveFailures(banks: Vector[IndividualBankState]): (Vector[IndividualBankState], Int) =
     val newlyFailed = banks.filter(b => b.failed && b.deposits > 0)
-    if newlyFailed.isEmpty then banks
+    if newlyFailed.isEmpty then (banks, -1)
     else
       val absorberId = healthiestBankId(banks)
-      banks.map { b =>
+      val resolved = banks.map { b =>
         if b.id == absorberId then
-          // Absorb deposits, performing loans, bonds, interbank from OTHER failed banks
+          // Absorb deposits, performing loans, bonds, consumer loans, interbank from OTHER failed banks
           val toAbsorb = newlyFailed.filter(_.id != absorberId)
           val addedDeposits = toAbsorb.kahanSumBy(_.deposits)
           val addedLoans = toAbsorb.kahanSumBy(f => f.loans - f.nplAmount)
           val addedBonds = toAbsorb.kahanSumBy(_.govBondHoldings)
           val addedCorpBonds = toAbsorb.kahanSumBy(_.corpBondHoldings)
+          val addedConsumerLoans = toAbsorb.kahanSumBy(_.consumerLoans)
           val addedInterbank = toAbsorb.kahanSumBy(_.interbankNet)
           b.copy(
             deposits = b.deposits + addedDeposits,
             loans = b.loans + Math.max(0, addedLoans),
             govBondHoldings = b.govBondHoldings + addedBonds,
             corpBondHoldings = b.corpBondHoldings + addedCorpBonds,
+            consumerLoans = b.consumerLoans + addedConsumerLoans,
             interbankNet = b.interbankNet + addedInterbank,
             failed = false
           )
@@ -280,9 +286,10 @@ object BankingSector:
           // Wipe this bank's balance sheet (assets transferred to absorber above)
           b.copy(deposits = 0.0, loans = 0.0, govBondHoldings = 0.0,
             nplAmount = 0.0, interbankNet = 0.0, reservesAtNbp = 0.0,
-            corpBondHoldings = 0.0)
+            corpBondHoldings = 0.0, consumerLoans = 0.0, consumerNpl = 0.0)
         else b
       }
+      (resolved, absorberId)
 
   /** Find the healthiest (highest CAR) surviving bank.
     * If all banks have failed, pick the least-bad (highest capital) as bridge bank. */

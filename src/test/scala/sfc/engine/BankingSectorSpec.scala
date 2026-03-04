@@ -14,19 +14,19 @@ class BankingSectorSpec extends AnyFlatSpec with Matchers:
   // ---- initialize ----
 
   "BankingSector.initialize" should "create 7 banks with correct deposit/capital shares" in {
-    val bs = BankingSector.initialize(1000000.0, 100000.0, configs)
+    val bs = BankingSector.initialize(1000000.0, 100000.0, configs = configs)
     bs.banks.length shouldBe 7
     bs.banks.map(_.deposits).sum shouldBe 1000000.0 +- 0.01
     bs.banks.map(_.capital).sum shouldBe 100000.0 +- 0.01
   }
 
   it should "set all banks as not failed initially" in {
-    val bs = BankingSector.initialize(1000000.0, 100000.0, configs)
+    val bs = BankingSector.initialize(1000000.0, 100000.0, configs = configs)
     bs.banks.forall(!_.failed) shouldBe true
   }
 
   it should "set deposits proportional to market share" in {
-    val bs = BankingSector.initialize(1000000.0, 100000.0, configs)
+    val bs = BankingSector.initialize(1000000.0, 100000.0, configs = configs)
     bs.banks(0).deposits shouldBe (1000000.0 * 0.175) +- 0.01  // PKO BP
     bs.banks(5).deposits shouldBe (1000000.0 * 0.050) +- 0.01  // BPS/Coop
   }
@@ -164,7 +164,7 @@ class BankingSectorSpec extends AnyFlatSpec with Matchers:
       IndividualBankState(0, 500000.0, 100000.0, 50000.0, 0, 10000.0, 0, 0, false, 0, 0),
       IndividualBankState(1, 300000.0, 80000.0, 0.0, 0, 5000.0, 0, 0, failed = true, 30, 3)
     )
-    val resolved = BankingSector.resolveFailures(banks)
+    val (resolved, _) = BankingSector.resolveFailures(banks)
     resolved(0).deposits shouldBe 800000.0 +- 0.01  // absorbed 300k
     resolved(1).deposits shouldBe 0.0
   }
@@ -203,7 +203,7 @@ class BankingSectorSpec extends AnyFlatSpec with Matchers:
   }
 
   it should "keep aggregate within tight tolerance with large deficit (1e13)" in {
-    val banks = BankingSector.initialize(1e9, 1e8, configs).banks
+    val banks = BankingSector.initialize(1e9, 1e8, configs = configs).banks
     val deficit = 1e13
     val before = banks.map(_.govBondHoldings).sum
     val result = BankingSector.allocateBonds(banks, deficit)
@@ -252,7 +252,7 @@ class BankingSectorSpec extends AnyFlatSpec with Matchers:
   // ---- aggregate ----
 
   "BankingSectorState.aggregate" should "sum all individual bank values" in {
-    val bs = BankingSector.initialize(1000000.0, 100000.0, configs)
+    val bs = BankingSector.initialize(1000000.0, 100000.0, configs = configs)
     val agg = bs.aggregate
     agg.deposits shouldBe 1000000.0 +- 0.01
     agg.capital shouldBe 100000.0 +- 0.01

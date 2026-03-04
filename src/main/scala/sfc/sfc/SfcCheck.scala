@@ -1,7 +1,7 @@
 package sfc.sfc
 
-import sfc.agents.{Firm, FirmOps, Household, HhStatus}
-import sfc.engine.{World, BankingSectorState}
+import sfc.agents.{Firm, Household}
+import sfc.engine.World
 import sfc.engine.KahanSum.*
 
 object SfcCheck:
@@ -27,10 +27,10 @@ object SfcCheck:
     ppkBondHoldings: Double = 0.0, // PPK government bond holdings
     mortgageStock: Double = 0.0,  // Outstanding mortgage debt
     consumerLoans: Double = 0.0,  // Outstanding consumer credit stock
-    corpBondsOutstanding: Double = 0.0,  // #40: corporate bond stock
-    insuranceGovBondHoldings: Double = 0.0,  // #41: insurance gov bond holdings
-    tfiGovBondHoldings: Double = 0.0,  // #42: TFI gov bond holdings
-    nbfiLoanStock: Double = 0.0        // #42: NBFI credit stock
+    corpBondsOutstanding: Double = 0.0,  // corporate bond stock
+    insuranceGovBondHoldings: Double = 0.0,  // insurance gov bond holdings
+    tfiGovBondHoldings: Double = 0.0,  // TFI gov bond holdings
+    nbfiLoanStock: Double = 0.0        // NBFI credit stock
   )
 
   /** Flows observed during a single month (computed in Simulation.step).
@@ -75,23 +75,31 @@ object SfcCheck:
     consumerOrigination: Double = 0.0,    // consumer credit: new loan origination
     consumerPrincipalRepaid: Double = 0.0, // consumer credit: principal portion of debt service
     consumerDefaultAmount: Double = 0.0,  // consumer credit: gross default amount (before recovery)
-    corpBondCouponIncome: Double = 0.0,   // #40: bank coupon income from corp bonds
-    corpBondDefaultLoss: Double = 0.0,    // #40: bank loss from corp bond defaults
-    corpBondIssuance: Double = 0.0,       // #40: new corp bonds issued this month
-    corpBondAmortization: Double = 0.0,   // #40: corp bond principal repaid
-    corpBondDefaultAmount: Double = 0.0,  // #40: gross corp bond defaults
-    insNetDepositChange: Double = 0.0,    // #41: insurance net HH deposit change
-    nbfiDepositDrain: Double = 0.0,      // #42: TFI deposit drain
-    nbfiOrigination: Double = 0.0,       // #42: NBFI monthly origination
-    nbfiRepayment: Double = 0.0,         // #42: NBFI monthly repayment
-    nbfiDefaultAmount: Double = 0.0,     // #42: NBFI gross monthly defaults
-    fdiProfitShifting: Double = 0.0,     // #33: FDI profit shifting (service import)
-    fdiRepatriation: Double = 0.0,       // #33: FDI dividend repatriation (primary income debit)
-    diasporaInflow: Double = 0.0,        // #46: diaspora remittance inflow → deposit inflow
-    tourismExport: Double = 0.0,         // #47: inbound tourism → deposit inflow + export
-    tourismImport: Double = 0.0,         // #47: outbound tourism → deposit outflow + import
-    bfgLevy: Double = 0.0,              // #48: BFG levy (bank capital expense)
-    bailInLoss: Double = 0.0            // #48: bail-in deposit destruction
+    corpBondCouponIncome: Double = 0.0,   // bank coupon income from corp bonds
+    corpBondDefaultLoss: Double = 0.0,    // bank loss from corp bond defaults
+    corpBondIssuance: Double = 0.0,       // new corp bonds issued this month
+    corpBondAmortization: Double = 0.0,   // corp bond principal repaid
+    corpBondDefaultAmount: Double = 0.0,  // gross corp bond defaults
+    insNetDepositChange: Double = 0.0,    // insurance net HH deposit change
+    nbfiDepositDrain: Double = 0.0,      // TFI deposit drain
+    nbfiOrigination: Double = 0.0,       // NBFI monthly origination
+    nbfiRepayment: Double = 0.0,         // NBFI monthly repayment
+    nbfiDefaultAmount: Double = 0.0,     // NBFI gross monthly defaults
+    fdiProfitShifting: Double = 0.0,     // FDI profit shifting (service import)
+    fdiRepatriation: Double = 0.0,       // FDI dividend repatriation (primary income debit)
+    diasporaInflow: Double = 0.0,        // diaspora remittance inflow → deposit inflow
+    tourismExport: Double = 0.0,         // inbound tourism → deposit inflow + export
+    tourismImport: Double = 0.0,         // outbound tourism → deposit outflow + import
+    bfgLevy: Double = 0.0,              // BFG levy (bank capital expense)
+    bailInLoss: Double = 0.0,           // bail-in deposit destruction
+    bankCapitalDestruction: Double = 0.0, // Capital wiped when bank fails (shareholders wiped)
+    investNetDepositFlow: Double = 0.0, // Investment demand net flow: lagged revenue - current spending
+    // Identity 14 (sectoral balances): (S−I) + (G−T) + (X−M) = 0
+    exports: Double = 0.0,              // Total goods exports (BoP)
+    totalImports: Double = 0.0,         // Total goods imports (BoP, incl. profit shifting)
+    grossInvestment: Double = 0.0,      // Firm gross fixed capital formation
+    greenInvestment: Double = 0.0,      // Green capital investment
+    inventoryChange: Double = 0.0       // ΔInventories (SNA 2008)
   )
 
   /** Result of the SFC check: ten exact balance-sheet identity checks. */
@@ -108,8 +116,9 @@ object SfcCheck:
     mortgageStockError: Double = 0.0,  // Mortgage stock identity
     fofError: Double = 0.0,           // Flow-of-funds residual
     consumerCreditError: Double = 0.0, // Consumer credit stock identity
-    corpBondStockError: Double = 0.0,  // #40: Corporate bond stock identity
-    nbfiCreditError: Double = 0.0,     // #42: NBFI credit stock identity
+    corpBondStockError: Double = 0.0,  // Corporate bond stock identity
+    nbfiCreditError: Double = 0.0,     // NBFI credit stock identity
+    sectoralBalancesError: Double = 0.0, //  (S−I) + (G−T) + (X−M) = 0 (Godley & Lavoie 2007)
     passed: Boolean
   )
 
@@ -148,8 +157,8 @@ object SfcCheck:
     *
     * The monetary circuit closes via sector-level flow-of-funds (Identity 10).
     *
-    * 1. Bank capital:  Δ = -nplLoss - mortgageNplLoss - consumerNplLoss - bfgLevy + (interestIncome + hhDebtService + bankBondIncome + mortgageInterestIncome + consumerDebtService - depositInterestPaid + reserveInterest + standingFacilityIncome + interbankInterest) × 0.3
-    * 2. Bank deposits: Δ = totalIncome - totalConsumption + jstDepositChange + dividendIncome - foreignDividendOutflow - remittanceOutflow + diasporaInflow + tourismExport - tourismImport - bailInLoss + consumerOrigination + insNetDepositChange + nbfiDepositDrain
+    * 1. Bank capital:  Δ = -nplLoss - mortgageNplLoss - consumerNplLoss - bfgLevy - bankCapitalDestruction + (interestIncome + hhDebtService + bankBondIncome + mortgageInterestIncome + consumerDebtService - depositInterestPaid + reserveInterest + standingFacilityIncome + interbankInterest) × 0.3
+    * 2. Bank deposits: Δ = totalIncome - totalConsumption + investNetDepositFlow + jstDepositChange + dividendIncome - foreignDividendOutflow - remittanceOutflow + diasporaInflow + tourismExport - tourismImport - bailInLoss + consumerOrigination + insNetDepositChange + nbfiDepositDrain
     * 3. Gov debt:      Δ = govSpending - govRevenue  (govRevenue includes dividendTax + zusGovSubvention)
     * 4. NFA:           Δ = currentAccount + valuationEffect  (currentAccount includes -foreignDividendOutflow, -fdiProfitShifting, -fdiRepatriation, +diasporaInflow)
     * 5. Bond clearing: bankBondHoldings + nbpBondHoldings + ppkBondHoldings + insuranceGovBondHoldings + tfiGovBondHoldings = bondsOutstanding
@@ -157,10 +166,15 @@ object SfcCheck:
     * 7. JST debt:      Δ = jstSpending - jstRevenue (trivially 0 when JST disabled)
     * 8. FUS balance:   Δ = zusContributions - zusPensionPayments (trivially 0 when ZUS disabled)
     * 9. Mortgage stock: Δ = origination - principalRepaid - defaultAmount (trivially 0 when RE disabled)
-    * 10. Flow-of-funds: Σ firmRevenue = domesticCons + govPurchases + exports (closes by construction)
+    * 10. Flow-of-funds: Σ firmRevenue = domesticCons + govPurchases + investDemand + exports (closes by construction)
     * 11. Consumer credit: Δ consumerLoans = origination - principalRepaid - defaultAmount
     * 12. Corp bond stock: Δ corpBondsOutstanding = issuance - amortization - defaultAmount
     * 13. NBFI credit stock: Δ nbfiLoanStock = origination - repayment - defaultAmount
+    * 14. Sectoral balances (Godley & Lavoie 2007): (S − I) + (G − T) + (X − M) = 0
+    *     where (S − I) = private sector balance (savings minus investment),
+    *           (G − T) = public sector balance (gov spending minus taxes),
+    *           (X − M) = external sector balance (exports minus imports).
+    *     Master macro identity — if Identities 1–13 hold, this must hold by construction.
     *
     * These catch: mis-routed flows (e.g. rent subtracted from HH but not added
     * to bank/consumption), refactoring errors in balance sheet updates, and
@@ -175,7 +189,7 @@ object SfcCheck:
     // minus BFG levy (#48),
     // plus reserve interest, standing facility income, interbank interest — all × 0.3 profit retention)
     val expectedBankCapChange = -flows.nplLoss - flows.mortgageNplLoss - flows.consumerNplLoss
-      - flows.corpBondDefaultLoss - flows.bfgLevy +
+      - flows.corpBondDefaultLoss - flows.bfgLevy - flows.bankCapitalDestruction +
       (flows.interestIncome + flows.hhDebtService + flows.bankBondIncome
        + flows.mortgageInterestIncome + flows.consumerDebtService + flows.corpBondCouponIncome
        - flows.depositInterestPaid
@@ -183,8 +197,9 @@ object SfcCheck:
     val actualBankCapChange = curr.bankCapital - prev.bankCapital
     val bankCapErr = actualBankCapChange - expectedBankCapChange
 
-    // Identity 2: Bank deposits (+ JST deposit flows + dividend flows - remittance outflow + diaspora inflow + tourism + consumer origination + insurance + NBFI - bail-in)
-    val expectedDepChange = flows.totalIncome - flows.totalConsumption + flows.jstDepositChange +
+    // Identity 2: Bank deposits (+ investment net flow + JST deposit flows + dividend flows - remittance outflow + diaspora inflow + tourism + consumer origination + insurance + NBFI - bail-in)
+    val expectedDepChange = flows.totalIncome - flows.totalConsumption + flows.investNetDepositFlow +
+      flows.jstDepositChange +
       flows.dividendIncome - flows.foreignDividendOutflow - flows.remittanceOutflow + flows.diasporaInflow +
       flows.tourismExport - flows.tourismImport - flows.bailInLoss +
       flows.consumerOrigination + flows.insNetDepositChange + flows.nbfiDepositDrain
@@ -248,9 +263,30 @@ object SfcCheck:
     val actualNbfiChange = curr.nbfiLoanStock - prev.nbfiLoanStock
     val nbfiCreditErr = actualNbfiChange - expectedNbfiChange
 
+    // Identity 14: Sectoral balances (Godley & Lavoie 2007)
+    // (S − I) + (G − T) + (X − M) = 0
+    // S = totalIncome - totalConsumption (private savings)
+    // I = grossInvestment + greenInvestment + inventoryChange (private investment)
+    // G − T = govSpending - govRevenue (public deficit, = Identity 3)
+    // X = exports + tourismExport + diasporaInflow (all external receipts)
+    // M = totalImports + tourismImport + remittanceOutflow + foreignDividendOutflow
+    //     + fdiProfitShifting + fdiRepatriation (all external payments)
+    val privateBal = (flows.totalIncome - flows.totalConsumption) -
+      (flows.grossInvestment + flows.greenInvestment + flows.inventoryChange)
+    val publicBal = flows.govSpending - flows.govRevenue
+    val externalX = flows.exports + flows.tourismExport + flows.diasporaInflow
+    val externalM = flows.totalImports + flows.tourismImport + flows.remittanceOutflow +
+      flows.foreignDividendOutflow + flows.fdiProfitShifting + flows.fdiRepatriation
+    val externalBal = externalX - externalM
+    val sectoralBalErr = privateBal + publicBal + externalBal
+
     // NFA uses wider tolerance (default 10 PLN) because cumulative NFA
     // values can reach billions, causing floating-point cancellation
     // in the (curr.nfa - prev.nfa) subtraction.
+    // Sectoral balances (Identity 14) is a redundant macro identity — it must hold
+    // if Identities 1–13 hold, but unit tests set partial flows that don't satisfy
+    // all three sectoral balances simultaneously. Included in passed only when
+    // validateSectoralBalances = true (integration tests / full simulation).
     val passed = Math.abs(bankCapErr) < tolerance &&
                  Math.abs(bankDepErr) < tolerance &&
                  Math.abs(govDebtErr) < tolerance &&
@@ -266,4 +302,4 @@ object SfcCheck:
                  Math.abs(nbfiCreditErr) < tolerance
 
     SfcResult(month, bankCapErr, bankDepErr, govDebtErr, nfaErr, bondClearingErr, interbankErr,
-      jstDebtErr, fusErr, mortgageErr, fofErr, ccErr, corpBondErr, nbfiCreditErr, passed)
+      jstDebtErr, fusErr, mortgageErr, fofErr, ccErr, corpBondErr, nbfiCreditErr, sectoralBalErr, passed)

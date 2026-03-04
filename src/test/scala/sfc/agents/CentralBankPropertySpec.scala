@@ -82,7 +82,7 @@ class CentralBankPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckP
         val totalBefore = bankBonds + nbp.govBondHoldings
         val (newNbp, purchase) = CentralBankLogic.executeQe(nbp, bankBonds, gdp)
         val totalAfter = (bankBonds - purchase) + newNbp.govBondHoldings
-        totalAfter shouldBe (totalBefore +- 1e-6)
+        totalAfter shouldBe (totalBefore +- 1.0)  // FP tolerance at 1e10 scale
     }
   }
 
