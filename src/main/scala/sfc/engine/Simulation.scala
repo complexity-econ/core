@@ -1292,7 +1292,12 @@ object Simulation:
       bfgLevy = bfgLevy,
       bailInLoss = bailInLoss,
       bankCapitalDestruction = multiCapDestruction,
-      investNetDepositFlow = investNetDepositFlow
+      investNetDepositFlow = investNetDepositFlow,
+      exports = newBop.exports,
+      totalImports = newBop.totalImports,
+      grossInvestment = sumGrossInvestment,
+      greenInvestment = sumGreenInvestment,
+      inventoryChange = aggInventoryChange
     )
     val sfcResult = SfcCheck.validate(m, prevSnap, currSnap, sfcFlows)
     if !sfcResult.passed then
@@ -1310,7 +1315,8 @@ object Simulation:
         f" fof=${sfcResult.fofError}%.2f" +
         f" ccStock=${sfcResult.consumerCreditError}%.2f" +
         f" corpBond=${sfcResult.corpBondStockError}%.2f" +
-        f" nbfiCredit=${sfcResult.nbfiCreditError}%.2f")
+        f" nbfiCredit=${sfcResult.nbfiCreditError}%.2f" +
+        f" secBal=${sfcResult.sectoralBalancesError}%.2f")
 
     // FDI M&A: monthly domestic → foreign conversion (#33)
     val postFdiFirms = if Config.FdiEnabled && Config.FdiMaProb > 0 then

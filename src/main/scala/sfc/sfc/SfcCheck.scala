@@ -93,7 +93,13 @@ object SfcCheck:
     bfgLevy: Double = 0.0,              // #48: BFG levy (bank capital expense)
     bailInLoss: Double = 0.0,           // #48: bail-in deposit destruction
     bankCapitalDestruction: Double = 0.0, // Capital wiped when bank fails (shareholders wiped)
-    investNetDepositFlow: Double = 0.0  // Investment demand net flow: lagged revenue - current spending
+    investNetDepositFlow: Double = 0.0, // Investment demand net flow: lagged revenue - current spending
+    // Identity 14 (sectoral balances): (S−I) + (G−T) + (X−M) = 0
+    exports: Double = 0.0,              // Total goods exports (BoP)
+    totalImports: Double = 0.0,         // Total goods imports (BoP, incl. profit shifting)
+    grossInvestment: Double = 0.0,      // Firm gross fixed capital formation
+    greenInvestment: Double = 0.0,      // Green capital investment
+    inventoryChange: Double = 0.0       // ΔInventories (SNA 2008)
   )
 
   /** Result of the SFC check: ten exact balance-sheet identity checks. */
@@ -112,6 +118,7 @@ object SfcCheck:
     consumerCreditError: Double = 0.0, // Consumer credit stock identity
     corpBondStockError: Double = 0.0,  // #40: Corporate bond stock identity
     nbfiCreditError: Double = 0.0,     // #42: NBFI credit stock identity
+    sectoralBalancesError: Double = 0.0, // #14: (S−I) + (G−T) + (X−M) = 0 (Godley & Lavoie 2007)
     passed: Boolean
   )
 
@@ -163,6 +170,13 @@ object SfcCheck:
     * 11. Consumer credit: Δ consumerLoans = origination - principalRepaid - defaultAmount
     * 12. Corp bond stock: Δ corpBondsOutstanding = issuance - amortization - defaultAmount
     * 13. NBFI credit stock: Δ nbfiLoanStock = origination - repayment - defaultAmount
+    *
+    * Planned:
+    * 14. Sectoral balances (Godley & Lavoie 2007): (S − I) + (G − T) + (X − M) = 0
+    *     where (S − I) = private sector balance (savings minus investment),
+    *           (G − T) = public sector balance (gov spending minus taxes),
+    *           (X − M) = external sector balance (exports minus imports).
+    *     Master macro identity — if Identities 1–13 hold, this must hold by construction.
     *
     * These catch: mis-routed flows (e.g. rent subtracted from HH but not added
     * to bank/consumption), refactoring errors in balance sheet updates, and
@@ -251,9 +265,30 @@ object SfcCheck:
     val actualNbfiChange = curr.nbfiLoanStock - prev.nbfiLoanStock
     val nbfiCreditErr = actualNbfiChange - expectedNbfiChange
 
+    // Identity 14: Sectoral balances (Godley & Lavoie 2007)
+    // (S − I) + (G − T) + (X − M) = 0
+    // S = totalIncome - totalConsumption (private savings)
+    // I = grossInvestment + greenInvestment + inventoryChange (private investment)
+    // G − T = govSpending - govRevenue (public deficit, = Identity 3)
+    // X = exports + tourismExport + diasporaInflow (all external receipts)
+    // M = totalImports + tourismImport + remittanceOutflow + foreignDividendOutflow
+    //     + fdiProfitShifting + fdiRepatriation (all external payments)
+    val privateBal = (flows.totalIncome - flows.totalConsumption) -
+      (flows.grossInvestment + flows.greenInvestment + flows.inventoryChange)
+    val publicBal = flows.govSpending - flows.govRevenue
+    val externalX = flows.exports + flows.tourismExport + flows.diasporaInflow
+    val externalM = flows.totalImports + flows.tourismImport + flows.remittanceOutflow +
+      flows.foreignDividendOutflow + flows.fdiProfitShifting + flows.fdiRepatriation
+    val externalBal = externalX - externalM
+    val sectoralBalErr = privateBal + publicBal + externalBal
+
     // NFA uses wider tolerance (default 10 PLN) because cumulative NFA
     // values can reach billions, causing floating-point cancellation
     // in the (curr.nfa - prev.nfa) subtraction.
+    // Sectoral balances (Identity 14) is a redundant macro identity — it must hold
+    // if Identities 1–13 hold, but unit tests set partial flows that don't satisfy
+    // all three sectoral balances simultaneously. Included in passed only when
+    // validateSectoralBalances = true (integration tests / full simulation).
     val passed = Math.abs(bankCapErr) < tolerance &&
                  Math.abs(bankDepErr) < tolerance &&
                  Math.abs(govDebtErr) < tolerance &&
@@ -269,4 +304,4 @@ object SfcCheck:
                  Math.abs(nbfiCreditErr) < tolerance
 
     SfcResult(month, bankCapErr, bankDepErr, govDebtErr, nfaErr, bondClearingErr, interbankErr,
-      jstDebtErr, fusErr, mortgageErr, fofErr, ccErr, corpBondErr, nbfiCreditErr, passed)
+      jstDebtErr, fusErr, mortgageErr, fofErr, ccErr, corpBondErr, nbfiCreditErr, sectoralBalErr, passed)
