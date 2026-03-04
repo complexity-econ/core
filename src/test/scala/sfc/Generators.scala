@@ -3,7 +3,7 @@ package sfc.testutil
 import org.scalacheck.{Arbitrary, Gen}
 import _root_.sfc.agents.*
 import _root_.sfc.sfc.*
-import _root_.sfc.engine.{World, BankConfig, IndividualBankState, BankingSectorState, BankingSector}
+import _root_.sfc.engine.World
 import _root_.sfc.config.{Config, SECTORS, RunConfig, MonetaryRegime}
 
 object Generators:

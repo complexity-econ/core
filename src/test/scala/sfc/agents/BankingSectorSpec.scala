@@ -1,7 +1,8 @@
-package sfc.engine
+package sfc.agents
 
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import sfc.agents.{BankingSector, IndividualBankState}
 import sfc.config.Config
 import sfc.sfc.BankState
 

@@ -4,6 +4,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import org.scalacheck.Gen
+import sfc.agents.IndividualBankState
 
 /** LCR/NSFR and maturity mismatch tests. */
 class LcrNsfrSpec extends AnyFlatSpec with Matchers:

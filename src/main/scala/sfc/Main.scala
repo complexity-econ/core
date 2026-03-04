@@ -7,7 +7,6 @@ import _root_.sfc.config.{Config, SECTORS, TOPOLOGY, Topology, HH_MODE, HhMode, 
 import _root_.sfc.agents.*
 import _root_.sfc.sfc.*
 import _root_.sfc.engine.*
-import _root_.sfc.engine.{BankingSector, BankingSectorState}
 import _root_.sfc.engine.KahanSum.*
 import _root_.sfc.networks.Network
 
