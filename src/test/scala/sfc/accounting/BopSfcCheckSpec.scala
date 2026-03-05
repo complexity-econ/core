@@ -1,7 +1,8 @@
-package sfc.sfc
+package sfc.accounting
 
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import sfc.accounting.SfcCheck
 
 class BopSfcCheckSpec extends AnyFlatSpec with Matchers:
 

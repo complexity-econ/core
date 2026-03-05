@@ -1,8 +1,8 @@
 package sfc.agents
 
+import sfc.accounting.BankState
 import sfc.config.Config
 import sfc.engine.*
-import sfc.sfc.BankState
 import sfc.util.KahanSum.*
 
 import scala.util.Random

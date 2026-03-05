@@ -1,9 +1,10 @@
-package sfc.sfc
+package sfc.accounting
 
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import sfc.accounting.{BankState, ForexState, GovState, SfcCheck}
 import sfc.agents.*
-import sfc.config.{Config, SECTORS, RunConfig}
+import sfc.config.{Config, RunConfig, SECTORS}
 import sfc.engine.World
 
 class SfcCheckSpec extends AnyFlatSpec with Matchers:

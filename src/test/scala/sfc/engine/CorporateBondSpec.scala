@@ -180,7 +180,7 @@ class CorporateBondSpec extends AnyFlatSpec with Matchers:
   }
 
   "BankState.car" should "include corpBondHoldings at 50% risk weight" in {
-    import sfc.sfc.BankState
+    import sfc.accounting.BankState
     val bank = BankState(totalLoans = 1000.0, nplAmount = 0.0, capital = 200.0,
       deposits = 5000.0, corpBondHoldings = 400.0)
     // RWA = 1000 + 400 * 0.5 = 1200; CAR = 200 / 1200 = 0.1667

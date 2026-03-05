@@ -1,9 +1,10 @@
-package sfc.sfc
+package sfc.accounting
 
+import org.scalacheck.Gen
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import org.scalacheck.Gen
+import sfc.accounting.SfcCheck
 import sfc.testutil.Generators.*
 
 class SfcCheckPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks:

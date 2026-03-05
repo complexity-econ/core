@@ -2,9 +2,9 @@ package sfc.agents
 
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import sfc.accounting.BankState
 import sfc.agents.{BankingSector, IndividualBankState}
 import sfc.config.Config
-import sfc.sfc.BankState
 
 import scala.util.Random
 

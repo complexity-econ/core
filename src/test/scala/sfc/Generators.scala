@@ -2,9 +2,10 @@ package sfc.testutil
 
 import org.scalacheck.{Arbitrary, Gen}
 import _root_.sfc.agents.*
-import _root_.sfc.sfc.*
+import _root_.sfc.accounting.*
 import _root_.sfc.engine.World
-import _root_.sfc.config.{Config, SECTORS, RunConfig, MonetaryRegime}
+import _root_.sfc.config.{Config, MonetaryRegime, RunConfig, SECTORS}
+import sfc.accounting.{BankState, BopState, ForexState, GovState, SfcCheck}
 
 object Generators:
 

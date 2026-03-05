@@ -2,7 +2,9 @@ package sfc.engine
 
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import sfc.config.{Config, RunConfig, MonetaryRegime}
+import sfc.accounting
+import sfc.accounting.GovState
+import sfc.config.{Config, MonetaryRegime, RunConfig}
 
 class SimulationSpec extends AnyFlatSpec with Matchers:
 
@@ -83,27 +85,27 @@ class SimulationSpec extends AnyFlatSpec with Matchers:
   // --- updateGov ---
 
   "Sectors.updateGov" should "compute deficit as spending - revenue" in {
-    val prev = sfc.sfc.GovState(false, 0, 0, 0, 0, 0)
+    val prev = GovState(false, 0, 0, 0, 0, 0)
     val result = Sectors.updateGov(prev, citPaid = 100000, vat = 200000,
       bdpActive = false, bdpAmount = 0, priceLevel = 1.0, unempBenefitSpend = 0)
     result.deficit shouldBe (Config.GovBaseSpending - 300000) +- 1.0
   }
 
   it should "have zero BDP spending when not active" in {
-    val prev = sfc.sfc.GovState(false, 0, 0, 0, 0, 0)
+    val prev = accounting.GovState(false, 0, 0, 0, 0, 0)
     val result = Sectors.updateGov(prev, 100000, 200000, bdpActive = false, bdpAmount = 2000, priceLevel = 1.0, unempBenefitSpend = 0)
     result.bdpSpending shouldBe 0.0
   }
 
   it should "include BDP spending when active" in {
-    val prev = sfc.sfc.GovState(false, 0, 0, 0, 0, 0)
+    val prev = accounting.GovState(false, 0, 0, 0, 0, 0)
     val result = Sectors.updateGov(prev, 100000, 200000, bdpActive = true, bdpAmount = 2000, priceLevel = 1.0, unempBenefitSpend = 0)
     result.bdpSpending shouldBe Config.TotalPopulation.toDouble * 2000.0
     result.bdpSpending should be > 0.0
   }
 
   it should "accumulate debt" in {
-    val prev = sfc.sfc.GovState(false, 0, 0, 0, 1000000, 0)
+    val prev = accounting.GovState(false, 0, 0, 0, 1000000, 0)
     val result = Sectors.updateGov(prev, 100000, 200000, bdpActive = false, bdpAmount = 0, priceLevel = 1.0, unempBenefitSpend = 0)
     result.cumulativeDebt shouldBe (1000000 + result.deficit) +- 1.0
   }

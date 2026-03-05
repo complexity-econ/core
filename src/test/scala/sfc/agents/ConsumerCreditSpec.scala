@@ -2,9 +2,9 @@ package sfc.agents
 
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import sfc.accounting.{BankState, ForexState, GovState, SfcCheck}
 import sfc.config.Config
 import sfc.engine.World
-import sfc.sfc.{BankState, GovState, ForexState, SfcCheck}
 
 import scala.util.Random
 

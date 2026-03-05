@@ -4,9 +4,9 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import org.scalacheck.Gen
+import sfc.accounting.{BopState, ForexState}
 import sfc.testutil.Generators.*
 import sfc.config.{Config, MonetaryRegime, RunConfig}
-import sfc.sfc.{BopState, ForexState}
 
 class OpenEconomyPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks:
 

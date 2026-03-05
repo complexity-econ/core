@@ -4,9 +4,9 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import org.scalacheck.Gen
+import sfc.accounting.{ForexState, GovState}
 import sfc.testutil.Generators.*
 import sfc.config.{Config, MonetaryRegime, RunConfig}
-import sfc.sfc.GovState
 
 class SimulationPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks:
 
@@ -184,7 +184,7 @@ class SimulationPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPr
   "updateForeign" should "keep fixed exchange rate for EUR" in {
     forAll(genForexState, Gen.choose(0.0, 1e8), Gen.choose(0.0, 1e7),
            genFraction, genRate, Gen.choose(1e6, 1e10)) {
-      (prev: sfc.sfc.ForexState, importCons: Double, techImp: Double,
+      (prev: ForexState, importCons: Double, techImp: Double,
        autoR: Double, rate: Double, gdp: Double) =>
         val fx = Sectors.updateForeign(prev, importCons, techImp, autoR, rate, gdp, eurConfig)
         fx.exchangeRate shouldBe Config.BaseExRate
@@ -194,7 +194,7 @@ class SimulationPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPr
   it should "keep PLN exchange rate in [3.0, 8.0]" in {
     forAll(genForexState, Gen.choose(0.0, 1e8), Gen.choose(0.0, 1e7),
            genFraction, genRate, Gen.choose(1e6, 1e10)) {
-      (prev: sfc.sfc.ForexState, importCons: Double, techImp: Double,
+      (prev: ForexState, importCons: Double, techImp: Double,
        autoR: Double, rate: Double, gdp: Double) =>
         val fx = Sectors.updateForeign(prev, importCons, techImp, autoR, rate, gdp, plnConfig)
         fx.exchangeRate should be >= 3.0

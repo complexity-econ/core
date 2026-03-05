@@ -1,7 +1,7 @@
 package sfc.engine
 
+import sfc.accounting.{BankState, BopState, ForexState, GovState, MonetaryAggregates}
 import sfc.agents.{BankingSectorState, DemographicsState, HhAggregates, HhState, Household, ImmigrationState, InsuranceSector, InsuranceSectorState, JstState, NbfiState, NbpState, PpkState, ShadowBanking, ZusState}
-import sfc.sfc.{BankState, BopState, ForexState, GovState, MonetaryAggregates}
 import sfc.engine.{EquityMarketState, HousingMarketState, SectoralMobilityState}
 
 case class World(

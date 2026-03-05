@@ -2,9 +2,9 @@ package sfc.engine
 
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import sfc.accounting.{BankState, ForexState, GovState}
 import sfc.config.{Config, SECTORS, RunConfig}
 import sfc.agents.*
-import sfc.sfc.{GovState, BankState, ForexState}
 
 class FdiCompositionSpec extends AnyFlatSpec with Matchers:
 
