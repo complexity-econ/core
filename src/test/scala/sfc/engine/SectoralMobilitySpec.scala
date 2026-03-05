@@ -39,7 +39,7 @@ class SectoralMobilitySpec extends AnyFlatSpec with Matchers:
   "sectorVacancies" should "return non-negative vacancies per sector" in {
     val firms = mkFirms(6)
     val hhs = (0 until 5).map(i =>
-      mkHousehold(i, HhStatus.Employed(FirmId(i % 6), SectorIdx(i % 6), 8000.0))
+      mkHousehold(i, HhStatus.Employed(FirmId(i % 6), SectorIdx(i % 6), PLN(8000.0)))
     ).toVector
     val vac = SectoralMobility.sectorVacancies(hhs, firms)
     vac.length shouldBe 6
@@ -48,7 +48,7 @@ class SectoralMobilitySpec extends AnyFlatSpec with Matchers:
 
   it should "show vacancies when firms need more workers than employed" in {
     val firms = Array(mkFirm(0, 2, TechState.Traditional(10)))  // needs 10
-    val hhs = Vector(mkHousehold(0, HhStatus.Employed(FirmId(0), SectorIdx(2), 8000.0)))  // 1 employed
+    val hhs = Vector(mkHousehold(0, HhStatus.Employed(FirmId(0), SectorIdx(2), PLN(8000.0))))  // 1 employed
     val vac = SectoralMobility.sectorVacancies(hhs, firms)
     vac(2) shouldBe 9  // 10 needed - 1 employed
   }
@@ -57,9 +57,9 @@ class SectoralMobilitySpec extends AnyFlatSpec with Matchers:
 
   "sectorWages" should "compute average wage per sector" in {
     val hhs = Vector(
-      mkHousehold(0, HhStatus.Employed(FirmId(0), SectorIdx(0), 10000.0)),
-      mkHousehold(1, HhStatus.Employed(FirmId(1), SectorIdx(0), 12000.0)),
-      mkHousehold(2, HhStatus.Employed(FirmId(2), SectorIdx(2), 8000.0)),
+      mkHousehold(0, HhStatus.Employed(FirmId(0), SectorIdx(0), PLN(10000.0))),
+      mkHousehold(1, HhStatus.Employed(FirmId(1), SectorIdx(0), PLN(12000.0))),
+      mkHousehold(2, HhStatus.Employed(FirmId(2), SectorIdx(2), PLN(8000.0))),
       mkHousehold(3, HhStatus.Unemployed(1))
     )
     val wages = SectoralMobility.sectorWages(hhs)
@@ -164,8 +164,8 @@ class SectoralMobilitySpec extends AnyFlatSpec with Matchers:
     }.toArray
 
   private def mkFirm(id: Int, sector: Int, tech: TechState): Firm =
-    Firm(FirmId(id), 50000.0, 0.0, tech, 0.5, 1.0, 0.5, SectorIdx(sector), Array.empty[Int])
+    Firm(FirmId(id), PLN(50000.0), PLN.Zero, tech, 0.5, 1.0, 0.5, SectorIdx(sector), Array.empty[Int])
 
   private def mkHousehold(id: Int, status: HhStatus,
                           skill: Double = 0.7, healthPenalty: Double = 0.0): Household =
-    Household(id, 20000.0, 0.0, 1800.0, skill, healthPenalty, 0.82, status, Array.empty[Int])
+    Household(id, PLN(20000.0), PLN.Zero, PLN(1800.0), skill, healthPenalty, 0.82, status, Array.empty[Int])

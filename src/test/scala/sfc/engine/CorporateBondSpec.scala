@@ -3,6 +3,7 @@ package sfc.engine
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import sfc.config.Config
+import sfc.types.*
 
 class CorporateBondSpec extends AnyFlatSpec with Matchers:
 
@@ -10,33 +11,33 @@ class CorporateBondSpec extends AnyFlatSpec with Matchers:
 
   "CorporateBondMarket.zero" should "return all-zero state" in {
     val z = CorporateBondMarket.zero
-    z.outstanding shouldBe 0.0
-    z.bankHoldings shouldBe 0.0
-    z.ppkHoldings shouldBe 0.0
-    z.otherHoldings shouldBe 0.0
+    z.outstanding shouldBe PLN.Zero
+    z.bankHoldings shouldBe PLN.Zero
+    z.ppkHoldings shouldBe PLN.Zero
+    z.otherHoldings shouldBe PLN.Zero
     z.corpBondYield shouldBe 0.0
-    z.lastIssuance shouldBe 0.0
-    z.lastAmortization shouldBe 0.0
-    z.lastCouponIncome shouldBe 0.0
-    z.lastDefaultLoss shouldBe 0.0
-    z.lastDefaultAmount shouldBe 0.0
+    z.lastIssuance shouldBe PLN.Zero
+    z.lastAmortization shouldBe PLN.Zero
+    z.lastCouponIncome shouldBe PLN.Zero
+    z.lastDefaultLoss shouldBe PLN.Zero
+    z.lastDefaultAmount shouldBe PLN.Zero
   }
 
   "CorporateBondMarket.initial" should "have stock = CorpBondInitStock" in {
-    initState.outstanding shouldBe (Config.CorpBondInitStock +- 1.0)
+    initState.outstanding.toDouble shouldBe (Config.CorpBondInitStock +- 1.0)
   }
 
   it should "allocate holders summing to 100%" in {
     val total = initState.bankHoldings + initState.ppkHoldings + initState.otherHoldings
-    total shouldBe (initState.outstanding +- 1.0)
+    total.toDouble shouldBe (initState.outstanding.toDouble +- 1.0)
   }
 
   it should "have bank holdings = stock * CorpBondBankShare" in {
-    initState.bankHoldings shouldBe (initState.outstanding * Config.CorpBondBankShare +- 1.0)
+    initState.bankHoldings.toDouble shouldBe (initState.outstanding.toDouble * Config.CorpBondBankShare +- 1.0)
   }
 
   it should "have ppk holdings = stock * CorpBondPpkShare" in {
-    initState.ppkHoldings shouldBe (initState.outstanding * Config.CorpBondPpkShare +- 1.0)
+    initState.ppkHoldings.toDouble shouldBe (initState.outstanding.toDouble * Config.CorpBondPpkShare +- 1.0)
   }
 
   "computeYield" should "equal govYield + spread when nplRatio = 0" in {
@@ -59,8 +60,8 @@ class CorporateBondSpec extends AnyFlatSpec with Matchers:
   "computeCoupon" should "be proportional to holdings" in {
     val (total, bank, ppk) = CorporateBondMarket.computeCoupon(initState)
     total should be > 0.0
-    bank shouldBe (initState.bankHoldings * initState.corpBondYield / 12.0 +- 0.01)
-    ppk shouldBe (initState.ppkHoldings * initState.corpBondYield / 12.0 +- 0.01)
+    bank shouldBe (initState.bankHoldings.toDouble * initState.corpBondYield / 12.0 +- 0.01)
+    ppk shouldBe (initState.ppkHoldings.toDouble * initState.corpBondYield / 12.0 +- 0.01)
   }
 
   it should "return zeros for zero outstanding" in {
@@ -72,7 +73,7 @@ class CorporateBondSpec extends AnyFlatSpec with Matchers:
 
   "amortization" should "equal outstanding / maturity" in {
     val a = CorporateBondMarket.amortization(initState)
-    a shouldBe (initState.outstanding / Config.CorpBondMaturity +- 0.01)
+    a shouldBe (initState.outstanding.toDouble / Config.CorpBondMaturity +- 0.01)
   }
 
   "processDefaults" should "return zeros when no defaults" in {
@@ -95,33 +96,33 @@ class CorporateBondSpec extends AnyFlatSpec with Matchers:
   "processIssuance" should "increase all holder buckets" in {
     val issuance = 5000.0
     val result = CorporateBondMarket.processIssuance(initState, issuance)
-    result.outstanding shouldBe (initState.outstanding + issuance +- 0.01)
-    result.bankHoldings shouldBe (initState.bankHoldings + issuance * Config.CorpBondBankShare +- 0.01)
-    result.ppkHoldings shouldBe (initState.ppkHoldings + issuance * Config.CorpBondPpkShare +- 0.01)
-    result.lastIssuance shouldBe issuance
+    result.outstanding.toDouble shouldBe (initState.outstanding.toDouble + issuance +- 0.01)
+    result.bankHoldings.toDouble shouldBe (initState.bankHoldings.toDouble + issuance * Config.CorpBondBankShare +- 0.01)
+    result.ppkHoldings.toDouble shouldBe (initState.ppkHoldings.toDouble + issuance * Config.CorpBondPpkShare +- 0.01)
+    result.lastIssuance.toDouble shouldBe issuance
   }
 
   it should "not change state for zero issuance" in {
     val result = CorporateBondMarket.processIssuance(initState, 0.0)
     result.outstanding shouldBe initState.outstanding
-    result.lastIssuance shouldBe 0.0
+    result.lastIssuance shouldBe PLN.Zero
   }
 
   "step" should "reduce outstanding by amortization + defaults" in {
     val prevOutstanding = initState.outstanding
     val result = CorporateBondMarket.step(initState, 0.06, 0.0, 0.0, 0.0)
     // No issuance, no defaults — only amortization reduces outstanding
-    val amort = prevOutstanding / Config.CorpBondMaturity
-    result.outstanding shouldBe (prevOutstanding - amort +- 1.0)
+    val amort = prevOutstanding.toDouble / Config.CorpBondMaturity
+    result.outstanding.toDouble shouldBe (prevOutstanding.toDouble - amort +- 1.0)
   }
 
   it should "satisfy SFC Identity 12: delta = issuance - amort - default" in {
     val issuance = 2000.0
     val default = 500.0
     val result = CorporateBondMarket.step(initState, 0.06, 0.02, default, issuance)
-    val amort = initState.outstanding / Config.CorpBondMaturity
+    val amort = initState.outstanding.toDouble / Config.CorpBondMaturity
     val expectedChange = issuance - amort - default
-    val actualChange = result.outstanding - initState.outstanding
+    val actualChange = result.outstanding.toDouble - initState.outstanding.toDouble
     actualChange shouldBe (expectedChange +- 1.0)
   }
 
@@ -181,8 +182,8 @@ class CorporateBondSpec extends AnyFlatSpec with Matchers:
 
   "BankState.car" should "include corpBondHoldings at 50% risk weight" in {
     import sfc.accounting.BankState
-    val bank = BankState(totalLoans = 1000.0, nplAmount = 0.0, capital = 200.0,
-      deposits = 5000.0, corpBondHoldings = 400.0)
+    val bank = BankState(totalLoans = PLN(1000.0), nplAmount = PLN(0.0), capital = PLN(200.0),
+      deposits = PLN(5000.0), corpBondHoldings = PLN(400.0))
     // RWA = 1000 + 400 * 0.5 = 1200; CAR = 200 / 1200 = 0.1667
     bank.car shouldBe (200.0 / 1200.0 +- 0.001)
   }

@@ -4,6 +4,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import sfc.accounting.GovState
 import sfc.config.Config
+import sfc.types.*
 
 class EuFundsSpec extends AnyFlatSpec with Matchers:
 
@@ -87,31 +88,31 @@ class EuFundsSpec extends AnyFlatSpec with Matchers:
   // --- updateGov integration ---
 
   "updateGov" should "include euCofinancing in deficit" in {
-    val prev = GovState(false, 0, 0, 0, 0, 0)
+    val prev = GovState(false, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
     val base = Sectors.updateGov(prev, 100000, 200000,
       bdpActive = false, bdpAmount = 0, priceLevel = 1.0, unempBenefitSpend = 0)
     val withEu = Sectors.updateGov(prev, 100000, 200000,
       bdpActive = false, bdpAmount = 0, priceLevel = 1.0, unempBenefitSpend = 0,
       euCofinancing = 50000.0)
     // Deficit should increase by euCofinancing amount
-    (withEu.deficit - base.deficit) shouldBe 50000.0 +- 0.01
+    (withEu.deficit - base.deficit).toDouble shouldBe 50000.0 +- 0.01
   }
 
   it should "record euCofinancing in GovState" in {
-    val prev = GovState(false, 0, 0, 0, 0, 0)
+    val prev = GovState(false, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
     val result = Sectors.updateGov(prev, 100000, 200000,
       bdpActive = false, bdpAmount = 0, priceLevel = 1.0, unempBenefitSpend = 0,
       euCofinancing = 75000.0)
-    result.euCofinancing shouldBe 75000.0
+    result.euCofinancing.toDouble shouldBe 75000.0
   }
 
   it should "add euProjectCapital to govCapitalSpend when GovInvest disabled" in {
-    val prev = GovState(false, 0, 0, 0, 0, 0)
+    val prev = GovState(false, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
     val result = Sectors.updateGov(prev, 100000, 200000,
       bdpActive = false, bdpAmount = 0, priceLevel = 1.0, unempBenefitSpend = 0,
       euProjectCapital = 30000.0)
     // GovInvestEnabled=false by default, so govCapitalSpend = 0 + euProjectCapital
-    result.govCapitalSpend shouldBe 30000.0
+    result.govCapitalSpend.toDouble shouldBe 30000.0
   }
 
   // --- Disabled mode: identical to flat transfer ---

@@ -52,16 +52,16 @@ class FdiCompositionSpec extends AnyFlatSpec with Matchers:
   it should "be preserved through copy" in {
     val f = mkFirm(TechState.Traditional(10)).copy(foreignOwned = true)
     f.foreignOwned shouldBe true
-    val f2 = f.copy(cash = 99999.0)
+    val f2 = f.copy(cash = PLN(99999.0))
     f2.foreignOwned shouldBe true
   }
 
   // --- FirmResult fields ---
 
   "FirmResult" should "default profitShiftCost and fdiRepatriation to 0" in {
-    val r = FirmResult(mkFirm(TechState.Traditional(10)), 0, 0, 0, 0)
-    r.profitShiftCost shouldBe 0.0
-    r.fdiRepatriation shouldBe 0.0
+    val r = FirmResult(mkFirm(TechState.Traditional(10)), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
+    r.profitShiftCost.toDouble shouldBe 0.0
+    r.fdiRepatriation.toDouble shouldBe 0.0
   }
 
   // --- calcPnL: profit shifting ---
@@ -70,7 +70,7 @@ class FdiCompositionSpec extends AnyFlatSpec with Matchers:
     val f = mkFirm(TechState.Traditional(10)).copy(foreignOwned = false)
     val w = mkWorld()
     val r = FirmLogic.process(f, w, 0.06, _ => true, Array(f), RunConfig(0, 1, "t"))
-    r.profitShiftCost shouldBe 0.0
+    r.profitShiftCost.toDouble shouldBe 0.0
   }
 
   it should "produce profitShiftCost=0 when FDI disabled (default)" in {
@@ -79,30 +79,30 @@ class FdiCompositionSpec extends AnyFlatSpec with Matchers:
     val w = mkWorld()
     val r = FirmLogic.process(f, w, 0.06, _ => true, Array(f), RunConfig(0, 1, "t"))
     // Since FdiEnabled=false, profitShiftCost should be 0 even for foreign firm
-    r.profitShiftCost shouldBe 0.0
+    r.profitShiftCost.toDouble shouldBe 0.0
   }
 
   it should "produce fdiRepatriation=0 when FDI disabled (default)" in {
     val f = mkFirm(TechState.Traditional(10)).copy(foreignOwned = true)
     val w = mkWorld()
     val r = FirmLogic.process(f, w, 0.06, _ => true, Array(f), RunConfig(0, 1, "t"))
-    r.fdiRepatriation shouldBe 0.0
+    r.fdiRepatriation.toDouble shouldBe 0.0
   }
 
   // --- applyFdiFlows ---
 
   "applyFdiFlows" should "not repatriate from domestic firm" in {
-    val f = mkFirm(TechState.Traditional(10)).copy(foreignOwned = false, cash = 100000.0)
-    val r = FirmResult(f, taxPaid = 1000.0, 0, 0, 0)
+    val f = mkFirm(TechState.Traditional(10)).copy(foreignOwned = false, cash = PLN(100000.0))
+    val r = FirmResult(f, taxPaid = PLN(1000.0), PLN.Zero, PLN.Zero, PLN.Zero)
     // applyFdiFlows is private, but tested through FirmLogic.process
     // Domestic firm should have 0 repatriation regardless
-    r.fdiRepatriation shouldBe 0.0
+    r.fdiRepatriation.toDouble shouldBe 0.0
   }
 
   it should "not repatriate from bankrupt firm" in {
-    val f = mkFirm(TechState.Bankrupt("test")).copy(foreignOwned = true, cash = 100000.0)
-    val r = FirmResult(f, taxPaid = 1000.0, 0, 0, 0)
-    r.fdiRepatriation shouldBe 0.0
+    val f = mkFirm(TechState.Bankrupt("test")).copy(foreignOwned = true, cash = PLN(100000.0))
+    val r = FirmResult(f, taxPaid = PLN(1000.0), PLN.Zero, PLN.Zero, PLN.Zero)
+    r.fdiRepatriation.toDouble shouldBe 0.0
   }
 
   // --- Automated foreign firm ---
@@ -110,34 +110,34 @@ class FdiCompositionSpec extends AnyFlatSpec with Matchers:
   "FirmLogic.process" should "populate profitShiftCost for foreign Automated firm (when FDI enabled)" in {
     // This test documents the expected behavior when FDI_ENABLED=true
     // Since we can't set Config at test time, just verify the field exists
-    val f = mkFirm(TechState.Automated(1.5)).copy(foreignOwned = true, cash = 500000.0)
+    val f = mkFirm(TechState.Automated(1.5)).copy(foreignOwned = true, cash = PLN(500000.0))
     val w = mkWorld()
     val r = FirmLogic.process(f, w, 0.06, _ => true, Array(f), RunConfig(0, 1, "t"))
     // When FdiEnabled=false (default), profitShiftCost=0
-    r.profitShiftCost shouldBe 0.0
+    r.profitShiftCost.toDouble shouldBe 0.0
   }
 
   it should "populate profitShiftCost for foreign Traditional firm (when FDI enabled)" in {
-    val f = mkFirm(TechState.Traditional(10)).copy(foreignOwned = true, cash = 500000.0)
+    val f = mkFirm(TechState.Traditional(10)).copy(foreignOwned = true, cash = PLN(500000.0))
     val w = mkWorld()
     val r = FirmLogic.process(f, w, 0.06, _ => true, Array(f), RunConfig(0, 1, "t"))
-    r.profitShiftCost shouldBe 0.0
+    r.profitShiftCost.toDouble shouldBe 0.0
   }
 
   // --- World FDI fields ---
 
   "World" should "have FDI fields defaulting to 0" in {
     val w = mkWorld()
-    w.fdiProfitShifting shouldBe 0.0
-    w.fdiRepatriation shouldBe 0.0
-    w.fdiCitLoss shouldBe 0.0
+    w.fdiProfitShifting.toDouble shouldBe 0.0
+    w.fdiRepatriation.toDouble shouldBe 0.0
+    w.fdiCitLoss.toDouble shouldBe 0.0
   }
 
   // --- Repatriation cash constraint ---
 
   "FDI repatriation" should "not make firm cash negative" in {
     // When FDI is enabled and firm has low cash, repatriation is capped
-    val f = mkFirm(TechState.Traditional(10)).copy(foreignOwned = true, cash = 100.0)
+    val f = mkFirm(TechState.Traditional(10)).copy(foreignOwned = true, cash = PLN(100.0))
     val w = mkWorld()
     val r = FirmLogic.process(f, w, 0.06, _ => true, Array(f), RunConfig(0, 1, "t"))
     // Even with FDI enabled, cash should not go below what the base logic sets
@@ -171,18 +171,18 @@ class FdiCompositionSpec extends AnyFlatSpec with Matchers:
   // --- helpers ---
 
   private def mkFirm(tech: TechState, sector: Int = 2): Firm =
-    Firm(FirmId(0), 50000.0, 0.0, tech, 0.5, 1.0, 0.5, SectorIdx(sector), Array.empty[Int])
+    Firm(FirmId(0), PLN(50000.0), PLN.Zero, tech, 0.5, 1.0, 0.5, SectorIdx(sector), Array.empty[Int])
 
   private def mkWorld(): World =
     World(
       month = 31,
       inflation = 0.02,
       priceLevel = 1.0,
-      gov = GovState(false, 0, 0, 0, 0, 0),
+      gov = GovState(false, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
       nbp = NbpState(0.0575),
-      bank = BankState(1000000, 10000, 500000, 1000000),
-      forex = ForexState(4.33, 0, 190000000, 0, 0),
-      hh = HhState(100000, Config.BaseWage, Config.BaseReservationWage, 0, 0, 0, 0),
+      bank = BankState(PLN(1000000), PLN(10000), PLN(500000), PLN(1000000)),
+      forex = ForexState(4.33, PLN.Zero, PLN(190000000), PLN.Zero, PLN.Zero),
+      hh = HhState(100000, PLN(Config.BaseWage), PLN(Config.BaseReservationWage), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
       automationRatio = 0.0,
       hybridRatio = 0.0,
       gdpProxy = 1e9,

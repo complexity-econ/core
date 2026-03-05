@@ -1,39 +1,40 @@
 package sfc.agents
 
 import sfc.config.Config
+import sfc.types.*
 
 /** Shadow Banking / NBFI state: TFI investment funds + NBFI credit (leasing + fintech) (#42). */
 case class NbfiState(
   // TFI component
-  tfiAum: Double,                     // Total AUM
-  tfiGovBondHoldings: Double,         // Gov bonds (target share)
-  tfiCorpBondHoldings: Double,        // Corp bonds (target share)
-  tfiEquityHoldings: Double,          // Equities (target share)
-  tfiCashHoldings: Double,            // Cash/money market (residual)
+  tfiAum: PLN,                     // Total AUM
+  tfiGovBondHoldings: PLN,         // Gov bonds (target share)
+  tfiCorpBondHoldings: PLN,        // Corp bonds (target share)
+  tfiEquityHoldings: PLN,          // Equities (target share)
+  tfiCashHoldings: PLN,            // Cash/money market (residual)
   // NBFI credit component (leasing + fintech)
-  nbfiLoanStock: Double,              // Outstanding NBFI loans
+  nbfiLoanStock: PLN,              // Outstanding NBFI loans
   // Flow tracking
-  lastTfiNetInflow: Double = 0.0,     // HH net fund purchases
-  lastNbfiOrigination: Double = 0.0,  // Monthly new NBFI credit
-  lastNbfiRepayment: Double = 0.0,    // Monthly principal repaid
-  lastNbfiDefaultAmount: Double = 0.0,// Monthly gross defaults
-  lastNbfiInterestIncome: Double = 0.0,// NBFI interest earned
+  lastTfiNetInflow: PLN = PLN.Zero,     // HH net fund purchases
+  lastNbfiOrigination: PLN = PLN.Zero,  // Monthly new NBFI credit
+  lastNbfiRepayment: PLN = PLN.Zero,    // Monthly principal repaid
+  lastNbfiDefaultAmount: PLN = PLN.Zero,// Monthly gross defaults
+  lastNbfiInterestIncome: PLN = PLN.Zero,// NBFI interest earned
   lastBankTightness: Double = 0.0,    // Counter-cyclical signal
-  lastDepositDrain: Double = 0.0      // Net deposit outflow (TFI inflow)
+  lastDepositDrain: PLN = PLN.Zero      // Net deposit outflow (TFI inflow)
 )
 
 object ShadowBanking:
-  def zero: NbfiState = NbfiState(0, 0, 0, 0, 0, 0)
+  def zero: NbfiState = NbfiState(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
 
   def initial: NbfiState =
-    val aum = Config.NbfiTfiInitAum
+    val aum = PLN(Config.NbfiTfiInitAum)
     NbfiState(
       tfiAum = aum,
       tfiGovBondHoldings = aum * Config.NbfiTfiGovBondShare,
       tfiCorpBondHoldings = aum * Config.NbfiTfiCorpBondShare,
       tfiEquityHoldings = aum * Config.NbfiTfiEquityShare,
       tfiCashHoldings = aum * (1.0 - Config.NbfiTfiGovBondShare - Config.NbfiTfiCorpBondShare - Config.NbfiTfiEquityShare),
-      nbfiLoanStock = Config.NbfiCreditInitStock
+      nbfiLoanStock = PLN(Config.NbfiCreditInitStock)
     )
 
   /** Bank credit tightness signal: 0 at NPL <= 3%, rises linearly, 1.0 at 6%. */
@@ -75,7 +76,7 @@ object ShadowBanking:
     val invIncome = prev.tfiGovBondHoldings * govBondYield / 12.0 +
       prev.tfiCorpBondHoldings * corpBondYield / 12.0 +
       prev.tfiEquityHoldings * equityReturn
-    val newAum = Math.max(0.0, prev.tfiAum + netInflow + invIncome)
+    val newAum = (prev.tfiAum + PLN(netInflow) + invIncome).max(PLN.Zero)
 
     // Rebalance towards target allocation
     val s = Config.NbfiTfiRebalanceSpeed
@@ -88,14 +89,14 @@ object ShadowBanking:
     val newCash = newAum - newGov - newCorp - newEq
 
     // Deposit drain: HH buys fund units -> deposits decrease
-    val depositDrain = -netInflow
+    val depositDrain = PLN(-netInflow)
 
     // NBFI credit: counter-cyclical origination -> repayment -> defaults
     val tight = bankTightness(bankNplRatio)
     val origination = nbfiOrigination(domesticCons, bankNplRatio)
-    val repayment = nbfiRepayment(prev.nbfiLoanStock)
-    val defaults = nbfiDefaults(prev.nbfiLoanStock, unempRate)
-    val newLoanStock = Math.max(0.0, prev.nbfiLoanStock + origination - repayment - defaults)
+    val repayment = nbfiRepayment(prev.nbfiLoanStock.toDouble)
+    val defaults = nbfiDefaults(prev.nbfiLoanStock.toDouble, unempRate)
+    val newLoanStock = (prev.nbfiLoanStock + PLN(origination) - PLN(repayment) - PLN(defaults)).max(PLN.Zero)
     val interestIncome = prev.nbfiLoanStock * Config.NbfiCreditRate / 12.0
 
     NbfiState(
@@ -105,10 +106,10 @@ object ShadowBanking:
       tfiEquityHoldings = newEq,
       tfiCashHoldings = newCash,
       nbfiLoanStock = newLoanStock,
-      lastTfiNetInflow = netInflow,
-      lastNbfiOrigination = origination,
-      lastNbfiRepayment = repayment,
-      lastNbfiDefaultAmount = defaults,
+      lastTfiNetInflow = PLN(netInflow),
+      lastNbfiOrigination = PLN(origination),
+      lastNbfiRepayment = PLN(repayment),
+      lastNbfiDefaultAmount = PLN(defaults),
       lastNbfiInterestIncome = interestIncome,
       lastBankTightness = tight,
       lastDepositDrain = depositDrain

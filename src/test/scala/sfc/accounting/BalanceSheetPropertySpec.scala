@@ -6,6 +6,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import sfc.accounting.{BankState, BopState, ForexState, GovState}
+import sfc.types.*
 import sfc.testutil.Generators.*
 
 class BalanceSheetPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks:
@@ -29,7 +30,7 @@ class BalanceSheetPropertySpec extends AnyFlatSpec with Matchers with ScalaCheck
 
   "BankState.nplRatio" should "be in [0, 1] when totalLoans > 1" in {
     forAll(genBankState) { (bs: BankState) =>
-      whenever(bs.totalLoans > 1.0) {
+      whenever(bs.totalLoans > PLN(1.0)) {
         bs.nplRatio should be >= 0.0
         bs.nplRatio should be <= 1.0
       }
@@ -38,7 +39,7 @@ class BalanceSheetPropertySpec extends AnyFlatSpec with Matchers with ScalaCheck
 
   it should "be 0 when totalLoans <= 1" in {
     forAll(Gen.choose(-100.0, 1.0), Gen.choose(0.0, 1e6)) { (loans: Double, capital: Double) =>
-      val bs = BankState(loans, 500.0, capital, 1000.0)
+      val bs = BankState(PLN(loans), PLN(500.0), PLN(capital), PLN(1000.0))
       bs.nplRatio shouldBe 0.0
     }
   }
@@ -46,7 +47,7 @@ class BalanceSheetPropertySpec extends AnyFlatSpec with Matchers with ScalaCheck
   "BankState.car" should "be >= 0 for non-negative capital and loans" in {
     forAll(Gen.choose(0.0, 1e9), Gen.choose(0.0, 1e9)) { (capital: Double, loans: Double) =>
       whenever(loans > 1.0) {
-        val bs = BankState(loans, 0.0, capital, 1000.0)
+        val bs = BankState(PLN(loans), PLN(0.0), PLN(capital), PLN(1000.0))
         bs.car should be >= 0.0
       }
     }
@@ -54,7 +55,7 @@ class BalanceSheetPropertySpec extends AnyFlatSpec with Matchers with ScalaCheck
 
   it should "be 10.0 when totalLoans <= 1" in {
     forAll(Gen.choose(-100.0, 1.0)) { (loans: Double) =>
-      val bs = BankState(loans, 0.0, 1000.0, 1000.0)
+      val bs = BankState(PLN(loans), PLN(0.0), PLN(1000.0), PLN(1000.0))
       bs.car shouldBe 10.0
     }
   }
@@ -75,8 +76,8 @@ class BalanceSheetPropertySpec extends AnyFlatSpec with Matchers with ScalaCheck
   it should "be monotonic in nplRatio" in {
     forAll(genRate, Gen.choose(1000.0, 1e9), Gen.choose(0.0, 1e6)) {
       (refRate: Double, loans: Double, capital: Double) =>
-        val bs1 = BankState(loans, loans * 0.05, capital, 1000.0)
-        val bs2 = BankState(loans, loans * 0.20, capital, 1000.0)
+        val bs1 = BankState(PLN(loans), PLN(loans * 0.05), PLN(capital), PLN(1000.0))
+        val bs2 = BankState(PLN(loans), PLN(loans * 0.20), PLN(capital), PLN(1000.0))
         bs2.lendingRate(refRate) should be >= bs1.lendingRate(refRate)
     }
   }
@@ -92,7 +93,7 @@ class BalanceSheetPropertySpec extends AnyFlatSpec with Matchers with ScalaCheck
   it should "be false when projected CAR < MinCar" in {
     forAll(Gen.choose(1e6, 1e8)) { (loans: Double) =>
       val tinyCapital = loans * Config.MinCar * 0.5
-      val bs = BankState(loans, 0.0, tinyCapital, 1000.0)
+      val bs = BankState(PLN(loans), PLN(0.0), PLN(tinyCapital), PLN(1000.0))
       bs.canLend(loans) shouldBe false
     }
   }
@@ -106,7 +107,7 @@ class BalanceSheetPropertySpec extends AnyFlatSpec with Matchers with ScalaCheck
       val totalRev = cit + vat
       val bdpSpend = if active then Config.TotalPopulation.toDouble * bdp else 0.0
       val totalSpend = bdpSpend + unempBen + Config.GovBaseSpending * price
-      gov.deficit shouldBe (totalSpend - totalRev +- 1.0)
+      gov.deficit.toDouble shouldBe (totalSpend - totalRev +- 1.0)
     }
   }
 
@@ -114,7 +115,7 @@ class BalanceSheetPropertySpec extends AnyFlatSpec with Matchers with ScalaCheck
 
   "ForexState" should "have tradeBalance = exports - imports" in {
     forAll(genForexState) { (fs: ForexState) =>
-      fs.tradeBalance shouldBe (fs.exports - fs.imports +- 1e-6)
+      fs.tradeBalance.toDouble shouldBe ((fs.exports - fs.imports).toDouble +- 1e-6)
     }
   }
 
@@ -122,6 +123,6 @@ class BalanceSheetPropertySpec extends AnyFlatSpec with Matchers with ScalaCheck
 
   "BopState" should "have CA = tradeBalance + primaryIncome + secondaryIncome" in {
     forAll(genBopState) { (bop: BopState) =>
-      bop.currentAccount shouldBe (bop.tradeBalance + bop.primaryIncome + bop.secondaryIncome +- 1e-6)
+      bop.currentAccount.toDouble shouldBe ((bop.tradeBalance + bop.primaryIncome + bop.secondaryIncome).toDouble +- 1e-6)
     }
   }

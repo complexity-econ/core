@@ -79,24 +79,24 @@ class InventorySpec extends AnyFlatSpec with Matchers:
 
   "World" should "have aggInventoryStock defaulting to 0.0" in {
     val w = World(0, 0.0, 1.0,
-      GovState(false, 0, 0, 0, 0, 0),
+      GovState(false, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
       sfc.agents.NbpState(0.05),
-      BankState(0, 0, 1e9, 1e9),
-      ForexState(4.33, 0, 0, 0, 0),
-      sfc.agents.HhState(100, 8000, 4500, 0, 0, 0, 0),
+      BankState(PLN.Zero, PLN.Zero, PLN(1e9), PLN(1e9)),
+      ForexState(4.33, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
+      sfc.agents.HhState(100, PLN(8000), PLN(4500), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
       0, 0, 1e9, Vector.fill(6)(5.0))
-    w.aggInventoryStock shouldBe 0.0
+    w.aggInventoryStock.toDouble shouldBe 0.0
   }
 
   it should "have aggInventoryChange defaulting to 0.0" in {
     val w = World(0, 0.0, 1.0,
-      accounting.GovState(false, 0, 0, 0, 0, 0),
+      accounting.GovState(false, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
       sfc.agents.NbpState(0.05),
-      accounting.BankState(0, 0, 1e9, 1e9),
-      accounting.ForexState(4.33, 0, 0, 0, 0),
-      sfc.agents.HhState(100, 8000, 4500, 0, 0, 0, 0),
+      accounting.BankState(PLN.Zero, PLN.Zero, PLN(1e9), PLN(1e9)),
+      accounting.ForexState(4.33, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
+      sfc.agents.HhState(100, PLN(8000), PLN(4500), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
       0, 0, 1e9, Vector.fill(6)(5.0))
-    w.aggInventoryChange shouldBe 0.0
+    w.aggInventoryChange.toDouble shouldBe 0.0
   }
 
   // ==========================================================================
@@ -104,16 +104,16 @@ class InventorySpec extends AnyFlatSpec with Matchers:
   // ==========================================================================
 
   "Firm" should "have inventory defaulting to 0.0" in {
-    val f = Firm(FirmId(0), 50000.0, 0.0, TechState.Traditional(10),
+    val f = Firm(FirmId(0), PLN(50000.0), PLN.Zero, TechState.Traditional(10),
       0.5, 1.0, 0.3, SectorIdx(0), Array.empty[Int])
-    f.inventory shouldBe 0.0
+    f.inventory.toDouble shouldBe 0.0
   }
 
   "FirmResult" should "have inventoryChange defaulting to 0.0" in {
-    val f = Firm(FirmId(0), 50000.0, 0.0, TechState.Traditional(10),
+    val f = Firm(FirmId(0), PLN(50000.0), PLN.Zero, TechState.Traditional(10),
       0.5, 1.0, 0.3, SectorIdx(0), Array.empty[Int])
-    val r = FirmResult(f, 0.0, 0.0, 0.0, 0.0)
-    r.inventoryChange shouldBe 0.0
+    val r = FirmResult(f, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
+    r.inventoryChange.toDouble shouldBe 0.0
   }
 
   // ==========================================================================
@@ -275,8 +275,8 @@ class InventorySpec extends AnyFlatSpec with Matchers:
   // ==========================================================================
 
   "Bankrupt firm" should "have zero inventory" in {
-    val f = Firm(FirmId(0), -1000.0, 50000.0, TechState.Bankrupt("test"),
-      0.5, 1.0, 0.3, SectorIdx(0), Array.empty[Int], inventory = 5000.0)
+    val f = Firm(FirmId(0), PLN(-1000.0), PLN(50000.0), TechState.Bankrupt("test"),
+      0.5, 1.0, 0.3, SectorIdx(0), Array.empty[Int], inventory = PLN(5000.0))
     // applyInventory should zero out inventory for bankrupt firms
     FirmOps.isAlive(f) shouldBe false
   }

@@ -25,16 +25,16 @@ class ImmigrationSpec extends AnyFlatSpec with Matchers:
 
   "ImmigrationLogic.computeRemittances" should "return 0 when disabled" in {
     val hhs = Vector(
-      Household(0, 5000.0, 0, 1800.0, 0.5, 0.0, 0.85,
-        HhStatus.Employed(FirmId(0), SectorIdx(1), 6000.0), Array.empty[Int], isImmigrant = true)
+      Household(0, PLN(5000.0), PLN(0.0), PLN(1800.0), 0.5, 0.0, 0.85,
+        HhStatus.Employed(FirmId(0), SectorIdx(1), PLN(6000.0)), Array.empty[Int], isImmigrant = true)
     )
     ImmigrationLogic.computeRemittances(hhs) shouldBe 0.0
   }
 
   it should "return 0 for non-immigrant households" in {
     val hhs = Vector(
-      Household(0, 5000.0, 0, 1800.0, 0.5, 0.0, 0.85,
-        HhStatus.Employed(FirmId(0), SectorIdx(1), 6000.0), Array.empty[Int], isImmigrant = false)
+      Household(0, PLN(5000.0), PLN(0.0), PLN(1800.0), 0.5, 0.0, 0.85,
+        HhStatus.Employed(FirmId(0), SectorIdx(1), PLN(6000.0)), Array.empty[Int], isImmigrant = false)
     )
     ImmigrationLogic.computeRemittances(hhs) shouldBe 0.0
   }
@@ -118,14 +118,14 @@ class ImmigrationSpec extends AnyFlatSpec with Matchers:
 
   "ImmigrationLogic.removeReturnMigrants" should "remove oldest immigrants first" in {
     val hhs = Vector(
-      Household(0, 1000.0, 0, 1800.0, 0.5, 0.0, 0.85,
-        HhStatus.Employed(FirmId(0), SectorIdx(0), 6000.0), Array.empty[Int], isImmigrant = false),
-      Household(1, 1000.0, 0, 1800.0, 0.5, 0.0, 0.85,
-        HhStatus.Employed(FirmId(1), SectorIdx(0), 5000.0), Array.empty[Int], isImmigrant = true),
-      Household(2, 1000.0, 0, 1800.0, 0.5, 0.0, 0.85,
-        HhStatus.Employed(FirmId(2), SectorIdx(0), 5000.0), Array.empty[Int], isImmigrant = true),
-      Household(3, 1000.0, 0, 1800.0, 0.5, 0.0, 0.85,
-        HhStatus.Employed(FirmId(3), SectorIdx(0), 5000.0), Array.empty[Int], isImmigrant = true)
+      Household(0, PLN(1000.0), PLN(0.0), PLN(1800.0), 0.5, 0.0, 0.85,
+        HhStatus.Employed(FirmId(0), SectorIdx(0), PLN(6000.0)), Array.empty[Int], isImmigrant = false),
+      Household(1, PLN(1000.0), PLN(0.0), PLN(1800.0), 0.5, 0.0, 0.85,
+        HhStatus.Employed(FirmId(1), SectorIdx(0), PLN(5000.0)), Array.empty[Int], isImmigrant = true),
+      Household(2, PLN(1000.0), PLN(0.0), PLN(1800.0), 0.5, 0.0, 0.85,
+        HhStatus.Employed(FirmId(2), SectorIdx(0), PLN(5000.0)), Array.empty[Int], isImmigrant = true),
+      Household(3, PLN(1000.0), PLN(0.0), PLN(1800.0), 0.5, 0.0, 0.85,
+        HhStatus.Employed(FirmId(3), SectorIdx(0), PLN(5000.0)), Array.empty[Int], isImmigrant = true)
     )
     val result = ImmigrationLogic.removeReturnMigrants(hhs, 2)
     result.length shouldBe 2
@@ -137,10 +137,10 @@ class ImmigrationSpec extends AnyFlatSpec with Matchers:
 
   it should "not remove natives" in {
     val hhs = Vector(
-      Household(0, 1000.0, 0, 1800.0, 0.5, 0.0, 0.85,
-        HhStatus.Employed(FirmId(0), SectorIdx(0), 6000.0), Array.empty[Int], isImmigrant = false),
-      Household(1, 1000.0, 0, 1800.0, 0.5, 0.0, 0.85,
-        HhStatus.Employed(FirmId(1), SectorIdx(0), 6000.0), Array.empty[Int], isImmigrant = false)
+      Household(0, PLN(1000.0), PLN(0.0), PLN(1800.0), 0.5, 0.0, 0.85,
+        HhStatus.Employed(FirmId(0), SectorIdx(0), PLN(6000.0)), Array.empty[Int], isImmigrant = false),
+      Household(1, PLN(1000.0), PLN(0.0), PLN(1800.0), 0.5, 0.0, 0.85,
+        HhStatus.Employed(FirmId(1), SectorIdx(0), PLN(6000.0)), Array.empty[Int], isImmigrant = false)
     )
     val result = ImmigrationLogic.removeReturnMigrants(hhs, 5)
     result.length shouldBe 2  // no immigrants to remove
@@ -148,8 +148,8 @@ class ImmigrationSpec extends AnyFlatSpec with Matchers:
 
   it should "return unchanged households when count is 0" in {
     val hhs = Vector(
-      Household(0, 1000.0, 0, 1800.0, 0.5, 0.0, 0.85,
-        HhStatus.Employed(FirmId(0), SectorIdx(0), 6000.0), Array.empty[Int], isImmigrant = true)
+      Household(0, PLN(1000.0), PLN(0.0), PLN(1800.0), 0.5, 0.0, 0.85,
+        HhStatus.Employed(FirmId(0), SectorIdx(0), PLN(6000.0)), Array.empty[Int], isImmigrant = true)
     )
     ImmigrationLogic.removeReturnMigrants(hhs, 0) shouldBe hhs
   }

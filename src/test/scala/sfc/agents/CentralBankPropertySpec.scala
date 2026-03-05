@@ -6,6 +6,7 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import org.scalacheck.Gen
 import sfc.testutil.Generators.*
 import sfc.config.Config
+import sfc.types.*
 
 class CentralBankPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks:
 
@@ -70,18 +71,18 @@ class CentralBankPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckP
   it should "not exceed max GDP share limit when active" in {
     forAll(Gen.choose(0.0, 0.25), Gen.choose(0.0, 1e10), Gen.choose(1e6, 1e12)) {
       (rate: Double, bankBonds: Double, gdp: Double) =>
-        val nbp = NbpState(rate, 0.0, qeActive = true, 0.0)
+        val nbp = NbpState(rate, PLN.Zero, qeActive = true, PLN.Zero)
         val (newNbp, _) = CentralBankLogic.executeQe(nbp, bankBonds, gdp)
-        newNbp.govBondHoldings should be <= (Config.NbpQeMaxGdpShare * gdp + 1e-6)
+        newNbp.govBondHoldings.toDouble should be <= (Config.NbpQeMaxGdpShare * gdp + 1e-6)
     }
   }
 
   it should "preserve bond clearing through QE (bank - purchase + nbp + purchase = total)" in {
     forAll(genNbpState, Gen.choose(0.0, 1e10), Gen.choose(1e6, 1e12)) {
       (nbp: NbpState, bankBonds: Double, gdp: Double) =>
-        val totalBefore = bankBonds + nbp.govBondHoldings
+        val totalBefore = bankBonds + nbp.govBondHoldings.toDouble
         val (newNbp, purchase) = CentralBankLogic.executeQe(nbp, bankBonds, gdp)
-        val totalAfter = (bankBonds - purchase) + newNbp.govBondHoldings
+        val totalAfter = (bankBonds - purchase) + newNbp.govBondHoldings.toDouble
         totalAfter shouldBe (totalBefore +- 1.0)  // FP tolerance at 1e10 scale
     }
   }

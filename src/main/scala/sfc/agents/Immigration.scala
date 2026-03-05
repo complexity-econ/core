@@ -45,7 +45,7 @@ object ImmigrationLogic:
       immigrantHH.filter(h => h.isImmigrant).map { h =>
         h.status match
           case HhStatus.Employed(_, _, wage) =>
-            wage * Config.ImmigRemittanceRate
+            wage.toDouble * Config.ImmigRemittanceRate
           case _ => 0.0
       }.sum
 
@@ -86,9 +86,9 @@ object ImmigrationLogic:
       else 0
       Household(
         id = startId + i,
-        savings = savings,
-        debt = 0.0,
-        monthlyRent = rent.max(800.0),
+        savings = PLN(savings),
+        debt = PLN.Zero,
+        monthlyRent = PLN(rent.max(800.0)),
         skill = clampedSkill,
         healthPenalty = 0.0,
         mpc = mpc.max(0.7).min(0.98),

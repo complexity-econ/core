@@ -1,29 +1,30 @@
 package sfc.engine
 
 import sfc.config.Config
+import sfc.types.*
 
 /** GPW equity market state: aggregate index, market cap, yields, foreign ownership. */
 case class EquityMarketState(
   index: Double,            // WIG-like composite index level
-  marketCap: Double,        // total market capitalization
+  marketCap: PLN,           // total market capitalization
   earningsYield: Double,    // E/P = inverse of P/E
   dividendYield: Double,    // dividend / price
   foreignOwnership: Double, // fraction held by foreign investors
-  lastIssuance: Double = 0.0,          // equity issuance this month
-  lastDomesticDividends: Double = 0.0, // net domestic dividends this month
-  lastForeignDividends: Double = 0.0,  // foreign dividend outflow this month
-  lastDividendTax: Double = 0.0,       // dividend tax this month
-  hhEquityWealth: Double = 0.0,        // total HH equity holdings value
-  lastWealthEffect: Double = 0.0,      // wealth effect consumption boost this month
+  lastIssuance: PLN = PLN.Zero,          // equity issuance this month
+  lastDomesticDividends: PLN = PLN.Zero, // net domestic dividends this month
+  lastForeignDividends: PLN = PLN.Zero,  // foreign dividend outflow this month
+  lastDividendTax: PLN = PLN.Zero,       // dividend tax this month
+  hhEquityWealth: PLN = PLN.Zero,        // total HH equity holdings value
+  lastWealthEffect: PLN = PLN.Zero,      // wealth effect consumption boost this month
   monthlyReturn: Double = 0.0          // index return this month (for HH revaluation next month)
 )
 
 object EquityMarket:
-  def zero: EquityMarketState = EquityMarketState(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+  def zero: EquityMarketState = EquityMarketState(0.0, PLN.Zero, 0.0, 0.0, 0.0, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, 0.0)
 
   def initial: EquityMarketState = EquityMarketState(
     index = Config.GpwInitIndex,
-    marketCap = Config.GpwInitMcap,
+    marketCap = PLN(Config.GpwInitMcap),
     earningsYield = 1.0 / Config.GpwPeMean,
     dividendYield = Config.GpwDivYield,
     foreignOwnership = Config.GpwForeignShare
@@ -65,12 +66,12 @@ object EquityMarket:
 
     // Market cap scales with index
     val indexReturn = if prev.index > 0 then newIndex / prev.index else 1.0
-    val newMarketCap = Math.max(0.0, prev.marketCap * indexReturn)
+    val newMarketCap = (prev.marketCap * indexReturn).max(PLN.Zero)
 
     // Earnings yield from firm profits and market cap
     val annualProfits = firmProfits * 12.0
-    val newEarningsYield = if newMarketCap > 0 then
-      Math.max(0.01, Math.min(0.50, annualProfits / newMarketCap))
+    val newEarningsYield = if newMarketCap > PLN.Zero then
+      Math.max(0.01, Math.min(0.50, annualProfits / newMarketCap.toDouble))
     else prev.earningsYield
 
     // Dividend yield: payout ratio × earnings yield (mean-reverting to calibrated)
@@ -90,13 +91,14 @@ object EquityMarket:
   /** Process equity issuance: firm raises CAPEX via equity, increasing market cap.
     * Returns updated state with diluted index (supply effect). */
   def processIssuance(amount: Double, prev: EquityMarketState): EquityMarketState =
-    if amount <= 0 then return prev.copy(lastIssuance = 0.0)
+    if amount <= 0 then return prev.copy(lastIssuance = PLN.Zero)
+    val amountPLN = PLN(amount)
     // New shares increase market cap; index diluted by supply effect
-    val dilutionFactor = prev.marketCap / (prev.marketCap + amount)
+    val dilutionFactor = prev.marketCap.toDouble / (prev.marketCap.toDouble + amount)
     prev.copy(
-      marketCap = prev.marketCap + amount,
+      marketCap = prev.marketCap + amountPLN,
       index = prev.index * dilutionFactor,
-      lastIssuance = amount
+      lastIssuance = amountPLN
     )
 
   /** Compute dividends from firm profits.

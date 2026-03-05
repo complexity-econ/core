@@ -10,12 +10,12 @@ class PhysicalCapitalSpec extends AnyFlatSpec with Matchers:
 
   private def mkFirm(sector: Int = 1, workers: Int = 10, cash: Double = 500000.0,
     capitalStock: Double = 0.0): Firm =
-    Firm(id = FirmId(0), cash = cash, debt = 0.0,
+    Firm(id = FirmId(0), cash = PLN(cash), debt = PLN.Zero,
       tech = TechState.Traditional(workers),
       riskProfile = 0.5, innovationCostFactor = 1.0,
       digitalReadiness = 0.3, sector = SectorIdx(sector),
       neighbors = Array.empty[Int], initialSize = workers,
-      capitalStock = capitalStock)
+      capitalStock = PLN(capitalStock))
 
   // --- Config defaults ---
 
@@ -137,11 +137,11 @@ class PhysicalCapitalSpec extends AnyFlatSpec with Matchers:
   }
 
   it should "return 0 for bankrupt firm" in {
-    val f = Firm(id = FirmId(0), cash = 0, debt = 0,
+    val f = Firm(id = FirmId(0), cash = PLN.Zero, debt = PLN.Zero,
       tech = TechState.Bankrupt("test"),
       riskProfile = 0.5, innovationCostFactor = 1.0,
       digitalReadiness = 0.3, sector = SectorIdx(0),
-      neighbors = Array.empty[Int], capitalStock = 100000.0)
+      neighbors = Array.empty[Int], capitalStock = PLN(100000.0))
     FirmOps.capacity(f) shouldBe 0.0
   }
 
@@ -149,16 +149,16 @@ class PhysicalCapitalSpec extends AnyFlatSpec with Matchers:
 
   "Bankruptcy" should "zero capitalStock via applyInvestment" in {
     // applyInvestment on a bankrupt firm should zero capitalStock
-    val f = Firm(id = FirmId(0), cash = 0, debt = 100000,
+    val f = Firm(id = FirmId(0), cash = PLN.Zero, debt = PLN(100000),
       tech = TechState.Bankrupt("test"),
       riskProfile = 0.5, innovationCostFactor = 1.0,
       digitalReadiness = 0.3, sector = SectorIdx(1),
-      neighbors = Array.empty[Int], capitalStock = 2500000.0)
-    val r = FirmResult(f, 0, 0, 0, 0)
+      neighbors = Array.empty[Int], capitalStock = PLN(2500000.0))
+    val r = FirmResult(f, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
     // When PhysCapEnabled, applyInvestment should zero K for bankrupt
     if Config.PhysCapEnabled then
       // Call process on a bankrupt firm — capitalStock should be 0
-      r.firm.capitalStock shouldBe 2500000.0  // before applyInvestment
+      r.firm.capitalStock.toDouble shouldBe 2500000.0  // before applyInvestment
   }
 
   // --- OtherCosts reduction ---

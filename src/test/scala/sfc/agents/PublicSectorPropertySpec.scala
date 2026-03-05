@@ -4,6 +4,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import org.scalacheck.Gen
+import sfc.types.*
 
 /** Property-based tests for public sector. */
 class PublicSectorPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks:
@@ -15,10 +16,10 @@ class PublicSectorPropertySpec extends AnyFlatSpec with Matchers with ScalaCheck
            Gen.choose(0, 100000)) {
       (prevBal, employed, wage, retirees) =>
         val zus = PublicSectorLogic.zusStep(prevBal, employed, wage, retirees)
-        zus.contributions shouldBe 0.0
-        zus.pensionPayments shouldBe 0.0
-        zus.govSubvention shouldBe 0.0
-        zus.fusBalance shouldBe prevBal  // unchanged
+        zus.contributions.toDouble shouldBe 0.0
+        zus.pensionPayments.toDouble shouldBe 0.0
+        zus.govSubvention.toDouble shouldBe 0.0
+        zus.fusBalance.toDouble shouldBe prevBal  // unchanged
     }
   }
 
@@ -26,15 +27,15 @@ class PublicSectorPropertySpec extends AnyFlatSpec with Matchers with ScalaCheck
     forAll(Gen.choose(0.0, 1e10), Gen.choose(0, 200000), Gen.choose(1000.0, 20000.0)) {
       (prevHoldings, employed, wage) =>
         val ppk = PublicSectorLogic.ppkStep(prevHoldings, employed, wage)
-        ppk.contributions shouldBe 0.0
-        ppk.bondHoldings shouldBe prevHoldings
+        ppk.contributions.toDouble shouldBe 0.0
+        ppk.bondHoldings.toDouble shouldBe prevHoldings
     }
   }
 
   "PPK bond purchase" should "be non-negative" in {
     forAll(Gen.choose(0.0, 1e10), Gen.choose(0.0, 1e8)) {
       (holdings, contributions) =>
-        val ppk = PpkState(holdings, contributions)
+        val ppk = PpkState(PLN(holdings), PLN(contributions))
         PublicSectorLogic.ppkBondPurchase(ppk) should be >= 0.0
     }
   }

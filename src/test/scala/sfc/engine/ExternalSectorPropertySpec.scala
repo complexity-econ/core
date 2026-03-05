@@ -6,6 +6,7 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import org.scalacheck.Gen
 import sfc.testutil.Generators.*
 import sfc.config.{Config, MonetaryRegime, RunConfig}
+import sfc.types.*
 
 class ExternalSectorPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks:
 
@@ -27,7 +28,7 @@ class ExternalSectorPropertySpec extends AnyFlatSpec with Matchers with ScalaChe
     forAll(genExchangeRate, genPrice, genFraction, Gen.choose(1, 120)) {
       (er: Double, price: Double, autoR: Double, month: Int) =>
         val r = runStep(er, price, autoR, month)
-        r.totalExports should be >= 0.0
+        r.totalExports.toDouble should be >= 0.0
     }
   }
 
@@ -36,7 +37,7 @@ class ExternalSectorPropertySpec extends AnyFlatSpec with Matchers with ScalaChe
   it should "always have non-negative total intermediate imports" in {
     forAll(genExchangeRate, genPrice) { (er: Double, price: Double) =>
       val r = runStep(er, price)
-      r.totalIntermImports should be >= 0.0
+      r.totalIntermImports.toDouble should be >= 0.0
     }
   }
 
@@ -85,7 +86,7 @@ class ExternalSectorPropertySpec extends AnyFlatSpec with Matchers with ScalaChe
   it should "produce positive exports under EUR regime" in {
     forAll(genFraction, Gen.choose(1, 120)) { (autoR: Double, month: Int) =>
       val r = runStep(Config.BaseExRate, 1.0, autoR, month, eurConfig)
-      r.totalExports should be > 0.0
+      r.totalExports.toDouble should be > 0.0
     }
   }
 

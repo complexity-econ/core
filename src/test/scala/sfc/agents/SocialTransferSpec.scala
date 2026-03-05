@@ -72,28 +72,28 @@ class SocialTransferSpec extends AnyFlatSpec with Matchers:
   "HhAggregates.totalSocialTransfers" should "default to 0.0" in {
     val agg = HhAggregates(
       employed = 0, unemployed = 0, retraining = 0, bankrupt = 0,
-      totalIncome = 0, consumption = 0, domesticConsumption = 0, importConsumption = 0,
-      marketWage = 0, reservationWage = 0, giniIndividual = 0, giniWealth = 0,
-      meanSavings = 0, medianSavings = 0, povertyRate50 = 0, bankruptcyRate = 0,
+      totalIncome = PLN.Zero, consumption = PLN.Zero, domesticConsumption = PLN.Zero, importConsumption = PLN.Zero,
+      marketWage = PLN.Zero, reservationWage = PLN.Zero, giniIndividual = 0, giniWealth = 0,
+      meanSavings = PLN.Zero, medianSavings = PLN.Zero, povertyRate50 = 0, bankruptcyRate = 0,
       meanSkill = 0, meanHealthPenalty = 0, retrainingAttempts = 0, retrainingSuccesses = 0,
-      consumptionP10 = 0, consumptionP50 = 0, consumptionP90 = 0,
-      meanMonthsToRuin = 0, povertyRate30 = 0, totalRent = 0,
-      totalDebtService = 0, totalUnempBenefits = 0
+      consumptionP10 = PLN.Zero, consumptionP50 = PLN.Zero, consumptionP90 = PLN.Zero,
+      meanMonthsToRuin = 0, povertyRate30 = 0, totalRent = PLN.Zero,
+      totalDebtService = PLN.Zero, totalUnempBenefits = PLN.Zero
     )
-    agg.totalSocialTransfers shouldBe 0.0
+    agg.totalSocialTransfers.toDouble shouldBe 0.0
   }
 
   "Household.numDependentChildren" should "default to 0" in {
     val hh = Household(
-      id = 0, savings = 1000, debt = 0, monthlyRent = 1000,
+      id = 0, savings = PLN(1000), debt = PLN.Zero, monthlyRent = PLN(1000),
       skill = 0.5, healthPenalty = 0.0, mpc = 0.8,
-      status = HhStatus.Employed(FirmId(0), SectorIdx(0), 8000.0),
+      status = HhStatus.Employed(FirmId(0), SectorIdx(0), PLN(8000.0)),
       socialNeighbors = Array.empty[Int]
     )
     hh.numDependentChildren shouldBe 0
   }
 
   "GovState.socialTransferSpend" should "default to 0.0" in {
-    val gov = GovState(false, 0, 0, 0, 0, 0)
-    gov.socialTransferSpend shouldBe 0.0
+    val gov = GovState(false, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
+    gov.socialTransferSpend.toDouble shouldBe 0.0
   }

@@ -58,7 +58,7 @@ class SectoralMobilityPropertySpec extends AnyFlatSpec with Matchers with ScalaC
   // --- sectorVacancies ---
 
   "sectorVacancies" should "return array of length 6" in {
-    val firms = Array(Firm(FirmId(0), 50000.0, 0.0, TechState.Traditional(10), 0.5, 1.0, 0.5, SectorIdx(2), Array.empty[Int]))
+    val firms = Array(Firm(FirmId(0), PLN(50000.0), PLN.Zero, TechState.Traditional(10), 0.5, 1.0, 0.5, SectorIdx(2), Array.empty[Int]))
     val hhs = Vector.empty[Household]
     val vac = SectoralMobility.sectorVacancies(hhs, firms)
     vac.length shouldBe 6
@@ -68,8 +68,8 @@ class SectoralMobilityPropertySpec extends AnyFlatSpec with Matchers with ScalaC
 
   "sectorWages" should "return non-negative values" in {
     val hhs = (0 until 10).map(i =>
-      Household(i, 20000.0, 0.0, 1800.0, 0.7, 0.0, 0.82,
-        HhStatus.Employed(FirmId(i), SectorIdx(i % 6), 8000.0 + i * 100), Array.empty[Int])
+      Household(i, PLN(20000.0), PLN.Zero, PLN(1800.0), 0.7, 0.0, 0.82,
+        HhStatus.Employed(FirmId(i), SectorIdx(i % 6), PLN(8000.0 + i * 100)), Array.empty[Int])
     ).toVector
     val wages = SectoralMobility.sectorWages(hhs)
     wages.foreach(_ should be >= 0.0)

@@ -13,18 +13,18 @@ class StagedDigitalizationSpec extends AnyFlatSpec with Matchers:
 
   private def mkFirm(tech: TechState, sector: Int = 2,
     cash: Double = 500000.0, dr: Double = 0.5): Firm =
-    Firm(FirmId(0), cash, 0.0, tech, 0.5, 1.0, dr, SectorIdx(sector), Array.empty[Int])
+    Firm(FirmId(0), PLN(cash), PLN.Zero, tech, 0.5, 1.0, dr, SectorIdx(sector), Array.empty[Int])
 
   private def mkWorld(autoRatio: Double = 0.0, hybridRatio: Double = 0.0): World =
     World(
       month = 31,
       inflation = 0.02,
       priceLevel = 1.0,
-      gov = GovState(false, 0, 0, 0, 0, 0),
+      gov = GovState(false, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
       nbp = NbpState(0.0575),
-      bank = BankState(1000000, 10000, 500000, 1000000),
-      forex = ForexState(4.33, 0, 190000000, 0, 0),
-      hh = HhState(100000, Config.BaseWage, Config.BaseReservationWage, 0, 0, 0, 0),
+      bank = BankState(PLN(1000000), PLN(10000), PLN(500000), PLN(1000000)),
+      forex = ForexState(4.33, PLN.Zero, PLN(190000000), PLN.Zero, PLN.Zero),
+      hh = HhState(100000, PLN(Config.BaseWage), PLN(Config.BaseReservationWage), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
       automationRatio = autoRatio,
       hybridRatio = hybridRatio,
       gdpProxy = 1e9,
@@ -107,7 +107,7 @@ class StagedDigitalizationSpec extends AnyFlatSpec with Matchers:
       val result = FirmLogic.process(f, w, 0.07, _ => false, Array(f), rc)
       if result.firm.digitalReadiness > f.digitalReadiness + Config.DigiDrift + 0.001 then
         // Investment happened (DR increased beyond just drift)
-        result.firm.cash should be < f.cash
+        result.firm.cash.toDouble should be < f.cash.toDouble
         invested = true
     invested shouldBe true
   }
@@ -169,6 +169,6 @@ class StagedDigitalizationSpec extends AnyFlatSpec with Matchers:
     for _ <- 0 until 10 do
       val result = FirmLogic.process(f, w, 0.07, _ => false, Array(f), rc)
       if FirmOps.isAlive(result.firm) then
-        f = result.firm.copy(cash = 1000000.0)  // reset cash for next round
+        f = result.firm.copy(cash = PLN(1000000.0))  // reset cash for next round
     f.digitalReadiness should be >= (initDR + 10 * Config.DigiDrift - 0.001)
   }

@@ -99,14 +99,14 @@ class FirmSpec extends AnyFlatSpec with Matchers:
     val f = mkFirm(TechState.Bankrupt("test"))
     val rc = RunConfig(0.0, 1, "test")
     val result = FirmLogic.process(f, mkWorld(), 0.07, _ => true, Array(f), rc)
-    result.taxPaid shouldBe 0.0
-    result.capexSpent shouldBe 0.0
+    result.taxPaid shouldBe PLN.Zero
+    result.capexSpent shouldBe PLN.Zero
     result.firm.tech shouldBe a[TechState.Bankrupt]
   }
 
   it should "keep an Automated firm alive with large cash" in {
     Random.setSeed(42)
-    val f = mkFirm(TechState.Automated(1.5)).copy(cash = 10000000.0)
+    val f = mkFirm(TechState.Automated(1.5)).copy(cash = PLN(10000000.0))
     val rc = RunConfig(0.0, 1, "test")
     val result = FirmLogic.process(f, mkWorld(), 0.07, _ => true, Array(f), rc)
     FirmOps.isAlive(result.firm) shouldBe true
@@ -115,7 +115,7 @@ class FirmSpec extends AnyFlatSpec with Matchers:
   it should "bankrupt an Automated firm with negative cash when P&L is negative" in {
     Random.setSeed(42)
     // Very low cash + high price level = deep losses → bankrupt
-    val f = mkFirm(TechState.Automated(0.1)).copy(cash = -500000.0, debt = 5000000.0)
+    val f = mkFirm(TechState.Automated(0.1)).copy(cash = PLN(-500000.0), debt = PLN(5000000.0))
     val w = mkWorld().copy(priceLevel = 0.3, sectorDemandMult = Vector.fill(6)(0.1))
     val rc = RunConfig(0.0, 1, "test")
     val result = FirmLogic.process(f, w, 0.20, _ => true, Array(f), rc)
@@ -125,18 +125,18 @@ class FirmSpec extends AnyFlatSpec with Matchers:
   // --- helpers ---
 
   private def mkFirm(tech: TechState, sector: Int = 2): Firm =
-    Firm(FirmId(0), 50000.0, 0.0, tech, 0.5, 1.0, 0.5, SectorIdx(sector), Array.empty[Int])
+    Firm(FirmId(0), PLN(50000.0), PLN.Zero, tech, 0.5, 1.0, 0.5, SectorIdx(sector), Array.empty[Int])
 
   private def mkWorld(): World =
     World(
       month = 31,
       inflation = 0.02,
       priceLevel = 1.0,
-      gov = GovState(false, 0, 0, 0, 0, 0),
+      gov = GovState(false, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
       nbp = NbpState(0.0575),
-      bank = BankState(1000000, 10000, 500000, 1000000),
-      forex = ForexState(4.33, 0, 190000000, 0, 0),
-      hh = HhState(100000, Config.BaseWage, Config.BaseReservationWage, 0, 0, 0, 0),
+      bank = BankState(PLN(1000000), PLN(10000), PLN(500000), PLN(1000000)),
+      forex = ForexState(4.33, PLN.Zero, PLN(190000000), PLN.Zero, PLN.Zero),
+      hh = HhState(100000, PLN(Config.BaseWage), PLN(Config.BaseReservationWage), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
       automationRatio = 0.0,
       hybridRatio = 0.0,
       gdpProxy = 1e9,

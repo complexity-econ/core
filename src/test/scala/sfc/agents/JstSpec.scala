@@ -2,6 +2,7 @@ package sfc.agents
 
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import sfc.types.*
 
 /** JST (local government) unit tests. */
 class JstSpec extends AnyFlatSpec with Matchers:
@@ -15,11 +16,11 @@ class JstSpec extends AnyFlatSpec with Matchers:
 
   "JstState.zero" should "have all zero fields" in {
     val z = JstState.zero
-    z.deposits shouldBe 0.0
-    z.debt shouldBe 0.0
-    z.revenue shouldBe 0.0
-    z.spending shouldBe 0.0
-    z.deficit shouldBe 0.0
+    z.deposits.toDouble shouldBe 0.0
+    z.debt.toDouble shouldBe 0.0
+    z.revenue.toDouble shouldBe 0.0
+    z.spending.toDouble shouldBe 0.0
+    z.deficit.toDouble shouldBe 0.0
   }
 
   "JstLogic.step revenue components" should "compute PIT share correctly" in {

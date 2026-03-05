@@ -99,8 +99,8 @@ class HouseholdPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPro
       forAll(Gen.listOfN(n, genHousehold)) { (hhList: List[Household]) =>
         val hhs = hhList.toVector
         val agg = HouseholdLogic.computeAggregates(hhs, 8266.0, 4666.0, 0.40, 0, 0)
-        agg.consumptionP10 should be <= agg.consumptionP50
-        agg.consumptionP50 should be <= agg.consumptionP90
+        agg.consumptionP10.toDouble should be <= agg.consumptionP50.toDouble
+        agg.consumptionP50.toDouble should be <= agg.consumptionP90.toDouble
       }
     }
   }
@@ -141,11 +141,11 @@ class HouseholdPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPro
 
   it should "have positive meanSavings when all savings are positive" in {
     forAll(Gen.choose(5, 30)) { (n: Int) =>
-      val positiveHhGen = genHousehold.map(h => h.copy(savings = Math.abs(h.savings) + 1.0))
+      val positiveHhGen = genHousehold.map(h => h.copy(savings = PLN(Math.abs(h.savings.toDouble) + 1.0)))
       forAll(Gen.listOfN(n, positiveHhGen)) { (hhList: List[Household]) =>
         val hhs = hhList.toVector
         val agg = HouseholdLogic.computeAggregates(hhs, 8266.0, 4666.0, 0.40, 0, 0)
-        agg.meanSavings should be > 0.0
+        agg.meanSavings.toDouble should be > 0.0
       }
     }
   }
@@ -155,7 +155,7 @@ class HouseholdPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPro
   "Bankrupt" should "be an absorbing barrier" in {
     forAll(Gen.choose(1, 20)) { (n: Int) =>
       val bankruptHhs = (0 until n).map { i =>
-        Household(i, -10000.0, 5000.0, 1800.0, 0.5, 0.3, 0.8, HhStatus.Bankrupt, Array.empty[Int])
+        Household(i, PLN(-10000.0), PLN(5000.0), PLN(1800.0), 0.5, 0.3, 0.8, HhStatus.Bankrupt, Array.empty[Int])
       }.toVector
       val agg = HouseholdLogic.computeAggregates(bankruptHhs, 8266.0, 4666.0, 0.40, 0, 0)
       agg.bankrupt shouldBe n

@@ -128,8 +128,8 @@ class EnergyClimateSpec extends AnyFlatSpec with Matchers:
   // ==========================================================================
 
   "Firm" should "default greenCapital to 0.0" in {
-    val f = Firm(FirmId(0), 50000.0, 0.0, TechState.Traditional(10), 0.5, 1.0, 0.3, SectorIdx(0), Array.empty[Int])
-    f.greenCapital shouldBe 0.0
+    val f = Firm(FirmId(0), PLN(50000.0), PLN.Zero, TechState.Traditional(10), 0.5, 1.0, 0.3, SectorIdx(0), Array.empty[Int])
+    f.greenCapital.toDouble shouldBe 0.0
   }
 
   // ==========================================================================
@@ -137,15 +137,15 @@ class EnergyClimateSpec extends AnyFlatSpec with Matchers:
   // ==========================================================================
 
   "FirmResult" should "default energyCost to 0.0" in {
-    val f = Firm(FirmId(0), 50000.0, 0.0, TechState.Traditional(10), 0.5, 1.0, 0.3, SectorIdx(0), Array.empty[Int])
-    val r = FirmResult(f, 0, 0, 0, 0)
-    r.energyCost shouldBe 0.0
+    val f = Firm(FirmId(0), PLN(50000.0), PLN.Zero, TechState.Traditional(10), 0.5, 1.0, 0.3, SectorIdx(0), Array.empty[Int])
+    val r = FirmResult(f, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
+    r.energyCost.toDouble shouldBe 0.0
   }
 
   it should "default greenInvestment to 0.0" in {
-    val f = Firm(FirmId(0), 50000.0, 0.0, TechState.Traditional(10), 0.5, 1.0, 0.3, SectorIdx(0), Array.empty[Int])
-    val r = FirmResult(f, 0, 0, 0, 0)
-    r.greenInvestment shouldBe 0.0
+    val f = Firm(FirmId(0), PLN(50000.0), PLN.Zero, TechState.Traditional(10), 0.5, 1.0, 0.3, SectorIdx(0), Array.empty[Int])
+    val r = FirmResult(f, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
+    r.greenInvestment.toDouble shouldBe 0.0
   }
 
   // ==========================================================================
@@ -154,35 +154,35 @@ class EnergyClimateSpec extends AnyFlatSpec with Matchers:
 
   "World" should "default aggEnergyCost to 0.0" in {
     val w = World(0, 0.02, 1.0,
-      GovState(false, 0, 0, 0, 0, 0),
+      GovState(false, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
       sfc.agents.NbpState(0.0575),
-      BankState(0, 0, 500000000.0, 0),
-      ForexState(4.33, 0, 0, 0, 0),
-      sfc.agents.HhState(100000, 8266.0, 4666.0, 0, 0, 0, 0),
+      BankState(PLN.Zero, PLN.Zero, PLN(500000000.0), PLN.Zero),
+      ForexState(4.33, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
+      sfc.agents.HhState(100000, PLN(8266.0), PLN(4666.0), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
       0, 0, 1e9, Vector.fill(6)(5.0))
-    w.aggEnergyCost shouldBe 0.0
+    w.aggEnergyCost.toDouble shouldBe 0.0
   }
 
   it should "default aggGreenCapital to 0.0" in {
     val w = World(0, 0.02, 1.0,
-      accounting.GovState(false, 0, 0, 0, 0, 0),
+      accounting.GovState(false, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
       sfc.agents.NbpState(0.0575),
-      accounting.BankState(0, 0, 500000000.0, 0),
-      accounting.ForexState(4.33, 0, 0, 0, 0),
-      sfc.agents.HhState(100000, 8266.0, 4666.0, 0, 0, 0, 0),
+      accounting.BankState(PLN.Zero, PLN.Zero, PLN(500000000.0), PLN.Zero),
+      accounting.ForexState(4.33, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
+      sfc.agents.HhState(100000, PLN(8266.0), PLN(4666.0), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
       0, 0, 1e9, Vector.fill(6)(5.0))
-    w.aggGreenCapital shouldBe 0.0
+    w.aggGreenCapital.toDouble shouldBe 0.0
   }
 
   it should "default aggGreenInvestment to 0.0" in {
     val w = World(0, 0.02, 1.0,
-      accounting.GovState(false, 0, 0, 0, 0, 0),
+      accounting.GovState(false, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
       sfc.agents.NbpState(0.0575),
-      accounting.BankState(0, 0, 500000000.0, 0),
-      accounting.ForexState(4.33, 0, 0, 0, 0),
-      sfc.agents.HhState(100000, 8266.0, 4666.0, 0, 0, 0, 0),
+      accounting.BankState(PLN.Zero, PLN.Zero, PLN(500000000.0), PLN.Zero),
+      accounting.ForexState(4.33, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
+      sfc.agents.HhState(100000, PLN(8266.0), PLN(4666.0), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
       0, 0, 1e9, Vector.fill(6)(5.0))
-    w.aggGreenInvestment shouldBe 0.0
+    w.aggGreenInvestment.toDouble shouldBe 0.0
   }
 
   // ==========================================================================
@@ -260,8 +260,8 @@ class EnergyClimateSpec extends AnyFlatSpec with Matchers:
   }
 
   it should "be zero for bankrupt firms" in {
-    val f = Firm(FirmId(0), 50000.0, 0.0, TechState.Bankrupt("test"), 0.5, 1.0, 0.3, SectorIdx(0), Array.empty[Int],
-      greenCapital = 5000.0)
+    val f = Firm(FirmId(0), PLN(50000.0), PLN.Zero, TechState.Bankrupt("test"), 0.5, 1.0, 0.3, SectorIdx(0), Array.empty[Int],
+      greenCapital = PLN(5000.0))
     FirmOps.isAlive(f) shouldBe false
   }
 

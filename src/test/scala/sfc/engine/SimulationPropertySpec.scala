@@ -7,6 +7,7 @@ import org.scalacheck.Gen
 import sfc.accounting.{ForexState, GovState}
 import sfc.testutil.Generators.*
 import sfc.config.{Config, MonetaryRegime, RunConfig}
+import sfc.types.*
 
 class SimulationPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks:
 
@@ -135,7 +136,7 @@ class SimulationPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPr
       val totalRev = cit + vat
       val bdpSpend = if active then Config.TotalPopulation.toDouble * bdp else 0.0
       val totalSpend = bdpSpend + unempBen + Config.GovBaseSpending * price
-      gov.deficit shouldBe (totalSpend - totalRev +- 1.0)
+      gov.deficit.toDouble shouldBe (totalSpend - totalRev +- 1.0)
     }
   }
 
@@ -143,7 +144,7 @@ class SimulationPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPr
     forAll(genGovInputs) { (inputs: (GovState, Double, Double, Boolean, Double, Double, Double)) =>
       val (prev, cit, vat, active, bdp, price, unempBen) = inputs
       val gov = Sectors.updateGov(prev, cit, vat, active, bdp, price, unempBen)
-      gov.cumulativeDebt shouldBe (prev.cumulativeDebt + gov.deficit +- 1.0)
+      gov.cumulativeDebt.toDouble shouldBe (prev.cumulativeDebt.toDouble + gov.deficit.toDouble +- 1.0)
     }
   }
 
@@ -152,7 +153,7 @@ class SimulationPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPr
            Gen.choose(0.0, 5000.0), genPrice) {
       (prev: GovState, cit: Double, vat: Double, bdp: Double, price: Double) =>
         val gov = Sectors.updateGov(prev, cit, vat, false, bdp, price, 0.0)
-        gov.bdpSpending shouldBe 0.0
+        gov.bdpSpending shouldBe PLN.Zero
     }
   }
 
@@ -164,7 +165,7 @@ class SimulationPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPr
         val totalRev = cit + vat
         val bdpSpend = if active then Config.TotalPopulation.toDouble * bdp else 0.0
         val totalSpend = bdpSpend + unempBen + Config.GovBaseSpending * price + debtSvc
-        gov.deficit shouldBe (totalSpend - totalRev +- 1.0)
+        gov.deficit.toDouble shouldBe (totalSpend - totalRev +- 1.0)
     }
   }
 
@@ -175,7 +176,7 @@ class SimulationPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPr
         val govNoRemit = Sectors.updateGov(prev, cit, vat, active, bdp, price, unempBen)
         val govWithRemit = Sectors.updateGov(prev, cit, vat, active, bdp, price, unempBen, 0.0, nbpRemit)
         // nbpRemittance reduces deficit
-        govWithRemit.deficit shouldBe (govNoRemit.deficit - nbpRemit +- 1.0)
+        govWithRemit.deficit.toDouble shouldBe (govNoRemit.deficit.toDouble - nbpRemit +- 1.0)
     }
   }
 

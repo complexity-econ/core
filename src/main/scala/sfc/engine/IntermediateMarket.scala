@@ -64,6 +64,6 @@ object IntermediateMarket:
     val newFirms = firms.clone()
     for idx <- living do
       val f = newFirms(idx)
-      newFirms(idx) = f.copy(cash = f.cash + cashAdj(idx))
+      newFirms(idx) = f.copy(cash = f.cash + PLN(cashAdj(idx)))
 
     IoResult(newFirms, totalPaid)

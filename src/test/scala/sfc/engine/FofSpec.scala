@@ -106,13 +106,13 @@ class FofSpec extends AnyFlatSpec with Matchers:
   "SfcCheck Identity 10" should "pass when fofResidual is zero" in {
     // All flows zero except fofResidual — all deltas are 0 = 0
     val flows = SfcCheck.MonthlyFlows(
-      govSpending = 0.0, govRevenue = 0.0,
-      nplLoss = 0.0, interestIncome = 0.0, hhDebtService = 0.0,
-      totalIncome = 0.0, totalConsumption = 0.0,
-      newLoans = 0.0, nplRecovery = 0.0,
-      fofResidual = 0.0
+      govSpending = PLN.Zero, govRevenue = PLN.Zero,
+      nplLoss = PLN.Zero, interestIncome = PLN.Zero, hhDebtService = PLN.Zero,
+      totalIncome = PLN.Zero, totalConsumption = PLN.Zero,
+      newLoans = PLN.Zero, nplRecovery = PLN.Zero,
+      fofResidual = PLN.Zero
     )
-    val snap = SfcCheck.Snapshot(0, 0, 0, 0, 500000.0, 1000000.0, 0, 0)
+    val snap = SfcCheck.Snapshot(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN(500000.0), PLN(1000000.0), PLN.Zero, PLN.Zero)
     val result = SfcCheck.validate(1, snap, snap, flows)
     result.fofError shouldBe 0.0
     result.passed shouldBe true
@@ -120,13 +120,13 @@ class FofSpec extends AnyFlatSpec with Matchers:
 
   it should "fail when fofResidual exceeds tolerance" in {
     val flows = SfcCheck.MonthlyFlows(
-      govSpending = 0.0, govRevenue = 0.0,
-      nplLoss = 0.0, interestIncome = 0.0, hhDebtService = 0.0,
-      totalIncome = 0.0, totalConsumption = 0.0,
-      newLoans = 0.0, nplRecovery = 0.0,
-      fofResidual = 1.0
+      govSpending = PLN.Zero, govRevenue = PLN.Zero,
+      nplLoss = PLN.Zero, interestIncome = PLN.Zero, hhDebtService = PLN.Zero,
+      totalIncome = PLN.Zero, totalConsumption = PLN.Zero,
+      newLoans = PLN.Zero, nplRecovery = PLN.Zero,
+      fofResidual = PLN(1.0)
     )
-    val snap = SfcCheck.Snapshot(0, 0, 0, 0, 500000.0, 1000000.0, 0, 0)
+    val snap = SfcCheck.Snapshot(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN(500000.0), PLN(1000000.0), PLN.Zero, PLN.Zero)
     val result = SfcCheck.validate(1, snap, snap, flows)
     result.fofError shouldBe 1.0
     result.passed shouldBe false
@@ -135,7 +135,7 @@ class FofSpec extends AnyFlatSpec with Matchers:
   // --- helpers ---
 
   private def mkFirm(id: Int, tech: TechState, sector: Int = 2): Firm =
-    Firm(FirmId(id), 50000.0, 0.0, tech, 0.5, 1.0, 0.5, SectorIdx(sector), Array.empty[Int])
+    Firm(FirmId(id), PLN(50000.0), PLN.Zero, tech, 0.5, 1.0, 0.5, SectorIdx(sector), Array.empty[Int])
 
   private def mkFirms(): Array[Firm] =
     // Create firms distributed across all 6 sectors
