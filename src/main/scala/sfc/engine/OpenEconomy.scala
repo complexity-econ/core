@@ -1,7 +1,7 @@
 package sfc.engine
 
+import sfc.accounting.{BopState, ForexState}
 import sfc.config.{Config, SECTORS, RunConfig}
-import sfc.sfc.{ForexState, BopState}
 import sfc.agents.CentralBankLogic
 import sfc.util.KahanSum.*
 

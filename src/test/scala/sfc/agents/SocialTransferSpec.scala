@@ -2,6 +2,7 @@ package sfc.agents
 
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import sfc.accounting.GovState
 import sfc.config.Config
 
 import scala.util.Random
@@ -92,6 +93,6 @@ class SocialTransferSpec extends AnyFlatSpec with Matchers:
   }
 
   "GovState.socialTransferSpend" should "default to 0.0" in {
-    val gov = sfc.sfc.GovState(false, 0, 0, 0, 0, 0)
+    val gov = GovState(false, 0, 0, 0, 0, 0)
     gov.socialTransferSpend shouldBe 0.0
   }

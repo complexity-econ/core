@@ -1,7 +1,8 @@
-package sfc.sfc
+package sfc.accounting
 
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import sfc.accounting.BankState
 import sfc.config.Config
 
 class BalanceSheetSpec extends AnyFlatSpec with Matchers:

@@ -4,9 +4,9 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import org.scalacheck.Gen
+import sfc.accounting.SfcCheck
 import sfc.agents.{BankingSector, IndividualBankState}
 import sfc.testutil.Generators.*
-import sfc.sfc.SfcCheck
 
 /** Monetary plumbing property-based tests. */
 class MonetaryPlumbingPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks:

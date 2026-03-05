@@ -1,6 +1,7 @@
-package sfc.sfc
+package sfc.accounting
 
 import sfc.config.Config
+import sfc.accounting.{BopState, MonetaryAggregates}
 
 case class GovState(
   bdpActive: Boolean,

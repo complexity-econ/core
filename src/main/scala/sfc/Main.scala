@@ -2,10 +2,9 @@ package sfc
 
 import java.io.{File, PrintWriter}
 import scala.util.Random
-
 import _root_.sfc.config.*
 import _root_.sfc.agents.*
-import _root_.sfc.sfc.*
+import _root_.sfc.accounting.*
 import _root_.sfc.engine.*
 import _root_.sfc.util.KahanSum.*
 import _root_.sfc.networks.Network

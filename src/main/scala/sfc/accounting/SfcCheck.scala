@@ -1,4 +1,4 @@
-package sfc.sfc
+package sfc.accounting
 
 import sfc.agents.{Firm, Household}
 import sfc.engine.World

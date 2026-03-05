@@ -137,7 +137,7 @@ class MonetaryPlumbingSpec extends AnyFlatSpec with Matchers:
   // =========================================================================
 
   "SfcCheck" should "pass with reserve interest in bank capital" in {
-    import sfc.sfc.SfcCheck
+    import sfc.accounting.SfcCheck
     val prev = SfcCheck.Snapshot(0, 0, 0, 0,
       bankCapital = 1e8, bankDeposits = 1e9, bankLoans = 5e8,
       govDebt = 0, nfa = 0, bankBondHoldings = 0, nbpBondHoldings = 0,
@@ -152,7 +152,7 @@ class MonetaryPlumbingSpec extends AnyFlatSpec with Matchers:
   }
 
   it should "pass with standing facility income in bank capital" in {
-    import sfc.sfc.SfcCheck
+    import sfc.accounting.SfcCheck
     val prev = SfcCheck.Snapshot(0, 0, 0, 0,
       bankCapital = 1e8, bankDeposits = 1e9, bankLoans = 5e8,
       govDebt = 0, nfa = 0, bankBondHoldings = 0, nbpBondHoldings = 0,
@@ -167,7 +167,7 @@ class MonetaryPlumbingSpec extends AnyFlatSpec with Matchers:
   }
 
   it should "pass with interbank interest (net ≈ 0) in bank capital" in {
-    import sfc.sfc.SfcCheck
+    import sfc.accounting.SfcCheck
     val prev = SfcCheck.Snapshot(0, 0, 0, 0,
       bankCapital = 1e8, bankDeposits = 1e9, bankLoans = 5e8,
       govDebt = 0, nfa = 0, bankBondHoldings = 0, nbpBondHoldings = 0,
@@ -182,7 +182,7 @@ class MonetaryPlumbingSpec extends AnyFlatSpec with Matchers:
   }
 
   it should "detect mismatch when reserve interest not in flows" in {
-    import sfc.sfc.SfcCheck
+    import sfc.accounting.SfcCheck
     val prev = SfcCheck.Snapshot(0, 0, 0, 0,
       bankCapital = 1e8, bankDeposits = 1e9, bankLoans = 5e8,
       govDebt = 0, nfa = 0, bankBondHoldings = 0, nbpBondHoldings = 0,
@@ -197,7 +197,7 @@ class MonetaryPlumbingSpec extends AnyFlatSpec with Matchers:
   }
 
   it should "pass with all three monetary plumbing flows combined" in {
-    import sfc.sfc.SfcCheck
+    import sfc.accounting.SfcCheck
     val prev = SfcCheck.Snapshot(0, 0, 0, 0,
       bankCapital = 1e8, bankDeposits = 1e9, bankLoans = 5e8,
       govDebt = 0, nfa = 0, bankBondHoldings = 0, nbpBondHoldings = 0,
@@ -218,26 +218,26 @@ class MonetaryPlumbingSpec extends AnyFlatSpec with Matchers:
   // =========================================================================
 
   "MonetaryAggregates.compute" should "compute M1 as deposits" in {
-    import sfc.sfc.MonetaryAggregates
+    import sfc.accounting.MonetaryAggregates
     val agg = MonetaryAggregates.compute(1e9, 1e8)
     agg.m1 shouldBe 1e9
     agg.monetaryBase shouldBe 1e8
   }
 
   it should "compute credit multiplier as M1/base" in {
-    import sfc.sfc.MonetaryAggregates
+    import sfc.accounting.MonetaryAggregates
     val agg = MonetaryAggregates.compute(4.5e9, 1e9)
     agg.creditMultiplier shouldBe (4.5 +- 0.01)
   }
 
   it should "handle zero reserves with floor" in {
-    import sfc.sfc.MonetaryAggregates
+    import sfc.accounting.MonetaryAggregates
     val agg = MonetaryAggregates.compute(1e9, 0.0)
     agg.creditMultiplier shouldBe (1e9 +- 1.0)  // m1 / max(1.0, 0.0)
   }
 
   "MonetaryAggregates.zero" should "have all zero values" in {
-    import sfc.sfc.MonetaryAggregates
+    import sfc.accounting.MonetaryAggregates
     MonetaryAggregates.zero.m1 shouldBe 0.0
     MonetaryAggregates.zero.monetaryBase shouldBe 0.0
     MonetaryAggregates.zero.creditMultiplier shouldBe 0.0
@@ -248,7 +248,7 @@ class MonetaryPlumbingSpec extends AnyFlatSpec with Matchers:
   // =========================================================================
 
   "SfcCheck Identity 2" should "include JST deposit change" in {
-    import sfc.sfc.SfcCheck
+    import sfc.accounting.SfcCheck
     val prev = SfcCheck.Snapshot(0, 0, 0, 0,
       bankCapital = 1e8, bankDeposits = 1e9, bankLoans = 5e8,
       govDebt = 0, nfa = 0, bankBondHoldings = 0, nbpBondHoldings = 0,
@@ -262,7 +262,7 @@ class MonetaryPlumbingSpec extends AnyFlatSpec with Matchers:
   }
 
   it should "fail when JST deposit change not accounted for" in {
-    import sfc.sfc.SfcCheck
+    import sfc.accounting.SfcCheck
     val prev = SfcCheck.Snapshot(0, 0, 0, 0,
       bankCapital = 1e8, bankDeposits = 1e9, bankLoans = 5e8,
       govDebt = 0, nfa = 0, bankBondHoldings = 0, nbpBondHoldings = 0,
@@ -277,7 +277,7 @@ class MonetaryPlumbingSpec extends AnyFlatSpec with Matchers:
   }
 
   "SfcCheck Identity 7" should "pass when JST debt change matches" in {
-    import sfc.sfc.SfcCheck
+    import sfc.accounting.SfcCheck
     val prev = SfcCheck.Snapshot(0, 0, 0, 0,
       bankCapital = 1e8, bankDeposits = 1e9, bankLoans = 5e8,
       govDebt = 0, nfa = 0, bankBondHoldings = 0, nbpBondHoldings = 0,
@@ -299,7 +299,7 @@ class MonetaryPlumbingSpec extends AnyFlatSpec with Matchers:
   }
 
   it should "fail when JST debt change mismatches" in {
-    import sfc.sfc.SfcCheck
+    import sfc.accounting.SfcCheck
     val prev = SfcCheck.Snapshot(0, 0, 0, 0,
       bankCapital = 1e8, bankDeposits = 1e9, bankLoans = 5e8,
       govDebt = 0, nfa = 0, bankBondHoldings = 0, nbpBondHoldings = 0,

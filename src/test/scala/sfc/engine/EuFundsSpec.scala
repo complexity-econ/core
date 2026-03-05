@@ -2,8 +2,8 @@ package sfc.engine
 
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import sfc.accounting.GovState
 import sfc.config.Config
-import sfc.sfc.GovState
 
 class EuFundsSpec extends AnyFlatSpec with Matchers:
 

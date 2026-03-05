@@ -1,11 +1,12 @@
-package sfc.sfc
+package sfc.accounting
 
+import _root_.sfc.config.Config
+import org.scalacheck.Gen
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import org.scalacheck.Gen
+import sfc.accounting.{BankState, BopState, ForexState, GovState}
 import sfc.testutil.Generators.*
-import _root_.sfc.config.Config
 
 class BalanceSheetPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks:
 

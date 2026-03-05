@@ -2,9 +2,9 @@ package sfc.engine
 
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import sfc.accounting.SfcCheck
 import sfc.config.{Config, SECTORS}
 import sfc.agents.{Firm, FirmOps, TechState}
-import sfc.sfc.SfcCheck
 import sfc.util.KahanSum.*
 
 class FofSpec extends AnyFlatSpec with Matchers:

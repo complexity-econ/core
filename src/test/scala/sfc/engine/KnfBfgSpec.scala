@@ -2,6 +2,7 @@ package sfc.engine
 
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import sfc.accounting.{BankState, ForexState, GovState}
 import sfc.agents.{BankingSector, IndividualBankState}
 import sfc.config.Config
 
@@ -229,10 +230,10 @@ class KnfBfgSpec extends AnyFlatSpec with Matchers:
 
   "World" should "default bfgFundBalance=0 and bailInLoss=0" in {
     val w = World(0, 0.02, 1.0,
-      sfc.sfc.GovState(false, 0, 0, 0, 0, 0),
+      GovState(false, 0, 0, 0, 0, 0),
       sfc.agents.NbpState(0.05),
-      sfc.sfc.BankState(0, 0, 100000, 500000),
-      sfc.sfc.ForexState(4.33, 0, 0, 0, 0),
+      BankState(0, 0, 100000, 500000),
+      ForexState(4.33, 0, 0, 0, 0),
       sfc.agents.HhState(100, 8000, 4000, 0, 0, 0, 0),
       0, 0, 100000, Vector(1.0, 1.0, 1.0, 1.0, 1.0, 1.0))
     w.bfgFundBalance shouldBe 0.0

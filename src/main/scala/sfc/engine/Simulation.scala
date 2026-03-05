@@ -1,11 +1,12 @@
 package sfc.engine
 
-import sfc.config.{Config, SECTORS, HH_MODE, HhMode, RunConfig}
+import sfc.accounting.{ForexState, GovState, MonetaryAggregates, SfcCheck}
+import sfc.config.{Config, HH_MODE, HhMode, RunConfig, SECTORS}
 import sfc.agents.*
-import sfc.agents.{ImmigrationState, ImmigrationLogic}
-import sfc.sfc.*
+import sfc.agents.{ImmigrationLogic, ImmigrationState}
+import sfc.accounting.*
 import sfc.networks.Network
-import sfc.dynamics.{SigmaDynamics, DynamicNetwork}
+import sfc.dynamics.{DynamicNetwork, SigmaDynamics}
 import sfc.util.KahanSum.*
 
 import scala.util.Random

@@ -2,8 +2,10 @@ package sfc.engine
 
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import sfc.accounting
+import sfc.accounting.{BankState, ForexState, GovState}
 import sfc.config.{Config, SECTORS}
-import sfc.agents.{Firm, FirmOps, FirmLogic, FirmResult, TechState}
+import sfc.agents.{Firm, FirmLogic, FirmOps, FirmResult, TechState}
 
 class InventorySpec extends AnyFlatSpec with Matchers:
 
@@ -76,10 +78,10 @@ class InventorySpec extends AnyFlatSpec with Matchers:
 
   "World" should "have aggInventoryStock defaulting to 0.0" in {
     val w = World(0, 0.0, 1.0,
-      sfc.sfc.GovState(false, 0, 0, 0, 0, 0),
+      GovState(false, 0, 0, 0, 0, 0),
       sfc.agents.NbpState(0.05),
-      sfc.sfc.BankState(0, 0, 1e9, 1e9),
-      sfc.sfc.ForexState(4.33, 0, 0, 0, 0),
+      BankState(0, 0, 1e9, 1e9),
+      ForexState(4.33, 0, 0, 0, 0),
       sfc.agents.HhState(100, 8000, 4500, 0, 0, 0, 0),
       0, 0, 1e9, Vector.fill(6)(5.0))
     w.aggInventoryStock shouldBe 0.0
@@ -87,10 +89,10 @@ class InventorySpec extends AnyFlatSpec with Matchers:
 
   it should "have aggInventoryChange defaulting to 0.0" in {
     val w = World(0, 0.0, 1.0,
-      sfc.sfc.GovState(false, 0, 0, 0, 0, 0),
+      accounting.GovState(false, 0, 0, 0, 0, 0),
       sfc.agents.NbpState(0.05),
-      sfc.sfc.BankState(0, 0, 1e9, 1e9),
-      sfc.sfc.ForexState(4.33, 0, 0, 0, 0),
+      accounting.BankState(0, 0, 1e9, 1e9),
+      accounting.ForexState(4.33, 0, 0, 0, 0),
       sfc.agents.HhState(100, 8000, 4500, 0, 0, 0, 0),
       0, 0, 1e9, Vector.fill(6)(5.0))
     w.aggInventoryChange shouldBe 0.0

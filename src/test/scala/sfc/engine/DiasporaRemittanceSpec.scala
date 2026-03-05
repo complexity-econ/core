@@ -2,8 +2,8 @@ package sfc.engine
 
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import sfc.accounting.{BankState, BopState, ForexState, GovState}
 import sfc.config.{Config, SECTORS}
-import sfc.sfc.{ForexState, BopState}
 
 class DiasporaRemittanceSpec extends AnyFlatSpec with Matchers:
 
@@ -190,9 +190,9 @@ class DiasporaRemittanceSpec extends AnyFlatSpec with Matchers:
 
   "World" should "default diasporaRemittanceInflow to 0.0" in {
     val w = World(0, 0.02, 1.0,
-      sfc.sfc.GovState(false, 0, 0, 0, 0, 0),
+      GovState(false, 0, 0, 0, 0, 0),
       sfc.agents.NbpState(0.05),
-      sfc.sfc.BankState(0, 0, 100, 1000),
+      BankState(0, 0, 100, 1000),
       ForexState(Config.BaseExRate, 0, 0, 0, 0),
       sfc.agents.HhState(100, 5000, 4000, 0, 0, 0, 0),
       0, 0, 1e9, Vector.fill(6)(0.1))
