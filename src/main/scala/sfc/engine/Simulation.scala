@@ -227,298 +227,100 @@ object Simulation:
     if Config.ImmigEnabled && households.isEmpty then
       Config.setTotalPopulation(Config.TotalPopulation + netMigration)
 
-    // SFC: household debt service flows to bank as interest income
-    val hhDebtService = hhAgg.map(_.totalDebtService.toDouble).getOrElse(0.0)
-    // SFC: deposit interest paid to HH (monetary transmission channel 2)
-    val depositInterestPaid = hhAgg.map(_.totalDepositInterest.toDouble).getOrElse(0.0)
-    // SFC: remittance outflow (immigrant wages sent abroad — deposit outflow + current account)
-    val remittanceOutflow = hhAgg.map(_.totalRemittances.toDouble).getOrElse(newImmig.remittanceOutflow)
+    // ---- Step 6: Household financial flows ----
+    val s6 = steps.HouseholdFinancialStep.run(steps.HouseholdFinancialStep.Input(
+      hhAgg = hhAgg,
+      newImmigRemittanceOutflow = newImmig.remittanceOutflow,
+      employed = employed,
+      m = m,
+      lendingBaseRate = lendingBaseRate,
+      domesticCons = domesticCons,
+      forexExchangeRate = w.forex.exchangeRate,
+      gdpProxy = w.gdpProxy,
+      demographicsWorkingAgePop = w.demographics.workingAgePop,
+      bankConsumerLoans = w.bank.consumerLoans.toDouble
+    ))
+    val hhDebtService = s6.hhDebtService; val depositInterestPaid = s6.depositInterestPaid
+    val remittanceOutflow = s6.remittanceOutflow; val diasporaInflow = s6.diasporaInflow
+    val tourismExport = s6.tourismExport; val tourismImport = s6.tourismImport
+    val consumerDebtService = s6.consumerDebtService; val consumerOrigination = s6.consumerOrigination
+    val consumerDefaultAmt = s6.consumerDefaultAmt; val consumerNplLoss = s6.consumerNplLoss
+    val consumerPrincipal = s6.consumerPrincipal
 
-    // Diaspora remittance inflow (#46)
-    val diasporaInflow = if Config.RemittanceEnabled then
-      val wap = if Config.DemEnabled then w.demographics.workingAgePop else Config.TotalPopulation
-      val base = Config.RemittancePerCapita * wap.toDouble
-      val erAdj = Math.pow(w.forex.exchangeRate / Config.BaseExRate, Config.RemittanceErElasticity)
-      val trendAdj = Math.pow(1.0 + Config.RemittanceGrowthRate / 12.0, m.toDouble)
-      val unempForRemit = 1.0 - employed.toDouble / Config.TotalPopulation
-      val cyclicalAdj = 1.0 + Config.RemittanceCyclicalSens * Math.max(0.0, unempForRemit - 0.05)
-      base * erAdj * trendAdj * cyclicalAdj
-    else 0.0
+    // ---- Step 7: Price, equity, GDP, macropru ----
+    val s7 = steps.PriceEquityStep.run(steps.PriceEquityStep.Input(
+      ioFirms = ioFirms,
+      w = w,
+      sectorMults = sectorMults,
+      newWage = newWage,
+      wageGrowth = wageGrowth,
+      avgDemandMult = avgDemandMult,
+      m = m,
+      sumGrossInvestment = sumGrossInvestment,
+      sumGreenInvestment = sumGreenInvestment,
+      sumEquityIssuance = sumEquityIssuance,
+      sumInventoryChange = sumInventoryChange,
+      domesticCons = domesticCons,
+      lendingRates = lendingRates,
+      rc = rc
+    ))
+    val autoR = s7.autoR; val hybR = s7.hybR
+    val aggInventoryStock = s7.aggInventoryStock; val aggGreenCapital = s7.aggGreenCapital
+    val euMonthly = s7.euMonthly; val euCofin = s7.euCofin; val euProjectCapital = s7.euProjectCapital
+    val gdp = s7.gdp; val newMacropru = s7.newMacropru; val newSigmas = s7.newSigmas
+    val rewiredFirms = s7.rewiredFirms; val newInfl = s7.newInfl; val newPrice = s7.newPrice
+    val equityAfterIssuance = s7.equityAfterIssuance
+    val netDomesticDividends = s7.netDomesticDividends
+    val foreignDividendOutflow = s7.foreignDividendOutflow; val dividendTax = s7.dividendTax
+    val firmProfits = s7.firmProfits; val domesticGFCF = s7.domesticGFCF
+    val investmentImports = s7.investmentImports; val aggInventoryChange = s7.aggInventoryChange
 
-    // Tourism services export/import (#47)
-    val (tourismExport, tourismImport) = if Config.TourismEnabled then
-      val monthInYear = (m % 12) + 1
-      val seasonalFactor = 1.0 + Config.TourismSeasonality *
-        Math.cos(2 * Math.PI * (monthInYear - Config.TourismPeakMonth) / 12.0)
-      val inboundErAdj = Math.pow(w.forex.exchangeRate / Config.BaseExRate, Config.TourismErElasticity)
-      val outboundErAdj = Math.pow(Config.BaseExRate / w.forex.exchangeRate, Config.TourismErElasticity)
-      val trendAdj = Math.pow(1.0 + Config.TourismGrowthRate / 12.0, m.toDouble)
-      val disruption = if Config.TourismShockMonth > 0 && m >= Config.TourismShockMonth then
-        Config.TourismShockSize * Math.pow(1.0 - Config.TourismShockRecovery,
-          (m - Config.TourismShockMonth).toDouble)
-      else 0.0
-      val shockFactor = 1.0 - disruption
-      val baseGdp = Math.max(0.0, w.gdpProxy)
-      val inbound = Math.max(0.0, baseGdp * Config.TourismInboundShare *
-        seasonalFactor * inboundErAdj * trendAdj * shockFactor)
-      val outbound = Math.max(0.0, baseGdp * Config.TourismOutboundShare *
-        seasonalFactor * outboundErAdj * trendAdj * shockFactor)
-      (inbound, outbound)
-    else (0.0, 0.0)
-
-    // Consumer credit flows
-    val aggConsumerDS = w.bank.consumerLoans.toDouble * (Config.CcAmortRate + (lendingBaseRate + Config.CcSpread) / 12.0)
-    val aggConsumerOrig = domesticCons * 0.02  // ~2% of consumption financed by credit
-    val consumerDebtService = hhAgg.map(_.totalConsumerDebtService.toDouble).getOrElse(aggConsumerDS)
-    val consumerOrigination = hhAgg.map(_.totalConsumerOrigination.toDouble).getOrElse(aggConsumerOrig)
-    val consumerDefaultAmt = hhAgg.map(_.totalConsumerDefault.toDouble).getOrElse(0.0)
-    val consumerNplLoss = consumerDefaultAmt * (1.0 - Config.CcNplRecovery)
-    // Per-HH principal tracking (rate-independent): D * CcAmortRate per HH
-    // Falls back to rate-ratio derivation in aggregate mode
-    val consumerPrincipal = hhAgg.map(_.totalConsumerPrincipal.toDouble).getOrElse {
-      if Config.CcAmortRate + (lendingBaseRate + Config.CcSpread) / 12.0 > 0 then
-        consumerDebtService * (Config.CcAmortRate / (Config.CcAmortRate + (lendingBaseRate + Config.CcSpread) / 12.0))
-      else 0.0
-    }
-    // Note: newBank construction deferred until after bond market block (needs bankBondIncome)
-
-    val living2 = ioFirms.filter(FirmOps.isAlive)
-    val nLiving = living2.length.toDouble
-    val autoR   = if nLiving > 0 then living2.count(_.tech.isInstanceOf[TechState.Automated]) / nLiving else 0.0
-    val hybR    = if nLiving > 0 then living2.count(_.tech.isInstanceOf[TechState.Hybrid]) / nLiving else 0.0
-    val aggInventoryStock = if Config.InventoryEnabled then
-      living2.kahanSumBy(_.inventory.toDouble) else 0.0
-    val aggGreenCapital = if Config.EnergyEnabled then
-      living2.kahanSumBy(_.greenCapital.toDouble) else 0.0
-
-    // EU Funds: time-varying absorption curve or flat legacy transfer
-    val euMonthly = if Config.EuFundsEnabled then EuFunds.monthlyTransfer(m)
-                    else Config.OeEuTransfers
-
-    val govGdpContribution = if Config.GovInvestEnabled then
-      Config.GovBaseSpending * (1.0 - Config.GovInvestShare) * Config.GovCurrentMultiplier +
-      Config.GovBaseSpending * Config.GovInvestShare * Config.GovCapitalMultiplier
-    else Config.GovBaseSpending
-    // EU Funds: co-financing and capital investment for GDP proxy
-    val euCofin = if Config.EuFundsEnabled then EuFunds.cofinancing(euMonthly) else 0.0
-    val euProjectCapital = if Config.EuFundsEnabled && Config.GovInvestEnabled then
-      EuFunds.capitalInvestment(euMonthly, euCofin)
-    else 0.0
-    val euGdpContribution = if Config.EuFundsEnabled && Config.GovInvestEnabled then
-      euProjectCapital * Config.GovCapitalMultiplier +
-      (euCofin - euProjectCapital).max(0.0) * Config.GovCurrentMultiplier
-    else if Config.EuFundsEnabled then euCofin
-    else 0.0
-    val greenDomesticGFCF = if Config.EnergyEnabled then
-      sumGreenInvestment * (1.0 - Config.GreenImportShare) else 0.0
-    val domesticGFCF = (if Config.PhysCapEnabled then
-      sumGrossInvestment * (1.0 - Config.PhysCapImportShare) else 0.0) + greenDomesticGFCF
-    val investmentImports = (if Config.PhysCapEnabled then
-      sumGrossInvestment * Config.PhysCapImportShare else 0.0) +
-      (if Config.EnergyEnabled then sumGreenInvestment * Config.GreenImportShare else 0.0)
-    val aggInventoryChange = if Config.InventoryEnabled then sumInventoryChange else 0.0
-    val gdp     = domesticCons + govGdpContribution + euGdpContribution + w.forex.exports.toDouble + domesticGFCF + aggInventoryChange
-
-    // Macroprudential — compute CCyB from credit-to-GDP gap
-    val totalSystemLoans = w.bankingSector.map(_.banks.kahanSumBy(_.loans.toDouble)).getOrElse(w.bank.totalLoans.toDouble)
-    val newMacropru = Macroprudential.step(w.macropru, totalSystemLoans, gdp)
-
-    // Endogenous sigma evolution (Paper-05)
-    val sectorAdoption = SECTORS.indices.map { s =>
-      val secFirms = living2.filter(_.sector.toInt == s)
-      if secFirms.isEmpty then 0.0
-      else secFirms.count(f =>
-        f.tech.isInstanceOf[TechState.Automated] || f.tech.isInstanceOf[TechState.Hybrid]
-      ).toDouble / secFirms.length
-    }.toVector
-    val baseSigmas = SECTORS.map(_.sigma).toVector
-    val newSigmas = SigmaDynamics.evolve(
-      w.currentSigmas, baseSigmas, sectorAdoption, Config.SigmaLambda, Config.SigmaCapMult)
-
-    // Dynamic network rewiring (Paper-05)
-    val rewiredFirms = DynamicNetwork.rewire(ioFirms, Config.RewireRho)
-
-    val exDev = if rc.isEurozone then 0.0
-               else (w.forex.exchangeRate / Config.BaseExRate) - 1.0
-    val (newInfl, newPrice) = Sectors.updateInflation(
-      w.inflation.toDouble, w.priceLevel, avgDemandMult, wageGrowth, exDev, autoR, hybR, rc)
-
-    // Firm profits for equity market (sum of after-tax profits of living firms)
-    val firmProfits = living2.kahanSumBy { f =>
-      val rev = FirmOps.capacity(f) * sectorMults(f.sector.toInt) * newPrice
-      val labor = FirmOps.workers(f) * newWage * SECTORS(f.sector.toInt).wageMultiplier
-      val other = Config.OtherCosts * newPrice
-      val aiMaint = f.tech match
-        case _: TechState.Automated => Config.AiOpex * (0.60 + 0.40 * newPrice)
-        case _: TechState.Hybrid    => Config.HybridOpex * (0.60 + 0.40 * newPrice)
-        case _                      => 0.0
-      val interest = f.debt.toDouble * lendingRates(f.bankId.toInt) / 12.0
-      val gross = rev - labor - other - aiMaint - interest
-      val tax = Math.max(0.0, gross) * Config.CitRate
-      Math.max(0.0, gross - tax)
-    }
-
-    // GPW equity market step
-    val prevGdp = if w.gdpProxy > 0 then w.gdpProxy else 1.0
-    val gdpGrowthForEquity = (gdp - prevGdp) / prevGdp
-    val equityAfterIndex = EquityMarket.step(w.equity, w.nbp.referenceRate.toDouble, newInfl,
-      gdpGrowthForEquity, firmProfits)
-    val equityAfterIssuance = EquityMarket.processIssuance(sumEquityIssuance, equityAfterIndex)
-    // HH equity wealth updated later (after reassignedHouseholds is available)
-
-    // GPW dividends: firm profits → HH income + foreign outflow + tax
-    val (netDomesticDividends, foreignDividendOutflow, dividendTax) =
-      if Config.GpwEnabled && Config.GpwDividends then
-        EquityMarket.computeDividends(firmProfits, equityAfterIssuance.dividendYield.toDouble,
-          equityAfterIssuance.marketCap.toDouble, equityAfterIssuance.foreignOwnership.toDouble)
-      else (0.0, 0.0, 0.0)
-
-    // Open economy (Paper-08) or legacy foreign sector
-    val sectorOutputs = (0 until SECTORS.length).map { s =>
-      living2.filter(_.sector.toInt == s).kahanSumBy(f => FirmOps.capacity(f) * sectorMults(f.sector.toInt) * w.priceLevel)
-    }.toVector
-
-    // GVC / Deep External Sector (v5.0)
-    val newGvc = if Config.GvcEnabled && Config.OeEnabled then
-      ExternalSector.step(w.gvc, sectorOutputs, w.priceLevel,
-        w.forex.exchangeRate, autoR, m, rc)
-    else w.gvc
-
-    val (gvcExp, gvcImp) = if Config.GvcEnabled && Config.OeEnabled then
-      (Some(newGvc.totalExports.toDouble), Some(newGvc.sectorImports.map(_.toDouble)))
-    else (None, None)
-
-    val totalTechAndInvImports = sumTechImp + investmentImports
-    val (newForex, newBop0, oeValuationEffect, fxResult) = if Config.OeEnabled then
-      val oeResult = OpenEconomy.step(
-        w.bop, w.forex, importCons, totalTechAndInvImports,
-        autoR, w.nbp.referenceRate.toDouble, gdp, w.priceLevel,
-        sectorOutputs, m, rc,
-        nbpFxReserves = w.nbp.fxReserves.toDouble,
-        gvcExports = gvcExp,
-        gvcIntermImports = gvcImp,
-        remittanceOutflow = remittanceOutflow,
-        euFundsMonthly = euMonthly,
-        diasporaInflow = diasporaInflow,
-        tourismExport = tourismExport,
-        tourismImport = tourismImport)
-      (oeResult.forex, oeResult.bop, oeResult.valuationEffect, oeResult.fxIntervention)
-    else
-      val fx = Sectors.updateForeign(w.forex, importCons, totalTechAndInvImports, autoR, w.nbp.referenceRate.toDouble, gdp, rc)
-      (fx, w.bop, 0.0, CentralBankLogic.FxInterventionResult(0.0, 0.0, w.nbp.fxReserves.toDouble))
-
-    // Adjust BOP for foreign dividend outflow (primary income component) + EU funds tracking
-    val newBop1 = if foreignDividendOutflow > 0 && Config.OeEnabled then
-      newBop0.copy(
-        currentAccount = newBop0.currentAccount - PLN(foreignDividendOutflow),
-        nfa = newBop0.nfa - PLN(foreignDividendOutflow)
-      )
-    else newBop0
-    // FDI composition (#33): profit shifting (service import) + repatriation (primary income debit)
-    val fdiTotalBopDebit = sumProfitShifting + sumFdiRepatriation
-    val newBop2 = if fdiTotalBopDebit > 0 && Config.FdiEnabled && Config.OeEnabled then
-      newBop1.copy(
-        currentAccount = newBop1.currentAccount - PLN(fdiTotalBopDebit),
-        nfa = newBop1.nfa - PLN(fdiTotalBopDebit),
-        tradeBalance = newBop1.tradeBalance - PLN(sumProfitShifting),
-        totalImports = newBop1.totalImports + PLN(sumProfitShifting))
-    else newBop1
-    val fdiCitLoss = sumProfitShifting * Config.CitRate
-    val newBop = newBop2.copy(
-      euFundsMonthly = PLN(euMonthly),
-      euCumulativeAbsorption = w.bop.euCumulativeAbsorption + PLN(euMonthly)
-    )
-
-    val exRateChg = if rc.isEurozone then 0.0
-                    else (newForex.exchangeRate / w.forex.exchangeRate) - 1.0
-    val newRefRate = Sectors.updateCbRate(w.nbp.referenceRate.toDouble, newInfl, exRateChg, employed, rc)
-
-    // Expectations step: update after inflation + rate computed
-    val unempRateForExp = 1.0 - employed.toDouble / Config.TotalPopulation
-    val newExp = if Config.ExpEnabled then
-      Expectations.step(w.expectations, newInfl, newRefRate, unempRateForExp, rc)
-    else w.expectations
-
-    // Reserve interest, standing facilities, interbank interest
-    // These flows are zero in single-bank mode (no reserves/interbank tracked)
-    // Computed from LAGGED bank state (w.bankingSector) — avoids circular dependency
-    val (totalReserveInterest, totalStandingFacilityIncome, totalInterbankInterest) =
-      w.bankingSector match
-        case Some(bs) =>
-          val (_, resInt) = BankingSector.computeReserveInterest(bs.banks, w.nbp.referenceRate.toDouble)
-          val (_, sfInc) = BankingSector.computeStandingFacilities(bs.banks, w.nbp.referenceRate.toDouble)
-          val (_, ibInt) = BankingSector.interbankInterestFlows(bs.banks, bs.interbankRate.toDouble)
-          (resInt, sfInc, ibInt)
-        case None => (0.0, 0.0, 0.0)
-
-    // --- Bond market + QE ---
-    val annualGdpForBonds = w.gdpProxy * 12.0
-    val debtToGdp = if annualGdpForBonds > 0 then w.gov.cumulativeDebt.toDouble / annualGdpForBonds else 0.0
-    // QE compression: use qeCumulative (active purchases), not total govBondHoldings.
-    // Initial NBP holdings (COVID-era legacy) are already priced into the market;
-    // only active QE purchases create additional term premium compression.
-    val nbpBondGdpShare = if annualGdpForBonds > 0 then w.nbp.qeCumulative.toDouble / annualGdpForBonds else 0.0
-    // Channel 3: De-anchored expectations → higher bond yields
-    val credPremium = if Config.ExpEnabled then
-      val target = if rc.isEurozone then Config.EcbTargetInfl else Config.NbpTargetInfl
-      (1.0 - w.expectations.credibility.toDouble) *
-        Math.abs(w.expectations.expectedInflation.toDouble - target) *
-        Config.ExpBondSensitivity
-    else 0.0
-    val newBondYield = CentralBankLogic.bondYield(newRefRate, debtToGdp, nbpBondGdpShare, w.bop.nfa.toDouble, credPremium)
-
-    // Debt service: use LAGGED bond stock (standard SFC approach — avoids circular dependency)
-    // Cap at 50% of monthly GDP (implicit sovereign default ceiling — only activates in pathological scenarios)
-    val rawDebtService = w.gov.bondsOutstanding.toDouble * newBondYield / 12.0
-    val monthlyDebtService = Math.min(rawDebtService, w.gdpProxy * 0.50)
-    val bankBondIncome = w.bank.govBondHoldings.toDouble * newBondYield / 12.0
-    val nbpBondIncome = w.nbp.govBondHoldings.toDouble * newBondYield / 12.0
-    // NBP remittance: bond income minus reserve interest paid to banks
-    // and adjusted for standing facility net (lombard income − deposit facility cost)
-    val nbpRemittance = nbpBondIncome - totalReserveInterest - totalStandingFacilityIncome
-
-    // QE logic
-    val qeActivate = CentralBankLogic.shouldActivateQe(newRefRate, newInfl)
-    val qeTaper = CentralBankLogic.shouldTaperQe(newInfl)
-    val qeActive = if qeActivate then true
-                   else if qeTaper then false
-                   else w.nbp.qeActive
-    val preQeNbp = NbpState(Rate(newRefRate), w.nbp.govBondHoldings, qeActive, w.nbp.qeCumulative)
-    val (postQeNbp, qePurchaseAmount) = CentralBankLogic.executeQe(
-      preQeNbp, w.bank.govBondHoldings.toDouble, annualGdpForBonds)
-    val postFxNbp = postQeNbp.copy(
-      fxReserves = PLN(fxResult.newReserves),
-      lastFxTraded = PLN(fxResult.eurTraded)
-    )
-
-    // --- Corporate bond market step (#40) ---
-    val corpBondAmort = CorporateBondMarket.amortization(w.corporateBonds)
-    val newCorpBonds = CorporateBondMarket.step(w.corporateBonds, newBondYield,
-      w.bank.nplRatio, totalBondDefault, actualBondIssuance)
-      .copy(lastAbsorptionRate = Ratio(corpBondAbsorption))
-    // Coupon computed from LAGGED state (standard SFC approach)
-    val (_, corpBondBankCoupon, _) = CorporateBondMarket.computeCoupon(w.corporateBonds)
-    val (_, _, corpBondBankDefaultLoss, _) = CorporateBondMarket.processDefaults(
-      w.corporateBonds, totalBondDefault)
-
-    // --- Insurance sector step (#41) ---
-    val insUnempRate = 1.0 - employed.toDouble / Config.TotalPopulation
-    val newInsurance = if Config.InsEnabled then
-      InsuranceSector.step(w.insurance, employed, newWage, w.priceLevel, insUnempRate,
-        newBondYield, w.corporateBonds.corpBondYield.toDouble, w.equity.monthlyReturn.toDouble)
-    else w.insurance
-    val insNetDepositChange = newInsurance.lastNetDepositChange.toDouble
-
-    // --- Shadow Banking / NBFI step (#42) ---
-    val nbfiDepositRate = Math.max(0.0, postFxNbp.referenceRate.toDouble - 0.02)
-    val nbfiUnempRate = 1.0 - employed.toDouble / Config.TotalPopulation
-    val newNbfi = if Config.NbfiEnabled then
-      ShadowBanking.step(w.nbfi, employed, newWage, w.priceLevel,
-        nbfiUnempRate, w.bank.nplRatio, newBondYield,
-        w.corporateBonds.corpBondYield.toDouble, w.equity.monthlyReturn.toDouble,
-        nbfiDepositRate, domesticCons)
-    else w.nbfi
-    val nbfiDepositDrain = newNbfi.lastDepositDrain.toDouble
+    // ---- Step 8: Open economy, monetary, bonds, insurance, NBFI ----
+    val s8 = steps.OpenEconomyStep.run(steps.OpenEconomyStep.Input(
+      w = w,
+      ioFirms = ioFirms,
+      sectorMults = sectorMults,
+      importCons = importCons,
+      sumTechImp = sumTechImp,
+      investmentImports = investmentImports,
+      autoR = autoR,
+      gdp = gdp,
+      newInfl = newInfl,
+      newPrice = newPrice,
+      employed = employed,
+      sumProfitShifting = sumProfitShifting,
+      sumFdiRepatriation = sumFdiRepatriation,
+      remittanceOutflow = remittanceOutflow,
+      euMonthly = euMonthly,
+      diasporaInflow = diasporaInflow,
+      tourismExport = tourismExport,
+      tourismImport = tourismImport,
+      equityAfterIssuance = equityAfterIssuance,
+      foreignDividendOutflow = foreignDividendOutflow,
+      totalBondDefault = totalBondDefault,
+      actualBondIssuance = actualBondIssuance,
+      corpBondAbsorption = corpBondAbsorption,
+      firmProfits = firmProfits,
+      newWage = newWage,
+      domesticCons = domesticCons,
+      m = m,
+      rc = rc
+    ))
+    val newForex = s8.newForex; val newBop = s8.newBop; val newGvc = s8.newGvc
+    val newRefRate = s8.newRefRate; val newExp = s8.newExp
+    val totalReserveInterest = s8.totalReserveInterest
+    val totalStandingFacilityIncome = s8.totalStandingFacilityIncome
+    val totalInterbankInterest = s8.totalInterbankInterest
+    val newBondYield = s8.newBondYield; val monthlyDebtService = s8.monthlyDebtService
+    val bankBondIncome = s8.bankBondIncome; val nbpRemittance = s8.nbpRemittance
+    val postFxNbp = s8.postFxNbp; val qePurchaseAmount = s8.qePurchaseAmount
+    val newCorpBonds = s8.newCorpBonds
+    val corpBondBankCoupon = s8.corpBondBankCoupon
+    val corpBondBankDefaultLoss = s8.corpBondBankDefaultLoss
+    val corpBondAmort = s8.corpBondAmort
+    val newInsurance = s8.newInsurance; val insNetDepositChange = s8.insNetDepositChange
+    val newNbfi = s8.newNbfi; val nbfiDepositDrain = s8.nbfiDepositDrain
+    val oeValuationEffect = s8.oeValuationEffect; val fdiCitLoss = s8.fdiCitLoss
 
     val vat = consumption * Config.FofConsWeights.zip(Config.VatRates).map((w, r) => w * r).kahanSum
     val exciseRevenue = consumption * Config.FofConsWeights.zip(Config.ExciseRates).map((w, r) => w * r).kahanSum
@@ -554,7 +356,7 @@ object Simulation:
     val newGovWithYield = newGov.copy(bondYield = Rate(newBondYield))
 
     // JST (local government) — must precede newBank (JST deposits flow into bank)
-    val nLivingFirms = living2.length
+    val nLivingFirms = ioFirms.count(FirmOps.isAlive)
     val (newJst, jstDepositChange) = JstLogic.step(
       w.jst, newGovWithYield.taxRevenue.toDouble, totalIncome, gdp, nLivingFirms, pitAfterEvasion)
 
