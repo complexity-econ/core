@@ -4,7 +4,7 @@ import sfc.config.Config
 import sfc.types.*
 
 case class NbpState(
-  referenceRate: Double,
+  referenceRate: Rate,
   govBondHoldings: PLN = PLN.Zero,
   qeActive: Boolean = false,
   qeCumulative: PLN = PLN.Zero,

@@ -2,6 +2,7 @@ package sfc.engine
 
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import sfc.types.*
 
 /** Unit tests for macroprudential instruments. */
 class MacroprudentialSpec extends AnyFlatSpec with Matchers:
@@ -12,7 +13,7 @@ class MacroprudentialSpec extends AnyFlatSpec with Matchers:
 
   "MacropruState.zero" should "have all zeros" in {
     val s = MacropruState.zero
-    s.ccyb shouldBe 0.0
+    s.ccyb.toDouble shouldBe 0.0
     s.creditToGdpGap shouldBe 0.0
     s.creditToGdpTrend shouldBe 0.0
   }
@@ -32,7 +33,7 @@ class MacroprudentialSpec extends AnyFlatSpec with Matchers:
   }
 
   "step (disabled)" should "return prev unchanged" in {
-    val prev = MacropruState(0.01, 0.05, 0.40)
+    val prev = MacropruState(Rate(0.01), 0.05, 0.40)
     val result = Macroprudential.step(prev, 1000.0, 100.0)
     result shouldBe prev
   }
@@ -101,17 +102,17 @@ class MacroprudentialSpec extends AnyFlatSpec with Matchers:
   }
 
   it should "maintain ccyb=0 when gap is within neutral zone" in {
-    val prev = MacropruState(0.0, 0.0, 0.5)  // trend already established
+    val prev = MacropruState(Rate.Zero, 0.0, 0.5)  // trend already established
     // creditToGdp ≈ trend → gap ≈ 0 → within neutral zone
     val totalLoans = 0.5 * 100.0 * 12.0  // exactly at trend
     val result = Macroprudential.stepInternal(prev, totalLoans, 100.0)
-    result.ccyb shouldBe 0.0
+    result.ccyb.toDouble shouldBe 0.0
   }
 
   it should "build CCyB gradually when gap exceeds activation threshold" in {
     // Set up so credit-to-GDP ratio is much higher than trend
     // trend = 0.30, make creditToGdp ≈ 0.40 → gap ≈ 0.10 > 0.02
-    val prev = MacropruState(0.0, 0.0, 0.30)
+    val prev = MacropruState(Rate.Zero, 0.0, 0.30)
     // creditToGdp = totalLoans / (gdp*12) = X / 1200
     // We want gap = creditToGdp - newTrend > 0.02
     // newTrend = 0.30*0.95 + creditToGdp*0.05
@@ -119,25 +120,25 @@ class MacroprudentialSpec extends AnyFlatSpec with Matchers:
     // gap > 0.02 → creditToGdp > 0.305/0.95 ≈ 0.321
     // totalLoans = 0.40 * 1200 = 480
     val result = Macroprudential.stepInternal(prev, 480.0, 100.0)
-    result.ccyb should be > 0.0
-    result.ccyb should be <= sfc.config.Config.CcybMax
+    result.ccyb.toDouble should be > 0.0
+    result.ccyb.toDouble should be <= sfc.config.Config.CcybMax
   }
 
   it should "release CCyB immediately when gap falls below release threshold" in {
     // trend = 0.50, make creditToGdp very low → gap < -0.02
-    val prev = MacropruState(0.02, 0.0, 0.50)
+    val prev = MacropruState(Rate(0.02), 0.0, 0.50)
     // creditToGdp = 10 / 1200 ≈ 0.0083
     // newTrend = 0.50*0.95 + 0.0083*0.05 ≈ 0.4754
     // gap = 0.0083 - 0.4754 ≈ -0.467 < -0.02
     val result = Macroprudential.stepInternal(prev, 10.0, 100.0)
-    result.ccyb shouldBe 0.0  // immediate release
+    result.ccyb.toDouble shouldBe 0.0  // immediate release
   }
 
   it should "cap CCyB at CcybMax" in {
     // Start near max and build further
-    val prev = MacropruState(0.024, 0.0, 0.30)
+    val prev = MacropruState(Rate(0.024), 0.0, 0.30)
     val result = Macroprudential.stepInternal(prev, 480.0, 100.0)
-    result.ccyb should be <= sfc.config.Config.CcybMax
+    result.ccyb.toDouble should be <= sfc.config.Config.CcybMax
   }
 
   // ==========================================================================

@@ -171,20 +171,20 @@ class FdiCompositionSpec extends AnyFlatSpec with Matchers:
   // --- helpers ---
 
   private def mkFirm(tech: TechState, sector: Int = 2): Firm =
-    Firm(FirmId(0), PLN(50000.0), PLN.Zero, tech, 0.5, 1.0, 0.5, SectorIdx(sector), Array.empty[Int])
+    Firm(FirmId(0), PLN(50000.0), PLN.Zero, tech, Ratio(0.5), 1.0, Ratio(0.5), SectorIdx(sector), Array.empty[Int])
 
   private def mkWorld(): World =
     World(
       month = 31,
-      inflation = 0.02,
+      inflation = Rate(0.02),
       priceLevel = 1.0,
       gov = GovState(false, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
-      nbp = NbpState(0.0575),
+      nbp = NbpState(Rate(0.0575)),
       bank = BankState(PLN(1000000), PLN(10000), PLN(500000), PLN(1000000)),
       forex = ForexState(4.33, PLN.Zero, PLN(190000000), PLN.Zero, PLN.Zero),
       hh = HhState(100000, PLN(Config.BaseWage), PLN(Config.BaseReservationWage), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
-      automationRatio = 0.0,
-      hybridRatio = 0.0,
+      automationRatio = Ratio.Zero,
+      hybridRatio = Ratio.Zero,
       gdpProxy = 1e9,
       currentSigmas = SECTORS.map(_.sigma).toVector
     )

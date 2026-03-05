@@ -230,13 +230,13 @@ class KnfBfgSpec extends AnyFlatSpec with Matchers:
   // ==========================================================================
 
   "World" should "default bfgFundBalance=0 and bailInLoss=0" in {
-    val w = World(0, 0.02, 1.0,
+    val w = World(0, Rate(0.02), 1.0,
       GovState(false, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
-      sfc.agents.NbpState(0.05),
+      sfc.agents.NbpState(Rate(0.05)),
       BankState(PLN.Zero, PLN.Zero, PLN(100000), PLN(500000)),
       ForexState(4.33, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
       sfc.agents.HhState(100, PLN(8000), PLN(4000), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
-      0, 0, 100000, Vector(1.0, 1.0, 1.0, 1.0, 1.0, 1.0))
+      Ratio.Zero, Ratio.Zero, 100000, Vector(1.0, 1.0, 1.0, 1.0, 1.0, 1.0))
     w.bfgFundBalance.toDouble shouldBe 0.0
     w.bailInLoss.toDouble shouldBe 0.0
   }

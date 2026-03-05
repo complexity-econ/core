@@ -3,6 +3,7 @@ package sfc.config
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import sfc.agents.{Firm, TechState, FirmOps}
+import sfc.types.*
 
 class SimConfigSpec extends AnyFlatSpec with Matchers:
 
@@ -11,7 +12,7 @@ class SimConfigSpec extends AnyFlatSpec with Matchers:
   }
 
   it should "have shares summing to ~1.0" in {
-    SECTORS.map(_.share).sum shouldBe 1.0 +- 0.01
+    SECTORS.map(_.share.toDouble).sum shouldBe 1.0 +- 0.01
   }
 
   it should "have positive sigma for every sector" in {

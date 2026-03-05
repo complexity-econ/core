@@ -7,27 +7,27 @@ import sfc.types.*
 case class EquityMarketState(
   index: Double,            // WIG-like composite index level
   marketCap: PLN,           // total market capitalization
-  earningsYield: Double,    // E/P = inverse of P/E
-  dividendYield: Double,    // dividend / price
-  foreignOwnership: Double, // fraction held by foreign investors
+  earningsYield: Rate,      // E/P = inverse of P/E
+  dividendYield: Rate,      // dividend / price
+  foreignOwnership: Ratio,  // fraction held by foreign investors
   lastIssuance: PLN = PLN.Zero,          // equity issuance this month
   lastDomesticDividends: PLN = PLN.Zero, // net domestic dividends this month
   lastForeignDividends: PLN = PLN.Zero,  // foreign dividend outflow this month
   lastDividendTax: PLN = PLN.Zero,       // dividend tax this month
   hhEquityWealth: PLN = PLN.Zero,        // total HH equity holdings value
   lastWealthEffect: PLN = PLN.Zero,      // wealth effect consumption boost this month
-  monthlyReturn: Double = 0.0          // index return this month (for HH revaluation next month)
+  monthlyReturn: Rate = Rate.Zero       // index return this month (for HH revaluation next month)
 )
 
 object EquityMarket:
-  def zero: EquityMarketState = EquityMarketState(0.0, PLN.Zero, 0.0, 0.0, 0.0, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, 0.0)
+  def zero: EquityMarketState = EquityMarketState(0.0, PLN.Zero, Rate.Zero, Rate.Zero, Ratio.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, Rate.Zero)
 
   def initial: EquityMarketState = EquityMarketState(
     index = Config.GpwInitIndex,
     marketCap = PLN(Config.GpwInitMcap),
-    earningsYield = 1.0 / Config.GpwPeMean,
-    dividendYield = Config.GpwDivYield,
-    foreignOwnership = Config.GpwForeignShare
+    earningsYield = Rate(1.0 / Config.GpwPeMean),
+    dividendYield = Rate(Config.GpwDivYield),
+    foreignOwnership = Ratio(Config.GpwForeignShare)
   )
 
   /** Monthly equity market step using Gordon growth model for equilibrium price.
@@ -55,7 +55,7 @@ object EquityMarket:
     val expectedGrowth = Math.max(-0.10, Math.min(discountRate - 0.01, gdpGrowth * 12.0))
 
     // Gordon growth fundamental value
-    val dividend = prev.dividendYield * prev.index
+    val dividend = prev.dividendYield.toDouble * prev.index
     val denominator = discountRate - expectedGrowth
     val gordonIndex = if denominator > 0.005 then dividend / denominator
                       else prev.index  // fallback: hold steady if r ≈ g
@@ -70,23 +70,23 @@ object EquityMarket:
 
     // Earnings yield from firm profits and market cap
     val annualProfits = firmProfits * 12.0
-    val newEarningsYield = if newMarketCap > PLN.Zero then
+    val newEarningsYield = Rate(if newMarketCap > PLN.Zero then
       Math.max(0.01, Math.min(0.50, annualProfits / newMarketCap.toDouble))
-    else prev.earningsYield
+    else prev.earningsYield.toDouble)
 
     // Dividend yield: payout ratio × earnings yield (mean-reverting to calibrated)
     val payoutRatio = 0.57  // GPW average
-    val impliedDivYield = newEarningsYield * payoutRatio
-    val newDivYield = prev.dividendYield * 0.9 + impliedDivYield * 0.1
+    val impliedDivYield = newEarningsYield.toDouble * payoutRatio
+    val newDivYield = Rate(prev.dividendYield.toDouble * 0.9 + impliedDivYield * 0.1)
 
     // Foreign ownership: slow-moving, mean-reverting to calibrated share
-    val newForeignOwnership = prev.foreignOwnership * 0.99 + Config.GpwForeignShare * 0.01
+    val newForeignOwnership = Ratio(prev.foreignOwnership.toDouble * 0.99 + Config.GpwForeignShare * 0.01)
 
     // Monthly return for HH revaluation (used next month)
     val mReturn = if prev.index > 0 then newIndex / prev.index - 1.0 else 0.0
 
     EquityMarketState(newIndex, newMarketCap, newEarningsYield, newDivYield, newForeignOwnership,
-      monthlyReturn = mReturn)
+      monthlyReturn = Rate(mReturn))
 
   /** Process equity issuance: firm raises CAPEX via equity, increasing market cap.
     * Returns updated state with diluted index (supply effect). */

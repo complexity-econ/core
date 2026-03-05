@@ -9,18 +9,18 @@ case class CorporateBondMarketState(
   bankHoldings: PLN,         // banks' share of outstanding
   ppkHoldings: PLN,          // PPK's share of outstanding
   otherHoldings: PLN,        // other investors (off-model sink)
-  corpBondYield: Double,        // current yield = govBondYield + spread
+  corpBondYield: Rate,          // current yield = govBondYield + spread
   lastIssuance: PLN = PLN.Zero,
   lastAmortization: PLN = PLN.Zero,
   lastCouponIncome: PLN = PLN.Zero,   // bank + ppk coupon income
   lastDefaultLoss: PLN = PLN.Zero,    // net loss after recovery
   lastDefaultAmount: PLN = PLN.Zero,  // gross default amount
-  creditSpread: Double = 0.025,     // current credit spread
-  lastAbsorptionRate: Double = 1.0  // demand-side absorption rate [0.3, 1.0]
+  creditSpread: Rate = Rate(0.025),    // current credit spread
+  lastAbsorptionRate: Ratio = Ratio.One  // demand-side absorption rate [0.3, 1.0]
 )
 
 object CorporateBondMarket:
-  def zero: CorporateBondMarketState = CorporateBondMarketState(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, 0)
+  def zero: CorporateBondMarketState = CorporateBondMarketState(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, Rate.Zero)
 
   def initial: CorporateBondMarketState =
     val stock = PLN(Config.CorpBondInitStock)
@@ -29,8 +29,8 @@ object CorporateBondMarket:
       bankHoldings = stock * Config.CorpBondBankShare,
       ppkHoldings = stock * Config.CorpBondPpkShare,
       otherHoldings = stock * (1.0 - Config.CorpBondBankShare - Config.CorpBondPpkShare),
-      corpBondYield = 0.06 + Config.CorpBondSpread,
-      creditSpread = Config.CorpBondSpread
+      corpBondYield = Rate(0.06 + Config.CorpBondSpread),
+      creditSpread = Rate(Config.CorpBondSpread)
     )
 
   /** Compute current corporate bond yield = gov bond yield + credit spread.
@@ -43,9 +43,9 @@ object CorporateBondMarket:
   /** Monthly coupon income from corporate bond holdings.
     * Returns (totalCoupon, bankCoupon, ppkCoupon). */
   def computeCoupon(state: CorporateBondMarketState): (Double, Double, Double) =
-    val totalCoupon = state.outstanding.toDouble * state.corpBondYield / 12.0
-    val bankCoupon = state.bankHoldings.toDouble * state.corpBondYield / 12.0
-    val ppkCoupon = state.ppkHoldings.toDouble * state.corpBondYield / 12.0
+    val totalCoupon = state.outstanding.toDouble * state.corpBondYield.toDouble / 12.0
+    val bankCoupon = state.bankHoldings.toDouble * state.corpBondYield.toDouble / 12.0
+    val ppkCoupon = state.ppkHoldings.toDouble * state.corpBondYield.toDouble / 12.0
     (totalCoupon, bankCoupon, ppkCoupon)
 
   /** Process defaults from bankrupt firms' bond debt.
@@ -74,7 +74,7 @@ object CorporateBondMarket:
                         aggBankCar: Double, minCar: Double): Double =
     if tentativeIssuance <= 0 then return 1.0
     // Gate 1: spread-based appetite
-    val excessSpread = Math.max(0.0, state.creditSpread - Config.CorpBondSpread)
+    val excessSpread = Math.max(0.0, state.creditSpread.toDouble - Config.CorpBondSpread)
     val spreadAbsorption = Math.max(0.3, 1.0 - excessSpread / 0.10)
     // Gate 2: bank CAR headroom (linear ramp in 200 bps buffer zone)
     val carAbsorption =
@@ -113,8 +113,8 @@ object CorporateBondMarket:
       bankHoldings = (prev.bankHoldings - prev.bankHoldings * reductionFrac).max(PLN.Zero),
       ppkHoldings = (prev.ppkHoldings - prev.ppkHoldings * reductionFrac).max(PLN.Zero),
       otherHoldings = (prev.otherHoldings - prev.otherHoldings * reductionFrac).max(PLN.Zero),
-      corpBondYield = newYield,
-      creditSpread = Math.max(0.0, newYield - govBondYield),
+      corpBondYield = Rate(newYield),
+      creditSpread = Rate(Math.max(0.0, newYield - govBondYield)),
       lastAmortization = PLN(amort),
       lastDefaultAmount = PLN(grossDefault),
       lastDefaultLoss = PLN(grossDefault * (1.0 - Config.CorpBondRecovery)),

@@ -5,6 +5,7 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import org.scalacheck.Gen
 import sfc.testutil.Generators.*
+import sfc.types.*
 
 class SimConfigPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks:
 
@@ -14,7 +15,7 @@ class SimConfigPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPro
   // --- Sector invariants ---
 
   "SECTORS" should "have shares summing to approximately 1.0" in {
-    val sum = SECTORS.map(_.share).sum
+    val sum = SECTORS.map(_.share.toDouble).sum
     sum shouldBe (1.0 +- 0.01)
   }
 
@@ -32,14 +33,14 @@ class SimConfigPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPro
 
   it should "have hybridRetainFrac in (0, 1]" in {
     for s <- SECTORS do
-      s.hybridRetainFrac should be > 0.0
-      s.hybridRetainFrac should be <= 1.0
+      s.hybridRetainFrac.toDouble should be > 0.0
+      s.hybridRetainFrac.toDouble should be <= 1.0
   }
 
   it should "have baseDigitalReadiness in [0, 1]" in {
     for s <- SECTORS do
-      s.baseDigitalReadiness should be >= 0.0
-      s.baseDigitalReadiness should be <= 1.0
+      s.baseDigitalReadiness.toDouble should be >= 0.0
+      s.baseDigitalReadiness.toDouble should be <= 1.0
   }
 
   // --- IoMatrix invariants ---

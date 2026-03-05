@@ -19,7 +19,7 @@ case class NbfiState(
   lastNbfiRepayment: PLN = PLN.Zero,    // Monthly principal repaid
   lastNbfiDefaultAmount: PLN = PLN.Zero,// Monthly gross defaults
   lastNbfiInterestIncome: PLN = PLN.Zero,// NBFI interest earned
-  lastBankTightness: Double = 0.0,    // Counter-cyclical signal
+  lastBankTightness: Ratio = Ratio.Zero,  // Counter-cyclical signal
   lastDepositDrain: PLN = PLN.Zero      // Net deposit outflow (TFI inflow)
 )
 
@@ -111,6 +111,6 @@ object ShadowBanking:
       lastNbfiRepayment = PLN(repayment),
       lastNbfiDefaultAmount = PLN(defaults),
       lastNbfiInterestIncome = interestIncome,
-      lastBankTightness = tight,
+      lastBankTightness = Ratio(tight),
       lastDepositDrain = depositDrain
     )

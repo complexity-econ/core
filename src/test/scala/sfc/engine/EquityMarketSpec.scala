@@ -10,18 +10,18 @@ class EquityMarketSpec extends AnyFlatSpec with Matchers:
   private val initState = EquityMarketState(
     index = 2400.0,
     marketCap = PLN(1.4e12 * Config.FirmsCount / 10000.0),
-    earningsYield = 0.10,
-    dividendYield = 0.057,
-    foreignOwnership = 0.67
+    earningsYield = Rate(0.10),
+    dividendYield = Rate(0.057),
+    foreignOwnership = Ratio(0.67)
   )
 
   "EquityMarket.zero" should "return all-zero state" in {
     val z = EquityMarket.zero
     z.index shouldBe 0.0
     z.marketCap shouldBe PLN.Zero
-    z.earningsYield shouldBe 0.0
-    z.dividendYield shouldBe 0.0
-    z.foreignOwnership shouldBe 0.0
+    z.earningsYield shouldBe Rate.Zero
+    z.dividendYield shouldBe Rate.Zero
+    z.foreignOwnership shouldBe Ratio.Zero
     z.lastIssuance shouldBe PLN.Zero
     z.lastDomesticDividends shouldBe PLN.Zero
     z.lastForeignDividends shouldBe PLN.Zero

@@ -12,9 +12,9 @@ import scala.util.Random
 case class BankConfig(
   id: BankId,
   name: String,
-  initMarketShare: Double,
-  initCet1: Double,
-  lendingSpread: Double,
+  initMarketShare: Ratio,
+  initCet1: Ratio,
+  lendingSpread: Rate,
   sectorAffinity: Vector[Double]
 )
 
@@ -67,7 +67,7 @@ case class IndividualBankState(
 /** State of the entire banking sector. */
 case class BankingSectorState(
   banks: Vector[IndividualBankState],
-  interbankRate: Double,
+  interbankRate: Rate,
   configs: Vector[BankConfig],
   interbankCurve: Option[InterbankCurve] = None
 ):
@@ -87,13 +87,13 @@ object BankingSector:
 
   // 7 Polish banks (KNF 2024)
   val DefaultConfigs: Vector[BankConfig] = Vector(
-    BankConfig(BankId(0), "PKO BP",     0.175, 0.185, -0.002, Vector(0.15, 0.15, 0.15, 0.10, 0.30, 0.15)),
-    BankConfig(BankId(1), "Pekao",      0.120, 0.178, -0.001, Vector(0.15, 0.20, 0.20, 0.15, 0.15, 0.15)),
-    BankConfig(BankId(2), "mBank",      0.085, 0.169,  0.000, Vector(0.30, 0.10, 0.25, 0.10, 0.10, 0.15)),
-    BankConfig(BankId(3), "ING BSK",    0.075, 0.172, -0.001, Vector(0.15, 0.35, 0.15, 0.10, 0.10, 0.15)),
-    BankConfig(BankId(4), "Santander",  0.070, 0.170,  0.000, Vector(0.15, 0.10, 0.35, 0.15, 0.10, 0.15)),
-    BankConfig(BankId(5), "BPS/Coop",   0.050, 0.150,  0.003, Vector(0.05, 0.10, 0.10, 0.05, 0.05, 0.65)),
-    BankConfig(BankId(6), "Others",     0.425, 0.165,  0.001, Vector(0.15, 0.17, 0.17, 0.17, 0.17, 0.17))
+    BankConfig(BankId(0), "PKO BP",     Ratio(0.175), Ratio(0.185), Rate(-0.002), Vector(0.15, 0.15, 0.15, 0.10, 0.30, 0.15)),
+    BankConfig(BankId(1), "Pekao",      Ratio(0.120), Ratio(0.178), Rate(-0.001), Vector(0.15, 0.20, 0.20, 0.15, 0.15, 0.15)),
+    BankConfig(BankId(2), "mBank",      Ratio(0.085), Ratio(0.169), Rate(0.000),  Vector(0.30, 0.10, 0.25, 0.10, 0.10, 0.15)),
+    BankConfig(BankId(3), "ING BSK",    Ratio(0.075), Ratio(0.172), Rate(-0.001), Vector(0.15, 0.35, 0.15, 0.10, 0.10, 0.15)),
+    BankConfig(BankId(4), "Santander",  Ratio(0.070), Ratio(0.170), Rate(0.000),  Vector(0.15, 0.10, 0.35, 0.15, 0.10, 0.15)),
+    BankConfig(BankId(5), "BPS/Coop",   Ratio(0.050), Ratio(0.150), Rate(0.003),  Vector(0.05, 0.10, 0.10, 0.05, 0.05, 0.65)),
+    BankConfig(BankId(6), "Others",     Ratio(0.425), Ratio(0.165), Rate(0.001),  Vector(0.15, 0.17, 0.17, 0.17, 0.17, 0.17))
   )
 
   /** Initialize banking sector from total deposits, capital, loans, bonds, consumer loans. */
@@ -104,24 +104,24 @@ object BankingSector:
     val banks = configs.map { cfg =>
       IndividualBankState(
         id = cfg.id,
-        deposits = PLN(totalDeposits * cfg.initMarketShare),
-        loans = PLN(totalLoans * cfg.initMarketShare),
-        capital = PLN(totalCapital * cfg.initMarketShare),
+        deposits = PLN(totalDeposits * cfg.initMarketShare.toDouble),
+        loans = PLN(totalLoans * cfg.initMarketShare.toDouble),
+        capital = PLN(totalCapital * cfg.initMarketShare.toDouble),
         nplAmount = PLN.Zero,
-        govBondHoldings = PLN(totalGovBonds * cfg.initMarketShare),
+        govBondHoldings = PLN(totalGovBonds * cfg.initMarketShare.toDouble),
         reservesAtNbp = PLN.Zero,
         interbankNet = PLN.Zero,
         failed = false,
         failedMonth = 0,
         consecutiveLowCar = 0,
-        consumerLoans = PLN(totalConsumerLoans * cfg.initMarketShare)
+        consumerLoans = PLN(totalConsumerLoans * cfg.initMarketShare.toDouble)
       )
     }
-    BankingSectorState(banks, 0.0, configs)
+    BankingSectorState(banks, Rate.Zero, configs)
 
   /** Assign a firm to a bank based on sector affinity and market share. */
   def assignBank(firmSector: SectorIdx, configs: Vector[BankConfig], rng: Random): BankId =
-    val weights = configs.map(c => c.sectorAffinity(firmSector.toInt) * c.initMarketShare)
+    val weights = configs.map(c => c.sectorAffinity(firmSector.toInt) * c.initMarketShare.toDouble)
     val total = weights.kahanSum
     if total <= 0.0 then BankId(0)
     else
@@ -146,7 +146,7 @@ object BankingSector:
       val carPenalty = if bank.car < Config.MinCar * 1.5 then
         Math.max(0.0, (Config.MinCar * 1.5 - bank.car) * 2.0)
       else 0.0
-      refRate + Config.BaseSpread + cfg.lendingSpread + nplSpread + carPenalty
+      refRate + Config.BaseSpread + cfg.lendingSpread.toDouble + nplSpread + carPenalty
 
   /** Check if a bank can lend a given amount. */
   def canLend(bank: IndividualBankState, amount: Double, rng: Random,

@@ -7,15 +7,15 @@ import sfc.types.*
 
 case class World(
   month: Int,
-  inflation: Double,
+  inflation: Rate,
   priceLevel: Double,
   gov: GovState,
   nbp: NbpState,
   bank: BankState,
   forex: ForexState,
   hh: HhState,
-  automationRatio: Double,
-  hybridRatio: Double,
+  automationRatio: Ratio,
+  hybridRatio: Ratio,
   gdpProxy: Double,
   currentSigmas: Vector[Double],
   ioFlows: PLN = PLN.Zero,

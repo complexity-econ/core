@@ -28,7 +28,7 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
     case Topology.Lattice => Network.lattice(Config.FirmsCount, Config.NetworkK)
 
   // Assign sectors
-  val sectorCounts = SECTORS.map(s => (s.share * Config.FirmsCount).toInt)
+  val sectorCounts = SECTORS.map(s => (s.share.toDouble * Config.FirmsCount).toInt)
   // Adjust last sector to fill remaining
   val totalAssigned = sectorCounts.sum
   val sectorAssignments =
@@ -54,10 +54,10 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
       cash = PLN((Random.between(10000.0, 80000.0) + (if Random.nextDouble() < 0.1 then 200000.0 else 0.0)) * sizeMult),
       debt = PLN.Zero,
       tech = TechState.Traditional(firmSize),
-      riskProfile = Random.between(0.1, 0.9),
+      riskProfile = Ratio(Random.between(0.1, 0.9)),
       innovationCostFactor = Random.between(0.8, 1.5),
-      digitalReadiness = Math.max(0.02, Math.min(0.98,
-        sec.baseDigitalReadiness + (Random.nextGaussian() * 0.20))),
+      digitalReadiness = Ratio(Math.max(0.02, Math.min(0.98,
+        sec.baseDigitalReadiness.toDouble + (Random.nextGaussian() * 0.20)))),
       sector = SectorIdx(sectorAssignments(i)),
       neighbors = adjList(i),
       initialSize = firmSize
@@ -181,15 +181,15 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
     PLN(firms.kahanSumBy(f => (f.greenCapital * Config.GreenDepRate / 12.0).toDouble))
   else PLN.Zero
 
-  var world = World(0, 0.02, 1.0,
+  var world = World(0, Rate(0.02), 1.0,
     GovState(false, PLN.Zero, PLN.Zero, PLN.Zero, PLN(Config.InitGovDebt), PLN.Zero, bondsOutstanding = initBondsOutstanding),
-    NbpState(initRate, govBondHoldings = PLN(Config.InitNbpGovBonds)),
+    NbpState(Rate(initRate), govBondHoldings = PLN(Config.InitNbpGovBonds)),
     BankState(PLN(Config.InitBankLoans), PLN.Zero, PLN(Config.InitBankCapital), PLN(Config.InitBankDeposits),
       govBondHoldings = PLN(Config.InitBankGovBonds), consumerLoans = PLN(initConsumerLoans),
       corpBondHoldings = PLN(Config.CorpBondInitStock * Config.CorpBondBankShare)),
     ForexState(Config.BaseExRate, PLN.Zero, PLN(Config.ExportBase), PLN.Zero, PLN.Zero),
     HhState(Config.TotalPopulation, PLN(Config.BaseWage), PLN(Config.BaseReservationWage), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
-    0, 0, Config.BaseRevenue * Config.FirmsCount,
+    Ratio.Zero, Ratio.Zero, Config.BaseRevenue * Config.FirmsCount,
     SECTORS.map(_.sigma).toVector,
     bankingSector = initBankingSector,
     demographics = initDemographics,
@@ -260,17 +260,17 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
 
     results(t) = Array(
       (t + 1).toDouble,          // 0: Month
-      world.inflation,            // 1: Inflation
+      world.inflation.toDouble,   // 1: Inflation
       unemployPct,                // 2: Unemployment
-      world.automationRatio + world.hybridRatio, // 3: TotalAdoption
+      (world.automationRatio + world.hybridRatio).toDouble, // 3: TotalAdoption
       world.forex.exchangeRate,   // 4: ExRate
       world.hh.marketWage.toDouble,        // 5: MarketWage
       world.gov.cumulativeDebt.toDouble,   // 6: GovDebt
       world.bank.nplRatio,        // 7: NPL
-      world.nbp.referenceRate,    // 8: RefRate
+      world.nbp.referenceRate.toDouble,    // 8: RefRate
       world.priceLevel,           // 9: PriceLevel
-      world.automationRatio,      // 10: AutoRatio
-      world.hybridRatio,          // 11: HybridRatio
+      world.automationRatio.toDouble,      // 10: AutoRatio
+      world.hybridRatio.toDouble,          // 11: HybridRatio
       sectorAuto(0),              // 12: BPO auto
       sectorAuto(1),              // 13: Manuf auto
       sectorAuto(2),              // 14: Retail auto
@@ -297,7 +297,7 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
       world.bop.fdi.toDouble,                    // 35: FDI
       world.gov.unempBenefitSpend.toDouble,      // 36: UnempBenefitSpend
       (1.0 - world.hh.employed.toDouble / Config.TotalPopulation - Config.NbpNairu) / Config.NbpNairu,  // 37: OutputGap
-      world.gov.bondYield,                // 38: BondYield
+      world.gov.bondYield.toDouble,                // 38: BondYield
       world.gov.bondsOutstanding.toDouble,         // 39: BondsOutstanding
       world.bank.govBondHoldings.toDouble,         // 40: BankBondHoldings
       world.nbp.govBondHoldings.toDouble,          // 41: NbpBondHoldings
@@ -307,7 +307,7 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
       world.nbp.fxReserves.toDouble,                                      // 45: FxReserves
       world.nbp.lastFxTraded.toDouble,                                    // 46: FxInterventionAmt
       (if Config.NbpFxIntervention then 1.0 else 0.0),           // 47: FxInterventionActive
-      world.bankingSector.map(_.interbankRate).getOrElse(world.nbp.referenceRate),  // 48: InterbankRate
+      world.bankingSector.map(_.interbankRate.toDouble).getOrElse(world.nbp.referenceRate.toDouble),  // 48: InterbankRate
       world.bankingSector.map { bs =>
         val alive = bs.banks.filterNot(_.failed)
         if alive.isEmpty then 0.0 else alive.map(_.car).min
@@ -319,11 +319,11 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
       world.bankingSector.map(_.banks.count(_.failed).toDouble).getOrElse(0.0),  // 51: BankFailures
       // Monetary plumbing
       world.bankingSector.map { bs =>
-        val (_, total) = BankingSector.computeReserveInterest(bs.banks, world.nbp.referenceRate)
+        val (_, total) = BankingSector.computeReserveInterest(bs.banks, world.nbp.referenceRate.toDouble)
         total
       }.getOrElse(0.0),  // 52: ReserveInterest
       world.bankingSector.map { bs =>
-        val (perBank, _) = BankingSector.computeStandingFacilities(bs.banks, world.nbp.referenceRate)
+        val (perBank, _) = BankingSector.computeStandingFacilities(bs.banks, world.nbp.referenceRate.toDouble)
         perBank.kahanSum
       }.getOrElse(0.0),  // 53: StandingFacilityNet
       world.bankingSector.map { bs =>
@@ -331,7 +331,7 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
         bs.banks.filter(b => !b.failed && b.reservesAtNbp > PLN.Zero).kahanSumBy(_.reservesAtNbp.toDouble)
       }.getOrElse(0.0),  // 54: DepositFacilityUsage
       world.bankingSector.map { bs =>
-        val (_, total) = BankingSector.interbankInterestFlows(bs.banks, bs.interbankRate)
+        val (_, total) = BankingSector.interbankInterestFlows(bs.banks, bs.interbankRate.toDouble)
         total
       }.getOrElse(0.0),  // 55: InterbankInterestNet
       // Credit diagnostics
@@ -359,9 +359,9 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
         else alive.map(b => if b.deposits > PLN.Zero then b.termDeposits / b.deposits else 0.0).sum / alive.length
       }.getOrElse(Config.BankTermDepositFrac),  // 66: AvgTermDepositFrac
       // Term structure
-      world.bankingSector.flatMap(_.interbankCurve).map(_.wibor1m).getOrElse(0.0),  // 67: WIBOR_1M
-      world.bankingSector.flatMap(_.interbankCurve).map(_.wibor3m).getOrElse(0.0),  // 68: WIBOR_3M
-      world.bankingSector.flatMap(_.interbankCurve).map(_.wibor6m).getOrElse(0.0),  // 69: WIBOR_6M
+      world.bankingSector.flatMap(_.interbankCurve).map(_.wibor1m.toDouble).getOrElse(0.0),  // 67: WIBOR_1M
+      world.bankingSector.flatMap(_.interbankCurve).map(_.wibor3m.toDouble).getOrElse(0.0),  // 68: WIBOR_3M
+      world.bankingSector.flatMap(_.interbankCurve).map(_.wibor6m.toDouble).getOrElse(0.0),  // 69: WIBOR_6M
       // Full public sector
       world.zus.contributions.toDouble,           // 70: ZusContributions
       world.zus.pensionPayments.toDouble,         // 71: ZusPensionPayments
@@ -373,18 +373,18 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
       world.demographics.workingAgePop.toDouble,      // 77: WorkingAgePop
       world.demographics.monthlyRetirements.toDouble,  // 78: MonthlyRetirements
       // Macroprudential
-      world.macropru.ccyb,                             // 79: CCyB
+      world.macropru.ccyb.toDouble,                             // 79: CCyB
       world.macropru.creditToGdpGap,                   // 80: CreditToGdpGap
       world.bankingSector.map { bs =>
         val alive = bs.banks.filterNot(_.failed)
         if alive.isEmpty then 0.0
-        else alive.map(b => Macroprudential.effectiveMinCar(b.id.toInt, world.macropru.ccyb)).max
-      }.getOrElse(Macroprudential.effectiveMinCar(0, world.macropru.ccyb)),  // 81: EffectiveMinCar
+        else alive.map(b => Macroprudential.effectiveMinCar(b.id.toInt, world.macropru.ccyb.toDouble)).max
+      }.getOrElse(Macroprudential.effectiveMinCar(0, world.macropru.ccyb.toDouble)),  // 81: EffectiveMinCar
       // GPW Equity Market
       world.equity.index,           // 82: GpwIndex
       world.equity.marketCap.toDouble,       // 83: GpwMarketCap
-      (if world.equity.earningsYield > 0 then 1.0 / world.equity.earningsYield else 0.0),  // 84: GpwPE
-      world.equity.dividendYield,   // 85: GpwDivYield
+      (if world.equity.earningsYield.toDouble > 0 then 1.0 / world.equity.earningsYield.toDouble else 0.0),  // 84: GpwPE
+      world.equity.dividendYield.toDouble,   // 85: GpwDivYield
       // GPW Firm Issuance
       world.equity.lastIssuance.toDouble,    // 86: EquityIssuanceTotal
       living.kahanSumBy(_.equityRaised.toDouble) / Math.max(1.0, living.kahanSumBy(f => (f.debt + f.equityRaised).toDouble)),  // 87: EquityFinancedFrac
@@ -398,7 +398,7 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
       world.housing.priceIndex,            // 92: HousingPriceIndex
       world.housing.totalValue.toDouble,            // 93: HousingMarketValue
       world.housing.mortgageStock.toDouble,         // 94: MortgageStock
-      world.housing.avgMortgageRate,       // 95: AvgMortgageRate
+      world.housing.avgMortgageRate.toDouble,       // 95: AvgMortgageRate
       world.housing.lastOrigination.toDouble,       // 96: MortgageOrigination
       world.housing.lastRepayment.toDouble,         // 97: MortgageRepayment
       world.housing.lastDefault.toDouble,           // 98: MortgageDefault
@@ -412,16 +412,16 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
       world.sectoralMobility.crossSectorHires.toDouble,  // 104: CrossSectorHires
       world.sectoralMobility.voluntaryQuits.toDouble, // 105: VoluntaryQuits
       // GVC / Deep External Sector
-      world.gvc.disruptionIndex,        // 106: GvcDisruptionIndex
+      world.gvc.disruptionIndex.toDouble,        // 106: GvcDisruptionIndex
       world.gvc.foreignPriceIndex,      // 107: ForeignPriceIndex
-      world.gvc.tradeConcentration,     // 108: GvcTradeConcentration
-      world.gvc.exportDemandShockMag,   // 109: GvcExportDemandShock
+      world.gvc.tradeConcentration.toDouble,     // 108: GvcTradeConcentration
+      world.gvc.exportDemandShockMag.toDouble,   // 109: GvcExportDemandShock
       world.gvc.importCostIndex,         // 110: GvcImportCostIndex
       // Forward-Looking Expectations
-      world.expectations.expectedInflation,   // 111: ExpectedInflation
-      world.expectations.credibility,         // 112: NbpCredibility
-      world.expectations.forwardGuidanceRate, // 113: ForwardGuidanceRate
-      world.expectations.forecastError,       // 114: InflationForecastError
+      world.expectations.expectedInflation.toDouble,   // 111: ExpectedInflation
+      world.expectations.credibility.toDouble,         // 112: NbpCredibility
+      world.expectations.forwardGuidanceRate.toDouble, // 113: ForwardGuidanceRate
+      world.expectations.forecastError.toDouble,       // 114: InflationForecastError
       // Regional Housing Market
       world.housing.regions.map(_(0).priceIndex).getOrElse(0.0),  // 115: WawHpi
       world.housing.regions.map(_(1).priceIndex).getOrElse(0.0),  // 116: KrkHpi
@@ -475,12 +475,12 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
       world.gov.customsDutyRevenue.toDouble,                                  // 144: CustomsDutyRevenue
       // Corporate Bonds / Catalyst (#40)
       world.corporateBonds.outstanding.toDouble,                              // 145: CorpBondOutstanding
-      world.corporateBonds.corpBondYield,                            // 146: CorpBondYield
+      world.corporateBonds.corpBondYield.toDouble,                            // 146: CorpBondYield
       world.corporateBonds.lastIssuance.toDouble,                             // 147: CorpBondIssuance
-      world.corporateBonds.creditSpread,                             // 148: CorpBondSpread
+      world.corporateBonds.creditSpread.toDouble,                             // 148: CorpBondSpread
       world.corporateBonds.bankHoldings.toDouble,                             // 149: BankCorpBondHoldings
       world.corporateBonds.ppkHoldings.toDouble,                               // 150: PpkCorpBondHoldings
-      world.corporateBonds.lastAbsorptionRate,                         // 151: CorpBondAbsorptionRate
+      world.corporateBonds.lastAbsorptionRate.toDouble,                         // 151: CorpBondAbsorptionRate
       // Insurance Sector (#41)
       world.insurance.lifeReserves.toDouble,                                    // 152: InsLifeReserves
       world.insurance.nonLifeReserves.toDouble,                                 // 153: InsNonLifeReserves
@@ -495,7 +495,7 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
       world.nbfi.nbfiLoanStock.toDouble,                                         // 161: NbfiLoanStock
       world.nbfi.lastNbfiOrigination.toDouble,                                   // 162: NbfiOrigination
       world.nbfi.lastNbfiDefaultAmount.toDouble,                                 // 163: NbfiDefaults
-      world.nbfi.lastBankTightness,                                     // 164: NbfiBankTightness
+      world.nbfi.lastBankTightness.toDouble,                                     // 164: NbfiBankTightness
       world.nbfi.lastDepositDrain.toDouble,                                       // 165: NbfiDepositDrain
       // FDI Composition (#33)
       world.fdiProfitShifting.toDouble,                                             // 166: FdiProfitShifting
@@ -686,12 +686,12 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
           // P10/P90 savings not tracked in agg — use mean as placeholder
           hhPw.write(f";${(agg.meanSavings * 0.3).toDouble}%.2f;${(agg.meanSavings * 2.0).toDouble}%.2f")
           hhPw.write(f";0.00;0.00")  // MeanDebt, TotalDebt — would need household vector
-          hhPw.write(f";${agg.giniIndividual}%.6f;${agg.giniWealth}%.6f")
+          hhPw.write(f";${agg.giniIndividual.toDouble}%.6f;${agg.giniWealth.toDouble}%.6f")
           hhPw.write(f";${agg.meanSkill}%.6f;${agg.meanHealthPenalty}%.6f")
           hhPw.write(f";${agg.retrainingAttempts};${agg.retrainingSuccesses}")
           hhPw.write(f";${agg.consumptionP10.toDouble}%.2f;${agg.consumptionP50.toDouble}%.2f;${agg.consumptionP90.toDouble}%.2f")
-          hhPw.write(f";${agg.bankruptcyRate}%.6f;${agg.meanMonthsToRuin}%.2f")
-          hhPw.write(f";${agg.povertyRate50}%.6f;${agg.povertyRate30}%.6f")
+          hhPw.write(f";${agg.bankruptcyRate.toDouble}%.6f;${agg.meanMonthsToRuin}%.2f")
+          hhPw.write(f";${agg.povertyRate50.toDouble}%.6f;${agg.povertyRate30.toDouble}%.6f")
           hhPw.write("\n")
         case None => ()
     hhPw.close()
@@ -813,10 +813,10 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
     println("\nHousehold aggregates at M120:")
     val hhAggs = allHhAgg.flatten
     if hhAggs.nonEmpty then
-      val avgGini = hhAggs.kahanSumBy(_.giniIndividual) / hhAggs.length
-      val avgWealth = hhAggs.kahanSumBy(_.giniWealth) / hhAggs.length
-      val avgBankr = hhAggs.kahanSumBy(_.bankruptcyRate) / hhAggs.length
-      val avgPov50 = hhAggs.kahanSumBy(_.povertyRate50) / hhAggs.length
+      val avgGini = hhAggs.kahanSumBy(_.giniIndividual.toDouble) / hhAggs.length
+      val avgWealth = hhAggs.kahanSumBy(_.giniWealth.toDouble) / hhAggs.length
+      val avgBankr = hhAggs.kahanSumBy(_.bankruptcyRate.toDouble) / hhAggs.length
+      val avgPov50 = hhAggs.kahanSumBy(_.povertyRate50.toDouble) / hhAggs.length
       val avgSkill = hhAggs.kahanSumBy(_.meanSkill) / hhAggs.length
       println(f"  Gini (income)        mean=${avgGini * 100}%8.2f%%")
       println(f"  Gini (wealth)        mean=${avgWealth * 100}%8.2f%%")

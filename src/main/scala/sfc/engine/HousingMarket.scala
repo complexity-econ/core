@@ -12,7 +12,7 @@ case class RegionalHousingState(
   lastOrigination: PLN,
   lastRepayment: PLN,
   lastDefault: PLN,
-  monthlyReturn: Double
+  monthlyReturn: Rate
 )
 
 /** Housing market state: aggregate HPI, property value, mortgage stock, flows. */
@@ -20,13 +20,13 @@ case class HousingMarketState(
   priceIndex: Double,              // HPI (base 100)
   totalValue: PLN,                 // aggregate residential property value
   mortgageStock: PLN,              // total outstanding mortgage debt
-  avgMortgageRate: Double,         // bank-weighted average mortgage rate
+  avgMortgageRate: Rate,           // bank-weighted average mortgage rate
   hhHousingWealth: PLN,            // HH property equity (value - mortgage)
   lastOrigination: PLN,            // monthly new mortgages issued
   lastRepayment: PLN,              // monthly principal repaid
   lastDefault: PLN,                // monthly mortgage defaults
   lastWealthEffect: PLN,           // consumption boost from housing wealth
-  monthlyReturn: Double,           // HPI monthly return (for HH revaluation)
+  monthlyReturn: Rate,             // HPI monthly return (for HH revaluation)
   mortgageInterestIncome: PLN,     // monthly interest income (-> bank capital)
   regions: Option[Vector[RegionalHousingState]] = None  // 7 entries when RE_REGIONAL=true
 )
@@ -35,7 +35,7 @@ object HousingMarket:
   val NRegions = 7
   // Region names (for documentation): Warszawa, Kraków, Wrocław, Gdańsk, Łódź, Poznań, Rest
 
-  def zero: HousingMarketState = HousingMarketState(0.0, PLN.Zero, PLN.Zero, 0.0, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, 0.0, PLN.Zero, None)
+  def zero: HousingMarketState = HousingMarketState(0.0, PLN.Zero, PLN.Zero, Rate.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, Rate.Zero, PLN.Zero, None)
 
   def initial: HousingMarketState =
     val initMortgageRate = Config.NbpInitialRate + Config.ReMortgageSpread
@@ -50,7 +50,7 @@ object HousingMarket:
           lastOrigination = PLN.Zero,
           lastRepayment = PLN.Zero,
           lastDefault = PLN.Zero,
-          monthlyReturn = 0.0
+          monthlyReturn = Rate.Zero
         )
       }.toVector)
     else None
@@ -58,13 +58,13 @@ object HousingMarket:
       priceIndex = Config.ReInitHpi,
       totalValue = PLN(Config.ReInitValue),
       mortgageStock = PLN(Config.ReInitMortgage),
-      avgMortgageRate = initMortgageRate,
+      avgMortgageRate = Rate(initMortgageRate),
       hhHousingWealth = PLN(Config.ReInitValue - Config.ReInitMortgage),
       lastOrigination = PLN.Zero,
       lastRepayment = PLN.Zero,
       lastDefault = PLN.Zero,
       lastWealthEffect = PLN.Zero,
-      monthlyReturn = 0.0,
+      monthlyReturn = Rate.Zero,
       mortgageInterestIncome = PLN.Zero,
       regions = regions
     )
@@ -119,7 +119,7 @@ object HousingMarket:
                        else reg.priceIndex
           val mReturn = if reg.priceIndex > 0 then newHpi / reg.priceIndex - 1.0 else 0.0
 
-          reg.copy(priceIndex = newHpi, totalValue = newValue, monthlyReturn = mReturn)
+          reg.copy(priceIndex = newHpi, totalValue = newValue, monthlyReturn = Rate(mReturn))
         }
 
         // Aggregate: value-weighted HPI average
@@ -134,8 +134,8 @@ object HousingMarket:
         prev.copy(
           priceIndex = aggHpi,
           totalValue = aggTotalValue,
-          monthlyReturn = aggReturn,
-          avgMortgageRate = mortgageRate,
+          monthlyReturn = Rate(aggReturn),
+          avgMortgageRate = Rate(mortgageRate),
           regions = Some(updatedRegions)
         )
 
@@ -165,8 +165,8 @@ object HousingMarket:
         prev.copy(
           priceIndex = newHpi,
           totalValue = newTotalValue,
-          monthlyReturn = mReturn,
-          avgMortgageRate = mortgageRate
+          monthlyReturn = Rate(mReturn),
+          avgMortgageRate = Rate(mortgageRate)
         )
 
   /** Mortgage origination: new mortgages issued monthly.

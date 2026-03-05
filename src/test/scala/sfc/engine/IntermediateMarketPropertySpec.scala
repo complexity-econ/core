@@ -20,7 +20,7 @@ class IntermediateMarketPropertySpec extends AnyFlatSpec with Matchers with Scal
   private def makeFirms(n: Int, sectors: Seq[Int] = Seq(0, 1, 2, 3, 4, 5)): Array[Firm] =
     (0 until n).map { i =>
       val sector = sectors(i % sectors.length)
-      Firm(FirmId(i), PLN(500000.0), PLN.Zero, TechState.Traditional(10), 0.5, 1.0, 0.4, SectorIdx(sector), Array.empty[Int])
+      Firm(FirmId(i), PLN(500000.0), PLN.Zero, TechState.Traditional(10), Ratio(0.5), 1.0, Ratio(0.4), SectorIdx(sector), Array.empty[Int])
     }.toArray
 
   // --- Zero-sum property ---
@@ -102,9 +102,9 @@ class IntermediateMarketPropertySpec extends AnyFlatSpec with Matchers with Scal
   }
 
   it should "distribute revenue proportionally within sector" in {
-    val f1 = Firm(FirmId(0), PLN(500000.0), PLN.Zero, TechState.Traditional(10), 0.5, 1.0, 0.4, SectorIdx(0), Array.empty[Int])
-    val f2 = Firm(FirmId(1), PLN(500000.0), PLN.Zero, TechState.Traditional(10), 0.5, 1.0, 0.4, SectorIdx(0), Array.empty[Int])
-    val f3 = Firm(FirmId(2), PLN(500000.0), PLN.Zero, TechState.Traditional(10), 0.5, 1.0, 0.4, SectorIdx(1), Array.empty[Int])
+    val f1 = Firm(FirmId(0), PLN(500000.0), PLN.Zero, TechState.Traditional(10), Ratio(0.5), 1.0, Ratio(0.4), SectorIdx(0), Array.empty[Int])
+    val f2 = Firm(FirmId(1), PLN(500000.0), PLN.Zero, TechState.Traditional(10), Ratio(0.5), 1.0, Ratio(0.4), SectorIdx(0), Array.empty[Int])
+    val f3 = Firm(FirmId(2), PLN(500000.0), PLN.Zero, TechState.Traditional(10), Ratio(0.5), 1.0, Ratio(0.4), SectorIdx(1), Array.empty[Int])
     val firms = Array(f1, f2, f3)
     val r = IntermediateMarket.process(firms, Vector.fill(6)(1.0), 1.0, defaultMatrix, defaultColSums, 1.0)
     val adj1 = (r.firms(0).cash - firms(0).cash).toDouble

@@ -1,16 +1,17 @@
 package sfc.engine
 
 import sfc.config.Config
+import sfc.types.*
 
 /** Macroprudential state: CCyB, credit-to-GDP gap, effective minimum CAR. */
 case class MacropruState(
-  ccyb: Double,             // current countercyclical capital buffer rate
-  creditToGdpGap: Double,   // credit-to-GDP deviation from trend (HP-filtered)
-  creditToGdpTrend: Double  // HP-filtered trend (smoothed)
+  ccyb: Rate,              // current countercyclical capital buffer rate
+  creditToGdpGap: Double,  // credit-to-GDP deviation from trend (HP-filtered)
+  creditToGdpTrend: Double // HP-filtered trend (smoothed)
 )
 
 object MacropruState:
-  val zero: MacropruState = MacropruState(0.0, 0.0, 0.0)
+  val zero: MacropruState = MacropruState(Rate.Zero, 0.0, 0.0)
 
 object Macroprudential:
 
@@ -72,9 +73,9 @@ object Macroprudential:
     val newCcyb =
       if gap > Config.CcybActivationGap then
         // Build gradually: add 0.25pp per quarter of exceedance
-        Math.min(Config.CcybMax, prev.ccyb + 0.0025 / 3.0)  // ~0.25pp/quarter ÷ 3 months
+        Rate(Math.min(Config.CcybMax, prev.ccyb.toDouble + 0.0025 / 3.0))  // ~0.25pp/quarter ÷ 3 months
       else if gap < Config.CcybReleaseGap then
-        0.0  // Immediate release
+        Rate.Zero  // Immediate release
       else
         prev.ccyb  // Maintain current buffer
 

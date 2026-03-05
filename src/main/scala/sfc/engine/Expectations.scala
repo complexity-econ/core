@@ -1,24 +1,25 @@
 package sfc.engine
 
 import sfc.config.{Config, RunConfig}
+import sfc.types.*
 
 case class ExpectationsState(
-  expectedInflation: Double = 0.025,
-  expectedRate: Double = 0.0575,
-  credibility: Double = 0.8,
-  forecastError: Double = 0.0,
-  forwardGuidanceRate: Double = 0.0575
+  expectedInflation: Rate = Rate(0.025),
+  expectedRate: Rate = Rate(0.0575),
+  credibility: Ratio = Ratio(0.8),
+  forecastError: Rate = Rate.Zero,
+  forwardGuidanceRate: Rate = Rate(0.0575)
 )
 
 object Expectations:
   def zero: ExpectationsState = ExpectationsState()
 
   def initial: ExpectationsState = ExpectationsState(
-    expectedInflation = Config.NbpTargetInfl,
-    expectedRate = Config.NbpInitialRate,
-    credibility = Config.ExpCredibilityInit,
-    forecastError = 0.0,
-    forwardGuidanceRate = Config.NbpInitialRate
+    expectedInflation = Rate(Config.NbpTargetInfl),
+    expectedRate = Rate(Config.NbpInitialRate),
+    credibility = Ratio(Config.ExpCredibilityInit),
+    forecastError = Rate.Zero,
+    forwardGuidanceRate = Rate(Config.NbpInitialRate)
   )
 
   def step(prev: ExpectationsState, realizedInflation: Double,
@@ -26,14 +27,15 @@ object Expectations:
            rc: RunConfig): ExpectationsState =
 
     // 1. Forecast error
-    val error = realizedInflation - prev.expectedInflation
+    val error = realizedInflation - prev.expectedInflation.toDouble
 
     // 2. Adaptive update
-    val adaptive = prev.expectedInflation + Config.ExpLambda * error
+    val adaptive = prev.expectedInflation.toDouble + Config.ExpLambda * error
 
     // 3. Anchoring: blend target with adaptive based on credibility
     val target = if rc.isEurozone then Config.EcbTargetInfl else Config.NbpTargetInfl
-    val expected = prev.credibility * target + (1.0 - prev.credibility) * adaptive
+    val cred = prev.credibility.toDouble
+    val expected = cred * target + (1.0 - cred) * adaptive
 
     // 4. Credibility update (asymmetric: harder to build than to lose)
     val absDeviation = Math.abs(realizedInflation - target)
@@ -41,11 +43,11 @@ object Expectations:
     val speed = Config.ExpCredibilitySpeed
     val rawCredibility = if absDeviation <= threshold then
       // Below threshold: build credibility
-      prev.credibility + speed * (1.0 - prev.credibility) *
+      cred + speed * (1.0 - cred) *
         (threshold - absDeviation) / threshold
     else
       // Above threshold: erode credibility
-      prev.credibility - speed * prev.credibility *
+      cred - speed * cred *
         (absDeviation - threshold) / threshold
     val newCredibility = Math.max(0.01, Math.min(1.0, rawCredibility))
 
@@ -63,15 +65,15 @@ object Expectations:
     else currentRate
 
     // 6. Expected rate
-    val adaptiveRate = prev.expectedRate + Config.ExpLambda * (currentRate - prev.expectedRate)
+    val adaptiveRate = prev.expectedRate.toDouble + Config.ExpLambda * (currentRate - prev.expectedRate.toDouble)
     val expRate = if Config.NbpForwardGuidance then
       0.6 * fgRate + 0.4 * adaptiveRate
     else adaptiveRate
 
     ExpectationsState(
-      expectedInflation = expected,
-      expectedRate = expRate,
-      credibility = newCredibility,
-      forecastError = error,
-      forwardGuidanceRate = fgRate
+      expectedInflation = Rate(expected),
+      expectedRate = Rate(expRate),
+      credibility = Ratio(newCredibility),
+      forecastError = Rate(error),
+      forwardGuidanceRate = Rate(fgRate)
     )

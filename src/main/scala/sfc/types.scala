@@ -65,6 +65,8 @@ object types:
       inline def toDouble: Double = r
       inline def >(other: Rate): Boolean = r > other
       inline def <(other: Rate): Boolean = r < other
+      inline def >=(other: Rate): Boolean = r >= other
+      inline def <=(other: Rate): Boolean = r <= other
 
   // === Ratios (0-1 range: shares, probabilities, adoption rates) ===
   opaque type Ratio = Double
@@ -78,6 +80,12 @@ object types:
       inline def *(scalar: Double): Ratio = r * scalar
       @targetName("ratioTimesRatio")
       inline def *(other: Ratio): Ratio = r * other
+      @targetName("ratioDivScalar")
+      inline def /(scalar: Double): Ratio = r / scalar
+      inline def max(other: Ratio): Ratio = math.max(r, other)
+      inline def min(other: Ratio): Ratio = math.min(r, other)
       inline def toDouble: Double = r
       inline def >(other: Ratio): Boolean = r > other
       inline def <(other: Ratio): Boolean = r < other
+      inline def >=(other: Ratio): Boolean = r >= other
+      inline def <=(other: Ratio): Boolean = r <= other

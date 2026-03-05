@@ -11,7 +11,7 @@ case class ForeignFirm(
   baseExportDemand: PLN,
   baseImportSupply: PLN,
   priceIndex: Double,
-  disruption: Double
+  disruption: Ratio
 )
 
 case class GvcState(
@@ -20,10 +20,10 @@ case class GvcState(
   totalIntermImports: PLN = PLN.Zero,
   sectorExports: Vector[PLN] = Vector.fill(6)(PLN.Zero),
   sectorImports: Vector[PLN] = Vector.fill(6)(PLN.Zero),
-  disruptionIndex: Double = 0.0,
+  disruptionIndex: Ratio = Ratio.Zero,
   foreignPriceIndex: Double = 1.0,
-  tradeConcentration: Double = 0.0,
-  exportDemandShockMag: Double = 0.0,
+  tradeConcentration: Ratio = Ratio.Zero,
+  exportDemandShockMag: Ratio = Ratio.Zero,
   importCostIndex: Double = 1.0
 )
 
@@ -48,11 +48,11 @@ object ExternalSector:
         baseExportDemand = PLN(Config.OeExportBase * Config.GvcExportShares(s) * ps),
         baseImportSupply = PLN(Config.OeExportBase * Config.GvcDepth(s) * ps),
         priceIndex = 1.0,
-        disruption = 0.0
+        disruption = Ratio.Zero
       )
 
     GvcState(firms, foreignPriceIndex = 1.0,
-      tradeConcentration = euShare * euShare + nonEuShare * nonEuShare)
+      tradeConcentration = Ratio(euShare * euShare + nonEuShare * nonEuShare))
 
   def step(prev: GvcState, sectorOutputs: Vector[Double], priceLevel: Double,
            exchangeRate: Double, autoRatio: Double, month: Int,
@@ -72,7 +72,7 @@ object ExternalSector:
       else ff
 
       // Recover disruptions
-      val newDisruption = afterShock.disruption * (1.0 - Config.GvcDisruptionRecovery)
+      val newDisruption = Ratio(afterShock.disruption.toDouble * (1.0 - Config.GvcDisruptionRecovery))
       // Evolve price
       val newPrice = afterShock.priceIndex * (1.0 + Config.GvcForeignInflation / 12.0)
       afterShock.copy(disruption = newDisruption, priceIndex = newPrice)
@@ -95,7 +95,7 @@ object ExternalSector:
       // Per-sector automation ratio from sectorOutputs (proxy)
       val sectorAutoBoost = 1.0 + autoRatio * 0.15
       val avgDisruption = if sectorFirms.nonEmpty then
-        sectorFirms.kahanSumBy(_.disruption) / sectorFirms.length
+        sectorFirms.kahanSumBy(_.disruption.toDouble) / sectorFirms.length
       else 0.0
       PLN(demand * realExRateEffect * sectorAutoBoost * (1.0 - avgDisruption))
     }.toVector
@@ -129,7 +129,7 @@ object ExternalSector:
         else 1.0
 
       val avgDisruption = if sectorFirms.nonEmpty then
-        sectorFirms.kahanSumBy(_.disruption) / sectorFirms.length
+        sectorFirms.kahanSumBy(_.disruption.toDouble) / sectorFirms.length
       else 0.0
       PLN(baseDemand * Math.max(0.1, erEffect) * (1.0 - avgDisruption))
     }.toVector
@@ -139,7 +139,7 @@ object ExternalSector:
     val weightedDisruption = if updatedFirms.nonEmpty then
       val totalDemand = updatedFirms.kahanSumBy(_.baseExportDemand.toDouble)
       if totalDemand > 0 then
-        updatedFirms.kahanSumBy(ff => ff.disruption * ff.baseExportDemand.toDouble) / totalDemand
+        updatedFirms.kahanSumBy(ff => ff.disruption.toDouble * ff.baseExportDemand.toDouble) / totalDemand
       else 0.0
     else 0.0
 
@@ -153,10 +153,10 @@ object ExternalSector:
       totalIntermImports = totalIntermImports,
       sectorExports = sectorExports,
       sectorImports = sectorImports,
-      disruptionIndex = weightedDisruption,
+      disruptionIndex = Ratio(weightedDisruption),
       foreignPriceIndex = newForeignPrice,
-      tradeConcentration = Config.GvcEuTradeShare * Config.GvcEuTradeShare +
-        (1.0 - Config.GvcEuTradeShare) * (1.0 - Config.GvcEuTradeShare),
-      exportDemandShockMag = shockMag,
+      tradeConcentration = Ratio(Config.GvcEuTradeShare * Config.GvcEuTradeShare +
+        (1.0 - Config.GvcEuTradeShare) * (1.0 - Config.GvcEuTradeShare)),
+      exportDemandShockMag = Ratio(shockMag),
       importCostIndex = importCostIndex
     )

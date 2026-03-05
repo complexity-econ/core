@@ -12,7 +12,7 @@ case class GovState(
   cumulativeDebt: PLN,
   unempBenefitSpend: PLN,
   bondsOutstanding: PLN = PLN.Zero,
-  bondYield: Double = 0.0,
+  bondYield: Rate = Rate.Zero,
   debtServiceSpend: PLN = PLN.Zero,
   socialTransferSpend: PLN = PLN.Zero,
   publicCapitalStock: PLN = PLN.Zero,

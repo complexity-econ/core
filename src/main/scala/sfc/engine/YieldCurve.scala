@@ -1,12 +1,14 @@
 package sfc.engine
 
+import sfc.types.*
+
 /** Interbank yield curve: O/N + WIBOR term rates (1M, 3M, 6M).
   * Calibrated to NBP/GPW Benchmark 2024 with elevated premiums for visible heterogeneity. */
 case class InterbankCurve(
-  overnight: Double,  // O/N rate (WIRON)
-  wibor1m: Double,    // WIBOR 1M
-  wibor3m: Double,    // WIBOR 3M
-  wibor6m: Double     // WIBOR 6M
+  overnight: Rate,  // O/N rate (WIRON)
+  wibor1m: Rate,    // WIBOR 1M
+  wibor3m: Rate,    // WIBOR 3M
+  wibor6m: Rate     // WIBOR 6M
 )
 
 object YieldCurve:
@@ -20,8 +22,8 @@ object YieldCurve:
   /** Compute term structure from overnight (O/N) interbank rate. */
   def compute(overnightRate: Double): InterbankCurve =
     InterbankCurve(
-      overnight = overnightRate,
-      wibor1m = overnightRate + TermPremium1M,
-      wibor3m = overnightRate + TermPremium3M,
-      wibor6m = overnightRate + TermPremium6M
+      overnight = Rate(overnightRate),
+      wibor1m = Rate(overnightRate + TermPremium1M),
+      wibor3m = Rate(overnightRate + TermPremium3M),
+      wibor6m = Rate(overnightRate + TermPremium6M)
     )

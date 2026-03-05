@@ -110,10 +110,10 @@ class HouseholdPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPro
       forAll(Gen.listOfN(n, genHousehold)) { (hhList: List[Household]) =>
         val hhs = hhList.toVector
         val agg = HouseholdLogic.computeAggregates(hhs, 8266.0, 4666.0, 0.40, 0, 0)
-        agg.povertyRate30 should be >= 0.0
-        agg.povertyRate30 should be <= 1.0
-        agg.povertyRate50 should be >= 0.0
-        agg.povertyRate50 should be <= 1.0
+        agg.povertyRate30.toDouble should be >= 0.0
+        agg.povertyRate30.toDouble should be <= 1.0
+        agg.povertyRate50.toDouble should be >= 0.0
+        agg.povertyRate50.toDouble should be <= 1.0
       }
     }
   }
@@ -123,7 +123,7 @@ class HouseholdPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPro
       forAll(Gen.listOfN(n, genHousehold)) { (hhList: List[Household]) =>
         val hhs = hhList.toVector
         val agg = HouseholdLogic.computeAggregates(hhs, 8266.0, 4666.0, 0.40, 0, 0)
-        agg.povertyRate30 should be <= (agg.povertyRate50 + 1e-10)
+        agg.povertyRate30.toDouble should be <= (agg.povertyRate50.toDouble + 1e-10)
       }
     }
   }
@@ -133,8 +133,8 @@ class HouseholdPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPro
       forAll(Gen.listOfN(n, genHousehold)) { (hhList: List[Household]) =>
         val hhs = hhList.toVector
         val agg = HouseholdLogic.computeAggregates(hhs, 8266.0, 4666.0, 0.40, 0, 0)
-        agg.bankruptcyRate should be >= 0.0
-        agg.bankruptcyRate should be <= 1.0
+        agg.bankruptcyRate.toDouble should be >= 0.0
+        agg.bankruptcyRate.toDouble should be <= 1.0
       }
     }
   }
@@ -155,7 +155,7 @@ class HouseholdPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPro
   "Bankrupt" should "be an absorbing barrier" in {
     forAll(Gen.choose(1, 20)) { (n: Int) =>
       val bankruptHhs = (0 until n).map { i =>
-        Household(i, PLN(-10000.0), PLN(5000.0), PLN(1800.0), 0.5, 0.3, 0.8, HhStatus.Bankrupt, Array.empty[Int])
+        Household(i, PLN(-10000.0), PLN(5000.0), PLN(1800.0), Ratio(0.5), Ratio(0.3), Ratio(0.8), HhStatus.Bankrupt, Array.empty[Int])
       }.toVector
       val agg = HouseholdLogic.computeAggregates(bankruptHhs, 8266.0, 4666.0, 0.40, 0, 0)
       agg.bankrupt shouldBe n

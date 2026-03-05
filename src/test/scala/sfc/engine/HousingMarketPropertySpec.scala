@@ -18,7 +18,7 @@ class HousingMarketPropertySpec extends AnyFlatSpec with Matchers with ScalaChec
     mortgage  <- Gen.choose(0.0, 1e12)
     rate      <- Gen.choose(0.02, 0.15)
     wealth    <- Gen.choose(0.0, 1e13)
-  yield HousingMarketState(hpi, PLN(value), PLN(mortgage), rate, PLN(wealth), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, 0.0, PLN.Zero)
+  yield HousingMarketState(hpi, PLN(value), PLN(mortgage), Rate(rate), PLN(wealth), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, Rate.Zero, PLN.Zero)
 
   // --- applyFlows properties ---
 
@@ -76,13 +76,13 @@ class HousingMarketPropertySpec extends AnyFlatSpec with Matchers with ScalaChec
     z.priceIndex shouldBe 0.0
     z.totalValue shouldBe PLN.Zero
     z.mortgageStock shouldBe PLN.Zero
-    z.avgMortgageRate shouldBe 0.0
+    z.avgMortgageRate.toDouble shouldBe 0.0
     z.hhHousingWealth shouldBe PLN.Zero
     z.lastOrigination shouldBe PLN.Zero
     z.lastRepayment shouldBe PLN.Zero
     z.lastDefault shouldBe PLN.Zero
     z.lastWealthEffect shouldBe PLN.Zero
-    z.monthlyReturn shouldBe 0.0
+    z.monthlyReturn.toDouble shouldBe 0.0
     z.mortgageInterestIncome shouldBe PLN.Zero
     z.regions shouldBe None
   }
@@ -119,11 +119,11 @@ class HousingMarketPropertySpec extends AnyFlatSpec with Matchers with ScalaChec
         lastOrigination = PLN.Zero,
         lastRepayment = PLN.Zero,
         lastDefault = PLN.Zero,
-        monthlyReturn = 0.0
+        monthlyReturn = Rate.Zero
       )
     }.toVector
-    HousingMarketState(100.0, PLN(aggValue), PLN(aggMortgage), 0.08, PLN(aggValue - aggMortgage),
-      PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, 0.0, PLN.Zero, Some(regions))
+    HousingMarketState(100.0, PLN(aggValue), PLN(aggMortgage), Rate(0.08), PLN(aggValue - aggMortgage),
+      PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, Rate.Zero, PLN.Zero, Some(regions))
 
   "applyFlows with regions" should "never produce negative regional mortgage stock" in {
     forAll(Gen.choose(1e9, 1e12), Gen.choose(1e8, 5e11),

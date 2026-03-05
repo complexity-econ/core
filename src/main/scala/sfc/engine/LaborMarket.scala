@@ -46,7 +46,7 @@ object LaborMarket:
           firmToWorkers.getOrElseUpdate(firmId.toInt, scala.collection.mutable.ArrayBuffer.empty) += idx
         case _ =>
     val eduRetainSets: Map[Int, Set[Int]] = firmToWorkers.map { (firmId, indices) =>
-      val sorted = indices.sortBy(i => (-households(i).education, -households(i).skill))
+      val sorted = indices.sortBy(i => (-households(i).education, -households(i).skill.toDouble))
       val maxRetain = hybridRetained.getOrElse(firmId, automatedRetained.getOrElse(firmId, 0))
       firmId -> sorted.take(maxRetain).toSet
     }.toMap
@@ -83,7 +83,7 @@ object LaborMarket:
       households(i).status.isInstanceOf[HhStatus.Unemployed]
     }.sortBy { i =>
       val hh = households(i)
-      -(hh.skill * (1.0 - hh.healthPenalty))  // negative for descending sort
+      -(hh.skill.toDouble * (1.0 - hh.healthPenalty.toDouble))  // negative for descending sort
     }
 
     val result = households.toArray
@@ -116,7 +116,7 @@ object LaborMarket:
           val penalty = if Config.LmSectoralMobility && isCrossSector then
             SectoralMobility.crossSectorWagePenalty(Config.LmFrictionMatrix(prevSector)(f.sector.toInt))
           else 1.0
-          val individualWage = marketWage * sectorMult * hh.skill * (1.0 - hh.healthPenalty) * penalty *
+          val individualWage = marketWage * sectorMult * hh.skill.toDouble * (1.0 - hh.healthPenalty.toDouble) * penalty *
             Config.eduWagePremium(hh.education)
           if isCrossSector then crossSectorHires += 1
           result(idx) = hh.copy(
@@ -141,7 +141,7 @@ object LaborMarket:
           val immigrantDiscount = if hh.isImmigrant && Config.ImmigEnabled then
             1.0 - Config.ImmigWageDiscount
           else 1.0
-          FirmOps.effectiveWageMult(sectorIdx) * hh.skill * (1.0 - hh.healthPenalty) * immigrantDiscount *
+          FirmOps.effectiveWageMult(sectorIdx) * hh.skill.toDouble * (1.0 - hh.healthPenalty.toDouble) * immigrantDiscount *
             Config.eduWagePremium(hh.education)
         case _ => 0.0
     }

@@ -138,7 +138,7 @@ object HouseholdLogic:
           // Consumer credit debt service
           val consumerRate = if br != null then
             br.lendingRates(hh.bankId.toInt) + Config.CcSpread
-          else world.nbp.referenceRate + Config.CcSpread
+          else world.nbp.referenceRate.toDouble + Config.CcSpread
           val consumerDebtSvc = hh.consumerDebt.toDouble * (Config.CcAmortRate + consumerRate / 12.0)
           totalConsumerDebtService += consumerDebtSvc
           val consumerPrin = hh.consumerDebt.toDouble * Config.CcAmortRate
@@ -163,7 +163,7 @@ object HouseholdLogic:
             case _ => 0.0
           totalConsumerOrigination += newConsumerLoan
 
-          val consumption = (disposable + newConsumerLoan) * hh.mpc
+          val consumption = (disposable + newConsumerLoan) * hh.mpc.toDouble
 
           // Social network precautionary effect (uses pre-computed distress set)
           val neighborDistress = neighborDistressRatioFast(hh, distressedIds)
@@ -295,8 +295,8 @@ object HouseholdLogic:
               savings = PLN(newSavings - retrainingCostThisMonth),
               debt = PLN(newDebt),
               consumerDebt = PLN(newConsumerDebt),
-              skill = afterSkill,
-              healthPenalty = afterHealth,
+              skill = Ratio(afterSkill),
+              healthPenalty = Ratio(afterHealth),
               mpc = hh.mpc,
               status = finalStatus,
               equityWealth = PLN(newEquityWealth)
@@ -328,7 +328,7 @@ object HouseholdLogic:
       totalDepositInterest = PLN(actualTotalDepositInterest),
       totalRent = PLN(actualTotalRent),
       voluntaryQuits = voluntaryQuits,
-      sectorMobilityRate = smRate,
+      sectorMobilityRate = Ratio(smRate),
       totalRemittances = PLN(totalRemittances),
       totalPit = PLN(totalPit),
       totalSocialTransfers = PLN(totalSocialTransfers),
@@ -359,14 +359,14 @@ object HouseholdLogic:
   private def applySkillDecay(hh: Household, status: HhStatus): Double =
     status match
       case HhStatus.Unemployed(months) if months >= Config.HhScarringOnset =>
-        hh.skill * (1.0 - Config.HhSkillDecayRate)
-      case _ => hh.skill
+        hh.skill.toDouble * (1.0 - Config.HhSkillDecayRate)
+      case _ => hh.skill.toDouble
 
   private def applyHealthScarring(hh: Household, status: HhStatus): Double =
     status match
       case HhStatus.Unemployed(months) if months >= Config.HhScarringOnset =>
-        Math.min(Config.HhScarringCap, hh.healthPenalty + Config.HhScarringRate)
-      case _ => hh.healthPenalty
+        Math.min(Config.HhScarringCap, hh.healthPenalty.toDouble + Config.HhScarringRate)
+      case _ => hh.healthPenalty.toDouble
 
   private def neighborDistressRatioFast(hh: Household, distressedIds: java.util.BitSet): Double =
     if hh.socialNeighbors.isEmpty then 0.0
@@ -409,20 +409,20 @@ object HouseholdLogic:
         case HhStatus.Employed(_, _, wage) =>
           nEmployed += 1
           incomes(i) = wage.toDouble
-          sumSkill += hh.skill
-          sumHealth += hh.healthPenalty
+          sumSkill += hh.skill.toDouble
+          sumHealth += hh.healthPenalty.toDouble
         case HhStatus.Unemployed(months) =>
           nUnemployed += 1
           val benefit = computeBenefit(months)
           incomes(i) = bdp + benefit
           totalUnempBenefits += benefit
-          sumSkill += hh.skill
-          sumHealth += hh.healthPenalty
+          sumSkill += hh.skill.toDouble
+          sumHealth += hh.healthPenalty.toDouble
         case HhStatus.Retraining(_, _, _) =>
           nRetraining += 1
           incomes(i) = bdp * 0.7
-          sumSkill += hh.skill
-          sumHealth += hh.healthPenalty
+          sumSkill += hh.skill.toDouble
+          sumHealth += hh.healthPenalty.toDouble
         case HhStatus.Bankrupt =>
           nBankrupt += 1
           incomes(i) = 0.0
@@ -431,7 +431,7 @@ object HouseholdLogic:
       val debtSvc = hh.debt.toDouble * Config.HhDebtServiceRate
       val obligations = rent + debtSvc
       val disposable = Math.max(0.0, incomes(i) - obligations)
-      consumptions(i) = disposable * hh.mpc
+      consumptions(i) = disposable * hh.mpc.toDouble
       totalIncome += incomes(i)
       savingsArr(i) = hh.savings.toDouble
       if hh.status != HhStatus.Bankrupt then
@@ -492,12 +492,12 @@ object HouseholdLogic:
       importConsumption = PLN(importCons),
       marketWage = PLN(marketWage),
       reservationWage = PLN(reservationWage),
-      giniIndividual = giniIncome,
-      giniWealth = giniWealth,
+      giniIndividual = Ratio(giniIncome),
+      giniWealth = Ratio(giniWealth),
       meanSavings = PLN(meanSavings),
       medianSavings = PLN(medianSavings),
-      povertyRate50 = povertyRate50,
-      bankruptcyRate = bankruptcyRate,
+      povertyRate50 = Ratio(povertyRate50),
+      bankruptcyRate = Ratio(bankruptcyRate),
       meanSkill = meanSkill,
       meanHealthPenalty = meanHealth,
       retrainingAttempts = retrainingAttempts,
@@ -506,7 +506,7 @@ object HouseholdLogic:
       consumptionP50 = PLN(consP50),
       consumptionP90 = PLN(consP90),
       meanMonthsToRuin = meanMonthsToRuin,
-      povertyRate30 = povertyRate30,
+      povertyRate30 = Ratio(povertyRate30),
       totalRent = PLN(totalRent),
       totalDebtService = PLN(totalDebtService),
       totalUnempBenefits = PLN(totalUnempBenefits)
