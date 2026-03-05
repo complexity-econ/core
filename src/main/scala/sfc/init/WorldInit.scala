@@ -8,9 +8,7 @@ import sfc.engine.*
 import sfc.types.*
 import sfc.util.KahanSum.*
 
-/** Orchestrates all initialization factories and assembles World.
-  * Extracted from Main.runSingle() lines 20–218.
-  */
+/** Orchestrates all initialization factories and assembles World. */
 object WorldInit:
 
   case class InitResult(world: World, firms: Array[Firm], households: Option[Vector[Household]])

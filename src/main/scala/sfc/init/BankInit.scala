@@ -5,7 +5,7 @@ import sfc.config.Config
 import sfc.types.*
 import sfc.util.KahanSum.*
 
-/** Factory for banking sector initialization. Extracted from Main.runSingle() lines 140–156. */
+/** Factory for banking sector initialization. */
 object BankInit:
 
   /** Initialize multi-bank sector with per-bank consumer loan override.

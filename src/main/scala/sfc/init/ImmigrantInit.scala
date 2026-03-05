@@ -4,7 +4,7 @@ import scala.util.Random
 import sfc.agents.*
 import sfc.config.Config
 
-/** Factory for initial immigrant stock. Extracted from Main.runSingle() lines 121–126. */
+/** Factory for initial immigrant stock. */
 object ImmigrantInit:
 
   /** Spawn initial immigrants when ImmigEnabled && ImmigInitStock > 0 && individual mode.

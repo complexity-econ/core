@@ -91,7 +91,7 @@ case class HhAggregates(
 
 object HouseholdInit:
   /** Create households in Individual mode, with multi-bank assignment.
-    * Returns None in Aggregate mode. Extracted from Main.runSingle() lines 104–119.
+    * Returns None in Aggregate mode.
     */
   def create(rng: Random, firms: Array[Firm]): Option[Vector[Household]] =
     import sfc.config.*

@@ -6,7 +6,7 @@ import sfc.config.*
 import sfc.networks.Network
 import sfc.types.*
 
-/** Factory for firm array initialization. Extracted from Main.runSingle() lines 23–138. */
+/** Factory for firm array initialization. */
 object FirmInit:
 
   /** Create firm array with all post-creation enhancements.
