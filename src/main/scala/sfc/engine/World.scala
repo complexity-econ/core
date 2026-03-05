@@ -3,6 +3,7 @@ package sfc.engine
 import sfc.accounting.{BankState, BopState, ForexState, GovState, MonetaryAggregates}
 import sfc.agents.{BankingSectorState, DemographicsState, HhAggregates, HhState, Household, ImmigrationState, InsuranceSector, InsuranceSectorState, JstState, NbfiState, NbpState, PpkState, ShadowBanking, ZusState}
 import sfc.engine.{EquityMarketState, HousingMarketState, SectoralMobilityState}
+import sfc.types.*
 
 case class World(
   month: Int,
@@ -17,7 +18,7 @@ case class World(
   hybridRatio: Double,
   gdpProxy: Double,
   currentSigmas: Vector[Double],
-  ioFlows: Double = 0.0,
+  ioFlows: PLN = PLN.Zero,
   bop: BopState = BopState.zero,
   hhAgg: Option[HhAggregates] = None,
   households: Option[Vector[Household]] = None,
@@ -39,23 +40,23 @@ case class World(
   nbfi: NbfiState = ShadowBanking.zero,
   sectorDemandMult: Vector[Double] = Vector.fill(6)(1.0),
   fofResidual: Double = 0.0,
-  grossInvestment: Double = 0.0,
-  fdiProfitShifting: Double = 0.0,
-  fdiRepatriation: Double = 0.0,
-  fdiCitLoss: Double = 0.0,
+  grossInvestment: PLN = PLN.Zero,
+  fdiProfitShifting: PLN = PLN.Zero,
+  fdiRepatriation: PLN = PLN.Zero,
+  fdiCitLoss: PLN = PLN.Zero,
   firmBirths: Int = 0,
   firmDeaths: Int = 0,
-  aggInventoryStock: Double = 0.0,
-  aggInventoryChange: Double = 0.0,
+  aggInventoryStock: PLN = PLN.Zero,
+  aggInventoryChange: PLN = PLN.Zero,
   informalCyclicalAdj: Double = 0.0,
-  taxEvasionLoss: Double = 0.0,
-  informalEmployed: Double = 0.0,
-  aggEnergyCost: Double = 0.0,
-  aggGreenCapital: Double = 0.0,
-  aggGreenInvestment: Double = 0.0,
-  diasporaRemittanceInflow: Double = 0.0,
-  tourismExport: Double = 0.0,
-  tourismImport: Double = 0.0,
-  bfgFundBalance: Double = 0.0,
-  bailInLoss: Double = 0.0
+  taxEvasionLoss: PLN = PLN.Zero,
+  informalEmployed: PLN = PLN.Zero,
+  aggEnergyCost: PLN = PLN.Zero,
+  aggGreenCapital: PLN = PLN.Zero,
+  aggGreenInvestment: PLN = PLN.Zero,
+  diasporaRemittanceInflow: PLN = PLN.Zero,
+  tourismExport: PLN = PLN.Zero,
+  tourismImport: PLN = PLN.Zero,
+  bfgFundBalance: PLN = PLN.Zero,
+  bailInLoss: PLN = PLN.Zero
 )

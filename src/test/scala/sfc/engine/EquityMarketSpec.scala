@@ -3,12 +3,13 @@ package sfc.engine
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import sfc.config.Config
+import sfc.types.*
 
 class EquityMarketSpec extends AnyFlatSpec with Matchers:
 
   private val initState = EquityMarketState(
     index = 2400.0,
-    marketCap = 1.4e12 * Config.FirmsCount / 10000.0,
+    marketCap = PLN(1.4e12 * Config.FirmsCount / 10000.0),
     earningsYield = 0.10,
     dividendYield = 0.057,
     foreignOwnership = 0.67
@@ -17,16 +18,16 @@ class EquityMarketSpec extends AnyFlatSpec with Matchers:
   "EquityMarket.zero" should "return all-zero state" in {
     val z = EquityMarket.zero
     z.index shouldBe 0.0
-    z.marketCap shouldBe 0.0
+    z.marketCap shouldBe PLN.Zero
     z.earningsYield shouldBe 0.0
     z.dividendYield shouldBe 0.0
     z.foreignOwnership shouldBe 0.0
-    z.lastIssuance shouldBe 0.0
-    z.lastDomesticDividends shouldBe 0.0
-    z.lastForeignDividends shouldBe 0.0
-    z.lastDividendTax shouldBe 0.0
-    z.hhEquityWealth shouldBe 0.0
-    z.lastWealthEffect shouldBe 0.0
+    z.lastIssuance shouldBe PLN.Zero
+    z.lastDomesticDividends shouldBe PLN.Zero
+    z.lastForeignDividends shouldBe PLN.Zero
+    z.lastDividendTax shouldBe PLN.Zero
+    z.hhEquityWealth shouldBe PLN.Zero
+    z.lastWealthEffect shouldBe PLN.Zero
   }
 
   "EquityMarket.step" should "return zero when GPW_ENABLED=false" in {
@@ -49,11 +50,11 @@ class EquityMarketSpec extends AnyFlatSpec with Matchers:
   "EquityMarket.processIssuance" should "increase market cap and dilute index" in {
     val issuanceAmount = 1e9
     val result = EquityMarket.processIssuance(issuanceAmount, initState)
-    result.marketCap shouldBe (initState.marketCap + issuanceAmount +- 1.0)
+    result.marketCap.toDouble shouldBe (initState.marketCap.toDouble + issuanceAmount +- 1.0)
     // Index diluted: new < old
     result.index should be < initState.index
     // Dilution factor check
-    val expectedDilution = initState.marketCap / (initState.marketCap + issuanceAmount)
+    val expectedDilution = initState.marketCap.toDouble / (initState.marketCap.toDouble + issuanceAmount)
     result.index shouldBe (initState.index * expectedDilution +- 0.01)
   }
 
@@ -70,7 +71,7 @@ class EquityMarketSpec extends AnyFlatSpec with Matchers:
 
   "EquityMarket.processIssuance" should "track lastIssuance amount" in {
     val result = EquityMarket.processIssuance(5e8, initState)
-    result.lastIssuance shouldBe 5e8
+    result.lastIssuance shouldBe PLN(5e8)
   }
 
   "EquityMarket.computeDividends" should "return zeros for zero market cap" in {

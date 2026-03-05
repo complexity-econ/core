@@ -1,33 +1,34 @@
 package sfc.agents
 
 import sfc.config.Config
+import sfc.types.*
 
 /** Insurance sector state: life + non-life reserves, asset allocation (#41). */
 case class InsuranceSectorState(
-  lifeReserves: Double,
-  nonLifeReserves: Double,
-  govBondHoldings: Double,
-  corpBondHoldings: Double,
-  equityHoldings: Double,
-  lastLifePremium: Double = 0.0,
-  lastNonLifePremium: Double = 0.0,
-  lastLifeClaims: Double = 0.0,
-  lastNonLifeClaims: Double = 0.0,
-  lastInvestmentIncome: Double = 0.0,
-  lastNetDepositChange: Double = 0.0
+  lifeReserves: PLN,
+  nonLifeReserves: PLN,
+  govBondHoldings: PLN,
+  corpBondHoldings: PLN,
+  equityHoldings: PLN,
+  lastLifePremium: PLN = PLN.Zero,
+  lastNonLifePremium: PLN = PLN.Zero,
+  lastLifeClaims: PLN = PLN.Zero,
+  lastNonLifeClaims: PLN = PLN.Zero,
+  lastInvestmentIncome: PLN = PLN.Zero,
+  lastNetDepositChange: PLN = PLN.Zero
 )
 
 object InsuranceSector:
-  def zero: InsuranceSectorState = InsuranceSectorState(0, 0, 0, 0, 0)
+  def zero: InsuranceSectorState = InsuranceSectorState(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
 
   def initial: InsuranceSectorState =
     val totalAssets = Config.InsLifeReserves + Config.InsNonLifeReserves
     InsuranceSectorState(
-      lifeReserves = Config.InsLifeReserves,
-      nonLifeReserves = Config.InsNonLifeReserves,
-      govBondHoldings = totalAssets * Config.InsGovBondShare,
-      corpBondHoldings = totalAssets * Config.InsCorpBondShare,
-      equityHoldings = totalAssets * Config.InsEquityShare
+      lifeReserves = PLN(Config.InsLifeReserves),
+      nonLifeReserves = PLN(Config.InsNonLifeReserves),
+      govBondHoldings = PLN(totalAssets * Config.InsGovBondShare),
+      corpBondHoldings = PLN(totalAssets * Config.InsCorpBondShare),
+      equityHoldings = PLN(totalAssets * Config.InsEquityShare)
     )
 
   /** Full monthly step: premiums, claims, investment income, rebalancing. */
@@ -35,7 +36,7 @@ object InsuranceSector:
            priceLevel: Double, unempRate: Double,
            govBondYield: Double, corpBondYield: Double,
            equityReturn: Double): InsuranceSectorState =
-    // Premiums: proportional to wage bill
+    // Premiums: proportional to wage bill (Double arithmetic)
     val lifePrem = employed * wage * Config.InsLifePremiumRate
     val nonLifePrem = employed * wage * Config.InsNonLifePremiumRate * priceLevel
 
@@ -50,13 +51,13 @@ object InsuranceSector:
       prev.equityHoldings * equityReturn
 
     // Net deposit change: premium outflow from HH minus claims inflow to HH
-    val netDepositChange = -(lifePrem + nonLifePrem - lifeCl - nonLifeCl)
+    val netDepositChange = PLN(-(lifePrem + nonLifePrem - lifeCl - nonLifeCl))
 
     // Update reserves: split investment income proportionally
     val totalReserves = prev.lifeReserves + prev.nonLifeReserves
-    val lifeShare = if totalReserves > 0 then prev.lifeReserves / totalReserves else 0.5
-    val newLifeRes = prev.lifeReserves + (lifePrem - lifeCl) + invIncome * lifeShare
-    val newNonLifeRes = prev.nonLifeReserves + (nonLifePrem - nonLifeCl) + invIncome * (1.0 - lifeShare)
+    val lifeShare = if totalReserves > PLN.Zero then prev.lifeReserves / totalReserves else 0.5
+    val newLifeRes = prev.lifeReserves + PLN(lifePrem - lifeCl) + invIncome * lifeShare
+    val newNonLifeRes = prev.nonLifeReserves + PLN(nonLifePrem - nonLifeCl) + invIncome * (1.0 - lifeShare)
 
     // Rebalance towards target allocation
     val totalAssets = newLifeRes + newNonLifeRes
@@ -69,4 +70,4 @@ object InsuranceSector:
     val newEq = prev.equityHoldings + (targetEq - prev.equityHoldings) * s
 
     InsuranceSectorState(newLifeRes, newNonLifeRes, newGov, newCorp, newEq,
-      lifePrem, nonLifePrem, lifeCl, nonLifeCl, invIncome, netDepositChange)
+      PLN(lifePrem), PLN(nonLifePrem), PLN(lifeCl), PLN(nonLifeCl), invIncome, netDepositChange)

@@ -3,6 +3,7 @@ package sfc.agents
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import sfc.config.Config
+import sfc.types.*
 
 class FxInterventionSpec extends AnyFlatSpec with Matchers:
 
@@ -114,12 +115,12 @@ class FxInterventionSpec extends AnyFlatSpec with Matchers:
 
   "NbpState" should "have backward-compatible constructor with FX defaults" in {
     val nbp = NbpState(0.0575)
-    nbp.fxReserves shouldBe Config.NbpFxReserves
-    nbp.lastFxTraded shouldBe 0.0
+    nbp.fxReserves.toDouble shouldBe Config.NbpFxReserves
+    nbp.lastFxTraded shouldBe PLN.Zero
   }
 
   it should "accept explicit FX field values" in {
-    val nbp = NbpState(0.05, fxReserves = 5e9, lastFxTraded = -1e8)
-    nbp.fxReserves shouldBe 5e9
-    nbp.lastFxTraded shouldBe -1e8
+    val nbp = NbpState(0.05, fxReserves = PLN(5e9), lastFxTraded = PLN(-1e8))
+    nbp.fxReserves shouldBe PLN(5e9)
+    nbp.lastFxTraded shouldBe PLN(-1e8)
   }

@@ -70,8 +70,8 @@ object DynamicNetwork:
         val sizeMult = newSize.toDouble / Config.WorkersPerFirm
         Firm(
           id = FirmId(i),
-          cash = (Random.between(10000.0, 80000.0)) * sizeMult,
-          debt = 0.0,
+          cash = PLN(Random.between(10000.0, 80000.0) * sizeMult),
+          debt = PLN.Zero,
           tech = TechState.Traditional(newSize),
           riskProfile = Random.between(0.1, 0.9),
           innovationCostFactor = Random.between(0.8, 1.5),
@@ -80,8 +80,8 @@ object DynamicNetwork:
           sector = sec,
           neighbors = adj(i).toArray,
           initialSize = newSize,
-          capitalStock = if Config.PhysCapEnabled then
-            newSize.toDouble * Config.PhysCapKLRatios(sec.toInt) else 0.0
+          capitalStock = PLN(if Config.PhysCapEnabled then
+            newSize.toDouble * Config.PhysCapKLRatios(sec.toInt) else 0.0)
         )
       else
         val newNb = adj(i).toArray

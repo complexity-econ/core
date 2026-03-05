@@ -162,4 +162,4 @@ class NetworkSpec extends AnyFlatSpec with Matchers:
   }
 
   private def mkFirm(id: Int, tech: TechState, neighbors: Array[Int]): Firm =
-    Firm(FirmId(id), 50000.0, 0.0, tech, 0.5, 1.0, 0.5, SectorIdx(0), neighbors)
+    Firm(FirmId(id), PLN(50000.0), PLN.Zero, tech, 0.5, 1.0, 0.5, SectorIdx(0), neighbors)

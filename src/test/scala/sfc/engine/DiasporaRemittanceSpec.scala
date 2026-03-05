@@ -4,6 +4,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import sfc.accounting.{BankState, BopState, ForexState, GovState}
 import sfc.config.{Config, SECTORS}
+import sfc.types.*
 
 class DiasporaRemittanceSpec extends AnyFlatSpec with Matchers:
 
@@ -148,7 +149,7 @@ class DiasporaRemittanceSpec extends AnyFlatSpec with Matchers:
 
   "secondaryIncome" should "include diasporaInflow as credit" in {
     val prevBop = BopState.zero
-    val prevForex = ForexState(Config.BaseExRate, 0, Config.ExportBase, 0, 0)
+    val prevForex = ForexState(Config.BaseExRate, PLN.Zero, PLN(Config.ExportBase), PLN.Zero, PLN.Zero)
     val rc = sfc.config.RunConfig(2000.0, 1, "test")
 
     val resultWith = OpenEconomy.step(prevBop, prevForex,
@@ -158,12 +159,12 @@ class DiasporaRemittanceSpec extends AnyFlatSpec with Matchers:
       0, 0, 0, 0.05, 1e9, 1.0, Vector.fill(6)(1e8), 1, rc,
       diasporaInflow = 0.0)
 
-    resultWith.bop.secondaryIncome shouldBe resultWithout.bop.secondaryIncome + 1000.0
+    resultWith.bop.secondaryIncome shouldBe resultWithout.bop.secondaryIncome + PLN(1000.0)
   }
 
   it should "net outflow and inflow" in {
     val prevBop = BopState.zero
-    val prevForex = ForexState(Config.BaseExRate, 0, Config.ExportBase, 0, 0)
+    val prevForex = ForexState(Config.BaseExRate, PLN.Zero, PLN(Config.ExportBase), PLN.Zero, PLN.Zero)
     val rc = sfc.config.RunConfig(2000.0, 1, "test")
 
     val result = OpenEconomy.step(prevBop, prevForex,
@@ -171,7 +172,7 @@ class DiasporaRemittanceSpec extends AnyFlatSpec with Matchers:
       remittanceOutflow = 500.0, diasporaInflow = 800.0)
 
     // secondaryIncome = euFunds(0) - outflow(500) + inflow(800) = 300
-    result.bop.secondaryIncome shouldBe 300.0
+    result.bop.secondaryIncome shouldBe PLN(300.0)
   }
 
   // ==========================================================================
@@ -190,11 +191,11 @@ class DiasporaRemittanceSpec extends AnyFlatSpec with Matchers:
 
   "World" should "default diasporaRemittanceInflow to 0.0" in {
     val w = World(0, 0.02, 1.0,
-      GovState(false, 0, 0, 0, 0, 0),
+      GovState(false, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
       sfc.agents.NbpState(0.05),
-      BankState(0, 0, 100, 1000),
-      ForexState(Config.BaseExRate, 0, 0, 0, 0),
-      sfc.agents.HhState(100, 5000, 4000, 0, 0, 0, 0),
+      BankState(PLN.Zero, PLN.Zero, PLN(100), PLN(1000)),
+      ForexState(Config.BaseExRate, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
+      sfc.agents.HhState(100, PLN(5000), PLN(4000), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
       0, 0, 1e9, Vector.fill(6)(0.1))
-    w.diasporaRemittanceInflow shouldBe 0.0
+    w.diasporaRemittanceInflow shouldBe PLN.Zero
   }

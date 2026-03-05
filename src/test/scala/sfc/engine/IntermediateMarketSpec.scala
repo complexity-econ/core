@@ -25,7 +25,7 @@ class IntermediateMarketSpec extends AnyFlatSpec with Matchers:
 
   private def makeFirm(id: Int, sector: Int, cash: Double = 50000.0,
                        tech: TechState = TechState.Traditional(10)): Firm =
-    Firm(FirmId(id), cash, 0.0, tech, 0.5, 1.0, 0.3, SectorIdx(sector), Array.empty[Int])
+    Firm(FirmId(id), PLN(cash), PLN.Zero, tech, 0.5, 1.0, 0.3, SectorIdx(sector), Array.empty[Int])
 
   private def makeFirmsAllSectors(perSector: Int = 10): Array[Firm] =
     (0 until 6).flatMap { s =>
@@ -37,8 +37,8 @@ class IntermediateMarketSpec extends AnyFlatSpec with Matchers:
   "IntermediateMarket.process" should "produce zero-sum cash adjustments" in {
     val firms = makeFirmsAllSectors(20)
     val result = IntermediateMarket.process(firms, Vector.fill(6)(1.0), 1.0, defaultMatrix, defaultColSums)
-    val totalCashBefore = firms.map(_.cash).sum
-    val totalCashAfter = result.firms.map(_.cash).sum
+    val totalCashBefore = firms.map(_.cash.toDouble).sum
+    val totalCashAfter = result.firms.map(_.cash.toDouble).sum
     totalCashAfter shouldBe totalCashBefore +- 1.0
   }
 
@@ -56,7 +56,7 @@ class IntermediateMarketSpec extends AnyFlatSpec with Matchers:
       defaultMatrix(0)(j) * FirmOps.capacity(firms(j)) * 1.0 * 1.0
     }.sum
     val expectedAdj = bpoRevenue - bpoCost
-    val actualAdj = result.firms(0).cash - firms(0).cash
+    val actualAdj = (result.firms(0).cash - firms(0).cash).toDouble
     actualAdj shouldBe expectedAdj +- 0.01
   }
 
@@ -71,10 +71,10 @@ class IntermediateMarketSpec extends AnyFlatSpec with Matchers:
     )
     val result = IntermediateMarket.process(firms, Vector.fill(6)(1.0), 1.0, defaultMatrix, defaultColSums)
     // Bankrupt firm's cash should not change
-    result.firms(1).cash shouldBe firms(1).cash
+    result.firms(1).cash.toDouble shouldBe firms(1).cash.toDouble
     // Still zero-sum among living firms
-    val livingBefore = firms.filter(f => FirmOps.isAlive(f)).map(_.cash).sum
-    val livingAfter = result.firms.filter(f => FirmOps.isAlive(f)).map(_.cash).sum
+    val livingBefore = firms.filter(f => FirmOps.isAlive(f)).map(_.cash.toDouble).sum
+    val livingAfter = result.firms.filter(f => FirmOps.isAlive(f)).map(_.cash.toDouble).sum
     livingAfter shouldBe livingBefore +- 1.0
   }
 
@@ -84,7 +84,7 @@ class IntermediateMarketSpec extends AnyFlatSpec with Matchers:
     val firms = makeFirmsAllSectors(10)
     val result = IntermediateMarket.process(firms, Vector.fill(6)(1.0), 1.0, zeroMatrix, zeroColSums)
     for i <- firms.indices do
-      result.firms(i).cash shouldBe firms(i).cash
+      result.firms(i).cash.toDouble shouldBe firms(i).cash.toDouble
     result.totalPaid shouldBe 0.0
   }
 
@@ -94,13 +94,13 @@ class IntermediateMarketSpec extends AnyFlatSpec with Matchers:
     val firms = (0 until 10).map(i => makeFirm(i, 0)).toArray
     val result = IntermediateMarket.process(firms, Vector.fill(6)(1.0), 1.0, defaultMatrix, defaultColSums)
     // Zero-sum still holds
-    val totalBefore = firms.map(_.cash).sum
-    val totalAfter = result.firms.map(_.cash).sum
+    val totalBefore = firms.map(_.cash.toDouble).sum
+    val totalAfter = result.firms.map(_.cash.toDouble).sum
     totalAfter shouldBe totalBefore +- 1.0
     // With only sector 0 firms: effective colSum(0) = a_00 (only sector 0 has suppliers)
     // cost = a_00 × output, revenue = a_00 × output → net = 0 for each firm
     for i <- firms.indices do
-      val actualNet = result.firms(i).cash - firms(i).cash
+      val actualNet = (result.firms(i).cash - firms(i).cash).toDouble
       actualNet shouldBe 0.0 +- 0.01
   }
 

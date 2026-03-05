@@ -1,28 +1,29 @@
 package sfc.engine
 
 import sfc.config.Config
+import sfc.types.*
 
 /** Corporate bond market state: Catalyst + non-public issuance (#40). */
 case class CorporateBondMarketState(
-  outstanding: Double,          // total corp bonds outstanding
-  bankHoldings: Double,         // banks' share of outstanding
-  ppkHoldings: Double,          // PPK's share of outstanding
-  otherHoldings: Double,        // other investors (off-model sink)
+  outstanding: PLN,          // total corp bonds outstanding
+  bankHoldings: PLN,         // banks' share of outstanding
+  ppkHoldings: PLN,          // PPK's share of outstanding
+  otherHoldings: PLN,        // other investors (off-model sink)
   corpBondYield: Double,        // current yield = govBondYield + spread
-  lastIssuance: Double = 0.0,
-  lastAmortization: Double = 0.0,
-  lastCouponIncome: Double = 0.0,   // bank + ppk coupon income
-  lastDefaultLoss: Double = 0.0,    // net loss after recovery
-  lastDefaultAmount: Double = 0.0,  // gross default amount
+  lastIssuance: PLN = PLN.Zero,
+  lastAmortization: PLN = PLN.Zero,
+  lastCouponIncome: PLN = PLN.Zero,   // bank + ppk coupon income
+  lastDefaultLoss: PLN = PLN.Zero,    // net loss after recovery
+  lastDefaultAmount: PLN = PLN.Zero,  // gross default amount
   creditSpread: Double = 0.025,     // current credit spread
   lastAbsorptionRate: Double = 1.0  // demand-side absorption rate [0.3, 1.0]
 )
 
 object CorporateBondMarket:
-  def zero: CorporateBondMarketState = CorporateBondMarketState(0, 0, 0, 0, 0)
+  def zero: CorporateBondMarketState = CorporateBondMarketState(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, 0)
 
   def initial: CorporateBondMarketState =
-    val stock = Config.CorpBondInitStock
+    val stock = PLN(Config.CorpBondInitStock)
     CorporateBondMarketState(
       outstanding = stock,
       bankHoldings = stock * Config.CorpBondBankShare,
@@ -42,19 +43,19 @@ object CorporateBondMarket:
   /** Monthly coupon income from corporate bond holdings.
     * Returns (totalCoupon, bankCoupon, ppkCoupon). */
   def computeCoupon(state: CorporateBondMarketState): (Double, Double, Double) =
-    val totalCoupon = state.outstanding * state.corpBondYield / 12.0
-    val bankCoupon = state.bankHoldings * state.corpBondYield / 12.0
-    val ppkCoupon = state.ppkHoldings * state.corpBondYield / 12.0
+    val totalCoupon = state.outstanding.toDouble * state.corpBondYield / 12.0
+    val bankCoupon = state.bankHoldings.toDouble * state.corpBondYield / 12.0
+    val ppkCoupon = state.ppkHoldings.toDouble * state.corpBondYield / 12.0
     (totalCoupon, bankCoupon, ppkCoupon)
 
   /** Process defaults from bankrupt firms' bond debt.
     * Returns (grossDefault, lossAfterRecovery, bankLoss, ppkLoss). */
   def processDefaults(state: CorporateBondMarketState,
                       totalBondDefault: Double): (Double, Double, Double, Double) =
-    if totalBondDefault <= 0 || state.outstanding <= 0 then return (0.0, 0.0, 0.0, 0.0)
-    val defaultFrac = Math.min(1.0, totalBondDefault / state.outstanding)
-    val bankDefault = state.bankHoldings * defaultFrac
-    val ppkDefault = state.ppkHoldings * defaultFrac
+    if totalBondDefault <= 0 || state.outstanding <= PLN.Zero then return (0.0, 0.0, 0.0, 0.0)
+    val defaultFrac = Math.min(1.0, totalBondDefault / state.outstanding.toDouble)
+    val bankDefault = state.bankHoldings.toDouble * defaultFrac
+    val ppkDefault = state.ppkHoldings.toDouble * defaultFrac
     val lossAfterRecovery = totalBondDefault * (1.0 - Config.CorpBondRecovery)
     val bankLoss = bankDefault * (1.0 - Config.CorpBondRecovery)
     val ppkLoss = ppkDefault * (1.0 - Config.CorpBondRecovery)
@@ -62,7 +63,7 @@ object CorporateBondMarket:
 
   /** Monthly amortization: outstanding / maturity. */
   def amortization(state: CorporateBondMarketState): Double =
-    state.outstanding / Math.max(1.0, Config.CorpBondMaturity)
+    state.outstanding.toDouble / Math.max(1.0, Config.CorpBondMaturity)
 
   /** Compute market absorption rate for new bond issuance.
     * Gate 1: spread-based investor appetite (cyclical).
@@ -85,14 +86,14 @@ object CorporateBondMarket:
   /** Process new issuance: allocate to holders proportionally. */
   def processIssuance(state: CorporateBondMarketState,
                       issuance: Double): CorporateBondMarketState =
-    if issuance <= 0 then return state.copy(lastIssuance = 0.0)
+    if issuance <= 0 then return state.copy(lastIssuance = PLN.Zero)
     state.copy(
-      outstanding = state.outstanding + issuance,
-      bankHoldings = state.bankHoldings + issuance * Config.CorpBondBankShare,
-      ppkHoldings = state.ppkHoldings + issuance * Config.CorpBondPpkShare,
-      otherHoldings = state.otherHoldings + issuance *
-        (1.0 - Config.CorpBondBankShare - Config.CorpBondPpkShare),
-      lastIssuance = issuance
+      outstanding = state.outstanding + PLN(issuance),
+      bankHoldings = state.bankHoldings + PLN(issuance * Config.CorpBondBankShare),
+      ppkHoldings = state.ppkHoldings + PLN(issuance * Config.CorpBondPpkShare),
+      otherHoldings = state.otherHoldings + PLN(issuance *
+        (1.0 - Config.CorpBondBankShare - Config.CorpBondPpkShare)),
+      lastIssuance = PLN(issuance)
     )
 
   /** Full monthly step: yield -> coupon -> amortization -> default -> issuance. */
@@ -105,19 +106,19 @@ object CorporateBondMarket:
     val (grossDefault, _, _, _) = processDefaults(prev, totalBondDefault)
     // Subtract amortization + defaults from outstanding and holdings (proportional)
     val reduction = amort + grossDefault
-    val reductionFrac = if prev.outstanding > 0 then
-      Math.min(1.0, reduction / prev.outstanding) else 0.0
+    val reductionFrac = if prev.outstanding > PLN.Zero then
+      Math.min(1.0, reduction / prev.outstanding.toDouble) else 0.0
     val afterReduction = prev.copy(
-      outstanding = Math.max(0.0, prev.outstanding - reduction),
-      bankHoldings = Math.max(0.0, prev.bankHoldings - prev.bankHoldings * reductionFrac),
-      ppkHoldings = Math.max(0.0, prev.ppkHoldings - prev.ppkHoldings * reductionFrac),
-      otherHoldings = Math.max(0.0, prev.otherHoldings - prev.otherHoldings * reductionFrac),
+      outstanding = (prev.outstanding - PLN(reduction)).max(PLN.Zero),
+      bankHoldings = (prev.bankHoldings - prev.bankHoldings * reductionFrac).max(PLN.Zero),
+      ppkHoldings = (prev.ppkHoldings - prev.ppkHoldings * reductionFrac).max(PLN.Zero),
+      otherHoldings = (prev.otherHoldings - prev.otherHoldings * reductionFrac).max(PLN.Zero),
       corpBondYield = newYield,
       creditSpread = Math.max(0.0, newYield - govBondYield),
-      lastAmortization = amort,
-      lastDefaultAmount = grossDefault,
-      lastDefaultLoss = grossDefault * (1.0 - Config.CorpBondRecovery),
-      lastCouponIncome = bankCoupon + ppkCoupon
+      lastAmortization = PLN(amort),
+      lastDefaultAmount = PLN(grossDefault),
+      lastDefaultLoss = PLN(grossDefault * (1.0 - Config.CorpBondRecovery)),
+      lastCouponIncome = PLN(bankCoupon + ppkCoupon)
     )
     // Add new issuance
     processIssuance(afterReduction, totalBondIssuance)

@@ -2,6 +2,7 @@ package sfc.agents
 
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import sfc.types.*
 
 /** Public sector unit tests — ZUS, PPK, Demographics. */
 class PublicSectorSpec extends AnyFlatSpec with Matchers:
@@ -12,10 +13,10 @@ class PublicSectorSpec extends AnyFlatSpec with Matchers:
 
   "PublicSectorLogic.zusStep" should "return zero flows when ZUS disabled" in {
     val zus = PublicSectorLogic.zusStep(0.0, 100000, 8266.0, 50000)
-    zus.contributions shouldBe 0.0
-    zus.pensionPayments shouldBe 0.0
-    zus.govSubvention shouldBe 0.0
-    zus.fusBalance shouldBe 0.0
+    zus.contributions.toDouble shouldBe 0.0
+    zus.pensionPayments.toDouble shouldBe 0.0
+    zus.govSubvention.toDouble shouldBe 0.0
+    zus.fusBalance.toDouble shouldBe 0.0
   }
 
   it should "compute contributions from employed × wage × rate" in {
@@ -53,10 +54,10 @@ class PublicSectorSpec extends AnyFlatSpec with Matchers:
   }
 
   "ZusState.zero" should "have all zero fields" in {
-    ZusState.zero.fusBalance shouldBe 0.0
-    ZusState.zero.contributions shouldBe 0.0
-    ZusState.zero.pensionPayments shouldBe 0.0
-    ZusState.zero.govSubvention shouldBe 0.0
+    ZusState.zero.fusBalance.toDouble shouldBe 0.0
+    ZusState.zero.contributions.toDouble shouldBe 0.0
+    ZusState.zero.pensionPayments.toDouble shouldBe 0.0
+    ZusState.zero.govSubvention.toDouble shouldBe 0.0
   }
 
   // =========================================================================
@@ -65,25 +66,25 @@ class PublicSectorSpec extends AnyFlatSpec with Matchers:
 
   "PublicSectorLogic.ppkStep" should "return zero flows when PPK disabled" in {
     val ppk = PublicSectorLogic.ppkStep(0.0, 100000, 8266.0)
-    ppk.contributions shouldBe 0.0
-    ppk.bondHoldings shouldBe 0.0
+    ppk.contributions.toDouble shouldBe 0.0
+    ppk.bondHoldings.toDouble shouldBe 0.0
   }
 
   it should "preserve previous bond holdings when disabled" in {
     val ppk = PublicSectorLogic.ppkStep(1e9, 100000, 8266.0)
-    ppk.bondHoldings shouldBe 1e9
+    ppk.bondHoldings.toDouble shouldBe 1e9
   }
 
   "PublicSectorLogic.ppkBondPurchase" should "be contributions × bondAlloc" in {
-    val ppk = PpkState(bondHoldings = 0.0, contributions = 1e6)
+    val ppk = PpkState(bondHoldings = PLN.Zero, contributions = PLN(1e6))
     // Default bondAlloc = 0.60
     val purchase = PublicSectorLogic.ppkBondPurchase(ppk)
     purchase shouldBe (1e6 * 0.60 +- 0.01)
   }
 
   "PpkState.zero" should "have all zero fields" in {
-    PpkState.zero.bondHoldings shouldBe 0.0
-    PpkState.zero.contributions shouldBe 0.0
+    PpkState.zero.bondHoldings.toDouble shouldBe 0.0
+    PpkState.zero.contributions.toDouble shouldBe 0.0
   }
 
   // =========================================================================
@@ -126,7 +127,7 @@ class PublicSectorSpec extends AnyFlatSpec with Matchers:
   // =========================================================================
 
   "BgkState.zero" should "have zero loan portfolio" in {
-    BgkState.zero.loanPortfolio shouldBe 0.0
+    BgkState.zero.loanPortfolio.toDouble shouldBe 0.0
   }
 
   // =========================================================================

@@ -3,6 +3,7 @@ package sfc.agents
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import sfc.config.Config
+import sfc.types.*
 
 /** Progressive PIT unit tests. */
 class PitSpec extends AnyFlatSpec with Matchers:
@@ -80,13 +81,13 @@ class PitSpec extends AnyFlatSpec with Matchers:
   "HhAggregates.totalPit" should "default to 0.0" in {
     val agg = HhAggregates(
       employed = 0, unemployed = 0, retraining = 0, bankrupt = 0,
-      totalIncome = 0, consumption = 0, domesticConsumption = 0, importConsumption = 0,
-      marketWage = 0, reservationWage = 0, giniIndividual = 0, giniWealth = 0,
-      meanSavings = 0, medianSavings = 0, povertyRate50 = 0, bankruptcyRate = 0,
+      totalIncome = PLN.Zero, consumption = PLN.Zero, domesticConsumption = PLN.Zero, importConsumption = PLN.Zero,
+      marketWage = PLN.Zero, reservationWage = PLN.Zero, giniIndividual = 0, giniWealth = 0,
+      meanSavings = PLN.Zero, medianSavings = PLN.Zero, povertyRate50 = 0, bankruptcyRate = 0,
       meanSkill = 0, meanHealthPenalty = 0, retrainingAttempts = 0, retrainingSuccesses = 0,
-      consumptionP10 = 0, consumptionP50 = 0, consumptionP90 = 0,
-      meanMonthsToRuin = 0, povertyRate30 = 0, totalRent = 0,
-      totalDebtService = 0, totalUnempBenefits = 0
+      consumptionP10 = PLN.Zero, consumptionP50 = PLN.Zero, consumptionP90 = PLN.Zero,
+      meanMonthsToRuin = 0, povertyRate30 = 0, totalRent = PLN.Zero,
+      totalDebtService = PLN.Zero, totalUnempBenefits = PLN.Zero
     )
-    agg.totalPit shouldBe 0.0
+    agg.totalPit.toDouble shouldBe 0.0
   }

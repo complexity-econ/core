@@ -4,6 +4,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import sfc.accounting.{BankState, BopState, ForexState, GovState}
 import sfc.config.{Config, SECTORS}
+import sfc.types.*
 
 class TourismSpec extends AnyFlatSpec with Matchers:
 
@@ -203,7 +204,7 @@ class TourismSpec extends AnyFlatSpec with Matchers:
 
   "OpenEconomy exports" should "include tourismExport" in {
     val prevBop = BopState.zero
-    val prevForex = ForexState(Config.BaseExRate, 0, Config.ExportBase, 0, 0)
+    val prevForex = ForexState(Config.BaseExRate, PLN.Zero, PLN(Config.ExportBase), PLN.Zero, PLN.Zero)
     val rc = sfc.config.RunConfig(2000.0, 1, "test")
 
     val resultWith = OpenEconomy.step(prevBop, prevForex,
@@ -213,12 +214,12 @@ class TourismSpec extends AnyFlatSpec with Matchers:
       0, 0, 0, 0.05, 1e9, 1.0, Vector.fill(6)(1e8), 1, rc,
       tourismExport = 0.0)
 
-    resultWith.bop.exports shouldBe resultWithout.bop.exports + 1000.0
+    resultWith.bop.exports shouldBe resultWithout.bop.exports + PLN(1000.0)
   }
 
   "OpenEconomy imports" should "include tourismImport" in {
     val prevBop = BopState.zero
-    val prevForex = ForexState(Config.BaseExRate, 0, Config.ExportBase, 0, 0)
+    val prevForex = ForexState(Config.BaseExRate, PLN.Zero, PLN(Config.ExportBase), PLN.Zero, PLN.Zero)
     val rc = sfc.config.RunConfig(2000.0, 1, "test")
 
     val resultWith = OpenEconomy.step(prevBop, prevForex,
@@ -228,7 +229,7 @@ class TourismSpec extends AnyFlatSpec with Matchers:
       0, 0, 0, 0.05, 1e9, 1.0, Vector.fill(6)(1e8), 1, rc,
       tourismImport = 0.0)
 
-    resultWith.bop.totalImports shouldBe resultWithout.bop.totalImports + 500.0
+    resultWith.bop.totalImports shouldBe resultWithout.bop.totalImports + PLN(500.0)
   }
 
   // ==========================================================================
@@ -237,12 +238,12 @@ class TourismSpec extends AnyFlatSpec with Matchers:
 
   "World" should "default tourismExport and tourismImport to 0.0" in {
     val w = World(0, 0.02, 1.0,
-      GovState(false, 0, 0, 0, 0, 0),
+      GovState(false, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
       sfc.agents.NbpState(0.05),
-      BankState(0, 0, 100, 1000),
-      ForexState(Config.BaseExRate, 0, 0, 0, 0),
-      sfc.agents.HhState(100, 5000, 4000, 0, 0, 0, 0),
+      BankState(PLN.Zero, PLN.Zero, PLN(100), PLN(1000)),
+      ForexState(Config.BaseExRate, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
+      sfc.agents.HhState(100, PLN(5000), PLN(4000), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
       0, 0, 1e9, Vector.fill(6)(0.1))
-    w.tourismExport shouldBe 0.0
-    w.tourismImport shouldBe 0.0
+    w.tourismExport shouldBe PLN.Zero
+    w.tourismImport shouldBe PLN.Zero
   }

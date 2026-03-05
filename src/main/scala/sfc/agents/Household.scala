@@ -9,40 +9,40 @@ import scala.util.Random
 
 case class HhState(
   employed: Int,
-  marketWage: Double,
-  reservationWage: Double,
-  totalIncome: Double,
-  consumption: Double,
-  domesticConsumption: Double,
-  importConsumption: Double,
-  minWageLevel: Double = 4666.0,
+  marketWage: PLN,
+  reservationWage: PLN,
+  totalIncome: PLN,
+  consumption: PLN,
+  domesticConsumption: PLN,
+  importConsumption: PLN,
+  minWageLevel: PLN = PLN(4666.0),
   minWagePriceLevel: Double = 1.0
 )
 
 // ---- Individual household types (Paper-06) ----
 
 enum HhStatus:
-  case Employed(firmId: FirmId, sectorIdx: SectorIdx, wage: Double)
+  case Employed(firmId: FirmId, sectorIdx: SectorIdx, wage: PLN)
   case Unemployed(monthsUnemployed: Int)
-  case Retraining(monthsLeft: Int, targetSector: SectorIdx, cost: Double)
+  case Retraining(monthsLeft: Int, targetSector: SectorIdx, cost: PLN)
   case Bankrupt
 
 case class Household(
   id: Int,
-  savings: Double,
-  debt: Double,
-  monthlyRent: Double,
+  savings: PLN,
+  debt: PLN,
+  monthlyRent: PLN,
   skill: Double,
   healthPenalty: Double,
   mpc: Double,
   status: HhStatus,
   socialNeighbors: Array[Int],
   bankId: BankId = BankId(0),   // Multi-bank: index into BankingSectorState.banks
-  equityWealth: Double = 0.0,   // GPW: value of equity holdings
+  equityWealth: PLN = PLN.Zero,   // GPW: value of equity holdings
   lastSectorIdx: SectorIdx = SectorIdx(-1),  // Sectoral mobility: last sector employed in (-1 = never)
   isImmigrant: Boolean = false, // Immigration: tracks immigrant status for wage discount + remittances
   numDependentChildren: Int = 0, // 800+: children ≤ 18 for social transfers
-  consumerDebt: Double = 0.0,   // Consumer credit: outstanding unsecured consumer loan
+  consumerDebt: PLN = PLN.Zero,   // Consumer credit: outstanding unsecured consumer loan
   education: Int = 2            // Education level: 0=Primary, 1=Vocational, 2=Secondary, 3=Tertiary
 )
 
@@ -52,41 +52,41 @@ case class HhAggregates(
   unemployed: Int,
   retraining: Int,
   bankrupt: Int,
-  totalIncome: Double,
-  consumption: Double,
-  domesticConsumption: Double,
-  importConsumption: Double,
-  marketWage: Double,
-  reservationWage: Double,
+  totalIncome: PLN,
+  consumption: PLN,
+  domesticConsumption: PLN,
+  importConsumption: PLN,
+  marketWage: PLN,
+  reservationWage: PLN,
   giniIndividual: Double,
   giniWealth: Double,
-  meanSavings: Double,
-  medianSavings: Double,
+  meanSavings: PLN,
+  medianSavings: PLN,
   povertyRate50: Double,
   bankruptcyRate: Double,
   meanSkill: Double,
   meanHealthPenalty: Double,
   retrainingAttempts: Int,
   retrainingSuccesses: Int,
-  consumptionP10: Double,
-  consumptionP50: Double,
-  consumptionP90: Double,
+  consumptionP10: PLN,
+  consumptionP50: PLN,
+  consumptionP90: PLN,
   meanMonthsToRuin: Double,
   povertyRate30: Double,
-  totalRent: Double,
-  totalDebtService: Double,
-  totalUnempBenefits: Double,
-  totalDepositInterest: Double = 0.0,
+  totalRent: PLN,
+  totalDebtService: PLN,
+  totalUnempBenefits: PLN,
+  totalDepositInterest: PLN = PLN.Zero,
   crossSectorHires: Int = 0,
   voluntaryQuits: Int = 0,
   sectorMobilityRate: Double = 0.0,
-  totalRemittances: Double = 0.0,
-  totalPit: Double = 0.0,
-  totalSocialTransfers: Double = 0.0,
-  totalConsumerDebtService: Double = 0.0,
-  totalConsumerOrigination: Double = 0.0,
-  totalConsumerDefault: Double = 0.0,
-  totalConsumerPrincipal: Double = 0.0
+  totalRemittances: PLN = PLN.Zero,
+  totalPit: PLN = PLN.Zero,
+  totalSocialTransfers: PLN = PLN.Zero,
+  totalConsumerDebtService: PLN = PLN.Zero,
+  totalConsumerOrigination: PLN = PLN.Zero,
+  totalConsumerDefault: PLN = PLN.Zero,
+  totalConsumerPrincipal: PLN = PLN.Zero
 )
 
 object HouseholdInit:
@@ -143,18 +143,18 @@ object HouseholdInit:
 
           builder += Household(
             id = hhId,
-            savings = savings,
-            debt = debt,
-            monthlyRent = rent,
+            savings = PLN(savings),
+            debt = PLN(debt),
+            monthlyRent = PLN(rent),
             skill = skill,
             healthPenalty = 0.0,
             mpc = Math.max(0.5, Math.min(0.98, mpc)),
-            status = HhStatus.Employed(f.id, sectorIdx, wage),
+            status = HhStatus.Employed(f.id, sectorIdx, PLN(wage)),
             socialNeighbors = if hhId < socialNetwork.length then socialNetwork(hhId) else Array.empty,
-            equityWealth = eqWealth,
+            equityWealth = PLN(eqWealth),
             lastSectorIdx = sectorIdx,
             numDependentChildren = numChildren,
-            consumerDebt = consDebt,
+            consumerDebt = PLN(consDebt),
             education = edu
           )
           hhId += 1

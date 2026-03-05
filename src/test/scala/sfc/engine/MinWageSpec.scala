@@ -4,6 +4,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import sfc.config.Config
 import sfc.agents.HhState
+import sfc.types.*
 
 class MinWageSpec extends AnyFlatSpec with Matchers:
 
@@ -14,8 +15,8 @@ class MinWageSpec extends AnyFlatSpec with Matchers:
   }
 
   "HhState defaults" should "have minWageLevel=4666 and minWagePriceLevel=1.0" in {
-    val hh = HhState(100, 8000.0, 4666.0, 0, 0, 0, 0)
-    hh.minWageLevel shouldBe 4666.0
+    val hh = HhState(100, PLN(8000.0), PLN(4666.0), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
+    hh.minWageLevel shouldBe PLN(4666.0)
     hh.minWagePriceLevel shouldBe 1.0
   }
 

@@ -5,6 +5,7 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import org.scalacheck.Gen
 import sfc.testutil.Generators.*
+import sfc.types.*
 
 class EquityMarketPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks:
 
@@ -17,14 +18,14 @@ class EquityMarketPropertySpec extends AnyFlatSpec with Matchers with ScalaCheck
     ey       <- Gen.choose(0.01, 0.50)
     dy       <- Gen.choose(0.01, 0.15)
     foreign  <- Gen.choose(0.0, 1.0)
-  yield EquityMarketState(index, mcap, ey, dy, foreign, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+  yield EquityMarketState(index, PLN(mcap), ey, dy, foreign, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
 
   // --- processIssuance properties ---
 
   "EquityMarket.processIssuance" should "always increase market cap for positive issuance" in {
     forAll(genEquityState, Gen.choose(1.0, 1e10)) { (state, amount) =>
       val result = EquityMarket.processIssuance(amount, state)
-      result.marketCap should be >= state.marketCap
+      result.marketCap.toDouble should be >= state.marketCap.toDouble
     }
   }
 
@@ -37,9 +38,9 @@ class EquityMarketPropertySpec extends AnyFlatSpec with Matchers with ScalaCheck
 
   it should "preserve index × (1 + amount/mcap) ≈ old index relationship" in {
     forAll(genEquityState, Gen.choose(1.0, 1e10)) { (state, amount) =>
-      whenever(state.marketCap > 0) {
+      whenever(state.marketCap > PLN.Zero) {
         val result = EquityMarket.processIssuance(amount, state)
-        val expectedIndex = state.index * state.marketCap / (state.marketCap + amount)
+        val expectedIndex = state.index * state.marketCap.toDouble / (state.marketCap.toDouble + amount)
         result.index shouldBe (expectedIndex +- 1.0)
       }
     }
@@ -106,11 +107,11 @@ class EquityMarketPropertySpec extends AnyFlatSpec with Matchers with ScalaCheck
   "EquityMarket.zero" should "have all fields equal to zero" in {
     val z = EquityMarket.zero
     z.index shouldBe 0.0
-    z.marketCap shouldBe 0.0
+    z.marketCap shouldBe PLN.Zero
     z.earningsYield shouldBe 0.0
     z.dividendYield shouldBe 0.0
     z.foreignOwnership shouldBe 0.0
-    z.lastIssuance shouldBe 0.0
-    z.hhEquityWealth shouldBe 0.0
-    z.lastWealthEffect shouldBe 0.0
+    z.lastIssuance shouldBe PLN.Zero
+    z.hhEquityWealth shouldBe PLN.Zero
+    z.lastWealthEffect shouldBe PLN.Zero
   }

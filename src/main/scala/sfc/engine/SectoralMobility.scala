@@ -53,7 +53,7 @@ object SectoralMobility:
     for hh <- households do
       hh.status match
         case HhStatus.Employed(_, sectorIdx, wage) =>
-          sums(sectorIdx.toInt) += wage
+          sums(sectorIdx.toInt) += wage.toDouble
           counts(sectorIdx.toInt) += 1
         case _ =>
     val result = new Array[Double](6)

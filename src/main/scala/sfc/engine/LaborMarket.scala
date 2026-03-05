@@ -120,7 +120,7 @@ object LaborMarket:
             Config.eduWagePremium(hh.education)
           if isCrossSector then crossSectorHires += 1
           result(idx) = hh.copy(
-            status = HhStatus.Employed(FirmId(fid), f.sector, individualWage),
+            status = HhStatus.Employed(FirmId(fid), f.sector, PLN(individualWage)),
             lastSectorIdx = f.sector
           )
           val remaining = vacancies(fid) - 1
@@ -156,6 +156,6 @@ object LaborMarket:
       hh.status match
         case HhStatus.Employed(firmId, sectorIdx, _) =>
           val newWage = marketWage * rawWages(i) * scale
-          hh.copy(status = HhStatus.Employed(firmId, sectorIdx, newWage))
+          hh.copy(status = HhStatus.Employed(firmId, sectorIdx, PLN(newWage)))
         case _ => hh
     }

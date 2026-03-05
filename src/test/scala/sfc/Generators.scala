@@ -30,6 +30,12 @@ object Generators:
 
   val genSmallPositiveDouble: Gen[Double] = Gen.choose(0.0, 1e7)
 
+  // --- PLN generator helper ---
+
+  val genPLN: Gen[PLN] = Gen.choose(-1e10, 1e10).map(PLN(_))
+
+  def genPLNRange(lo: Double, hi: Double): Gen[PLN] = Gen.choose(lo, hi).map(PLN(_))
+
   // --- TechState generators ---
 
   val genTechState: Gen[TechState] = Gen.oneOf(
@@ -65,7 +71,7 @@ object Generators:
     bankId <- Gen.choose(0, 6)
     eqR    <- Gen.choose(0.0, 1000000.0)
     iSize  <- Gen.choose(1, 500)
-  yield Firm(FirmId(id), cash, debt, tech, risk, innov, digiR, SectorIdx(sector), Array.empty[Int], BankId(bankId), eqR, iSize)
+  yield Firm(FirmId(id), PLN(cash), PLN(debt), tech, risk, innov, digiR, SectorIdx(sector), Array.empty[Int], BankId(bankId), PLN(eqR), iSize)
 
   val genAliveFirm: Gen[Firm] = for
     id     <- Gen.choose(0, 9999)
@@ -79,7 +85,7 @@ object Generators:
     bankId <- Gen.choose(0, 6)
     eqR    <- Gen.choose(0.0, 1000000.0)
     iSize  <- Gen.choose(1, 500)
-  yield Firm(FirmId(id), cash, debt, tech, risk, innov, digiR, SectorIdx(sector), Array.empty[Int], BankId(bankId), eqR, iSize)
+  yield Firm(FirmId(id), PLN(cash), PLN(debt), tech, risk, innov, digiR, SectorIdx(sector), Array.empty[Int], BankId(bankId), PLN(eqR), iSize)
 
   // --- Balance sheet state generators ---
 
@@ -89,7 +95,7 @@ object Generators:
     capital    <- Gen.choose(1000.0, 1e9)
     deposits   <- Gen.choose(0.0, 1e10)
     bonds      <- Gen.choose(0.0, 1e9)
-  yield BankState(totalLoans, totalLoans * nplFrac, capital, deposits, bonds)
+  yield BankState(PLN(totalLoans), PLN(totalLoans * nplFrac), PLN(capital), PLN(deposits), PLN(bonds))
 
   val genGovState: Gen[GovState] = for
     bdpActive   <- Gen.oneOf(true, false)
@@ -101,15 +107,15 @@ object Generators:
     bondsOut    <- Gen.choose(0.0, 1e10)
     bondYield   <- Gen.choose(0.0, 0.15)
     debtService <- Gen.choose(0.0, 1e8)
-  yield GovState(bdpActive, taxRev, bdpSpend, deficit, cumDebt, unempBen,
-    bondsOut, bondYield, debtService)
+  yield GovState(bdpActive, PLN(taxRev), PLN(bdpSpend), PLN(deficit), PLN(cumDebt), PLN(unempBen),
+    PLN(bondsOut), bondYield, PLN(debtService))
 
   val genForexState: Gen[ForexState] = for
     er       <- genExchangeRate
     imports  <- Gen.choose(0.0, 1e9)
     exports  <- Gen.choose(0.0, 1e9)
     techImp  <- Gen.choose(0.0, 1e8)
-  yield ForexState(er, imports, exports, exports - imports, techImp)
+  yield ForexState(er, PLN(imports), PLN(exports), PLN(exports - imports), PLN(techImp))
 
   val genBopState: Gen[BopState] = for
     nfa     <- Gen.choose(-1e10, 1e10)
@@ -127,7 +133,7 @@ object Generators:
   yield
     val ca = tb + pi + si
     val ka = fdi + pf
-    BopState(nfa, fAssets, fLiab, ca, ka, tb, pi, si, fdi, pf, res, exp, totImp, impInt)
+    BopState(PLN(nfa), PLN(fAssets), PLN(fLiab), PLN(ca), PLN(ka), PLN(tb), PLN(pi), PLN(si), PLN(fdi), PLN(pf), PLN(res), PLN(exp), PLN(totImp), PLN(impInt))
 
   // --- HhStatus generators ---
 
@@ -136,13 +142,13 @@ object Generators:
       fid    <- Gen.choose(0, 9999)
       sector <- Gen.choose(0, 5)
       wage   <- genWage
-    yield HhStatus.Employed(FirmId(fid), SectorIdx(sector), wage),
+    yield HhStatus.Employed(FirmId(fid), SectorIdx(sector), PLN(wage)),
     Gen.choose(0, 24).map(m => HhStatus.Unemployed(m)),
     for
       ml   <- Gen.choose(1, 6)
       sec  <- Gen.choose(0, 5)
       cost <- Gen.choose(1000.0, 10000.0)
-    yield HhStatus.Retraining(ml, SectorIdx(sec), cost),
+    yield HhStatus.Retraining(ml, SectorIdx(sec), PLN(cost)),
     Gen.const(HhStatus.Bankrupt)
   )
 
@@ -160,7 +166,7 @@ object Generators:
     bankId  <- Gen.choose(0, 6)
     eqW     <- Gen.choose(0.0, 100000.0)
     lastSec <- Gen.choose(-1, 5)
-  yield Household(id, savings, debt, rent, skill, health, mpc, status, Array.empty[Int], BankId(bankId), eqW, SectorIdx(lastSec))
+  yield Household(id, PLN(savings), PLN(debt), PLN(rent), skill, health, mpc, status, Array.empty[Int], BankId(bankId), PLN(eqW), SectorIdx(lastSec))
 
   // --- World generator ---
 
@@ -180,7 +186,7 @@ object Generators:
     gdp      <- Gen.choose(1e6, 1e11)
   yield World(
     month, infl, price, gov, NbpState(rate), bank, forex,
-    HhState(employed, wage, resWage, 0.0, 0.0, 0.0, 0.0),
+    HhState(employed, PLN(wage), PLN(resWage), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
     autoR, hybR, gdp,
     SECTORS.map(_.sigma)
   )
@@ -204,10 +210,10 @@ object Generators:
     fusBal    <- Gen.choose(-1e10, 1e10)
     ppkBonds  <- Gen.choose(0.0, 1e9)
     mortStock <- Gen.choose(0.0, 1e12)
-  yield SfcCheck.Snapshot(hhS, hhD, fCash, fDebt, bCap, bDep, bLoans, govDebt, nfa,
-    bankBonds, nbpBonds, bankBonds + nbpBonds + ppkBonds, interbankNetSum = 0.0,
-    jstDeposits = jstDep, jstDebt = jstDebt,
-    fusBalance = fusBal, ppkBondHoldings = ppkBonds, mortgageStock = mortStock)
+  yield SfcCheck.Snapshot(PLN(hhS), PLN(hhD), PLN(fCash), PLN(fDebt), PLN(bCap), PLN(bDep), PLN(bLoans), PLN(govDebt), PLN(nfa),
+    PLN(bankBonds), PLN(nbpBonds), PLN(bankBonds + nbpBonds + ppkBonds), interbankNetSum = PLN.Zero,
+    jstDeposits = PLN(jstDep), jstDebt = PLN(jstDebt),
+    fusBalance = PLN(fusBal), ppkBondHoldings = PLN(ppkBonds), mortgageStock = PLN(mortStock))
 
   val genMonthlyFlows: Gen[SfcCheck.MonthlyFlows] = for
     govSpend     <- Gen.choose(0.0, 1e9)
@@ -242,14 +248,14 @@ object Generators:
     mortOrig     <- Gen.choose(0.0, 1e9)
     mortPrinc    <- Gen.choose(0.0, 1e8)
     mortDefAmt   <- Gen.choose(0.0, 1e7)
-  yield SfcCheck.MonthlyFlows(govSpend, govRev, nplLoss, intIncome, hhDebtSvc,
-    totIncome, totCons, newLoans, nplRecov, ca, valEff,
-    bankBondInc, qePurchase, newBondIssue, depIntPaid,
-    resInt, sfIncome, ibInterest,
-    jstDepChg, jstSpend, jstRev,
-    zusContrib, zusPension, zusGovSub,
-    divIncome, foreignDiv, divTax,
-    mortIntInc, mortNplLoss, mortOrig, mortPrinc, mortDefAmt)
+  yield SfcCheck.MonthlyFlows(PLN(govSpend), PLN(govRev), PLN(nplLoss), PLN(intIncome), PLN(hhDebtSvc),
+    PLN(totIncome), PLN(totCons), PLN(newLoans), PLN(nplRecov), PLN(ca), PLN(valEff),
+    PLN(bankBondInc), PLN(qePurchase), PLN(newBondIssue), PLN(depIntPaid),
+    PLN(resInt), PLN(sfIncome), PLN(ibInterest),
+    PLN(jstDepChg), PLN(jstSpend), PLN(jstRev),
+    PLN(zusContrib), PLN(zusPension), PLN(zusGovSub),
+    PLN(divIncome), PLN(foreignDiv), PLN(divTax),
+    PLN(mortIntInc), PLN(mortNplLoss), PLN(mortOrig), PLN(mortPrinc), PLN(mortDefAmt))
 
   /** Generate (prev, curr, flows) where all 9 SFC identities hold exactly. */
   val genConsistentFlowsAndSnapshots: Gen[(SfcCheck.Snapshot, SfcCheck.Snapshot, SfcCheck.MonthlyFlows)] =
@@ -307,7 +313,7 @@ object Generators:
     qeCum    <- Gen.choose(0.0, 1e10)
     fxRes    <- Gen.choose(0.0, 1e11)
     lastFx   <- Gen.choose(-1e9, 1e9)
-  yield NbpState(rate, bonds, qeActive, qeCum, fxRes, lastFx)
+  yield NbpState(rate, PLN(bonds), qeActive, PLN(qeCum), PLN(fxRes), PLN(lastFx))
 
   // --- I-O matrix generator ---
 
@@ -344,8 +350,8 @@ object Generators:
     ibNet    <- Gen.choose(-1e8, 1e8)
     failed   <- Gen.oneOf(false, false, false, false, true)  // 20% chance
     lowCar   <- Gen.choose(0, 5)
-  yield IndividualBankState(BankId(id), deposits, loans, capital, loans * nplFrac, bonds,
-    reserves, ibNet, failed, if failed then 30 else 0, lowCar)
+  yield IndividualBankState(BankId(id), PLN(deposits), PLN(loans), PLN(capital), PLN(loans * nplFrac), PLN(bonds),
+    PLN(reserves), PLN(ibNet), failed, if failed then 30 else 0, lowCar)
 
   val genBankingSectorState: Gen[BankingSectorState] = for
     nBanks <- Gen.choose(2, 7)

@@ -2,84 +2,85 @@ package sfc.accounting
 
 import sfc.config.Config
 import sfc.accounting.{BopState, MonetaryAggregates}
+import sfc.types.*
 
 case class GovState(
   bdpActive: Boolean,
-  taxRevenue: Double,
-  bdpSpending: Double,
-  deficit: Double,
-  cumulativeDebt: Double,
-  unempBenefitSpend: Double,
-  bondsOutstanding: Double = 0.0,
+  taxRevenue: PLN,
+  bdpSpending: PLN,
+  deficit: PLN,
+  cumulativeDebt: PLN,
+  unempBenefitSpend: PLN,
+  bondsOutstanding: PLN = PLN.Zero,
   bondYield: Double = 0.0,
-  debtServiceSpend: Double = 0.0,
-  socialTransferSpend: Double = 0.0,
-  publicCapitalStock: Double = 0.0,
-  govCurrentSpend: Double = 0.0,
-  govCapitalSpend: Double = 0.0,
-  euCofinancing: Double = 0.0,
-  exciseRevenue: Double = 0.0,
-  customsDutyRevenue: Double = 0.0
+  debtServiceSpend: PLN = PLN.Zero,
+  socialTransferSpend: PLN = PLN.Zero,
+  publicCapitalStock: PLN = PLN.Zero,
+  govCurrentSpend: PLN = PLN.Zero,
+  govCapitalSpend: PLN = PLN.Zero,
+  euCofinancing: PLN = PLN.Zero,
+  exciseRevenue: PLN = PLN.Zero,
+  customsDutyRevenue: PLN = PLN.Zero
 )
 
 case class BankState(
-  totalLoans: Double,
-  nplAmount: Double,
-  capital: Double,
-  deposits: Double,
-  govBondHoldings: Double = 0.0,
-  consumerLoans: Double = 0.0,
-  consumerNpl: Double = 0.0,
-  corpBondHoldings: Double = 0.0   // #40: corporate bond holdings (bank share)
+  totalLoans: PLN,
+  nplAmount: PLN,
+  capital: PLN,
+  deposits: PLN,
+  govBondHoldings: PLN = PLN.Zero,
+  consumerLoans: PLN = PLN.Zero,
+  consumerNpl: PLN = PLN.Zero,
+  corpBondHoldings: PLN = PLN.Zero   // #40: corporate bond holdings (bank share)
 ):
-  def nplRatio: Double = if totalLoans > 1.0 then nplAmount / totalLoans else 0.0
+  def nplRatio: Double = if totalLoans.toDouble > 1.0 then (nplAmount / totalLoans) else 0.0
   def car: Double =
-    val totalRwa = totalLoans + consumerLoans + corpBondHoldings * 0.50  // 50% RW for corp bonds (Basel III BBB)
-    if totalRwa > 1.0 then capital / totalRwa else 10.0
+    val totalRwa = (totalLoans + consumerLoans + corpBondHoldings * 0.50).toDouble
+    if totalRwa > 1.0 then capital.toDouble / totalRwa else 10.0
   def lendingRate(refRate: Double): Double =
     refRate + Config.BaseSpread + Math.min(0.15, nplRatio * Config.NplSpreadFactor)
   def canLend(amount: Double): Boolean =
-    val projected = capital / (totalLoans + consumerLoans + corpBondHoldings * 0.50 + amount)
+    val projected = capital.toDouble / ((totalLoans + consumerLoans + corpBondHoldings * 0.50).toDouble + amount)
     projected >= Config.MinCar
 
 case class ForexState(
   exchangeRate: Double,
-  imports: Double,
-  exports: Double,
-  tradeBalance: Double,
-  techImports: Double
+  imports: PLN,
+  exports: PLN,
+  tradeBalance: PLN,
+  techImports: PLN
 )
 
 /** Monetary aggregates — diagnostic, not SFC-relevant. */
 case class MonetaryAggregates(
-  m1: Double,              // Bank deposits (≈ narrow money)
-  monetaryBase: Double,    // Reserves at NBP
+  m1: PLN,              // Bank deposits (≈ narrow money)
+  monetaryBase: PLN,    // Reserves at NBP
   creditMultiplier: Double // m1 / monetaryBase
 )
 object MonetaryAggregates:
-  val zero: MonetaryAggregates = MonetaryAggregates(0, 0, 0)
+  val zero: MonetaryAggregates = MonetaryAggregates(PLN.Zero, PLN.Zero, 0)
 
-  def compute(deposits: Double, reserves: Double): MonetaryAggregates =
-    val base = Math.max(1.0, reserves)  // floor to avoid division by zero
-    MonetaryAggregates(deposits, reserves, deposits / base)
+  def compute(deposits: PLN, reserves: PLN): MonetaryAggregates =
+    val base = Math.max(1.0, reserves.toDouble)
+    MonetaryAggregates(deposits, reserves, deposits.toDouble / base)
 
 case class BopState(
-  nfa: Double,                    // Net foreign assets (cumulative)
-  foreignAssets: Double,          // Gross foreign assets
-  foreignLiabilities: Double,     // Gross foreign liabilities
-  currentAccount: Double,         // Monthly CA: trade + primary + secondary income
-  capitalAccount: Double,         // Monthly KA: FDI + portfolio flows
-  tradeBalance: Double,           // exports - imports
-  primaryIncome: Double,          // Interest on NFA
-  secondaryIncome: Double,        // EU transfers (exogenous)
-  fdi: Double,                    // FDI inflows
-  portfolioFlows: Double,         // IRP + risk premium driven
-  reserves: Double,               // CB foreign reserves
-  exports: Double,                // Total exports this month
-  totalImports: Double,           // Consumption + tech + intermediate imports
-  importedIntermediates: Double,  // Cross-border intermediate inputs
-  euFundsMonthly: Double = 0.0,        // EU funds transfer this month
-  euCumulativeAbsorption: Double = 0.0  // Cumulative EU funds absorbed
+  nfa: PLN,                    // Net foreign assets (cumulative)
+  foreignAssets: PLN,          // Gross foreign assets
+  foreignLiabilities: PLN,     // Gross foreign liabilities
+  currentAccount: PLN,         // Monthly CA: trade + primary + secondary income
+  capitalAccount: PLN,         // Monthly KA: FDI + portfolio flows
+  tradeBalance: PLN,           // exports - imports
+  primaryIncome: PLN,          // Interest on NFA
+  secondaryIncome: PLN,        // EU transfers (exogenous)
+  fdi: PLN,                    // FDI inflows
+  portfolioFlows: PLN,         // IRP + risk premium driven
+  reserves: PLN,               // CB foreign reserves
+  exports: PLN,                // Total exports this month
+  totalImports: PLN,           // Consumption + tech + intermediate imports
+  importedIntermediates: PLN,  // Cross-border intermediate inputs
+  euFundsMonthly: PLN = PLN.Zero,        // EU funds transfer this month
+  euCumulativeAbsorption: PLN = PLN.Zero  // Cumulative EU funds absorbed
 )
 object BopState:
-  val zero: BopState = BopState(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+  val zero: BopState = BopState(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)

@@ -6,6 +6,7 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import sfc.accounting.SfcCheck
 import sfc.testutil.Generators.*
+import sfc.types.*
 
 class SfcCheckPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks:
 
@@ -24,7 +25,7 @@ class SfcCheckPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckProp
 
   it should "pass with zero flows and identical snapshots" in {
     forAll(genSnapshot) { (snap: SfcCheck.Snapshot) =>
-      val zeroFlows = SfcCheck.MonthlyFlows(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+      val zeroFlows = SfcCheck.MonthlyFlows(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
       val result = SfcCheck.validate(1, snap, snap, zeroFlows)
       result.passed shouldBe true
     }
@@ -36,7 +37,7 @@ class SfcCheckPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckProp
     forAll(genConsistentFlowsAndSnapshots, Gen.choose(10.0, 1000.0)) {
       (triple: (SfcCheck.Snapshot, SfcCheck.Snapshot, SfcCheck.MonthlyFlows), perturbation: Double) =>
         val (prev, curr, flows) = triple
-        val perturbed = curr.copy(bankCapital = curr.bankCapital + perturbation)
+        val perturbed = curr.copy(bankCapital = curr.bankCapital + PLN(perturbation))
         val result = SfcCheck.validate(1, prev, perturbed, flows)
         Math.abs(result.bankCapitalError) should be > 0.0
     }
@@ -46,7 +47,7 @@ class SfcCheckPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckProp
     forAll(genConsistentFlowsAndSnapshots, Gen.choose(10.0, 1000.0)) {
       (triple: (SfcCheck.Snapshot, SfcCheck.Snapshot, SfcCheck.MonthlyFlows), perturbation: Double) =>
         val (prev, curr, flows) = triple
-        val perturbed = curr.copy(bankDeposits = curr.bankDeposits + perturbation)
+        val perturbed = curr.copy(bankDeposits = curr.bankDeposits + PLN(perturbation))
         val result = SfcCheck.validate(1, prev, perturbed, flows)
         Math.abs(result.bankDepositsError) should be > 0.0
     }
@@ -56,7 +57,7 @@ class SfcCheckPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckProp
     forAll(genConsistentFlowsAndSnapshots, Gen.choose(10.0, 1000.0)) {
       (triple: (SfcCheck.Snapshot, SfcCheck.Snapshot, SfcCheck.MonthlyFlows), perturbation: Double) =>
         val (prev, curr, flows) = triple
-        val perturbed = curr.copy(govDebt = curr.govDebt + perturbation)
+        val perturbed = curr.copy(govDebt = curr.govDebt + PLN(perturbation))
         val result = SfcCheck.validate(1, prev, perturbed, flows)
         Math.abs(result.govDebtError) should be > 0.0
     }
@@ -66,7 +67,7 @@ class SfcCheckPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckProp
     forAll(genConsistentFlowsAndSnapshots, Gen.choose(100.0, 10000.0)) {
       (triple: (SfcCheck.Snapshot, SfcCheck.Snapshot, SfcCheck.MonthlyFlows), perturbation: Double) =>
         val (prev, curr, flows) = triple
-        val perturbed = curr.copy(nfa = curr.nfa + perturbation)
+        val perturbed = curr.copy(nfa = curr.nfa + PLN(perturbation))
         val result = SfcCheck.validate(1, prev, perturbed, flows)
         Math.abs(result.nfaError) should be > 0.0
     }
@@ -78,7 +79,7 @@ class SfcCheckPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckProp
     forAll(genConsistentFlowsAndSnapshots, Gen.choose(0.01, 5.0)) {
       (triple: (SfcCheck.Snapshot, SfcCheck.Snapshot, SfcCheck.MonthlyFlows), perturbation: Double) =>
         val (prev, curr, flows) = triple
-        val perturbed = curr.copy(bankCapital = curr.bankCapital + perturbation)
+        val perturbed = curr.copy(bankCapital = curr.bankCapital + PLN(perturbation))
         val strictResult = SfcCheck.validate(1, prev, perturbed, flows, tolerance = perturbation)
         val looseResult = SfcCheck.validate(1, prev, perturbed, flows, tolerance = perturbation * 10)
         if strictResult.passed then looseResult.passed shouldBe true
@@ -91,7 +92,7 @@ class SfcCheckPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckProp
     forAll(genConsistentFlowsAndSnapshots, Gen.choose(1.0, 1000.0)) {
       (triple: (SfcCheck.Snapshot, SfcCheck.Snapshot, SfcCheck.MonthlyFlows), delta: Double) =>
         val (prev, curr, flows) = triple
-        val perturbed = curr.copy(bankCapital = curr.bankCapital + delta)
+        val perturbed = curr.copy(bankCapital = curr.bankCapital + PLN(delta))
         val result = SfcCheck.validate(1, prev, perturbed, flows)
         result.bankCapitalError shouldBe (delta +- 1e-6)
     }
@@ -103,7 +104,7 @@ class SfcCheckPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckProp
     forAll(genConsistentFlowsAndSnapshots, Gen.choose(100.0, 10000.0)) {
       (triple: (SfcCheck.Snapshot, SfcCheck.Snapshot, SfcCheck.MonthlyFlows), delta: Double) =>
         val (prev, curr, flows) = triple
-        val perturbed = curr.copy(govDebt = curr.govDebt + delta)
+        val perturbed = curr.copy(govDebt = curr.govDebt + PLN(delta))
         val result = SfcCheck.validate(1, prev, perturbed, flows)
         // Floating-point: large snapshot values cause small residual errors
         Math.abs(result.bankCapitalError) should be < 0.01
@@ -126,7 +127,7 @@ class SfcCheckPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckProp
     forAll(genConsistentFlowsAndSnapshots, Gen.choose(10.0, 1000.0)) {
       (triple: (SfcCheck.Snapshot, SfcCheck.Snapshot, SfcCheck.MonthlyFlows), perturbation: Double) =>
         val (prev, curr, flows) = triple
-        val perturbed = curr.copy(bankBondHoldings = curr.bankBondHoldings + perturbation)
+        val perturbed = curr.copy(bankBondHoldings = curr.bankBondHoldings + PLN(perturbation))
         val result = SfcCheck.validate(1, prev, perturbed, flows)
         Math.abs(result.bondClearingError) should be > 0.0
     }
@@ -146,7 +147,7 @@ class SfcCheckPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckProp
     forAll(genConsistentFlowsAndSnapshots, Gen.choose(10.0, 1000.0)) {
       (triple: (SfcCheck.Snapshot, SfcCheck.Snapshot, SfcCheck.MonthlyFlows), perturbation: Double) =>
         val (prev, curr, flows) = triple
-        val perturbed = curr.copy(interbankNetSum = perturbation)
+        val perturbed = curr.copy(interbankNetSum = PLN(perturbation))
         val result = SfcCheck.validate(1, prev, perturbed, flows)
         Math.abs(result.interbankNettingError) should be > 0.0
     }
@@ -158,10 +159,10 @@ class SfcCheckPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckProp
     forAll(Gen.choose(3, 20)) { (n: Int) =>
       forAll(Gen.listOfN(n, genAliveFirm)) { (firmList: List[_root_.sfc.agents.Firm]) =>
         val firms = firmList.toArray
-        val expectedCash = firms.map(_.cash).sum
-        val expectedDebt = firms.map(_.debt).sum
-        Math.abs(expectedCash - firms.map(_.cash).sum) should be < 1e-6
-        Math.abs(expectedDebt - firms.map(_.debt).sum) should be < 1e-6
+        val expectedCash = firms.map(_.cash.toDouble).sum
+        val expectedDebt = firms.map(_.debt.toDouble).sum
+        Math.abs(expectedCash - firms.map(_.cash.toDouble).sum) should be < 1e-6
+        Math.abs(expectedDebt - firms.map(_.debt.toDouble).sum) should be < 1e-6
       }
     }
   }
@@ -175,8 +176,8 @@ class SfcCheckPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckProp
       // genMonthlyFlows generates non-zero dividend fields — verify all 8 identities hold
       val result = SfcCheck.validate(1, prev, curr, flows)
       withClue(s"bankCapErr=${result.bankCapitalError} bankDepErr=${result.bankDepositsError} " +
-        s"govDebtErr=${result.govDebtError} nfaErr=${result.nfaError} divIncome=${flows.dividendIncome} " +
-        s"foreignDiv=${flows.foreignDividendOutflow} divTax=${flows.dividendTax}: ") {
+        s"govDebtErr=${result.govDebtError} nfaErr=${result.nfaError} divIncome=${flows.dividendIncome.toDouble} " +
+        s"foreignDiv=${flows.foreignDividendOutflow.toDouble} divTax=${flows.dividendTax.toDouble}: ") {
         result.passed shouldBe true
       }
     }
@@ -187,7 +188,7 @@ class SfcCheckPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckProp
       (triple: (SfcCheck.Snapshot, SfcCheck.Snapshot, SfcCheck.MonthlyFlows), perturbation: Double) =>
         val (prev, curr, flows) = triple
         // Perturb dividendIncome without updating deposits → Identity 2 fails
-        val badFlows = flows.copy(dividendIncome = flows.dividendIncome + perturbation)
+        val badFlows = flows.copy(dividendIncome = flows.dividendIncome + PLN(perturbation))
         val result = SfcCheck.validate(1, prev, curr, badFlows)
         Math.abs(result.bankDepositsError) should be > 0.0
     }
@@ -199,7 +200,7 @@ class SfcCheckPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckProp
     forAll(genConsistentFlowsAndSnapshots, Gen.choose(10.0, 1000.0)) {
       (triple: (SfcCheck.Snapshot, SfcCheck.Snapshot, SfcCheck.MonthlyFlows), perturbation: Double) =>
         val (prev, curr, flows) = triple
-        val perturbed = curr.copy(mortgageStock = curr.mortgageStock + perturbation)
+        val perturbed = curr.copy(mortgageStock = curr.mortgageStock + PLN(perturbation))
         val result = SfcCheck.validate(1, prev, perturbed, flows)
         Math.abs(result.mortgageStockError) should be > 0.0
     }

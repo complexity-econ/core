@@ -4,6 +4,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import sfc.agents.{NbfiState, ShadowBanking}
 import sfc.config.Config
+import sfc.types.*
 
 class ShadowBankingSpec extends AnyFlatSpec with Matchers:
 
@@ -11,50 +12,50 @@ class ShadowBankingSpec extends AnyFlatSpec with Matchers:
 
   "ShadowBanking.zero" should "have all fields at zero" in {
     val z = ShadowBanking.zero
-    z.tfiAum shouldBe 0.0
-    z.tfiGovBondHoldings shouldBe 0.0
-    z.tfiCorpBondHoldings shouldBe 0.0
-    z.tfiEquityHoldings shouldBe 0.0
-    z.tfiCashHoldings shouldBe 0.0
-    z.nbfiLoanStock shouldBe 0.0
-    z.lastTfiNetInflow shouldBe 0.0
-    z.lastNbfiOrigination shouldBe 0.0
-    z.lastNbfiRepayment shouldBe 0.0
-    z.lastNbfiDefaultAmount shouldBe 0.0
+    z.tfiAum.toDouble shouldBe 0.0
+    z.tfiGovBondHoldings.toDouble shouldBe 0.0
+    z.tfiCorpBondHoldings.toDouble shouldBe 0.0
+    z.tfiEquityHoldings.toDouble shouldBe 0.0
+    z.tfiCashHoldings.toDouble shouldBe 0.0
+    z.nbfiLoanStock.toDouble shouldBe 0.0
+    z.lastTfiNetInflow.toDouble shouldBe 0.0
+    z.lastNbfiOrigination.toDouble shouldBe 0.0
+    z.lastNbfiRepayment.toDouble shouldBe 0.0
+    z.lastNbfiDefaultAmount.toDouble shouldBe 0.0
     z.lastBankTightness shouldBe 0.0
-    z.lastDepositDrain shouldBe 0.0
+    z.lastDepositDrain.toDouble shouldBe 0.0
   }
 
   "ShadowBanking.initial" should "have correct AUM" in {
     val init = ShadowBanking.initial
-    init.tfiAum shouldBe Config.NbfiTfiInitAum +- 1.0
+    init.tfiAum.toDouble shouldBe Config.NbfiTfiInitAum +- 1.0
   }
 
   it should "allocate gov bonds at target share" in {
     val init = ShadowBanking.initial
-    init.tfiGovBondHoldings shouldBe (Config.NbfiTfiInitAum * Config.NbfiTfiGovBondShare) +- 1.0
+    init.tfiGovBondHoldings.toDouble shouldBe (Config.NbfiTfiInitAum * Config.NbfiTfiGovBondShare) +- 1.0
   }
 
   it should "allocate corp bonds at target share" in {
     val init = ShadowBanking.initial
-    init.tfiCorpBondHoldings shouldBe (Config.NbfiTfiInitAum * Config.NbfiTfiCorpBondShare) +- 1.0
+    init.tfiCorpBondHoldings.toDouble shouldBe (Config.NbfiTfiInitAum * Config.NbfiTfiCorpBondShare) +- 1.0
   }
 
   it should "allocate equities at target share" in {
     val init = ShadowBanking.initial
-    init.tfiEquityHoldings shouldBe (Config.NbfiTfiInitAum * Config.NbfiTfiEquityShare) +- 1.0
+    init.tfiEquityHoldings.toDouble shouldBe (Config.NbfiTfiInitAum * Config.NbfiTfiEquityShare) +- 1.0
   }
 
   it should "allocate residual to cash" in {
     val init = ShadowBanking.initial
     val expectedCash = Config.NbfiTfiInitAum *
       (1.0 - Config.NbfiTfiGovBondShare - Config.NbfiTfiCorpBondShare - Config.NbfiTfiEquityShare)
-    init.tfiCashHoldings shouldBe expectedCash +- 1.0
+    init.tfiCashHoldings.toDouble shouldBe expectedCash +- 1.0
   }
 
   it should "have correct initial loan stock" in {
     val init = ShadowBanking.initial
-    init.nbfiLoanStock shouldBe Config.NbfiCreditInitStock +- 1.0
+    init.nbfiLoanStock.toDouble shouldBe Config.NbfiCreditInitStock +- 1.0
   }
 
   // ---- bankTightness ----
@@ -155,39 +156,39 @@ class ShadowBankingSpec extends AnyFlatSpec with Matchers:
     val init = ShadowBanking.initial
     val result = ShadowBanking.step(init, 50000, 8000.0, 1.0, 0.05, 0.02,
       0.05, 0.07, 0.005, 0.03, 1e8)
-    result.tfiAum should be > init.tfiAum
+    result.tfiAum > init.tfiAum shouldBe true
   }
 
   it should "produce deposit drain equal to negative inflow" in {
     val init = ShadowBanking.initial
     val result = ShadowBanking.step(init, 50000, 8000.0, 1.0, 0.05, 0.02,
       0.05, 0.07, 0.005, 0.03, 1e8)
-    result.lastDepositDrain shouldBe -result.lastTfiNetInflow +- 0.01
+    result.lastDepositDrain.toDouble shouldBe -result.lastTfiNetInflow.toDouble +- 0.01
   }
 
   it should "maintain Identity 13 (NBFI credit stock)" in {
     val init = ShadowBanking.initial
     val result = ShadowBanking.step(init, 50000, 8000.0, 1.0, 0.05, 0.02,
       0.05, 0.07, 0.005, 0.03, 1e8)
-    val expectedChange = result.lastNbfiOrigination - result.lastNbfiRepayment - result.lastNbfiDefaultAmount
-    val actualChange = result.nbfiLoanStock - init.nbfiLoanStock
+    val expectedChange = (result.lastNbfiOrigination - result.lastNbfiRepayment - result.lastNbfiDefaultAmount).toDouble
+    val actualChange = (result.nbfiLoanStock - init.nbfiLoanStock).toDouble
     actualChange shouldBe expectedChange +- 0.01
   }
 
   it should "rebalance TFI portfolio towards targets" in {
     // Start with all in cash (off-target)
     val offTarget = NbfiState(
-      tfiAum = 1000000.0,
-      tfiGovBondHoldings = 0.0,
-      tfiCorpBondHoldings = 0.0,
-      tfiEquityHoldings = 0.0,
-      tfiCashHoldings = 1000000.0,
-      nbfiLoanStock = 100000.0
+      tfiAum = PLN(1000000.0),
+      tfiGovBondHoldings = PLN.Zero,
+      tfiCorpBondHoldings = PLN.Zero,
+      tfiEquityHoldings = PLN.Zero,
+      tfiCashHoldings = PLN(1000000.0),
+      nbfiLoanStock = PLN(100000.0)
     )
     val result = ShadowBanking.step(offTarget, 50000, 8000.0, 1.0, 0.05, 0.02,
       0.05, 0.07, 0.005, 0.03, 1e8)
     // Gov bond holdings should increase towards target
-    result.tfiGovBondHoldings should be > 0.0
+    result.tfiGovBondHoldings > PLN.Zero shouldBe true
   }
 
   it should "increase origination when bank NPL is high (counter-cyclical)" in {
@@ -196,7 +197,7 @@ class ShadowBankingSpec extends AnyFlatSpec with Matchers:
       0.05, 0.07, 0.005, 0.03, 1e8)
     val tight = ShadowBanking.step(init, 50000, 8000.0, 1.0, 0.05, 0.06,
       0.05, 0.07, 0.005, 0.03, 1e8)
-    tight.lastNbfiOrigination should be > normal.lastNbfiOrigination
+    tight.lastNbfiOrigination > normal.lastNbfiOrigination shouldBe true
     tight.lastBankTightness should be > normal.lastBankTightness
   }
 
@@ -204,8 +205,8 @@ class ShadowBankingSpec extends AnyFlatSpec with Matchers:
     val init = ShadowBanking.initial
     val result = ShadowBanking.step(init, 50000, 8000.0, 1.0, 0.05, 0.02,
       0.05, 0.07, 0.005, 0.03, 1e8)
-    if init.nbfiLoanStock > 0 then
-      result.lastNbfiInterestIncome should be > 0.0
+    if init.nbfiLoanStock > PLN.Zero then
+      result.lastNbfiInterestIncome > PLN.Zero shouldBe true
   }
 
   // ---- Config defaults ----

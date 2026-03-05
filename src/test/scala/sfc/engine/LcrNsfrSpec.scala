@@ -10,13 +10,13 @@ import sfc.types.*
 /** LCR/NSFR and maturity mismatch tests. */
 class LcrNsfrSpec extends AnyFlatSpec with Matchers:
 
-  private def mkBank(id: Int = 0, deposits: Double = 1e9, loans: Double = 5e8,
-                     capital: Double = 1e8, reservesAtNbp: Double = 1e7,
-                     govBonds: Double = 1e8,
-                     demandDep: Double = 0, termDep: Double = 0,
-                     loansS: Double = 0, loansM: Double = 0, loansL: Double = 0) =
-    IndividualBankState(BankId(id), deposits, loans, capital, 0.0, govBonds, reservesAtNbp,
-      0.0, false, 0, 0,
+  private def mkBank(id: Int = 0, deposits: PLN = PLN(1e9), loans: PLN = PLN(5e8),
+                     capital: PLN = PLN(1e8), reservesAtNbp: PLN = PLN(1e7),
+                     govBonds: PLN = PLN(1e8),
+                     demandDep: PLN = PLN.Zero, termDep: PLN = PLN.Zero,
+                     loansS: PLN = PLN.Zero, loansM: PLN = PLN.Zero, loansL: PLN = PLN.Zero) =
+    IndividualBankState(BankId(id), deposits, loans, capital, PLN.Zero, govBonds, reservesAtNbp,
+      PLN.Zero, false, 0, 0,
       demandDeposits = demandDep, termDeposits = termDep,
       loansShort = loansS, loansMedium = loansM, loansLong = loansL)
 
@@ -25,7 +25,7 @@ class LcrNsfrSpec extends AnyFlatSpec with Matchers:
   // =========================================================================
 
   "IndividualBankState.hqla" should "equal reserves + gov bonds" in {
-    val b = mkBank(reservesAtNbp = 5e7, govBonds = 2e8)
+    val b = mkBank(reservesAtNbp = PLN(5e7), govBonds = PLN(2e8))
     b.hqla shouldBe (5e7 + 2e8)
   }
 
@@ -34,7 +34,7 @@ class LcrNsfrSpec extends AnyFlatSpec with Matchers:
   // =========================================================================
 
   "IndividualBankState.lcr" should "compute HQLA / net cash outflows" in {
-    val b = mkBank(reservesAtNbp = 5e7, govBonds = 2e8, demandDep = 1e9)
+    val b = mkBank(reservesAtNbp = PLN(5e7), govBonds = PLN(2e8), demandDep = PLN(1e9))
     // HQLA = 50M + 200M = 250M
     // Net outflows = 1B × 0.10 = 100M
     // LCR = 250M / 100M = 2.5
@@ -42,7 +42,7 @@ class LcrNsfrSpec extends AnyFlatSpec with Matchers:
   }
 
   it should "return 10.0 when outflows are zero" in {
-    val b = mkBank(demandDep = 0)
+    val b = mkBank(demandDep = PLN.Zero)
     b.lcr shouldBe 10.0
   }
 
@@ -51,8 +51,8 @@ class LcrNsfrSpec extends AnyFlatSpec with Matchers:
   // =========================================================================
 
   "IndividualBankState.nsfr" should "compute ASF / RSF" in {
-    val b = mkBank(capital = 1e8, demandDep = 6e8, termDep = 4e8,
-      loansS = 1e8, loansM = 1.5e8, loansL = 2.5e8, govBonds = 5e7)
+    val b = mkBank(capital = PLN(1e8), demandDep = PLN(6e8), termDep = PLN(4e8),
+      loansS = PLN(1e8), loansM = PLN(1.5e8), loansL = PLN(2.5e8), govBonds = PLN(5e7))
     // ASF = 100M + 400M×0.95 + 600M×0.90 = 100M + 380M + 540M = 1,020M
     // RSF = 100M×0.50 + 150M×0.65 + 250M×0.85 + 50M×0.05
     //     = 50M + 97.5M + 212.5M + 2.5M = 362.5M
@@ -61,7 +61,7 @@ class LcrNsfrSpec extends AnyFlatSpec with Matchers:
   }
 
   it should "return 10.0 when RSF is zero" in {
-    val b = mkBank(loansS = 0, loansM = 0, loansL = 0, govBonds = 0)
+    val b = mkBank(loansS = PLN.Zero, loansM = PLN.Zero, loansL = PLN.Zero, govBonds = PLN.Zero)
     b.nsfr shouldBe 10.0
   }
 
@@ -72,7 +72,7 @@ class LcrNsfrSpec extends AnyFlatSpec with Matchers:
   "canLend" should "reject when LCR below minimum (when enabled)" in {
     // We can't easily toggle Config.BankLcrEnabled in tests,
     // but we can test that the LCR/NSFR formulas work correctly
-    val b = mkBank(reservesAtNbp = 0, govBonds = 0, demandDep = 1e9)
+    val b = mkBank(reservesAtNbp = PLN.Zero, govBonds = PLN.Zero, demandDep = PLN(1e9))
     b.lcr shouldBe (0.0 +- 0.01)  // zero HQLA → LCR ≈ 0
     b.lcr should be < 1.0  // Below LCR min
   }
@@ -104,8 +104,8 @@ class LcrNsfrPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPrope
   "LCR" should "be non-negative" in {
     forAll(Gen.choose(0.0, 1e9), Gen.choose(0.0, 1e9), Gen.choose(0.0, 1e9)) {
       (reserves, bonds, demandDep) =>
-        val b = IndividualBankState(BankId(0), 1e9, 5e8, 1e8, 0, bonds, reserves, 0, false, 0, 0,
-          demandDeposits = demandDep, termDeposits = 0)
+        val b = IndividualBankState(BankId(0), PLN(1e9), PLN(5e8), PLN(1e8), PLN.Zero, PLN(bonds), PLN(reserves), PLN.Zero, false, 0, 0,
+          demandDeposits = PLN(demandDep), termDeposits = PLN.Zero)
         b.lcr should be >= 0.0
     }
   }
@@ -114,16 +114,16 @@ class LcrNsfrPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPrope
     forAll(Gen.choose(0.0, 1e8), Gen.choose(0.0, 1e9), Gen.choose(0.0, 1e9),
            Gen.choose(0.0, 1e8), Gen.choose(0.0, 1.5e8), Gen.choose(0.0, 2.5e8)) {
       (capital, demandDep, termDep, loansS, loansM, loansL) =>
-        val b = IndividualBankState(BankId(0), 1e9, 5e8, capital, 0, 0, 0, 0, false, 0, 0,
-          demandDeposits = demandDep, termDeposits = termDep,
-          loansShort = loansS, loansMedium = loansM, loansLong = loansL)
+        val b = IndividualBankState(BankId(0), PLN(1e9), PLN(5e8), PLN(capital), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, false, 0, 0,
+          demandDeposits = PLN(demandDep), termDeposits = PLN(termDep),
+          loansShort = PLN(loansS), loansMedium = PLN(loansM), loansLong = PLN(loansL))
         b.nsfr should be >= 0.0
     }
   }
 
   "HQLA" should "equal reserves + gov bonds" in {
     forAll(Gen.choose(0.0, 1e9), Gen.choose(0.0, 1e9)) { (reserves, bonds) =>
-      val b = IndividualBankState(BankId(0), 1e9, 5e8, 1e8, 0, bonds, reserves, 0, false, 0, 0)
+      val b = IndividualBankState(BankId(0), PLN(1e9), PLN(5e8), PLN(1e8), PLN.Zero, PLN(bonds), PLN(reserves), PLN.Zero, false, 0, 0)
       b.hqla shouldBe (reserves + bonds +- 0.01)
     }
   }

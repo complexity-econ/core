@@ -3,6 +3,7 @@ package sfc.agents
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import sfc.config.Config
+import sfc.types.*
 
 class CentralBankSpec extends AnyFlatSpec with Matchers:
 
@@ -69,21 +70,21 @@ class CentralBankSpec extends AnyFlatSpec with Matchers:
   // --- executeQe ---
 
   "CentralBankLogic.executeQe" should "return 0 purchase when not active" in {
-    val nbp = NbpState(0.05, 1000.0, qeActive = false)
+    val nbp = NbpState(0.05, PLN(1000.0), qeActive = false)
     val (newNbp, purchase) = CentralBankLogic.executeQe(nbp, 5000.0, 1e10)
     purchase shouldBe 0.0
     newNbp.govBondHoldings shouldBe nbp.govBondHoldings
   }
 
   it should "not exceed available bank bond holdings" in {
-    val nbp = NbpState(0.05, 0.0, qeActive = true)
+    val nbp = NbpState(0.05, PLN.Zero, qeActive = true)
     val bankBonds = 100.0
     val (_, purchase) = CentralBankLogic.executeQe(nbp, bankBonds, 1e12)
     purchase should be <= bankBonds
   }
 
   it should "not exceed max GDP share" in {
-    val nbp = NbpState(0.05, 0.0, qeActive = true)
+    val nbp = NbpState(0.05, PLN.Zero, qeActive = true)
     val annualGdp = 1000.0
     val maxByGdp = Config.NbpQeMaxGdpShare * annualGdp
     val (_, purchase) = CentralBankLogic.executeQe(nbp, 1e12, annualGdp)
@@ -91,10 +92,10 @@ class CentralBankSpec extends AnyFlatSpec with Matchers:
   }
 
   it should "accumulate in qeCumulative" in {
-    val nbp = NbpState(0.05, 0.0, qeActive = true)
+    val nbp = NbpState(0.05, PLN.Zero, qeActive = true)
     val (newNbp, purchase) = CentralBankLogic.executeQe(nbp, 1e12, 1e12)
     purchase should be > 0.0
-    newNbp.qeCumulative shouldBe purchase
+    newNbp.qeCumulative.toDouble shouldBe purchase
   }
 
   // --- NbpState defaults ---
@@ -102,7 +103,7 @@ class CentralBankSpec extends AnyFlatSpec with Matchers:
   "NbpState" should "have backward-compatible constructor" in {
     val nbp = NbpState(0.0575)
     nbp.referenceRate shouldBe 0.0575
-    nbp.govBondHoldings shouldBe 0.0
+    nbp.govBondHoldings shouldBe PLN.Zero
     nbp.qeActive shouldBe false
-    nbp.qeCumulative shouldBe 0.0
+    nbp.qeCumulative shouldBe PLN.Zero
   }

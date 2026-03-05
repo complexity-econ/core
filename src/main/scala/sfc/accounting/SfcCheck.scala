@@ -2,104 +2,105 @@ package sfc.accounting
 
 import sfc.agents.{Firm, Household}
 import sfc.engine.World
+import sfc.types.*
 import sfc.util.KahanSum.*
 
 object SfcCheck:
 
   /** Snapshot of all monetary stocks in the economy at one point in time. */
   case class Snapshot(
-    hhSavings: Double,
-    hhDebt: Double,
-    firmCash: Double,
-    firmDebt: Double,
-    bankCapital: Double,
-    bankDeposits: Double,
-    bankLoans: Double,
-    govDebt: Double,
-    nfa: Double = 0.0,
-    bankBondHoldings: Double = 0.0,
-    nbpBondHoldings: Double = 0.0,
-    bondsOutstanding: Double = 0.0,
-    interbankNetSum: Double = 0.0,
-    jstDeposits: Double = 0.0,
-    jstDebt: Double = 0.0,
-    fusBalance: Double = 0.0,     // ZUS/FUS raw surplus/deficit
-    ppkBondHoldings: Double = 0.0, // PPK government bond holdings
-    mortgageStock: Double = 0.0,  // Outstanding mortgage debt
-    consumerLoans: Double = 0.0,  // Outstanding consumer credit stock
-    corpBondsOutstanding: Double = 0.0,  // corporate bond stock
-    insuranceGovBondHoldings: Double = 0.0,  // insurance gov bond holdings
-    tfiGovBondHoldings: Double = 0.0,  // TFI gov bond holdings
-    nbfiLoanStock: Double = 0.0        // NBFI credit stock
+    hhSavings: PLN,
+    hhDebt: PLN,
+    firmCash: PLN,
+    firmDebt: PLN,
+    bankCapital: PLN,
+    bankDeposits: PLN,
+    bankLoans: PLN,
+    govDebt: PLN,
+    nfa: PLN = PLN.Zero,
+    bankBondHoldings: PLN = PLN.Zero,
+    nbpBondHoldings: PLN = PLN.Zero,
+    bondsOutstanding: PLN = PLN.Zero,
+    interbankNetSum: PLN = PLN.Zero,
+    jstDeposits: PLN = PLN.Zero,
+    jstDebt: PLN = PLN.Zero,
+    fusBalance: PLN = PLN.Zero,     // ZUS/FUS raw surplus/deficit
+    ppkBondHoldings: PLN = PLN.Zero, // PPK government bond holdings
+    mortgageStock: PLN = PLN.Zero,  // Outstanding mortgage debt
+    consumerLoans: PLN = PLN.Zero,  // Outstanding consumer credit stock
+    corpBondsOutstanding: PLN = PLN.Zero,  // corporate bond stock
+    insuranceGovBondHoldings: PLN = PLN.Zero,  // insurance gov bond holdings
+    tfiGovBondHoldings: PLN = PLN.Zero,  // TFI gov bond holdings
+    nbfiLoanStock: PLN = PLN.Zero        // NBFI credit stock
   )
 
   /** Flows observed during a single month (computed in Simulation.step).
     * These must match the EXACT values used in balance sheet updates. */
   case class MonthlyFlows(
-    govSpending: Double,
-    govRevenue: Double,
-    nplLoss: Double,
-    interestIncome: Double,
-    hhDebtService: Double,
-    totalIncome: Double,
-    totalConsumption: Double,
-    newLoans: Double,
-    nplRecovery: Double,
-    currentAccount: Double = 0.0,
-    valuationEffect: Double = 0.0,
-    bankBondIncome: Double = 0.0,
-    qePurchase: Double = 0.0,
-    newBondIssuance: Double = 0.0,
-    depositInterestPaid: Double = 0.0,
-    reserveInterest: Double = 0.0,          // NBP pays on required reserves
-    standingFacilityIncome: Double = 0.0,   // Deposit/lombard facility net
-    interbankInterest: Double = 0.0,        // Interbank interest (net ≈ 0)
-    jstDepositChange: Double = 0.0,         // JST deposit flow
-    jstSpending: Double = 0.0,              // JST spending
-    jstRevenue: Double = 0.0,              // JST revenue
-    zusContributions: Double = 0.0,        // ZUS contributions
-    zusPensionPayments: Double = 0.0,      // ZUS pension payments
-    zusGovSubvention: Double = 0.0,        // ZUS gov subvention
-    dividendIncome: Double = 0.0,          // net domestic dividends → HH deposits
-    foreignDividendOutflow: Double = 0.0,  // foreign dividends → CA outflow
-    dividendTax: Double = 0.0,            // Belka tax → gov revenue
-    mortgageInterestIncome: Double = 0.0, // mortgage interest → bank capital
-    mortgageNplLoss: Double = 0.0,        // mortgage NPL loss → bank capital
-    mortgageOrigination: Double = 0.0,    // new mortgages issued
-    mortgagePrincipalRepaid: Double = 0.0, // monthly principal repaid
-    mortgageDefaultAmount: Double = 0.0,  // gross mortgage defaults (before recovery)
-    remittanceOutflow: Double = 0.0,      // immigrant remittances → deposit outflow
-    fofResidual: Double = 0.0,            // flow-of-funds residual (Σ firmRevenue - Σ sectorDemand)
-    consumerDebtService: Double = 0.0,    // consumer credit: monthly debt service (principal + interest)
-    consumerNplLoss: Double = 0.0,        // consumer credit: NPL loss (after recovery)
-    consumerOrigination: Double = 0.0,    // consumer credit: new loan origination
-    consumerPrincipalRepaid: Double = 0.0, // consumer credit: principal portion of debt service
-    consumerDefaultAmount: Double = 0.0,  // consumer credit: gross default amount (before recovery)
-    corpBondCouponIncome: Double = 0.0,   // bank coupon income from corp bonds
-    corpBondDefaultLoss: Double = 0.0,    // bank loss from corp bond defaults
-    corpBondIssuance: Double = 0.0,       // new corp bonds issued this month
-    corpBondAmortization: Double = 0.0,   // corp bond principal repaid
-    corpBondDefaultAmount: Double = 0.0,  // gross corp bond defaults
-    insNetDepositChange: Double = 0.0,    // insurance net HH deposit change
-    nbfiDepositDrain: Double = 0.0,      // TFI deposit drain
-    nbfiOrigination: Double = 0.0,       // NBFI monthly origination
-    nbfiRepayment: Double = 0.0,         // NBFI monthly repayment
-    nbfiDefaultAmount: Double = 0.0,     // NBFI gross monthly defaults
-    fdiProfitShifting: Double = 0.0,     // FDI profit shifting (service import)
-    fdiRepatriation: Double = 0.0,       // FDI dividend repatriation (primary income debit)
-    diasporaInflow: Double = 0.0,        // diaspora remittance inflow → deposit inflow
-    tourismExport: Double = 0.0,         // inbound tourism → deposit inflow + export
-    tourismImport: Double = 0.0,         // outbound tourism → deposit outflow + import
-    bfgLevy: Double = 0.0,              // BFG levy (bank capital expense)
-    bailInLoss: Double = 0.0,           // bail-in deposit destruction
-    bankCapitalDestruction: Double = 0.0, // Capital wiped when bank fails (shareholders wiped)
-    investNetDepositFlow: Double = 0.0, // Investment demand net flow: lagged revenue - current spending
+    govSpending: PLN,
+    govRevenue: PLN,
+    nplLoss: PLN,
+    interestIncome: PLN,
+    hhDebtService: PLN,
+    totalIncome: PLN,
+    totalConsumption: PLN,
+    newLoans: PLN,
+    nplRecovery: PLN,
+    currentAccount: PLN = PLN.Zero,
+    valuationEffect: PLN = PLN.Zero,
+    bankBondIncome: PLN = PLN.Zero,
+    qePurchase: PLN = PLN.Zero,
+    newBondIssuance: PLN = PLN.Zero,
+    depositInterestPaid: PLN = PLN.Zero,
+    reserveInterest: PLN = PLN.Zero,          // NBP pays on required reserves
+    standingFacilityIncome: PLN = PLN.Zero,   // Deposit/lombard facility net
+    interbankInterest: PLN = PLN.Zero,        // Interbank interest (net ≈ 0)
+    jstDepositChange: PLN = PLN.Zero,         // JST deposit flow
+    jstSpending: PLN = PLN.Zero,              // JST spending
+    jstRevenue: PLN = PLN.Zero,              // JST revenue
+    zusContributions: PLN = PLN.Zero,        // ZUS contributions
+    zusPensionPayments: PLN = PLN.Zero,      // ZUS pension payments
+    zusGovSubvention: PLN = PLN.Zero,        // ZUS gov subvention
+    dividendIncome: PLN = PLN.Zero,          // net domestic dividends → HH deposits
+    foreignDividendOutflow: PLN = PLN.Zero,  // foreign dividends → CA outflow
+    dividendTax: PLN = PLN.Zero,            // Belka tax → gov revenue
+    mortgageInterestIncome: PLN = PLN.Zero, // mortgage interest → bank capital
+    mortgageNplLoss: PLN = PLN.Zero,        // mortgage NPL loss → bank capital
+    mortgageOrigination: PLN = PLN.Zero,    // new mortgages issued
+    mortgagePrincipalRepaid: PLN = PLN.Zero, // monthly principal repaid
+    mortgageDefaultAmount: PLN = PLN.Zero,  // gross mortgage defaults (before recovery)
+    remittanceOutflow: PLN = PLN.Zero,      // immigrant remittances → deposit outflow
+    fofResidual: PLN = PLN.Zero,            // flow-of-funds residual (Σ firmRevenue - Σ sectorDemand)
+    consumerDebtService: PLN = PLN.Zero,    // consumer credit: monthly debt service (principal + interest)
+    consumerNplLoss: PLN = PLN.Zero,        // consumer credit: NPL loss (after recovery)
+    consumerOrigination: PLN = PLN.Zero,    // consumer credit: new loan origination
+    consumerPrincipalRepaid: PLN = PLN.Zero, // consumer credit: principal portion of debt service
+    consumerDefaultAmount: PLN = PLN.Zero,  // consumer credit: gross default amount (before recovery)
+    corpBondCouponIncome: PLN = PLN.Zero,   // bank coupon income from corp bonds
+    corpBondDefaultLoss: PLN = PLN.Zero,    // bank loss from corp bond defaults
+    corpBondIssuance: PLN = PLN.Zero,       // new corp bonds issued this month
+    corpBondAmortization: PLN = PLN.Zero,   // corp bond principal repaid
+    corpBondDefaultAmount: PLN = PLN.Zero,  // gross corp bond defaults
+    insNetDepositChange: PLN = PLN.Zero,    // insurance net HH deposit change
+    nbfiDepositDrain: PLN = PLN.Zero,      // TFI deposit drain
+    nbfiOrigination: PLN = PLN.Zero,       // NBFI monthly origination
+    nbfiRepayment: PLN = PLN.Zero,         // NBFI monthly repayment
+    nbfiDefaultAmount: PLN = PLN.Zero,     // NBFI gross monthly defaults
+    fdiProfitShifting: PLN = PLN.Zero,     // FDI profit shifting (service import)
+    fdiRepatriation: PLN = PLN.Zero,       // FDI dividend repatriation (primary income debit)
+    diasporaInflow: PLN = PLN.Zero,        // diaspora remittance inflow → deposit inflow
+    tourismExport: PLN = PLN.Zero,         // inbound tourism → deposit inflow + export
+    tourismImport: PLN = PLN.Zero,         // outbound tourism → deposit outflow + import
+    bfgLevy: PLN = PLN.Zero,              // BFG levy (bank capital expense)
+    bailInLoss: PLN = PLN.Zero,           // bail-in deposit destruction
+    bankCapitalDestruction: PLN = PLN.Zero, // Capital wiped when bank fails (shareholders wiped)
+    investNetDepositFlow: PLN = PLN.Zero, // Investment demand net flow: lagged revenue - current spending
     // Identity 14 (sectoral balances): (S−I) + (G−T) + (X−M) = 0
-    exports: Double = 0.0,              // Total goods exports (BoP)
-    totalImports: Double = 0.0,         // Total goods imports (BoP, incl. profit shifting)
-    grossInvestment: Double = 0.0,      // Firm gross fixed capital formation
-    greenInvestment: Double = 0.0,      // Green capital investment
-    inventoryChange: Double = 0.0       // ΔInventories (SNA 2008)
+    exports: PLN = PLN.Zero,              // Total goods exports (BoP)
+    totalImports: PLN = PLN.Zero,         // Total goods imports (BoP, incl. profit shifting)
+    grossInvestment: PLN = PLN.Zero,      // Firm gross fixed capital formation
+    greenInvestment: PLN = PLN.Zero,      // Green capital investment
+    inventoryChange: PLN = PLN.Zero       // ΔInventories (SNA 2008)
   )
 
   /** Result of the SFC check: ten exact balance-sheet identity checks. */
@@ -124,14 +125,14 @@ object SfcCheck:
 
   def snapshot(w: World, firms: Array[Firm],
                households: Option[Vector[Household]]): Snapshot =
-    val hhS = households.map(_.kahanSumBy(_.savings)).getOrElse(0.0)
-    val hhD = households.map(_.kahanSumBy(_.debt)).getOrElse(0.0)
-    val ibNet = w.bankingSector.map(_.banks.kahanSumBy(_.interbankNet)).getOrElse(0.0)
+    val hhS = PLN(households.map(_.kahanSumBy(_.savings.toDouble)).getOrElse(0.0))
+    val hhD = PLN(households.map(_.kahanSumBy(_.debt.toDouble)).getOrElse(0.0))
+    val ibNet = PLN(w.bankingSector.map(_.banks.kahanSumBy(_.interbankNet.toDouble)).getOrElse(0.0))
     Snapshot(
       hhSavings = hhS,
       hhDebt = hhD,
-      firmCash = firms.kahanSumBy(_.cash),
-      firmDebt = firms.kahanSumBy(_.debt),
+      firmCash = PLN(firms.kahanSumBy(_.cash.toDouble)),
+      firmDebt = PLN(firms.kahanSumBy(_.debt.toDouble)),
       bankCapital = w.bank.capital,
       bankDeposits = w.bank.deposits,
       bankLoans = w.bank.totalLoans,
@@ -287,19 +288,21 @@ object SfcCheck:
     // if Identities 1–13 hold, but unit tests set partial flows that don't satisfy
     // all three sectoral balances simultaneously. Included in passed only when
     // validateSectoralBalances = true (integration tests / full simulation).
-    val passed = Math.abs(bankCapErr) < tolerance &&
-                 Math.abs(bankDepErr) < tolerance &&
-                 Math.abs(govDebtErr) < tolerance &&
-                 Math.abs(nfaErr) < nfaTolerance &&
-                 Math.abs(bondClearingErr) < tolerance &&
-                 Math.abs(interbankErr) < tolerance &&
-                 Math.abs(jstDebtErr) < tolerance &&
-                 Math.abs(fusErr) < tolerance &&
-                 Math.abs(mortgageErr) < tolerance &&
-                 Math.abs(fofErr) < tolerance &&
-                 Math.abs(ccErr) < tolerance &&
-                 Math.abs(corpBondErr) < tolerance &&
-                 Math.abs(nbfiCreditErr) < tolerance
+    val passed = bankCapErr.abs.toDouble < tolerance &&
+                 bankDepErr.abs.toDouble < tolerance &&
+                 govDebtErr.abs.toDouble < tolerance &&
+                 nfaErr.abs.toDouble < nfaTolerance &&
+                 bondClearingErr.abs.toDouble < tolerance &&
+                 interbankErr.abs.toDouble < tolerance &&
+                 jstDebtErr.abs.toDouble < tolerance &&
+                 fusErr.abs.toDouble < tolerance &&
+                 mortgageErr.abs.toDouble < tolerance &&
+                 fofErr.abs.toDouble < tolerance &&
+                 ccErr.abs.toDouble < tolerance &&
+                 corpBondErr.abs.toDouble < tolerance &&
+                 nbfiCreditErr.abs.toDouble < tolerance
 
-    SfcResult(month, bankCapErr, bankDepErr, govDebtErr, nfaErr, bondClearingErr, interbankErr,
-      jstDebtErr, fusErr, mortgageErr, fofErr, ccErr, corpBondErr, nbfiCreditErr, sectoralBalErr, passed)
+    SfcResult(month, bankCapErr.toDouble, bankDepErr.toDouble, govDebtErr.toDouble,
+      nfaErr.toDouble, bondClearingErr.toDouble, interbankErr.toDouble,
+      jstDebtErr.toDouble, fusErr.toDouble, mortgageErr.toDouble, fofErr.toDouble,
+      ccErr.toDouble, corpBondErr.toDouble, nbfiCreditErr.toDouble, sectoralBalErr.toDouble, passed)

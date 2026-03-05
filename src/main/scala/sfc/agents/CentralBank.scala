@@ -1,14 +1,15 @@
 package sfc.agents
 
 import sfc.config.Config
+import sfc.types.*
 
 case class NbpState(
   referenceRate: Double,
-  govBondHoldings: Double = 0.0,
+  govBondHoldings: PLN = PLN.Zero,
   qeActive: Boolean = false,
-  qeCumulative: Double = 0.0,
-  fxReserves: Double = Config.NbpFxReserves,   // EUR-equivalent total (multi-currency)
-  lastFxTraded: Double = 0.0                    // monthly FX intervention amount (EUR)
+  qeCumulative: PLN = PLN.Zero,
+  fxReserves: PLN = PLN(Config.NbpFxReserves),   // EUR-equivalent total (multi-currency)
+  lastFxTraded: PLN = PLN.Zero                    // monthly FX intervention amount (EUR)
 )
 
 object CentralBankLogic:
@@ -38,12 +39,12 @@ object CentralBankLogic:
   def executeQe(nbp: NbpState, bankBondHoldings: Double, annualGdp: Double): (NbpState, Double) =
     if !nbp.qeActive then (nbp, 0.0)
     else
-      val maxByGdp = Config.NbpQeMaxGdpShare * annualGdp - nbp.govBondHoldings
+      val maxByGdp = (PLN(Config.NbpQeMaxGdpShare * annualGdp) - nbp.govBondHoldings).toDouble
       val available = bankBondHoldings
       val purchase = Math.max(0.0, Math.min(Config.NbpQePace, Math.min(maxByGdp, available)))
       val newNbp = nbp.copy(
-        govBondHoldings = nbp.govBondHoldings + purchase,
-        qeCumulative = nbp.qeCumulative + purchase
+        govBondHoldings = nbp.govBondHoldings + PLN(purchase),
+        qeCumulative = nbp.qeCumulative + PLN(purchase)
       )
       (newNbp, purchase)
 

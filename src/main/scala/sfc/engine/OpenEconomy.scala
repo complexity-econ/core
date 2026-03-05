@@ -3,6 +3,7 @@ package sfc.engine
 import sfc.accounting.{BopState, ForexState}
 import sfc.config.{Config, SECTORS, RunConfig}
 import sfc.agents.CentralBankLogic
+import sfc.types.PLN
 import sfc.util.KahanSum.*
 
 case class OpenEconResult(
@@ -74,12 +75,12 @@ object OpenEconomy:
     val tradeBalance = totalExportsIncTourism - totalImports
 
     // E. Current account
-    val primaryIncome = prevBop.nfa * Config.OeNfaReturnRate / 12.0
+    val primaryIncome = prevBop.nfa.toDouble * Config.OeNfaReturnRate / 12.0
     val secondaryIncome = euFundsMonthly - remittanceOutflow + diasporaInflow
     val currentAccount = tradeBalance + primaryIncome + secondaryIncome
 
     // F. Capital account
-    val nfaGdpRatio = if gdp > 0 then prevBop.nfa / (gdp * 12.0) else 0.0
+    val nfaGdpRatio = if gdp > 0 then prevBop.nfa.toDouble / (gdp * 12.0) else 0.0
     val fdi = if rc.isEurozone then
       Config.OeFdiBase * (1.0 + autoRatio * 0.5) // EUR: more FDI from tech adoption
     else
@@ -109,30 +110,30 @@ object OpenEconomy:
     val valuationEffect = if rc.isEurozone then 0.0
     else
       val erChange = (newExRate - prevForex.exchangeRate) / prevForex.exchangeRate
-      prevBop.foreignAssets * erChange * 0.3  // Partial pass-through of ER valuation
-    val newNfa = prevBop.nfa + currentAccount + valuationEffect
+      prevBop.foreignAssets.toDouble * erChange * 0.3  // Partial pass-through of ER valuation
+    val newNfa = prevBop.nfa.toDouble + currentAccount + valuationEffect
 
     // Gross positions update
-    val newForeignAssets = prevBop.foreignAssets + Math.max(0.0, capitalAccount)
-    val newForeignLiabilities = prevBop.foreignLiabilities + Math.max(0.0, -capitalAccount)
+    val newForeignAssets = prevBop.foreignAssets.toDouble + Math.max(0.0, capitalAccount)
+    val newForeignLiabilities = prevBop.foreignLiabilities.toDouble + Math.max(0.0, -capitalAccount)
 
-    val newForex = ForexState(newExRate, totalImports, totalExportsIncTourism, tradeBalance, techImports)
+    val newForex = ForexState(newExRate, PLN(totalImports), PLN(totalExportsIncTourism), PLN(tradeBalance), PLN(techImports))
 
     val newBop = BopState(
-      nfa = newNfa,
-      foreignAssets = newForeignAssets,
-      foreignLiabilities = newForeignLiabilities,
-      currentAccount = currentAccount,
-      capitalAccount = capitalAccount,
-      tradeBalance = tradeBalance,
-      primaryIncome = primaryIncome,
-      secondaryIncome = secondaryIncome,
-      fdi = fdi,
-      portfolioFlows = portfolioFlows,
-      reserves = prevBop.reserves + deltaReserves,
-      exports = totalExportsIncTourism,
-      totalImports = totalImports,
-      importedIntermediates = totalImportedInterm
+      nfa = PLN(newNfa),
+      foreignAssets = PLN(newForeignAssets),
+      foreignLiabilities = PLN(newForeignLiabilities),
+      currentAccount = PLN(currentAccount),
+      capitalAccount = PLN(capitalAccount),
+      tradeBalance = PLN(tradeBalance),
+      primaryIncome = PLN(primaryIncome),
+      secondaryIncome = PLN(secondaryIncome),
+      fdi = PLN(fdi),
+      portfolioFlows = PLN(portfolioFlows),
+      reserves = PLN(prevBop.reserves.toDouble + deltaReserves),
+      exports = PLN(totalExportsIncTourism),
+      totalImports = PLN(totalImports),
+      importedIntermediates = PLN(totalImportedInterm)
     )
 
     OpenEconResult(newForex, newBop, importedInterm, valuationEffect, fxResult)

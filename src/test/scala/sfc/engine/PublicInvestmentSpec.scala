@@ -4,10 +4,11 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import sfc.accounting.GovState
 import sfc.config.Config
+import sfc.types.*
 
 class PublicInvestmentSpec extends AnyFlatSpec with Matchers:
 
-  val prev = GovState(false, 0, 0, 0, 0, 0)
+  val prev = GovState(false, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
 
   // --- Disabled (default) ---
 
@@ -16,25 +17,25 @@ class PublicInvestmentSpec extends AnyFlatSpec with Matchers:
     val result = Sectors.updateGov(prev, citPaid = 100000, vat = 200000,
       bdpActive = false, bdpAmount = 0, priceLevel = 1.0, unempBenefitSpend = 0)
     // Total spend should be govBaseSpending * priceLevel + 0 (no bdp, no benefits)
-    result.deficit shouldBe (Config.GovBaseSpending - 300000.0) +- 1.0
+    result.deficit.toDouble shouldBe (Config.GovBaseSpending - 300000.0) +- 1.0
   }
 
   it should "have zero govCapitalSpend when disabled" in {
     val result = Sectors.updateGov(prev, 100000, 200000,
       bdpActive = false, bdpAmount = 0, priceLevel = 1.0, unempBenefitSpend = 0)
-    result.govCapitalSpend shouldBe 0.0
+    result.govCapitalSpend shouldBe PLN.Zero
   }
 
   it should "have zero publicCapitalStock when disabled" in {
     val result = Sectors.updateGov(prev, 100000, 200000,
       bdpActive = false, bdpAmount = 0, priceLevel = 1.0, unempBenefitSpend = 0)
-    result.publicCapitalStock shouldBe 0.0
+    result.publicCapitalStock shouldBe PLN.Zero
   }
 
   it should "have govCurrentSpend equal to govBaseSpending when disabled" in {
     val result = Sectors.updateGov(prev, 100000, 200000,
       bdpActive = false, bdpAmount = 0, priceLevel = 1.0, unempBenefitSpend = 0)
-    result.govCurrentSpend shouldBe Config.GovBaseSpending * 1.0
+    result.govCurrentSpend.toDouble shouldBe Config.GovBaseSpending * 1.0
   }
 
   // --- Enabled: split verification ---
@@ -42,10 +43,10 @@ class PublicInvestmentSpec extends AnyFlatSpec with Matchers:
   // we verify the math by checking that the split preserves total spending.
 
   "GovState" should "have new fields default to 0" in {
-    val g = GovState(false, 0, 0, 0, 0, 0)
-    g.publicCapitalStock shouldBe 0.0
-    g.govCurrentSpend shouldBe 0.0
-    g.govCapitalSpend shouldBe 0.0
+    val g = GovState(false, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
+    g.publicCapitalStock shouldBe PLN.Zero
+    g.govCurrentSpend shouldBe PLN.Zero
+    g.govCapitalSpend shouldBe PLN.Zero
   }
 
   // --- Formula verification (independent of Config.GovInvestEnabled) ---
@@ -110,9 +111,9 @@ class PublicInvestmentSpec extends AnyFlatSpec with Matchers:
 
   "updateGov with prior capital stock" should "carry forward stock when disabled" in {
     // Even if prev has nonzero capitalStock, disabled mode resets to 0
-    val prevWithStock = GovState(false, 0, 0, 0, 0, 0,
-      publicCapitalStock = 500000.0)
+    val prevWithStock = GovState(false, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero,
+      publicCapitalStock = PLN(500000.0))
     val result = Sectors.updateGov(prevWithStock, 100000, 200000,
       bdpActive = false, bdpAmount = 0, priceLevel = 1.0, unempBenefitSpend = 0)
-    result.publicCapitalStock shouldBe 0.0
+    result.publicCapitalStock shouldBe PLN.Zero
   }

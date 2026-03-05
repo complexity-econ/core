@@ -60,21 +60,21 @@ class ImmigrationPropertySpec extends AnyFlatSpec with Matchers:
     val rng = new Random(42)
     val immigrants = ImmigrationLogic.spawnImmigrants(200, 0, rng)
     immigrants.foreach { h =>
-      h.savings should be >= 0.0
-      h.savings should be <= 5000.0
+      h.savings.toDouble should be >= 0.0
+      h.savings.toDouble should be <= 5000.0
     }
   }
 
   it should "have zero debt" in {
     val rng = new Random(42)
     val immigrants = ImmigrationLogic.spawnImmigrants(50, 0, rng)
-    immigrants.foreach(_.debt shouldBe 0.0)
+    immigrants.foreach(_.debt shouldBe PLN.Zero)
   }
 
   it should "have rent >= 800" in {
     val rng = new Random(42)
     val immigrants = ImmigrationLogic.spawnImmigrants(100, 0, rng)
-    immigrants.foreach(_.monthlyRent should be >= 800.0)
+    immigrants.foreach(_.monthlyRent.toDouble should be >= 800.0)
   }
 
   "ImmigrationLogic.step" should "preserve non-negative stock" in {
@@ -89,8 +89,8 @@ class ImmigrationPropertySpec extends AnyFlatSpec with Matchers:
   "ImmigrationLogic.removeReturnMigrants" should "never remove more immigrants than exist" in {
     val rng = new Random(42)
     val hhs = (0 until 10).map { i =>
-      Household(i, 1000.0, 0, 1800.0, 0.5, 0.0, 0.85,
-        HhStatus.Employed(FirmId(0), SectorIdx(0), 6000.0), Array.empty[Int],
+      Household(i, PLN(1000.0), PLN.Zero, PLN(1800.0), 0.5, 0.0, 0.85,
+        HhStatus.Employed(FirmId(0), SectorIdx(0), PLN(6000.0)), Array.empty[Int],
         isImmigrant = i >= 5)  // 5 natives + 5 immigrants
     }.toVector
     // Request removing 100, but only 5 immigrants exist

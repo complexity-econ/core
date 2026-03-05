@@ -79,15 +79,15 @@ class ConsumerCreditSpec extends AnyFlatSpec with Matchers:
 
   "Bankruptcy" should "trigger consumer debt default" in {
     val hh = Household(
-      id = 0, savings = -5000.0, debt = 1000.0, monthlyRent = 1000.0,
+      id = 0, savings = PLN(-5000.0), debt = PLN(1000.0), monthlyRent = PLN(1000.0),
       skill = 0.8, healthPenalty = 0.0, mpc = 0.82,
       status = HhStatus.Bankrupt, socialNeighbors = Array.empty[Int],
-      consumerDebt = 5000.0
+      consumerDebt = PLN(5000.0)
     )
     // Bankrupt HH should have consumer debt → NPL
-    hh.consumerDebt shouldBe 5000.0
+    hh.consumerDebt.toDouble shouldBe 5000.0
     // NPL loss = consumerDebt × (1 - recovery)
-    val nplLoss = hh.consumerDebt * (1.0 - Config.CcNplRecovery)
+    val nplLoss = hh.consumerDebt.toDouble * (1.0 - Config.CcNplRecovery)
     nplLoss shouldBe 4250.0 +- 0.01
   }
 
@@ -126,47 +126,47 @@ class ConsumerCreditSpec extends AnyFlatSpec with Matchers:
   "HhAggregates consumer fields" should "default to 0.0" in {
     val agg = HhAggregates(
       employed = 0, unemployed = 0, retraining = 0, bankrupt = 0,
-      totalIncome = 0, consumption = 0, domesticConsumption = 0, importConsumption = 0,
-      marketWage = 0, reservationWage = 0, giniIndividual = 0, giniWealth = 0,
-      meanSavings = 0, medianSavings = 0, povertyRate50 = 0, bankruptcyRate = 0,
+      totalIncome = PLN.Zero, consumption = PLN.Zero, domesticConsumption = PLN.Zero, importConsumption = PLN.Zero,
+      marketWage = PLN.Zero, reservationWage = PLN.Zero, giniIndividual = 0, giniWealth = 0,
+      meanSavings = PLN.Zero, medianSavings = PLN.Zero, povertyRate50 = 0, bankruptcyRate = 0,
       meanSkill = 0, meanHealthPenalty = 0, retrainingAttempts = 0, retrainingSuccesses = 0,
-      consumptionP10 = 0, consumptionP50 = 0, consumptionP90 = 0,
-      meanMonthsToRuin = 0, povertyRate30 = 0, totalRent = 0,
-      totalDebtService = 0, totalUnempBenefits = 0
+      consumptionP10 = PLN.Zero, consumptionP50 = PLN.Zero, consumptionP90 = PLN.Zero,
+      meanMonthsToRuin = 0, povertyRate30 = 0, totalRent = PLN.Zero,
+      totalDebtService = PLN.Zero, totalUnempBenefits = PLN.Zero
     )
-    agg.totalConsumerDebtService shouldBe 0.0
-    agg.totalConsumerOrigination shouldBe 0.0
-    agg.totalConsumerDefault shouldBe 0.0
+    agg.totalConsumerDebtService.toDouble shouldBe 0.0
+    agg.totalConsumerOrigination.toDouble shouldBe 0.0
+    agg.totalConsumerDefault.toDouble shouldBe 0.0
   }
 
   "Household" should "have consumerDebt field defaulting to 0" in {
     val hh = Household(
-      id = 0, savings = 10000.0, debt = 0.0, monthlyRent = 1000.0,
+      id = 0, savings = PLN(10000.0), debt = PLN.Zero, monthlyRent = PLN(1000.0),
       skill = 0.8, healthPenalty = 0.0, mpc = 0.82,
-      status = HhStatus.Employed(FirmId(0), SectorIdx(0), 8266.0), socialNeighbors = Array.empty[Int]
+      status = HhStatus.Employed(FirmId(0), SectorIdx(0), PLN(8266.0)), socialNeighbors = Array.empty[Int]
     )
-    hh.consumerDebt shouldBe 0.0
+    hh.consumerDebt.toDouble shouldBe 0.0
   }
 
   "BankState" should "have consumerLoans and consumerNpl fields" in {
-    val bank = BankState(1000.0, 50.0, 500.0, 2000.0)
-    bank.consumerLoans shouldBe 0.0
-    bank.consumerNpl shouldBe 0.0
+    val bank = BankState(PLN(1000.0), PLN(50.0), PLN(500.0), PLN(2000.0))
+    bank.consumerLoans.toDouble shouldBe 0.0
+    bank.consumerNpl.toDouble shouldBe 0.0
   }
 
   "BankState.car" should "include consumer loans in RWA" in {
-    val bank = BankState(1000.0, 50.0, 500.0, 2000.0, consumerLoans = 1000.0)
+    val bank = BankState(PLN(1000.0), PLN(50.0), PLN(500.0), PLN(2000.0), consumerLoans = PLN(1000.0))
     // CAR = capital / (totalLoans + consumerLoans) = 500 / 2000 = 0.25
     bank.car shouldBe 0.25 +- 0.01
     // Without consumer loans: CAR = 500 / 1000 = 0.50
-    val bankNoCc = BankState(1000.0, 50.0, 500.0, 2000.0)
+    val bankNoCc = BankState(PLN(1000.0), PLN(50.0), PLN(500.0), PLN(2000.0))
     bankNoCc.car shouldBe 0.50 +- 0.01
     bank.car should be < bankNoCc.car
   }
 
   "SfcCheck" should "include consumerCreditError in SfcResult" in {
-    val snap = SfcCheck.Snapshot(0, 0, 0, 0, 100.0, 200.0, 0, 0)
-    val flow = SfcCheck.MonthlyFlows(0, 0, 0, 0, 0, 0, 0, 0, 0)
+    val snap = SfcCheck.Snapshot(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN(100.0), PLN(200.0), PLN.Zero, PLN.Zero)
+    val flow = SfcCheck.MonthlyFlows(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
     val result = SfcCheck.validate(1, snap, snap, flow)
     result.consumerCreditError shouldBe 0.0 +- 0.01
   }

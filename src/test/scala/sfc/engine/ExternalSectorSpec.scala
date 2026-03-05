@@ -3,6 +3,7 @@ package sfc.engine
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import sfc.config.{Config, RunConfig, MonetaryRegime}
+import sfc.types.*
 
 class ExternalSectorSpec extends AnyFlatSpec with Matchers:
 
@@ -15,7 +16,7 @@ class ExternalSectorSpec extends AnyFlatSpec with Matchers:
   "ExternalSector.zero" should "have empty foreign firms" in {
     val s = ExternalSector.zero
     s.foreignFirms shouldBe empty
-    s.totalExports shouldBe 0.0
+    s.totalExports.toDouble shouldBe 0.0
     s.foreignPriceIndex shouldBe 1.0
   }
 
@@ -36,7 +37,7 @@ class ExternalSectorSpec extends AnyFlatSpec with Matchers:
 
   it should "have positive base export demand for all firms" in {
     val s = ExternalSector.initial
-    s.foreignFirms.foreach(_.baseExportDemand should be > 0.0)
+    s.foreignFirms.foreach(_.baseExportDemand.toDouble should be > 0.0)
   }
 
   it should "have zero disruption initially" in {
@@ -56,13 +57,13 @@ class ExternalSectorSpec extends AnyFlatSpec with Matchers:
   "ExternalSector.step" should "produce positive total exports" in {
     val init = ExternalSector.initial
     val r = ExternalSector.step(init, sectorOutputs, 1.0, Config.BaseExRate, 0.0, 30, plnRc)
-    r.totalExports should be > 0.0
+    r.totalExports.toDouble should be > 0.0
   }
 
   it should "produce positive total intermediate imports" in {
     val init = ExternalSector.initial
     val r = ExternalSector.step(init, sectorOutputs, 1.0, Config.BaseExRate, 0.0, 30, plnRc)
-    r.totalIntermImports should be > 0.0
+    r.totalIntermImports.toDouble should be > 0.0
   }
 
   it should "evolve foreign price index upward" in {
@@ -75,21 +76,21 @@ class ExternalSectorSpec extends AnyFlatSpec with Matchers:
     val init = ExternalSector.initial
     val r = ExternalSector.step(init, sectorOutputs, 1.0, Config.BaseExRate, 0.0, 30, plnRc)
     r.sectorExports.length shouldBe 6
-    r.sectorExports.foreach(_ should be >= 0.0)
+    r.sectorExports.map(_.toDouble).foreach(_ should be >= 0.0)
   }
 
   it should "have 6-element sector imports" in {
     val init = ExternalSector.initial
     val r = ExternalSector.step(init, sectorOutputs, 1.0, Config.BaseExRate, 0.0, 30, plnRc)
     r.sectorImports.length shouldBe 6
-    r.sectorImports.foreach(_ should be >= 0.0)
+    r.sectorImports.map(_.toDouble).foreach(_ should be >= 0.0)
   }
 
   it should "increase exports with higher automation" in {
     val init = ExternalSector.initial
     val r0 = ExternalSector.step(init, sectorOutputs, 1.0, Config.BaseExRate, 0.0, 30, plnRc)
     val r1 = ExternalSector.step(init, sectorOutputs, 1.0, Config.BaseExRate, 0.5, 30, plnRc)
-    r1.totalExports should be > r0.totalExports
+    r1.totalExports.toDouble should be > r0.totalExports.toDouble
   }
 
   it should "have zero disruption when no shock applied" in {
@@ -101,8 +102,8 @@ class ExternalSectorSpec extends AnyFlatSpec with Matchers:
   it should "work with EUR regime" in {
     val init = ExternalSector.initial
     val r = ExternalSector.step(init, sectorOutputs, 1.0, Config.BaseExRate, 0.0, 30, eurRc)
-    r.totalExports should be > 0.0
-    r.totalIntermImports should be > 0.0
+    r.totalExports.toDouble should be > 0.0
+    r.totalIntermImports.toDouble should be > 0.0
   }
 
   it should "have import cost index >= 1.0 (foreign inflation)" in {

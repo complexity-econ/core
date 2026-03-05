@@ -1,20 +1,21 @@
 package sfc.agents
 
 import sfc.config.Config
+import sfc.types.*
 
 /** State of local government (JST / samorządy).
   * JST receives PIT/CIT shares, property tax, subventions/dotacje.
   * JST deposits sit in commercial banks. */
 case class JstState(
-  deposits: Double,   // JST deposits in commercial banks
-  debt: Double,       // cumulative JST debt
-  revenue: Double,    // this month's revenue
-  spending: Double,   // this month's spending
-  deficit: Double     // spending - revenue (positive = deficit)
+  deposits: PLN,   // JST deposits in commercial banks
+  debt: PLN,       // cumulative JST debt
+  revenue: PLN,    // this month's revenue
+  spending: PLN,   // this month's spending
+  deficit: PLN     // spending - revenue (positive = deficit)
 )
 
 object JstState:
-  val zero: JstState = JstState(0.0, 0.0, 0.0, 0.0, 0.0)
+  val zero: JstState = JstState(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
 
 object JstLogic:
   /** Compute JST monthly step.
@@ -49,8 +50,8 @@ object JstLogic:
       // JST spending: revenue × spending multiplier (slightly > 1 → deficit bias)
       val totalSpending = totalRevenue * Config.JstSpendingMult
       val deficit = totalSpending - totalRevenue
-      val newDebt = prev.debt + deficit
+      val newDebt = prev.debt + PLN(deficit)
       val depositChange = totalRevenue - totalSpending  // negative when deficit (JST draws down deposits)
-      val newDeposits = prev.deposits + depositChange
+      val newDeposits = prev.deposits + PLN(depositChange)
 
-      (JstState(newDeposits, newDebt, totalRevenue, totalSpending, deficit), depositChange)
+      (JstState(newDeposits, newDebt, PLN(totalRevenue), PLN(totalSpending), PLN(deficit)), depositChange)

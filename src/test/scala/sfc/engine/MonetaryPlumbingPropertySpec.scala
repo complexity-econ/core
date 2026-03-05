@@ -20,7 +20,7 @@ class MonetaryPlumbingPropertySpec extends AnyFlatSpec with Matchers with ScalaC
 
   "reserveInterest" should "be non-negative for alive banks with non-negative reserves" in {
     forAll(genIndividualBankState, genRate) { (bank, rate) =>
-      whenever(!bank.failed && bank.reservesAtNbp >= 0 && rate >= 0) {
+      whenever(!bank.failed && bank.reservesAtNbp >= PLN.Zero && rate >= 0) {
         BankingSector.reserveInterest(bank, rate) should be >= 0.0
       }
     }
@@ -29,8 +29,8 @@ class MonetaryPlumbingPropertySpec extends AnyFlatSpec with Matchers with ScalaC
   it should "scale linearly with reserves" in {
     forAll(genRate, Gen.choose(1e4, 1e9), Gen.choose(1.1, 5.0)) { (rate, reserves, mult) =>
       whenever(rate > 0.001) {
-        val b1 = IndividualBankState(BankId(0), 1e9, 5e8, 1e8, 0, 0, reserves, 0, false, 0, 0)
-        val b2 = b1.copy(reservesAtNbp = reserves * mult)
+        val b1 = IndividualBankState(BankId(0), PLN(1e9), PLN(5e8), PLN(1e8), PLN.Zero, PLN.Zero, PLN(reserves), PLN.Zero, false, 0, 0)
+        val b2 = b1.copy(reservesAtNbp = PLN(reserves * mult))
         val r1 = BankingSector.reserveInterest(b1, rate)
         val r2 = BankingSector.reserveInterest(b2, rate)
         r2 shouldBe (r1 * mult +- 1.0)
@@ -53,8 +53,8 @@ class MonetaryPlumbingPropertySpec extends AnyFlatSpec with Matchers with ScalaC
     forAll(Gen.choose(-1e8, 1e8), genRate) { (net1, rate) =>
       whenever(rate > 0.001) {
         val banks = Vector(
-          IndividualBankState(BankId(0), 1e9, 5e8, 1e8, 0, 0, 0, net1, false, 0, 0),
-          IndividualBankState(BankId(1), 1e9, 5e8, 1e8, 0, 0, 0, -net1, false, 0, 0)
+          IndividualBankState(BankId(0), PLN(1e9), PLN(5e8), PLN(1e8), PLN.Zero, PLN.Zero, PLN.Zero, PLN(net1), false, 0, 0),
+          IndividualBankState(BankId(1), PLN(1e9), PLN(5e8), PLN(1e8), PLN.Zero, PLN.Zero, PLN.Zero, PLN(-net1), false, 0, 0)
         )
         val (_, total) = BankingSector.interbankInterestFlows(banks, rate)
         total shouldBe (0.0 +- 1.0)
@@ -65,8 +65,8 @@ class MonetaryPlumbingPropertySpec extends AnyFlatSpec with Matchers with ScalaC
   it should "return zero for all-zero positions" in {
     forAll(genRate) { rate =>
       val banks = Vector(
-        IndividualBankState(BankId(0), 1e9, 5e8, 1e8, 0, 0, 0, 0, false, 0, 0),
-        IndividualBankState(BankId(1), 1e9, 5e8, 1e8, 0, 0, 0, 0, false, 0, 0)
+        IndividualBankState(BankId(0), PLN(1e9), PLN(5e8), PLN(1e8), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, false, 0, 0),
+        IndividualBankState(BankId(1), PLN(1e9), PLN(5e8), PLN(1e8), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, false, 0, 0)
       )
       val (perBank, total) = BankingSector.interbankInterestFlows(banks, rate)
       perBank.foreach(_ shouldBe 0.0)
@@ -91,7 +91,7 @@ class MonetaryPlumbingPropertySpec extends AnyFlatSpec with Matchers with ScalaC
   it should "detect reserve interest perturbation" in {
     forAll(genConsistentFlowsAndSnapshots, Gen.choose(1000.0, 1e6)) { case ((prev, curr, flows), delta) =>
       // Add reserve interest to flows but NOT to bank capital → should fail
-      val perturbedFlows = flows.copy(reserveInterest = flows.reserveInterest + delta)
+      val perturbedFlows = flows.copy(reserveInterest = flows.reserveInterest + PLN(delta))
       val result = SfcCheck.validate(1, prev, curr, perturbedFlows)
       result.passed shouldBe false
     }

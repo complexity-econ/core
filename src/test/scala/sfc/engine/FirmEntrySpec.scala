@@ -56,22 +56,22 @@ class FirmEntrySpec extends AnyFlatSpec with Matchers:
 
   "World" should "have firmBirths defaulting to 0" in {
     val w = World(0, 0.0, 1.0,
-      GovState(false, 0, 0, 0, 0, 0),
+      GovState(false, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
       sfc.agents.NbpState(0.05),
-      BankState(0, 0, 1e9, 1e9),
-      ForexState(4.33, 0, 0, 0, 0),
-      sfc.agents.HhState(100, 8000, 4500, 0, 0, 0, 0),
+      BankState(PLN.Zero, PLN.Zero, PLN(1e9), PLN(1e9)),
+      ForexState(4.33, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
+      sfc.agents.HhState(100, PLN(8000), PLN(4500), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
       0, 0, 1e9, Vector.fill(6)(5.0))
     w.firmBirths shouldBe 0
   }
 
   it should "have firmDeaths defaulting to 0" in {
     val w = World(0, 0.0, 1.0,
-      accounting.GovState(false, 0, 0, 0, 0, 0),
+      accounting.GovState(false, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
       sfc.agents.NbpState(0.05),
-      accounting.BankState(0, 0, 1e9, 1e9),
-      accounting.ForexState(4.33, 0, 0, 0, 0),
-      sfc.agents.HhState(100, 8000, 4500, 0, 0, 0, 0),
+      accounting.BankState(PLN.Zero, PLN.Zero, PLN(1e9), PLN(1e9)),
+      accounting.ForexState(4.33, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
+      sfc.agents.HhState(100, PLN(8000), PLN(4500), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
       0, 0, 1e9, Vector.fill(6)(5.0))
     w.firmDeaths shouldBe 0
   }
@@ -91,13 +91,13 @@ class FirmEntrySpec extends AnyFlatSpec with Matchers:
 
   it should "have zero debt" in {
     val entrant = Firm(
-      id = FirmId(0), cash = 50000.0, debt = 0.0,
+      id = FirmId(0), cash = PLN(50000.0), debt = PLN.Zero,
       tech = TechState.Traditional(5),
       riskProfile = 0.5, innovationCostFactor = 1.0,
       digitalReadiness = 0.15, sector = SectorIdx(2),
       neighbors = Array.empty[Int], initialSize = 5
     )
-    entrant.debt shouldBe 0.0
+    entrant.debt shouldBe PLN.Zero
   }
 
   it should "have positive startup cash" in {
@@ -108,7 +108,7 @@ class FirmEntrySpec extends AnyFlatSpec with Matchers:
 
   it should "be alive" in {
     val entrant = Firm(
-      id = FirmId(0), cash = 50000.0, debt = 0.0,
+      id = FirmId(0), cash = PLN(50000.0), debt = PLN.Zero,
       tech = TechState.Traditional(5),
       riskProfile = 0.5, innovationCostFactor = 1.0,
       digitalReadiness = 0.15, sector = SectorIdx(2),
@@ -207,7 +207,7 @@ class FirmEntrySpec extends AnyFlatSpec with Matchers:
     // When households.isDefined, startWorkers = 0
     val tech = TechState.Traditional(0)
     FirmOps.workers(Firm(
-      id = FirmId(0), cash = 50000.0, debt = 0.0, tech = tech,
+      id = FirmId(0), cash = PLN(50000.0), debt = PLN.Zero, tech = tech,
       riskProfile = 0.5, innovationCostFactor = 1.0,
       digitalReadiness = 0.15, sector = SectorIdx(0),
       neighbors = Array.empty[Int], initialSize = 5
