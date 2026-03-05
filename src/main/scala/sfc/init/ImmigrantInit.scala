@@ -1,0 +1,18 @@
+package sfc.init
+
+import scala.util.Random
+import sfc.agents.*
+import sfc.config.Config
+
+/** Factory for initial immigrant stock. */
+object ImmigrantInit:
+
+  /** Spawn initial immigrants when ImmigEnabled && ImmigInitStock > 0 && individual mode.
+    * Returns (updatedHouseholds, populationIncrease) — caller handles Config.setTotalPopulation.
+    */
+  def create(rng: Random, households: Option[Vector[Household]], startId: Int): (Option[Vector[Household]], Int) =
+    if Config.ImmigEnabled && Config.ImmigInitStock > 0 && households.isDefined then
+      val immigrants = ImmigrationLogic.spawnImmigrants(Config.ImmigInitStock, startId, rng)
+      (households.map(hhs => hhs ++ immigrants), Config.ImmigInitStock)
+    else
+      (households, 0)
