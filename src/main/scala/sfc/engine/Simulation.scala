@@ -7,6 +7,7 @@ import sfc.agents.{ImmigrationLogic, ImmigrationState}
 import sfc.accounting.*
 import sfc.networks.Network
 import sfc.dynamics.{DynamicNetwork, SigmaDynamics}
+import sfc.engine.steps
 import sfc.types.*
 import sfc.util.KahanSum.*
 
@@ -145,404 +146,115 @@ object Simulation:
     * When households = Some(...) (individual mode), uses HouseholdLogic + LaborMarket. */
   def step(w: World, firms: Array[Firm], rc: RunConfig,
            households: Option[Vector[Household]] = None): (World, Array[Firm], Option[Vector[Household]]) =
-    val m = w.month + 1
-    val bdpActive = m >= Config.ShockMonth
+    // ---- Step 1: Fiscal constraint (SGP, min wage, reservation wage, lending base rate) ----
+    val s1 = steps.FiscalConstraintStep.run(steps.FiscalConstraintStep.Input(
+      month = w.month, gdpProxy = w.gdpProxy, gov = w.gov, priceLevel = w.priceLevel,
+      minWageLevel = w.hh.minWageLevel, minWagePriceLevel = w.hh.minWagePriceLevel,
+      marketWage = w.hh.marketWage, minWageEnabled = Config.MinWageEnabled,
+      bankingSector = w.bankingSector, nbpReferenceRate = w.nbp.referenceRate,
+      expectedRate = w.expectations.expectedRate, bdpAmount = rc.bdpAmount,
+      isEurozone = rc.isEurozone))
+    val m = s1.m
+    val bdpActive = s1.bdpActive
+    val bdp = s1.bdp
+    val baseMinWage = s1.baseMinWage
+    val updatedMinWagePriceLevel = s1.updatedMinWagePriceLevel
+    val resWage = s1.resWage
+    val lendingBaseRate = s1.lendingBaseRate
 
-    val bdpUnconstrained = if bdpActive then rc.bdpAmount else 0.0
-    // EUR regime: SGP fiscal constraint caps BDP spending
-    val bdp = if rc.isEurozone && bdpActive && bdpUnconstrained > 0 then
-      val annualGdp = w.gdpProxy * 12.0
-      // Flow constraint: monthly deficit ≤ 3%/12 of annual GDP
-      val maxMonthlyDeficit = Config.SgpDeficitLimit * annualGdp / 12.0
-      val baseGovSpend = Config.GovBaseSpending * w.priceLevel
-      val estRevenue = w.gov.taxRevenue  // previous period's revenue
-      val maxBdpSpend = Math.max(0.0, maxMonthlyDeficit + estRevenue.toDouble - baseGovSpend)
-      val maxBdpPerCapita = maxBdpSpend / Config.TotalPopulation.toDouble
-      // Stock constraint: debt brake — if debt > 60% of GDP, progressive austerity
-      val debtRatio = if annualGdp > 0 then w.gov.cumulativeDebt.toDouble / annualGdp else 0.0
-      val austerityMult = if debtRatio > Config.SgpDebtLimit then
-        Math.max(0.0, 1.0 - (debtRatio - Config.SgpDebtLimit) * Config.SgpAusterityRate)
-      else 1.0
-      Math.max(0.0, Math.min(bdpUnconstrained, maxBdpPerCapita * austerityMult))
-    else bdpUnconstrained
-    val (baseMinWage, updatedMinWagePriceLevel) = if Config.MinWageEnabled then
-      val isAdjustMonth = m > 0 && m % Config.MinWageAdjustMonths == 0
-      if isAdjustMonth then
-        val cumInfl = if Config.MinWageInflationIndex && w.hh.minWagePriceLevel > 0 then
-          w.priceLevel / w.hh.minWagePriceLevel - 1.0 else 0.0
-        val inflIndexed = w.hh.minWageLevel.toDouble * (1.0 + Math.max(0.0, cumInfl))
-        val target = w.hh.marketWage.toDouble * Config.MinWageTargetRatio
-        val gap = target - inflIndexed
-        val adjusted = if gap > 0 then inflIndexed + gap * Config.MinWageConvergenceSpeed
-                       else inflIndexed
-        (Math.max(w.hh.minWageLevel.toDouble, adjusted), w.priceLevel)
-      else (w.hh.minWageLevel.toDouble, w.hh.minWagePriceLevel)
-    else (Config.BaseReservationWage, w.hh.minWagePriceLevel)
+    // ---- Step 2: Labor market, demographics, immigration, ZUS/PPK ----
+    val s2 = steps.LaborDemographicsStep.run(steps.LaborDemographicsStep.Input(
+      marketWage = w.hh.marketWage, firms = firms, demographics = w.demographics,
+      immigration = w.immigration, zusBalance = w.zus.fusBalance.toDouble,
+      ppkBondHoldings = w.ppk.bondHoldings.toDouble, households = households,
+      resWage = resWage, expectations = w.expectations, m = m, rc = rc))
+    val newWage = s2.newWage
+    val employed = s2.employed
+    val wageGrowth = s2.wageGrowth
+    val newImmig = s2.newImmig
+    val netMigration = s2.netMigration
+    val newDemographics = s2.newDemographics
+    val newZus = s2.newZus
+    val newPpk = s2.newPpk
+    val rawPpkBondPurchase = s2.rawPpkBondPurchase
+    val living = s2.living
 
-    val resWage = baseMinWage + bdp * Config.ReservationBdpMult
+    // ---- Step 3: Household income / consumption ----
+    val s3 = steps.HouseholdIncomeStep.run(steps.HouseholdIncomeStep.Input(
+      employed = employed, newWage = newWage, bdp = bdp, bdpActive = bdpActive,
+      resWage = resWage, w = w, households = households, firms = firms,
+      lendingBaseRate = lendingBaseRate, newZus = newZus, rc = rc))
+    val totalIncome = s3.totalIncome
+    val consumption = s3.consumption
+    val importCons = s3.importCons
+    val domesticCons = s3.domesticCons
+    val updatedHouseholds = s3.updatedHouseholds
+    val hhAgg = s3.hhAgg
+    val perBankHhFlowsOpt = s3.perBankHhFlowsOpt
+    val pitRevenue = s3.pitRevenue
+    val importAdj = s3.importAdj
+    val aggUnempBenefit = s3.aggUnempBenefit
 
-    // When term structure is enabled, use WIBOR 3M as lending base rate
-    // instead of refRate. Uses LAGGED interbankRate (standard SFC approach).
-    val rawLendingBaseRate = if Config.InterbankTermStructure then
-      w.bankingSector.map { bs =>
-        YieldCurve.compute(bs.interbankRate).wibor3m
-      }.getOrElse(w.nbp.referenceRate)
-    else w.nbp.referenceRate
+    // ---- Step 4: Flow-of-funds demand multipliers ----
+    val s4 = steps.DemandStep.run(steps.DemandStep.Input(
+      employed = employed, domesticCons = domesticCons, living = living,
+      priceLevel = w.priceLevel, zusContributions = w.zus.contributions.toDouble,
+      zusPensionPayments = w.zus.pensionPayments.toDouble,
+      govTaxRevenue = w.gov.taxRevenue.toDouble,
+      govCurrentSpend = w.gov.govCurrentSpend.toDouble,
+      govCapitalSpend = w.gov.govCapitalSpend.toDouble,
+      nbpReferenceRate = w.nbp.referenceRate,
+      expectedInflation = w.expectations.expectedInflation,
+      forexExports = w.forex.exports.toDouble,
+      gvcEnabled = Config.GvcEnabled, gvcSectorExports = w.gvc.sectorExports,
+      grossInvestment = w.grossInvestment.toDouble,
+      aggGreenInvestment = w.aggGreenInvestment.toDouble,
+      sectorDemandMult = w.sectorDemandMult))
+    val govPurchases = s4.govPurchases
+    val sectorMults = s4.sectorMults
+    val avgDemandMult = s4.avgDemandMult
+    val sectorCap = s4.sectorCap
+    val laggedInvestDemand = s4.laggedInvestDemand
 
-    // Channel 2: Firm CAPEX via expected rate — firms partially factor expected future rate
-    val lendingBaseRate = if Config.ExpEnabled then
-      0.5 * rawLendingBaseRate + 0.5 * w.expectations.expectedRate
-    else rawLendingBaseRate
+    // ---- Step 5: Firm processing (per-firm loop, corp bonds, I-O, labor post-processing) ----
+    val s5 = steps.FirmProcessingStep.run(steps.FirmProcessingStep.Input(
+      w = w, firms = firms, households = households,
+      updatedHouseholds = updatedHouseholds, newWage = newWage, resWage = resWage,
+      m = m, sectorMults = sectorMults, lendingBaseRate = lendingBaseRate,
+      newImmig = newImmig, rc = rc))
+    val ioFirms = s5.ioFirms
+    val finalHouseholds = s5.finalHouseholds
+    val sumTax = s5.sumTax
+    val sumCapex = s5.sumCapex
+    val sumTechImp = s5.sumTechImp
+    val sumNewLoans = s5.sumNewLoans
+    val sumEquityIssuance = s5.sumEquityIssuance
+    val sumGrossInvestment = s5.sumGrossInvestment
+    val sumBondIssuance = s5.sumBondIssuance
+    val sumProfitShifting = s5.sumProfitShifting
+    val sumFdiRepatriation = s5.sumFdiRepatriation
+    val sumInventoryChange = s5.sumInventoryChange
+    val sumCitEvasion = s5.sumCitEvasion
+    val sumEnergyCost = s5.sumEnergyCost
+    val sumGreenInvestment = s5.sumGreenInvestment
+    val totalIoPaid = s5.totalIoPaid
+    val nplNew = s5.nplNew
+    val nplLoss = s5.nplLoss
+    val totalBondDefault = s5.totalBondDefault
+    val firmDeaths = s5.firmDeaths
+    val intIncome = s5.intIncome
+    val corpBondAbsorption = s5.corpBondAbsorption
+    val actualBondIssuance = s5.actualBondIssuance
+    val perBankNewLoans = s5.perBankNewLoans
+    val perBankNplDebt = s5.perBankNplDebt
+    val perBankIntIncome = s5.perBankIntIncome
+    val perBankWorkers = s5.perBankWorkers
+    val lendingRates = s5.lendingRates
+    val postFirmCrossSectorHires = s5.postFirmCrossSectorHires
 
-    val living = firms.filter(FirmOps.isAlive)
-    val laborDemand = living.kahanSumBy(f => FirmOps.workers(f).toDouble).toInt
-    val (rawWage, rawEmployed) = Sectors.updateLaborMarket(w.hh.marketWage.toDouble, resWage, laborDemand)
-
-    // Channel 1: Expectations-augmented wage Phillips curve
-    // Asymmetric: only upward pressure (Bewley 1999 — workers don't demand wage cuts)
-    val wageAfterExp = if Config.ExpEnabled then
-      val target = if rc.isEurozone then Config.EcbTargetInfl else Config.NbpTargetInfl
-      val expWagePressure = Config.ExpWagePassthrough *
-        Math.max(0.0, w.expectations.expectedInflation - target) / 12.0
-      Math.max(resWage, rawWage * (1.0 + expWagePressure))
-    else rawWage
-
-    // Union downward wage rigidity (#44): dampen wage declines in proportion to aggregate union density
-    val newWage = if Config.UnionEnabled && wageAfterExp < w.hh.marketWage.toDouble then
-      val aggDensity = SECTORS.zipWithIndex.map((s, i) => s.share * Config.UnionDensity(i)).sum
-      val decline = w.hh.marketWage.toDouble - wageAfterExp
-      Math.max(resWage, wageAfterExp + decline * Config.UnionRigidity * aggDensity)
-    else wageAfterExp
-
-    // Demographics caps employment at working-age population
-    val employed = if Config.DemEnabled then
-      Math.min(rawEmployed, w.demographics.workingAgePop)
-    else rawEmployed
-
-    // Immigration step: compute inflow/outflow before demographics (net migration feeds into workingAgePop)
-    val unempRateForImmig = 1.0 - employed.toDouble / Config.TotalPopulation
-    val newImmig = ImmigrationLogic.step(
-      w.immigration, households, newWage, unempRateForImmig,
-      w.demographics.workingAgePop.max(Config.TotalPopulation), m)
-    val netMigration = newImmig.monthlyInflow - newImmig.monthlyOutflow
-
-    val newDemographics = PublicSectorLogic.demographicsStep(w.demographics, employed, netMigration)
-
-    // ZUS (contributions + pensions) and PPK
-    val newZus = PublicSectorLogic.zusStep(w.zus.fusBalance.toDouble, employed, newWage, newDemographics.retirees)
-    val newPpk = PublicSectorLogic.ppkStep(w.ppk.bondHoldings.toDouble, employed, newWage)
-    val rawPpkBondPurchase = PublicSectorLogic.ppkBondPurchase(newPpk)
-
-    val wageGrowth = if w.hh.marketWage.toDouble > 0 then newWage / w.hh.marketWage.toDouble - 1.0 else 0.0
-
-    // Import adjustment (used by both paths)
-    val importAdj = Config.ImportPropensity *
-      Math.pow(Config.BaseExRate / w.forex.exchangeRate, 0.5)
-
-    // Aggregate-mode unemployment benefits (automatic stabilizer, GUS BAEL 2023)
-    val aggUnempBenefit = if Config.GovUnempBenefitEnabled && households.isEmpty then
-      val unempCount = Math.max(0, Config.TotalPopulation - employed)
-      val avgBenefit = (Config.GovBenefitM1to3 * 3.0 + Config.GovBenefitM4to6 * 3.0) /
-        Config.GovBenefitDuration.toDouble
-      unempCount.toDouble * avgBenefit * Config.GovBenefitCoverage
-    else 0.0
-
-    // ---- Aggregate vs Individual household path ----
-    val (totalIncome, consumption, importCons, domesticCons, updatedHouseholds, hhAgg, perBankHhFlowsOpt) =
-      households match
-        case None =>
-          // Aggregate mode (+ ZUS deductions/pensions + PIT + 800+)
-          // Include union wage premium: firms pay effectiveWageMult but workers must receive it
-          val avgWageMult = if Config.UnionEnabled then
-            SECTORS.indices.map(i =>
-              SECTORS(i).share * (1.0 + Config.UnionWagePremium * Config.UnionDensity(i))).sum
-          else 1.0
-          val wageIncome = employed.toDouble * newWage * avgWageMult
-          val bdpIncome  = if bdpActive then Config.TotalPopulation.toDouble * bdp else 0.0
-          val grossIncome = wageIncome + bdpIncome
-          val pitDeduction = if Config.PitEnabled then grossIncome * Config.PitEffectiveRate else 0.0
-          val socialTransfers = if Config.Social800Enabled then
-            Config.TotalPopulation.toDouble * Config.Social800ChildrenPerHh * Config.Social800Rate
-          else 0.0
-          val ti = grossIncome - newZus.contributions.toDouble + newZus.pensionPayments.toDouble - pitDeduction + socialTransfers + aggUnempBenefit
-          val cons = ti * Config.Mpc
-          val ic = cons * Math.min(0.65, importAdj)
-          val dc = cons - ic
-          (ti, cons, ic, dc, None, None, Option.empty[PerBankHhFlows])
-
-        case Some(hhs) =>
-          // Individual mode: process household agents
-          // Separations (workers from automated/bankrupt firms)
-          val afterSep = LaborMarket.separations(hhs, firms, firms)  // firms not yet updated
-          // Wages update (will be refined after firm processing below)
-          val afterWages = LaborMarket.updateWages(afterSep, newWage)
-          // Compute bank rates for variable-rate HH loans + deposit interest
-          val nBanksHh = w.bankingSector.map(_.banks.length).getOrElse(1)
-          val hhBankRates = Some(BankRates(
-            lendingRates = w.bankingSector match
-              case Some(bs) => bs.banks.zip(bs.configs).map((b, cfg) =>
-                BankingSector.lendingRate(b, cfg, lendingBaseRate)).toArray
-              case None => Array(w.bank.lendingRate(lendingBaseRate)),
-            depositRates = w.bankingSector match
-              case Some(bs) => bs.banks.map(_ =>
-                BankingSector.hhDepositRate(w.nbp.referenceRate)).toArray
-              case None => Array(BankingSector.hhDepositRate(w.nbp.referenceRate))
-          ))
-          // Equity index return for HH wealth revaluation (lagged: uses previous month's return)
-          val eqReturn = w.equity.monthlyReturn
-          // Sectoral mobility signals (computed from lagged state)
-          val secWages = if Config.LmSectoralMobility then Some(SectoralMobility.sectorWages(afterWages)) else None
-          val secVacancies = if Config.LmSectoralMobility then Some(SectoralMobility.sectorVacancies(afterWages, firms)) else None
-          // Household monthly step
-          val (newHhs, agg, pbf) = HouseholdLogic.step(
-            afterWages, w, bdp, newWage, resWage, importAdj, Random, nBanksHh, hhBankRates, eqReturn,
-            secWages, secVacancies)
-          (agg.totalIncome.toDouble, agg.consumption.toDouble, agg.importConsumption.toDouble,
-           agg.domesticConsumption.toDouble, Some(newHhs), Some(agg), pbf)
-
-    // PIT revenue: individual mode uses per-HH accumulation, aggregate mode uses flat effective rate
-    val pitRevenue = if Config.PitEnabled then
-      hhAgg.map(_.totalPit.toDouble).getOrElse {
-        // Aggregate mode: pitDeduction was computed inside the match arm
-        val wageIncome = employed.toDouble * newWage
-        val bdpIncome  = if bdpActive then Config.TotalPopulation.toDouble * bdp else 0.0
-        (wageIncome + bdpIncome) * Config.PitEffectiveRate
-      }
-    else 0.0
-
-    // Flow-of-funds: sector-level demand multipliers
-    // Government purchases = autonomous base + fiscal recycling of lagged tax revenue.
-    // Spending inertia: governments smooth expenditure via borrowing, max 2%/month decline
-    // (Blanchard & Perotti 2002: government spending has high persistence ρ ≈ 0.95-0.98).
-    val zusNetSurplus = if Config.ZusEnabled then
-      Math.max(0.0, w.zus.contributions.toDouble - w.zus.pensionPayments.toDouble) else 0.0
-    // Base spending anchored to max(1, priceLevel): nominal spending doesn't fall in deflation
-    // (Polish budget law: government spending is set in nominal terms, not indexed to CPI)
-    // Counter-cyclical fiscal stimulus: automatic stabilizer when unemployment > NAIRU
-    // (Blanchard 2019: fiscal multiplier 1.5-2.0 in liquidity trap)
-    val unempRateForFiscal = 1.0 - employed.toDouble / Config.TotalPopulation
-    val unempGap = Math.max(0.0, unempRateForFiscal - Config.NbpNairu)
-    val fiscalStimulus = Config.GovBaseSpending * unempGap * Config.GovAutoStabMult
-    val targetGovPurchases = Config.GovBaseSpending * Math.max(1.0, w.priceLevel) +
-      Config.GovFiscalRecyclingRate * (w.gov.taxRevenue.toDouble + zusNetSurplus) + fiscalStimulus
-    val prevGovSpend = w.gov.govCurrentSpend.toDouble + w.gov.govCapitalSpend.toDouble
-    val govPurchases = if prevGovSpend > 0 then
-      Math.max(targetGovPurchases, prevGovSpend * 0.98)
-    else targetGovPurchases
-    val laggedExports = w.forex.exports.toDouble
-    val sectorCap = (0 until SECTORS.length).map { s =>
-      living.filter(_.sector.toInt == s).kahanSumBy(f => FirmOps.capacity(f).toDouble)
-    }.toVector
-    val sectorExports = if Config.GvcEnabled && Config.OeEnabled then
-      w.gvc.sectorExports.map(_.toDouble)
-    else
-      Config.FofExportShares.map(_ * laggedExports)
-    // Investment demand: lagged gross investment creates demand for capital goods sectors.
-    // GDP = C + I + G + NX — without this term, demand is structurally ~20% below capacity.
-    // Domestic portion only (imported capital goods don't create domestic demand).
-    val laggedInvestDemand = w.grossInvestment.toDouble * (1.0 - Config.PhysCapImportShare) +
-      w.aggGreenInvestment.toDouble * (1.0 - Config.GreenImportShare)
-    val sectorDemand = (0 until SECTORS.length).map { s =>
-      Config.FofConsWeights(s) * domesticCons +
-      Config.FofGovWeights(s) * govPurchases +
-      Config.FofInvestWeights(s) * laggedInvestDemand +
-      sectorExports(s)
-    }.toVector
-    val fofTotalDemand = sectorDemand.kahanSum
-    val totalCapacity = sectorCap.kahanSum
-    // Demand spillover: when a sector hits capacity (demandMult > 1), excess demand
-    // shifts to sectors with slack (substitution effect). This prevents unrealistic
-    // super-capacity revenue and balances the sector demand distribution.
-    val rawSectorMults = sectorDemand.indices.map { s =>
-      if sectorCap(s) > 0 then sectorDemand(s) / (sectorCap(s) * w.priceLevel) else 0.0
-    }.toVector
-    val excessDemand = rawSectorMults.indices.map { s =>
-      if rawSectorMults(s) > 1.0 then (rawSectorMults(s) - 1.0) * sectorCap(s) * w.priceLevel else 0.0
-    }.kahanSum
-    val deficitCapacity = rawSectorMults.indices.map { s =>
-      if rawSectorMults(s) < 1.0 then (1.0 - rawSectorMults(s)) * sectorCap(s) * w.priceLevel else 0.0
-    }.kahanSum
-    val spilloverFrac = if deficitCapacity > 0 then Math.min(1.0, excessDemand / deficitCapacity) else 0.0
-    val sectorMults = rawSectorMults.indices.map { s =>
-      if rawSectorMults(s) > 1.0 then 1.0
-      else rawSectorMults(s) + spilloverFrac * (1.0 - rawSectorMults(s))
-    }.toVector
-    // Channel 4: Real rate effect — negative real rate boosts demand, positive dampens
-    val realRateEffect = if Config.ExpEnabled then
-      val realRate = w.nbp.referenceRate - w.expectations.expectedInflation
-      -realRate * 0.02
-    else 0.0
-    val avgDemandMult = (if totalCapacity > 0 then fofTotalDemand / (totalCapacity * w.priceLevel) else 1.0) + realRateEffect
-
-    // ---- Lending dispatch: single-bank vs multi-bank ----
-    val nBanks = w.bankingSector.map(_.banks.length).getOrElse(1)
-    val perBankNewLoans = new Array[Double](nBanks)
-    val perBankNplDebt  = new Array[Double](nBanks)
-    val perBankIntIncome = new Array[Double](nBanks)
-    val perBankWorkers  = new Array[Int](nBanks)
-
-    // Pass macropru CCyB to canLend for effective MinCAR
-    val currentCcyb = w.macropru.ccyb
-    val (getLendRate, bankCanLendFn): (Int => Double, (Int, Double) => Boolean) =
-      w.bankingSector match
-        case Some(bs) =>
-          val rates = bs.banks.zip(bs.configs).map((b, cfg) =>
-            BankingSector.lendingRate(b, cfg, lendingBaseRate))
-          ((bankId: Int) => rates(bankId),
-           (bankId: Int, amt: Double) => BankingSector.canLend(bs.banks(bankId), amt, Random, currentCcyb))
-        case None =>
-          val rate = w.bank.lendingRate(lendingBaseRate)
-          val canLendFn: (Int, Double) => Boolean = (_: Int, amt: Double) => {
-            val approvalP = Math.max(0.1, 1.0 - w.bank.nplRatio * 3.0)
-            w.bank.canLend(amt) && Random.nextDouble() < approvalP
-          }
-          ((_: Int) => rate, canLendFn)
-
-    var sumTax      = 0.0
-    var sumCapex    = 0.0
-    var sumTechImp  = 0.0
-    var sumNewLoans = 0.0
-    var sumEquityIssuance = 0.0
-    var sumGrossInvestment = 0.0
-    var sumBondIssuance = 0.0
-    var sumProfitShifting = 0.0
-    var sumFdiRepatriation = 0.0
-    var sumInventoryChange = 0.0
-    var sumCitEvasion = 0.0
-    var sumEnergyCost = 0.0
-    var sumGreenInvestment = 0.0
-
-    val macro4firms = w.copy(
-      month = m, sectorDemandMult = sectorMults,
-      hh = w.hh.copy(marketWage = PLN(newWage), reservationWage = PLN(resWage)))
-
-    // Per-firm bond issuance amounts (for demand-side constraint revert)
-    val firmBondAmounts = scala.collection.mutable.HashMap.empty[FirmId, Double]
-
-    // Process firms -- per-firm dispatch to bank, accumulate per-bank flows
-    val newFirms = firms.map { f =>
-      val firmRate = getLendRate(f.bankId.toInt)
-      val firmCanLend: Double => Boolean = amt => bankCanLendFn(f.bankId.toInt, amt)
-      val r = FirmLogic.process(f, macro4firms, firmRate, firmCanLend, firms, rc)
-      sumTax      += r.taxPaid.toDouble
-      sumCapex    += r.capexSpent.toDouble
-      sumTechImp  += r.techImports.toDouble
-      sumGrossInvestment += r.grossInvestment.toDouble
-      sumProfitShifting += r.profitShiftCost.toDouble
-      sumFdiRepatriation += r.fdiRepatriation.toDouble
-      sumInventoryChange += r.inventoryChange.toDouble
-      sumCitEvasion += r.citEvasion.toDouble
-      sumEnergyCost += r.energyCost.toDouble
-      sumGreenInvestment += r.greenInvestment.toDouble
-
-      // GPW equity issuance: eligible firms replace fraction of loan with equity
-      val (actualLoan, equityAmt, updatedFirm) =
-        if Config.GpwEnabled && Config.GpwEquityIssuance && r.newLoan > PLN.Zero &&
-           FirmOps.workers(r.firm) >= Config.GpwIssuanceMinSize then
-          val eqAmt = r.newLoan * Config.GpwIssuanceFrac
-          val adjLoan = r.newLoan - eqAmt
-          // Firm: reduce debt by equity portion, track equityRaised
-          val f2 = r.firm.copy(
-            debt = r.firm.debt - eqAmt,
-            equityRaised = r.firm.equityRaised + eqAmt
-          )
-          (adjLoan.toDouble, eqAmt.toDouble, f2)
-        else
-          (r.newLoan.toDouble, 0.0, r.firm)
-
-      // Corporate bond issuance: eligible firms replace fraction of loan with bonds (#40)
-      val (finalLoan, bondAmt, bondUpdatedFirm) =
-        if actualLoan > 0 && FirmOps.workers(updatedFirm) >= Config.CorpBondMinSize then
-          val ba = actualLoan * Config.CorpBondIssuanceFrac
-          val adjLoan = actualLoan - ba
-          val f3 = updatedFirm.copy(
-            debt = updatedFirm.debt - PLN(ba),
-            bondDebt = updatedFirm.bondDebt + PLN(ba)
-          )
-          (adjLoan, ba, f3)
-        else
-          (actualLoan, 0.0, updatedFirm)
-
-      sumNewLoans += finalLoan
-      sumEquityIssuance += equityAmt
-      sumBondIssuance += bondAmt
-      if bondAmt > 0 then firmBondAmounts(f.id) = bondAmt
-      perBankNewLoans(f.bankId.toInt) += finalLoan
-      bondUpdatedFirm
-    }
-
-    // Corporate bond demand-side constraint: compute absorption and revert unsold to bank loans
-    val corpBondAbsorption = CorporateBondMarket.computeAbsorption(
-      w.corporateBonds, sumBondIssuance, w.bank.car, Config.MinCar)
-    val actualBondIssuance = sumBondIssuance * corpBondAbsorption
-    val revertRatio = 1.0 - corpBondAbsorption
-    val adjustedFirms = if revertRatio > 0.001 then
-      newFirms.map { f =>
-        val ba = firmBondAmounts.getOrElse(f.id, 0.0)
-        if ba > 0 then
-          val revert = ba * revertRatio
-          f.copy(bondDebt = f.bondDebt - PLN(revert), debt = f.debt + PLN(revert))
-        else f
-      }
-    else newFirms
-    // Revert unsold bonds to bank loans
-    if revertRatio > 0.001 then
-      val unsoldBonds = sumBondIssuance * revertRatio
-      sumNewLoans += unsoldBonds
-      for (fid, ba) <- firmBondAmounts do
-        val revert = ba * revertRatio
-        adjustedFirms.find(_.id == fid).foreach(ff => perBankNewLoans(ff.bankId.toInt) += revert)
-
-    // Track per-bank workers for deposit partitioning
-    for f <- adjustedFirms if FirmOps.isAlive(f) do
-      perBankWorkers(f.bankId.toInt) += FirmOps.workers(f)
-
-    // I-O intermediate market (Paper-07)
-    val (ioFirms, totalIoPaid) = if Config.IoEnabled then
-      val r = IntermediateMarket.process(adjustedFirms, sectorMults, w.priceLevel,
-        Config.IoMatrix, Config.IoColumnSums, Config.IoScale)
-      (r.firms, r.totalPaid)
-    else
-      (adjustedFirms, 0.0)
-
-    // Individual mode: post-firm-processing labor market update
-    var postFirmCrossSectorHires = 0
-    val preMigrationHouseholds = updatedHouseholds.map { hhs =>
-      val afterSep = LaborMarket.separations(hhs, firms, ioFirms)
-      val (afterSearch, csHires) = LaborMarket.jobSearch(afterSep, ioFirms, newWage, Random)
-      postFirmCrossSectorHires += csHires
-      LaborMarket.updateWages(afterSearch, newWage)  // normalize wages for next step
-    }
-
-    // Immigration: spawn new immigrants, remove returning migrants (individual mode)
-    val finalHouseholds = if Config.ImmigEnabled then
-      preMigrationHouseholds.map { hhs =>
-        val afterRemoval = ImmigrationLogic.removeReturnMigrants(hhs, newImmig.monthlyOutflow)
-        val startId = afterRemoval.map(_.id).maxOption.getOrElse(-1) + 1
-        val newImmigrants = ImmigrationLogic.spawnImmigrants(newImmig.monthlyInflow, startId, Random)
-        afterRemoval ++ newImmigrants
-      }
-    else preMigrationHouseholds
-
-    // Aggregate mode: update TotalPopulation with net migration
+    // Side effect: update TotalPopulation with net migration (aggregate mode)
     if Config.ImmigEnabled && households.isEmpty then
       Config.setTotalPopulation(Config.TotalPopulation + netMigration)
-
-    val prevAlive = firms.filter(FirmOps.isAlive).map(_.id).toSet
-    val newlyDead = ioFirms.filter(f => !FirmOps.isAlive(f) && prevAlive.contains(f.id))
-    val firmDeaths = newlyDead.length
-    val nplNew    = newlyDead.kahanSumBy(_.debt.toDouble)
-    val nplLoss   = nplNew * (1.0 - Config.LoanRecovery)
-    val totalBondDefault = newlyDead.kahanSumBy(_.bondDebt.toDouble)
-
-    // Per-bank NPL attribution
-    for f <- newlyDead do perBankNplDebt(f.bankId.toInt) += f.debt.toDouble
-
-    // Per-bank interest income
-    for f <- firms if FirmOps.isAlive(f) do
-      perBankIntIncome(f.bankId.toInt) += f.debt.toDouble * getLendRate(f.bankId.toInt) / 12.0
-
-    val intIncome = perBankIntIncome.kahanSum
 
     // SFC: household debt service flows to bank as interest income
     val hhDebtService = hhAgg.map(_.totalDebtService.toDouble).getOrElse(0.0)
@@ -669,7 +381,7 @@ object Simulation:
         case _: TechState.Automated => Config.AiOpex * (0.60 + 0.40 * newPrice)
         case _: TechState.Hybrid    => Config.HybridOpex * (0.60 + 0.40 * newPrice)
         case _                      => 0.0
-      val interest = f.debt.toDouble * getLendRate(f.bankId.toInt) / 12.0
+      val interest = f.debt.toDouble * lendingRates(f.bankId.toInt) / 12.0
       val gross = rev - labor - other - aiMaint - interest
       val tax = Math.max(0.0, gross) * Config.CitRate
       Math.max(0.0, gross - tax)
