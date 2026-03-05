@@ -90,6 +90,28 @@ case class HhAggregates(
 )
 
 object HouseholdInit:
+  /** Create households in Individual mode, with multi-bank assignment.
+    * Returns None in Aggregate mode. Extracted from Main.runSingle() lines 104–119.
+    */
+  def create(rng: Random, firms: Array[Firm]): Option[Vector[Household]] =
+    import sfc.config.*
+    import sfc.networks.Network
+    HH_MODE match
+      case HhMode.Individual =>
+        val hhCount = Config.TotalPopulation
+        val hhNetwork = Network.wattsStrogatz(hhCount, Config.HhSocialK, Config.HhSocialP)
+        val hhs = initialize(hhCount, Config.FirmsCount, firms, hhNetwork, rng)
+        // Multi-bank: assign households to same bank as their employer
+        val assigned = if Config.BankMulti then
+          hhs.map { h =>
+            h.status match
+              case HhStatus.Employed(fid, _, _) if fid.toInt < firms.length => h.copy(bankId = firms(fid.toInt).bankId)
+              case _ => h
+          }
+        else hhs
+        Some(assigned)
+      case HhMode.Aggregate => None
+
   /** Initialize households, all employed, assigned proportionally to firm sizes. */
   def initialize(nHouseholds: Int, nFirms: Int, firms: Array[Firm],
                  socialNetwork: Array[Array[Int]], rng: Random): Vector[Household] =
