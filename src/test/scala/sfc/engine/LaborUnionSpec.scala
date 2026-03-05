@@ -19,7 +19,7 @@ class LaborUnionSpec extends AnyFlatSpec with Matchers:
   }
 
   "UnionDensity" should "have aggregate ~12%" in {
-    val aggDensity = SECTORS.zipWithIndex.map((s, i) => s.share * Config.UnionDensity(i)).sum
+    val aggDensity = SECTORS.zipWithIndex.map((s, i) => s.share.toDouble * Config.UnionDensity(i)).sum
     aggDensity shouldBe (0.12 +- 0.02)
   }
 
@@ -65,7 +65,7 @@ class LaborUnionSpec extends AnyFlatSpec with Matchers:
   "Downward rigidity formula" should "dampen wage decline" in {
     val prevWage = 8000.0
     val rawWage = 7600.0  // 5% decline
-    val aggDensity = SECTORS.zipWithIndex.map((s, i) => s.share * Config.UnionDensity(i)).sum
+    val aggDensity = SECTORS.zipWithIndex.map((s, i) => s.share.toDouble * Config.UnionDensity(i)).sum
     val decline = prevWage - rawWage  // 400
     val dampened = rawWage + decline * Config.UnionRigidity * aggDensity
     // With ~12% density and 0.50 rigidity: 7600 + 400 * 0.50 * 0.12 = 7600 + 24 = 7624
@@ -118,14 +118,14 @@ class LaborUnionSpec extends AnyFlatSpec with Matchers:
 
     // Compute relative wages without union
     val baseRaw = SECTORS.map(_.wageMultiplier)
-    val baseMean = SECTORS.zipWithIndex.map((s, i) => s.wageMultiplier * s.share).sum /
-      SECTORS.map(_.share).sum
+    val baseMean = SECTORS.zipWithIndex.map((s, i) => s.wageMultiplier * s.share.toDouble).sum /
+      SECTORS.map(_.share.toDouble).sum
 
     // Compute relative wages with union
     val unionRaw = SECTORS.zipWithIndex.map((s, i) =>
       s.wageMultiplier * (1.0 + premium * sectors(i)))
     val unionMean = SECTORS.zipWithIndex.map((s, i) =>
-      unionRaw(i) * s.share).sum / SECTORS.map(_.share).sum
+      unionRaw(i) * s.share.toDouble).sum / SECTORS.map(_.share.toDouble).sum
 
     // After normalization, Public sector (index 4) should be relatively higher
     val publicBaseNorm = baseRaw(4) / baseMean

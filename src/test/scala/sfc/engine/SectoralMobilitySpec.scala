@@ -164,8 +164,8 @@ class SectoralMobilitySpec extends AnyFlatSpec with Matchers:
     }.toArray
 
   private def mkFirm(id: Int, sector: Int, tech: TechState): Firm =
-    Firm(FirmId(id), PLN(50000.0), PLN.Zero, tech, 0.5, 1.0, 0.5, SectorIdx(sector), Array.empty[Int])
+    Firm(FirmId(id), PLN(50000.0), PLN.Zero, tech, Ratio(0.5), 1.0, Ratio(0.5), SectorIdx(sector), Array.empty[Int])
 
   private def mkHousehold(id: Int, status: HhStatus,
                           skill: Double = 0.7, healthPenalty: Double = 0.0): Household =
-    Household(id, PLN(20000.0), PLN.Zero, PLN(1800.0), skill, healthPenalty, 0.82, status, Array.empty[Int])
+    Household(id, PLN(20000.0), PLN.Zero, PLN(1800.0), Ratio(skill), Ratio(healthPenalty), Ratio(0.82), status, Array.empty[Int])

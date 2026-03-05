@@ -55,24 +55,24 @@ class FirmEntrySpec extends AnyFlatSpec with Matchers:
   // ==========================================================================
 
   "World" should "have firmBirths defaulting to 0" in {
-    val w = World(0, 0.0, 1.0,
+    val w = World(0, Rate(0.0), 1.0,
       GovState(false, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
-      sfc.agents.NbpState(0.05),
+      sfc.agents.NbpState(Rate(0.05)),
       BankState(PLN.Zero, PLN.Zero, PLN(1e9), PLN(1e9)),
       ForexState(4.33, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
       sfc.agents.HhState(100, PLN(8000), PLN(4500), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
-      0, 0, 1e9, Vector.fill(6)(5.0))
+      Ratio(0), Ratio(0), 1e9, Vector.fill(6)(5.0))
     w.firmBirths shouldBe 0
   }
 
   it should "have firmDeaths defaulting to 0" in {
-    val w = World(0, 0.0, 1.0,
+    val w = World(0, Rate(0.0), 1.0,
       accounting.GovState(false, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
-      sfc.agents.NbpState(0.05),
+      sfc.agents.NbpState(Rate(0.05)),
       accounting.BankState(PLN.Zero, PLN.Zero, PLN(1e9), PLN(1e9)),
       accounting.ForexState(4.33, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
       sfc.agents.HhState(100, PLN(8000), PLN(4500), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
-      0, 0, 1e9, Vector.fill(6)(5.0))
+      Ratio(0), Ratio(0), 1e9, Vector.fill(6)(5.0))
     w.firmDeaths shouldBe 0
   }
 
@@ -93,8 +93,8 @@ class FirmEntrySpec extends AnyFlatSpec with Matchers:
     val entrant = Firm(
       id = FirmId(0), cash = PLN(50000.0), debt = PLN.Zero,
       tech = TechState.Traditional(5),
-      riskProfile = 0.5, innovationCostFactor = 1.0,
-      digitalReadiness = 0.15, sector = SectorIdx(2),
+      riskProfile = Ratio(0.5), innovationCostFactor = 1.0,
+      digitalReadiness = Ratio(0.15), sector = SectorIdx(2),
       neighbors = Array.empty[Int], initialSize = 5
     )
     entrant.debt shouldBe PLN.Zero
@@ -110,8 +110,8 @@ class FirmEntrySpec extends AnyFlatSpec with Matchers:
     val entrant = Firm(
       id = FirmId(0), cash = PLN(50000.0), debt = PLN.Zero,
       tech = TechState.Traditional(5),
-      riskProfile = 0.5, innovationCostFactor = 1.0,
-      digitalReadiness = 0.15, sector = SectorIdx(2),
+      riskProfile = Ratio(0.5), innovationCostFactor = 1.0,
+      digitalReadiness = Ratio(0.15), sector = SectorIdx(2),
       neighbors = Array.empty[Int], initialSize = 5
     )
     FirmOps.isAlive(entrant) shouldBe true
@@ -145,7 +145,7 @@ class FirmEntrySpec extends AnyFlatSpec with Matchers:
     val drs = (1 to 100).map { _ =>
       val sec = SECTORS(2) // Retail
       Math.max(0.02, Math.min(0.30,
-        sec.baseDigitalReadiness + rng.nextGaussian() * 0.10))
+        sec.baseDigitalReadiness.toDouble + rng.nextGaussian() * 0.10))
     }
     drs.foreach { dr =>
       dr should be >= 0.02
@@ -208,8 +208,8 @@ class FirmEntrySpec extends AnyFlatSpec with Matchers:
     val tech = TechState.Traditional(0)
     FirmOps.workers(Firm(
       id = FirmId(0), cash = PLN(50000.0), debt = PLN.Zero, tech = tech,
-      riskProfile = 0.5, innovationCostFactor = 1.0,
-      digitalReadiness = 0.15, sector = SectorIdx(0),
+      riskProfile = Ratio(0.5), innovationCostFactor = 1.0,
+      digitalReadiness = Ratio(0.15), sector = SectorIdx(0),
       neighbors = Array.empty[Int], initialSize = 5
     )) shouldBe 0
   }

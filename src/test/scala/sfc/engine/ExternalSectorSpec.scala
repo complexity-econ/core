@@ -42,14 +42,14 @@ class ExternalSectorSpec extends AnyFlatSpec with Matchers:
 
   it should "have zero disruption initially" in {
     val s = ExternalSector.initial
-    s.foreignFirms.foreach(_.disruption shouldBe 0.0)
+    s.foreignFirms.foreach(_.disruption.toDouble shouldBe 0.0)
   }
 
   it should "have trade concentration = HHI of partner shares" in {
     val s = ExternalSector.initial
     val eu = Config.GvcEuTradeShare
     val expectedHhi = eu * eu + (1.0 - eu) * (1.0 - eu)
-    s.tradeConcentration shouldBe expectedHhi +- 1e-10
+    s.tradeConcentration.toDouble shouldBe expectedHhi +- 1e-10
   }
 
   // ---- Step ----
@@ -96,7 +96,7 @@ class ExternalSectorSpec extends AnyFlatSpec with Matchers:
   it should "have zero disruption when no shock applied" in {
     val init = ExternalSector.initial
     val r = ExternalSector.step(init, sectorOutputs, 1.0, Config.BaseExRate, 0.0, 30, plnRc)
-    r.disruptionIndex shouldBe 0.0
+    r.disruptionIndex.toDouble shouldBe 0.0
   }
 
   it should "work with EUR regime" in {

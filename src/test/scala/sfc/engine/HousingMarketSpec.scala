@@ -11,13 +11,13 @@ class HousingMarketSpec extends AnyFlatSpec with Matchers:
     priceIndex = 100.0,
     totalValue = PLN(3.0e12 * Config.FirmsCount / 10000.0),
     mortgageStock = PLN(485e9 * Config.FirmsCount / 10000.0),
-    avgMortgageRate = 0.0575 + 0.025,
+    avgMortgageRate = Rate(0.0575 + 0.025),
     hhHousingWealth = PLN((3.0e12 - 485e9) * Config.FirmsCount / 10000.0),
     lastOrigination = PLN.Zero,
     lastRepayment = PLN.Zero,
     lastDefault = PLN.Zero,
     lastWealthEffect = PLN.Zero,
-    monthlyReturn = 0.0,
+    monthlyReturn = Rate.Zero,
     mortgageInterestIncome = PLN.Zero
   )
 
@@ -26,13 +26,13 @@ class HousingMarketSpec extends AnyFlatSpec with Matchers:
     z.priceIndex shouldBe 0.0
     z.totalValue shouldBe PLN.Zero
     z.mortgageStock shouldBe PLN.Zero
-    z.avgMortgageRate shouldBe 0.0
+    z.avgMortgageRate.toDouble shouldBe 0.0
     z.hhHousingWealth shouldBe PLN.Zero
     z.lastOrigination shouldBe PLN.Zero
     z.lastRepayment shouldBe PLN.Zero
     z.lastDefault shouldBe PLN.Zero
     z.lastWealthEffect shouldBe PLN.Zero
-    z.monthlyReturn shouldBe 0.0
+    z.monthlyReturn.toDouble shouldBe 0.0
     z.mortgageInterestIncome shouldBe PLN.Zero
     z.regions shouldBe None
   }
@@ -126,7 +126,7 @@ class HousingMarketSpec extends AnyFlatSpec with Matchers:
     init.priceIndex shouldBe 100.0
     init.totalValue.toDouble shouldBe (Config.ReInitValue +- 1.0)
     init.mortgageStock.toDouble shouldBe (Config.ReInitMortgage +- 1.0)
-    init.avgMortgageRate shouldBe (Config.NbpInitialRate + Config.ReMortgageSpread +- 0.001)
+    init.avgMortgageRate.toDouble shouldBe (Config.NbpInitialRate + Config.ReMortgageSpread +- 0.001)
     init.hhHousingWealth.toDouble shouldBe (Config.ReInitValue - Config.ReInitMortgage +- 1.0)
   }
 
@@ -165,20 +165,20 @@ class HousingMarketSpec extends AnyFlatSpec with Matchers:
         lastOrigination = PLN.Zero,
         lastRepayment = PLN.Zero,
         lastDefault = PLN.Zero,
-        monthlyReturn = 0.0
+        monthlyReturn = Rate.Zero
       )
     }.toVector
     HousingMarketState(
       priceIndex = 100.0,
       totalValue = PLN(aggValue),
       mortgageStock = PLN(aggMortgage),
-      avgMortgageRate = 0.08,
+      avgMortgageRate = Rate(0.08),
       hhHousingWealth = PLN(aggValue - aggMortgage),
       lastOrigination = PLN.Zero,
       lastRepayment = PLN.Zero,
       lastDefault = PLN.Zero,
       lastWealthEffect = PLN.Zero,
-      monthlyReturn = 0.0,
+      monthlyReturn = Rate.Zero,
       mortgageInterestIncome = PLN.Zero,
       regions = Some(regions)
     )

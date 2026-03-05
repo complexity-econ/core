@@ -123,10 +123,10 @@ class IntegrationFullSpec extends AnyFlatSpec with Matchers:
   it should "have Gini coefficients in [0, 1]" in {
     requireAllMechanisms()
     val agg = result.terminalHhAgg.get
-    agg.giniIndividual should be >= 0.0
-    agg.giniIndividual should be <= 1.0
-    agg.giniWealth should be >= 0.0
-    agg.giniWealth should be <= 1.0
+    agg.giniIndividual.toDouble should be >= 0.0
+    agg.giniIndividual.toDouble should be <= 1.0
+    agg.giniWealth.toDouble should be >= 0.0
+    agg.giniWealth.toDouble should be <= 1.0
   }
 
   // ==========================================================================

@@ -56,8 +56,8 @@ class ExternalSectorPropertySpec extends AnyFlatSpec with Matchers with ScalaChe
     forAll(genExchangeRate, genFraction, Gen.choose(1, 120)) {
       (er: Double, autoR: Double, month: Int) =>
         val r = runStep(er, autoR = autoR, month = month)
-        r.disruptionIndex should be >= 0.0
-        r.disruptionIndex should be <= 1.0
+        r.disruptionIndex.toDouble should be >= 0.0
+        r.disruptionIndex.toDouble should be <= 1.0
     }
   }
 
@@ -76,8 +76,8 @@ class ExternalSectorPropertySpec extends AnyFlatSpec with Matchers with ScalaChe
   it should "have trade concentration HHI in (0, 1]" in {
     forAll(genExchangeRate) { (er: Double) =>
       val r = runStep(er)
-      r.tradeConcentration should be > 0.0
-      r.tradeConcentration should be <= 1.0
+      r.tradeConcentration.toDouble should be > 0.0
+      r.tradeConcentration.toDouble should be <= 1.0
     }
   }
 

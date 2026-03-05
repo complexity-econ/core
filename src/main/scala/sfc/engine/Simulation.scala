@@ -183,15 +183,15 @@ object Simulation:
 
     // When term structure is enabled, use WIBOR 3M as lending base rate
     // instead of refRate. Uses LAGGED interbankRate (standard SFC approach).
-    val rawLendingBaseRate = if Config.InterbankTermStructure then
+    val rawLendingBaseRate: Double = if Config.InterbankTermStructure then
       w.bankingSector.map { bs =>
-        YieldCurve.compute(bs.interbankRate).wibor3m
-      }.getOrElse(w.nbp.referenceRate)
-    else w.nbp.referenceRate
+        YieldCurve.compute(bs.interbankRate.toDouble).wibor3m.toDouble
+      }.getOrElse(w.nbp.referenceRate.toDouble)
+    else w.nbp.referenceRate.toDouble
 
     // Channel 2: Firm CAPEX via expected rate — firms partially factor expected future rate
     val lendingBaseRate = if Config.ExpEnabled then
-      0.5 * rawLendingBaseRate + 0.5 * w.expectations.expectedRate
+      0.5 * rawLendingBaseRate + 0.5 * w.expectations.expectedRate.toDouble
     else rawLendingBaseRate
 
     val living = firms.filter(FirmOps.isAlive)
@@ -203,13 +203,13 @@ object Simulation:
     val wageAfterExp = if Config.ExpEnabled then
       val target = if rc.isEurozone then Config.EcbTargetInfl else Config.NbpTargetInfl
       val expWagePressure = Config.ExpWagePassthrough *
-        Math.max(0.0, w.expectations.expectedInflation - target) / 12.0
+        Math.max(0.0, w.expectations.expectedInflation.toDouble - target) / 12.0
       Math.max(resWage, rawWage * (1.0 + expWagePressure))
     else rawWage
 
     // Union downward wage rigidity (#44): dampen wage declines in proportion to aggregate union density
     val newWage = if Config.UnionEnabled && wageAfterExp < w.hh.marketWage.toDouble then
-      val aggDensity = SECTORS.zipWithIndex.map((s, i) => s.share * Config.UnionDensity(i)).sum
+      val aggDensity = SECTORS.zipWithIndex.map((s, i) => s.share.toDouble * Config.UnionDensity(i)).sum
       val decline = w.hh.marketWage.toDouble - wageAfterExp
       Math.max(resWage, wageAfterExp + decline * Config.UnionRigidity * aggDensity)
     else wageAfterExp
@@ -255,7 +255,7 @@ object Simulation:
           // Include union wage premium: firms pay effectiveWageMult but workers must receive it
           val avgWageMult = if Config.UnionEnabled then
             SECTORS.indices.map(i =>
-              SECTORS(i).share * (1.0 + Config.UnionWagePremium * Config.UnionDensity(i))).sum
+              SECTORS(i).share.toDouble * (1.0 + Config.UnionWagePremium * Config.UnionDensity(i))).sum
           else 1.0
           val wageIncome = employed.toDouble * newWage * avgWageMult
           val bdpIncome  = if bdpActive then Config.TotalPopulation.toDouble * bdp else 0.0
@@ -285,11 +285,11 @@ object Simulation:
               case None => Array(w.bank.lendingRate(lendingBaseRate)),
             depositRates = w.bankingSector match
               case Some(bs) => bs.banks.map(_ =>
-                BankingSector.hhDepositRate(w.nbp.referenceRate)).toArray
-              case None => Array(BankingSector.hhDepositRate(w.nbp.referenceRate))
+                BankingSector.hhDepositRate(w.nbp.referenceRate.toDouble)).toArray
+              case None => Array(BankingSector.hhDepositRate(w.nbp.referenceRate.toDouble))
           ))
           // Equity index return for HH wealth revaluation (lagged: uses previous month's return)
-          val eqReturn = w.equity.monthlyReturn
+          val eqReturn = w.equity.monthlyReturn.toDouble
           // Sectoral mobility signals (computed from lagged state)
           val secWages = if Config.LmSectoralMobility then Some(SectoralMobility.sectorWages(afterWages)) else None
           val secVacancies = if Config.LmSectoralMobility then Some(SectoralMobility.sectorVacancies(afterWages, firms)) else None
@@ -369,7 +369,7 @@ object Simulation:
     }.toVector
     // Channel 4: Real rate effect — negative real rate boosts demand, positive dampens
     val realRateEffect = if Config.ExpEnabled then
-      val realRate = w.nbp.referenceRate - w.expectations.expectedInflation
+      val realRate = w.nbp.referenceRate.toDouble - w.expectations.expectedInflation.toDouble
       -realRate * 0.02
     else 0.0
     val avgDemandMult = (if totalCapacity > 0 then fofTotalDemand / (totalCapacity * w.priceLevel) else 1.0) + realRateEffect
@@ -382,7 +382,7 @@ object Simulation:
     val perBankWorkers  = new Array[Int](nBanks)
 
     // Pass macropru CCyB to canLend for effective MinCAR
-    val currentCcyb = w.macropru.ccyb
+    val currentCcyb = w.macropru.ccyb.toDouble
     val (getLendRate, bankCanLendFn): (Int => Double, (Int, Double) => Boolean) =
       w.bankingSector match
         case Some(bs) =>
@@ -658,7 +658,7 @@ object Simulation:
     val exDev = if rc.isEurozone then 0.0
                else (w.forex.exchangeRate / Config.BaseExRate) - 1.0
     val (newInfl, newPrice) = Sectors.updateInflation(
-      w.inflation, w.priceLevel, avgDemandMult, wageGrowth, exDev, autoR, hybR, rc)
+      w.inflation.toDouble, w.priceLevel, avgDemandMult, wageGrowth, exDev, autoR, hybR, rc)
 
     // Firm profits for equity market (sum of after-tax profits of living firms)
     val firmProfits = living2.kahanSumBy { f =>
@@ -678,7 +678,7 @@ object Simulation:
     // GPW equity market step
     val prevGdp = if w.gdpProxy > 0 then w.gdpProxy else 1.0
     val gdpGrowthForEquity = (gdp - prevGdp) / prevGdp
-    val equityAfterIndex = EquityMarket.step(w.equity, w.nbp.referenceRate, newInfl,
+    val equityAfterIndex = EquityMarket.step(w.equity, w.nbp.referenceRate.toDouble, newInfl,
       gdpGrowthForEquity, firmProfits)
     val equityAfterIssuance = EquityMarket.processIssuance(sumEquityIssuance, equityAfterIndex)
     // HH equity wealth updated later (after reassignedHouseholds is available)
@@ -686,8 +686,8 @@ object Simulation:
     // GPW dividends: firm profits → HH income + foreign outflow + tax
     val (netDomesticDividends, foreignDividendOutflow, dividendTax) =
       if Config.GpwEnabled && Config.GpwDividends then
-        EquityMarket.computeDividends(firmProfits, equityAfterIssuance.dividendYield,
-          equityAfterIssuance.marketCap.toDouble, equityAfterIssuance.foreignOwnership)
+        EquityMarket.computeDividends(firmProfits, equityAfterIssuance.dividendYield.toDouble,
+          equityAfterIssuance.marketCap.toDouble, equityAfterIssuance.foreignOwnership.toDouble)
       else (0.0, 0.0, 0.0)
 
     // Open economy (Paper-08) or legacy foreign sector
@@ -709,7 +709,7 @@ object Simulation:
     val (newForex, newBop0, oeValuationEffect, fxResult) = if Config.OeEnabled then
       val oeResult = OpenEconomy.step(
         w.bop, w.forex, importCons, totalTechAndInvImports,
-        autoR, w.nbp.referenceRate, gdp, w.priceLevel,
+        autoR, w.nbp.referenceRate.toDouble, gdp, w.priceLevel,
         sectorOutputs, m, rc,
         nbpFxReserves = w.nbp.fxReserves.toDouble,
         gvcExports = gvcExp,
@@ -721,7 +721,7 @@ object Simulation:
         tourismImport = tourismImport)
       (oeResult.forex, oeResult.bop, oeResult.valuationEffect, oeResult.fxIntervention)
     else
-      val fx = Sectors.updateForeign(w.forex, importCons, totalTechAndInvImports, autoR, w.nbp.referenceRate, gdp, rc)
+      val fx = Sectors.updateForeign(w.forex, importCons, totalTechAndInvImports, autoR, w.nbp.referenceRate.toDouble, gdp, rc)
       (fx, w.bop, 0.0, CentralBankLogic.FxInterventionResult(0.0, 0.0, w.nbp.fxReserves.toDouble))
 
     // Adjust BOP for foreign dividend outflow (primary income component) + EU funds tracking
@@ -748,7 +748,7 @@ object Simulation:
 
     val exRateChg = if rc.isEurozone then 0.0
                     else (newForex.exchangeRate / w.forex.exchangeRate) - 1.0
-    val newRefRate = Sectors.updateCbRate(w.nbp.referenceRate, newInfl, exRateChg, employed, rc)
+    val newRefRate = Sectors.updateCbRate(w.nbp.referenceRate.toDouble, newInfl, exRateChg, employed, rc)
 
     // Expectations step: update after inflation + rate computed
     val unempRateForExp = 1.0 - employed.toDouble / Config.TotalPopulation
@@ -762,9 +762,9 @@ object Simulation:
     val (totalReserveInterest, totalStandingFacilityIncome, totalInterbankInterest) =
       w.bankingSector match
         case Some(bs) =>
-          val (_, resInt) = BankingSector.computeReserveInterest(bs.banks, w.nbp.referenceRate)
-          val (_, sfInc) = BankingSector.computeStandingFacilities(bs.banks, w.nbp.referenceRate)
-          val (_, ibInt) = BankingSector.interbankInterestFlows(bs.banks, bs.interbankRate)
+          val (_, resInt) = BankingSector.computeReserveInterest(bs.banks, w.nbp.referenceRate.toDouble)
+          val (_, sfInc) = BankingSector.computeStandingFacilities(bs.banks, w.nbp.referenceRate.toDouble)
+          val (_, ibInt) = BankingSector.interbankInterestFlows(bs.banks, bs.interbankRate.toDouble)
           (resInt, sfInc, ibInt)
         case None => (0.0, 0.0, 0.0)
 
@@ -778,8 +778,8 @@ object Simulation:
     // Channel 3: De-anchored expectations → higher bond yields
     val credPremium = if Config.ExpEnabled then
       val target = if rc.isEurozone then Config.EcbTargetInfl else Config.NbpTargetInfl
-      (1.0 - w.expectations.credibility) *
-        Math.abs(w.expectations.expectedInflation - target) *
+      (1.0 - w.expectations.credibility.toDouble) *
+        Math.abs(w.expectations.expectedInflation.toDouble - target) *
         Config.ExpBondSensitivity
     else 0.0
     val newBondYield = CentralBankLogic.bondYield(newRefRate, debtToGdp, nbpBondGdpShare, w.bop.nfa.toDouble, credPremium)
@@ -800,7 +800,7 @@ object Simulation:
     val qeActive = if qeActivate then true
                    else if qeTaper then false
                    else w.nbp.qeActive
-    val preQeNbp = NbpState(newRefRate, w.nbp.govBondHoldings, qeActive, w.nbp.qeCumulative)
+    val preQeNbp = NbpState(Rate(newRefRate), w.nbp.govBondHoldings, qeActive, w.nbp.qeCumulative)
     val (postQeNbp, qePurchaseAmount) = CentralBankLogic.executeQe(
       preQeNbp, w.bank.govBondHoldings.toDouble, annualGdpForBonds)
     val postFxNbp = postQeNbp.copy(
@@ -812,7 +812,7 @@ object Simulation:
     val corpBondAmort = CorporateBondMarket.amortization(w.corporateBonds)
     val newCorpBonds = CorporateBondMarket.step(w.corporateBonds, newBondYield,
       w.bank.nplRatio, totalBondDefault, actualBondIssuance)
-      .copy(lastAbsorptionRate = corpBondAbsorption)
+      .copy(lastAbsorptionRate = Ratio(corpBondAbsorption))
     // Coupon computed from LAGGED state (standard SFC approach)
     val (_, corpBondBankCoupon, _) = CorporateBondMarket.computeCoupon(w.corporateBonds)
     val (_, _, corpBondBankDefaultLoss, _) = CorporateBondMarket.processDefaults(
@@ -822,17 +822,17 @@ object Simulation:
     val insUnempRate = 1.0 - employed.toDouble / Config.TotalPopulation
     val newInsurance = if Config.InsEnabled then
       InsuranceSector.step(w.insurance, employed, newWage, w.priceLevel, insUnempRate,
-        newBondYield, w.corporateBonds.corpBondYield, w.equity.monthlyReturn)
+        newBondYield, w.corporateBonds.corpBondYield.toDouble, w.equity.monthlyReturn.toDouble)
     else w.insurance
     val insNetDepositChange = newInsurance.lastNetDepositChange.toDouble
 
     // --- Shadow Banking / NBFI step (#42) ---
-    val nbfiDepositRate = Math.max(0.0, postFxNbp.referenceRate - 0.02)
+    val nbfiDepositRate = Math.max(0.0, postFxNbp.referenceRate.toDouble - 0.02)
     val nbfiUnempRate = 1.0 - employed.toDouble / Config.TotalPopulation
     val newNbfi = if Config.NbfiEnabled then
       ShadowBanking.step(w.nbfi, employed, newWage, w.priceLevel,
         nbfiUnempRate, w.bank.nplRatio, newBondYield,
-        w.corporateBonds.corpBondYield, w.equity.monthlyReturn,
+        w.corporateBonds.corpBondYield.toDouble, w.equity.monthlyReturn.toDouble,
         nbfiDepositRate, domesticCons)
     else w.nbfi
     val nbfiDepositDrain = newNbfi.lastDepositDrain.toDouble
@@ -868,7 +868,7 @@ object Simulation:
       euCofinancing = euCofin, euProjectCapital = euProjectCapital,
       exciseRevenue = exciseAfterEvasion, customsDutyRevenue = customsDutyRevenue,
       govPurchasesActual = govPurchases)
-    val newGovWithYield = newGov.copy(bondYield = newBondYield)
+    val newGovWithYield = newGov.copy(bondYield = Rate(newBondYield))
 
     // JST (local government) — must precede newBank (JST deposits flow into bank)
     val nLivingFirms = living2.length
@@ -879,14 +879,14 @@ object Simulation:
     val unempRate = 1.0 - employed.toDouble / Config.TotalPopulation
     val prevMortgageRate = w.housing.avgMortgageRate
     // Mortgage rate: WIBOR_3M + spread (when term structure) or refRate + spread
-    val mortgageBaseRate = if Config.InterbankTermStructure then
-      w.bankingSector.map(bs => YieldCurve.compute(bs.interbankRate).wibor3m)
-        .getOrElse(w.nbp.referenceRate)
-    else w.nbp.referenceRate
+    val mortgageBaseRate: Double = if Config.InterbankTermStructure then
+      w.bankingSector.map(bs => YieldCurve.compute(bs.interbankRate.toDouble).wibor3m.toDouble)
+        .getOrElse(w.nbp.referenceRate.toDouble)
+    else w.nbp.referenceRate.toDouble
     val mortgageRate = mortgageBaseRate + Config.ReMortgageSpread
 
     val housingAfterPrice = HousingMarket.step(w.housing, mortgageRate, newInfl,
-      wageGrowth, employed, prevMortgageRate)
+      wageGrowth, employed, prevMortgageRate.toDouble)
     val housingAfterOrig = HousingMarket.processOrigination(housingAfterPrice, totalIncome,
       mortgageRate, true)
     val (mortgageInterestIncome, mortgagePrincipal, mortgageDefaultLoss) =
@@ -978,9 +978,9 @@ object Simulation:
     val (perBankReserveInt, perBankStandingFac, perBankInterbankInt) =
       w.bankingSector match
         case Some(bs) =>
-          val (ri, _) = BankingSector.computeReserveInterest(bs.banks, w.nbp.referenceRate)
-          val (sf, _) = BankingSector.computeStandingFacilities(bs.banks, w.nbp.referenceRate)
-          val (ib, _) = BankingSector.interbankInterestFlows(bs.banks, bs.interbankRate)
+          val (ri, _) = BankingSector.computeReserveInterest(bs.banks, w.nbp.referenceRate.toDouble)
+          val (sf, _) = BankingSector.computeStandingFacilities(bs.banks, w.nbp.referenceRate.toDouble)
+          val (ib, _) = BankingSector.interbankInterestFlows(bs.banks, bs.interbankRate.toDouble)
           (ri, sf, ib)
         case None =>
           (Vector.empty[Double], Vector.empty[Double], Vector.empty[Double])
@@ -1069,7 +1069,7 @@ object Simulation:
           )
         }
         // 2. Interbank clearing
-        val ibRate = BankingSector.interbankRate(updatedBanks, w.nbp.referenceRate)
+        val ibRate = BankingSector.interbankRate(updatedBanks, w.nbp.referenceRate.toDouble)
         val afterInterbank = BankingSector.clearInterbank(updatedBanks, bs.configs, ibRate)
         // 3. Bond allocation (use actualBondChange, not raw deficit — surplus can't redeem below 0)
         val afterBonds = if Config.GovBondMarket then
@@ -1085,7 +1085,7 @@ object Simulation:
         val afterTfi = BankingSector.allocateQePurchases(afterIns, tfiBondPurchase)
         // 5. Failure checks + bail-in + BFG resolution (pass ccyb for effective MinCAR)
         val (afterFailCheck, anyFailed) = BankingSector.checkFailures(afterTfi, m,
-          ccyb = newMacropru.ccyb)
+          ccyb = newMacropru.ccyb.toDouble)
         val (afterBailIn, multiBailInLoss) = if anyFailed then BankingSector.applyBailIn(afterFailCheck) else (afterFailCheck, 0.0)
         val (afterResolve, rawAbsorberId) = if anyFailed then BankingSector.resolveFailures(afterBailIn)
                            else (afterBailIn, BankId.NoBank)
@@ -1101,7 +1101,7 @@ object Simulation:
         else 0.0
         // Compute term structure from O/N rate when enabled
         val curve = if Config.InterbankTermStructure then Some(YieldCurve.compute(ibRate)) else None
-        val newBs = bs.copy(banks = afterResolve, interbankRate = ibRate, interbankCurve = curve)
+        val newBs = bs.copy(banks = afterResolve, interbankRate = Rate(ibRate), interbankCurve = curve)
         // 6. Reassign firm/HH bankIds: use absorber ID directly for consistency
         val reFirms = if anyFailed then
           rewiredFirms.map { f =>
@@ -1138,8 +1138,8 @@ object Simulation:
         // Aggregate mode: HH equity wealth = previous × (1 + return)
         if Config.GpwHhEquity && Config.GpwEnabled then
           val prevHhEq = w.equity.hhEquityWealth.toDouble
-          val newHhEq = prevHhEq * (1.0 + equityAfterIssuance.monthlyReturn)
-          val wEffect = if equityAfterIssuance.monthlyReturn > 0 then
+          val newHhEq = prevHhEq * (1.0 + equityAfterIssuance.monthlyReturn.toDouble)
+          val wEffect = if equityAfterIssuance.monthlyReturn > Rate.Zero then
             (newHhEq - prevHhEq) * Config.GpwWealthEffectMpc
           else 0.0
           (newHhEq, wEffect)
@@ -1181,11 +1181,11 @@ object Simulation:
       w.informalCyclicalAdj * Config.InformalSmoothing + target * (1.0 - Config.InformalSmoothing)
     else 0.0
 
-    val newW = World(m, newInfl, newPrice, newGovWithYield, postFxNbp,
+    val newW = World(m, Rate(newInfl), newPrice, newGovWithYield, postFxNbp,
       resolvedBank, newForex,
       HhState(employed, PLN(newWage), PLN(resWage), PLN(totalIncome), PLN(consumption), PLN(domesticCons), PLN(importCons),
         minWageLevel = PLN(baseMinWage), minWagePriceLevel = updatedMinWagePriceLevel),
-      autoR, hybR, gdp, newSigmas,
+      Ratio(autoR), Ratio(hybR), gdp, newSigmas,
       ioFlows = PLN(totalIoPaid),
       bop = newBop,
       hhAgg = finalHhAgg,
@@ -1202,7 +1202,7 @@ object Simulation:
       sectoralMobility = SectoralMobilityState(
         crossSectorHires = postFirmCrossSectorHires + hhAgg.map(_.crossSectorHires).getOrElse(0),
         voluntaryQuits = hhAgg.map(_.voluntaryQuits).getOrElse(0),
-        sectorMobilityRate = finalHhAgg.map(_.sectorMobilityRate).getOrElse(0.0)
+        sectorMobilityRate = finalHhAgg.map(_.sectorMobilityRate.toDouble).getOrElse(0.0)
       ),
       gvc = newGvc,
       expectations = newExp,
@@ -1354,7 +1354,7 @@ object Simulation:
       }.toArray
       val totalWeight = sectorWeights.sum
 
-      val totalAdoption = newW.automationRatio + newW.hybridRatio
+      val totalAdoption = newW.automationRatio.toDouble + newW.hybridRatio.toDouble
       val livingIds = postLiving.map(_.id.toInt)
       var births = 0
 
@@ -1380,7 +1380,7 @@ object Simulation:
               Random.nextDouble() < Config.FirmEntryAiProb
             val dr = if isAiNative then Random.between(0.50, 0.90)
                      else Math.max(0.02, Math.min(0.30,
-                       SECTORS(newSector).baseDigitalReadiness + Random.nextGaussian() * 0.10))
+                       SECTORS(newSector).baseDigitalReadiness.toDouble + Random.nextGaussian() * 0.10))
             val startWorkers = if households.isDefined then 0 else firmSize
             val tech = if isAiNative then
               val hw = Math.max(1, (startWorkers * 0.6).toInt)
@@ -1418,9 +1418,9 @@ object Simulation:
               cash = PLN(Config.FirmEntryStartupCash * sizeMult),
               debt = PLN.Zero,
               tech = tech,
-              riskProfile = Random.between(0.1, 0.9),
+              riskProfile = Ratio(Random.between(0.1, 0.9)),
               innovationCostFactor = Random.between(0.8, 1.5),
-              digitalReadiness = dr,
+              digitalReadiness = Ratio(dr),
               sector = SectorIdx(newSector),
               neighbors = newNeighbors,
               bankId = newBankId,

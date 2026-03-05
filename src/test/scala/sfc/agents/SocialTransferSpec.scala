@@ -73,11 +73,11 @@ class SocialTransferSpec extends AnyFlatSpec with Matchers:
     val agg = HhAggregates(
       employed = 0, unemployed = 0, retraining = 0, bankrupt = 0,
       totalIncome = PLN.Zero, consumption = PLN.Zero, domesticConsumption = PLN.Zero, importConsumption = PLN.Zero,
-      marketWage = PLN.Zero, reservationWage = PLN.Zero, giniIndividual = 0, giniWealth = 0,
-      meanSavings = PLN.Zero, medianSavings = PLN.Zero, povertyRate50 = 0, bankruptcyRate = 0,
+      marketWage = PLN.Zero, reservationWage = PLN.Zero, giniIndividual = Ratio.Zero, giniWealth = Ratio.Zero,
+      meanSavings = PLN.Zero, medianSavings = PLN.Zero, povertyRate50 = Ratio.Zero, bankruptcyRate = Ratio.Zero,
       meanSkill = 0, meanHealthPenalty = 0, retrainingAttempts = 0, retrainingSuccesses = 0,
       consumptionP10 = PLN.Zero, consumptionP50 = PLN.Zero, consumptionP90 = PLN.Zero,
-      meanMonthsToRuin = 0, povertyRate30 = 0, totalRent = PLN.Zero,
+      meanMonthsToRuin = 0, povertyRate30 = Ratio.Zero, totalRent = PLN.Zero,
       totalDebtService = PLN.Zero, totalUnempBenefits = PLN.Zero
     )
     agg.totalSocialTransfers.toDouble shouldBe 0.0
@@ -86,7 +86,7 @@ class SocialTransferSpec extends AnyFlatSpec with Matchers:
   "Household.numDependentChildren" should "default to 0" in {
     val hh = Household(
       id = 0, savings = PLN(1000), debt = PLN.Zero, monthlyRent = PLN(1000),
-      skill = 0.5, healthPenalty = 0.0, mpc = 0.8,
+      skill = Ratio(0.5), healthPenalty = Ratio(0.0), mpc = Ratio(0.8),
       status = HhStatus.Employed(FirmId(0), SectorIdx(0), PLN(8000.0)),
       socialNeighbors = Array.empty[Int]
     )

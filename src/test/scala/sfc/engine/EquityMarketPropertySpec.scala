@@ -18,7 +18,7 @@ class EquityMarketPropertySpec extends AnyFlatSpec with Matchers with ScalaCheck
     ey       <- Gen.choose(0.01, 0.50)
     dy       <- Gen.choose(0.01, 0.15)
     foreign  <- Gen.choose(0.0, 1.0)
-  yield EquityMarketState(index, PLN(mcap), ey, dy, foreign, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
+  yield EquityMarketState(index, PLN(mcap), Rate(ey), Rate(dy), Ratio(foreign), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
 
   // --- processIssuance properties ---
 
@@ -108,9 +108,9 @@ class EquityMarketPropertySpec extends AnyFlatSpec with Matchers with ScalaCheck
     val z = EquityMarket.zero
     z.index shouldBe 0.0
     z.marketCap shouldBe PLN.Zero
-    z.earningsYield shouldBe 0.0
-    z.dividendYield shouldBe 0.0
-    z.foreignOwnership shouldBe 0.0
+    z.earningsYield shouldBe Rate.Zero
+    z.dividendYield shouldBe Rate.Zero
+    z.foreignOwnership shouldBe Ratio.Zero
     z.lastIssuance shouldBe PLN.Zero
     z.hhEquityWealth shouldBe PLN.Zero
     z.lastWealthEffect shouldBe PLN.Zero

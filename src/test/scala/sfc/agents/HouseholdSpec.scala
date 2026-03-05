@@ -45,8 +45,8 @@ class HouseholdSpec extends AnyFlatSpec with Matchers:
     val network = Array.fill(500)(Array.empty[Int])
     val hhs = HouseholdInit.initialize(500, 50, firms, network, rng)
     hhs.foreach { hh =>
-      hh.mpc should be >= 0.5
-      hh.mpc should be <= 0.98
+      hh.mpc.toDouble should be >= 0.5
+      hh.mpc.toDouble should be <= 0.98
     }
   }
 
@@ -56,8 +56,8 @@ class HouseholdSpec extends AnyFlatSpec with Matchers:
     val network = Array.fill(500)(Array.empty[Int])
     val hhs = HouseholdInit.initialize(500, 50, firms, network, rng)
     hhs.foreach { hh =>
-      hh.skill should be >= 0.3
-      hh.skill should be <= 1.0
+      hh.skill.toDouble should be >= 0.3
+      hh.skill.toDouble should be <= 1.0
     }
   }
 
@@ -98,21 +98,21 @@ class HouseholdSpec extends AnyFlatSpec with Matchers:
     val rng = new Random(42)
     val hh = mkHousehold(0, HhStatus.Unemployed(5), savings = PLN(100000.0), skill = 0.8)
     val (updated, _, _) = HouseholdLogic.step(Vector(hh), mkWorld(), 2000.0, 8000.0, 4666.0, 0.4, rng)
-    updated(0).skill should be < 0.8
+    updated(0).skill.toDouble should be < 0.8
   }
 
   it should "not decay skill before scarring onset" in {
     val rng = new Random(42)
     val hh = mkHousehold(0, HhStatus.Unemployed(1), savings = PLN(100000.0), skill = 0.8)
     val (updated, _, _) = HouseholdLogic.step(Vector(hh), mkWorld(), 2000.0, 8000.0, 4666.0, 0.4, rng)
-    updated(0).skill shouldBe 0.8
+    updated(0).skill shouldBe Ratio(0.8)
   }
 
   it should "apply health scarring after onset" in {
     val rng = new Random(42)
     val hh = mkHousehold(0, HhStatus.Unemployed(5), savings = PLN(100000.0), healthPenalty = 0.0)
     val (updated, _, _) = HouseholdLogic.step(Vector(hh), mkWorld(), 2000.0, 8000.0, 4666.0, 0.4, rng)
-    updated(0).healthPenalty should be > 0.0
+    updated(0).healthPenalty.toDouble should be > 0.0
   }
 
   it should "bankrupt household when savings fall below threshold" in {
@@ -304,14 +304,14 @@ class HouseholdSpec extends AnyFlatSpec with Matchers:
     agg.unemployed shouldBe 1
     agg.retraining shouldBe 1
     agg.bankrupt shouldBe 1
-    agg.bankruptcyRate shouldBe 0.2 +- 0.001
+    agg.bankruptcyRate.toDouble shouldBe 0.2 +- 0.001
   }
 
   // --- helpers ---
 
   private def mkFirms(n: Int): Array[Firm] =
     (0 until n).map { i =>
-      Firm(FirmId(i), PLN(50000.0), PLN(0.0), TechState.Traditional(10), 0.5, 1.0, 0.5,
+      Firm(FirmId(i), PLN(50000.0), PLN(0.0), TechState.Traditional(10), Ratio(0.5), 1.0, Ratio(0.5),
         SectorIdx(i % SECTORS.length), Array.empty[Int])
     }.toArray
 
@@ -320,20 +320,20 @@ class HouseholdSpec extends AnyFlatSpec with Matchers:
                           rent: PLN = PLN(1800.0), skill: Double = 0.7,
                           healthPenalty: Double = 0.0, mpc: Double = 0.82,
                           bankId: Int = 0): Household =
-    Household(id, savings, debt, rent, skill, healthPenalty, mpc, status, Array.empty[Int], BankId(bankId))
+    Household(id, savings, debt, rent, Ratio(skill), Ratio(healthPenalty), Ratio(mpc), status, Array.empty[Int], BankId(bankId))
 
   private def mkWorld(): World =
     World(
       month = 31,
-      inflation = 0.02,
+      inflation = Rate(0.02),
       priceLevel = 1.0,
       gov = GovState(false, PLN(0.0), PLN(0.0), PLN(0.0), PLN(0.0), PLN(0.0)),
-      nbp = NbpState(0.0575),
+      nbp = NbpState(Rate(0.0575)),
       bank = BankState(PLN(1000000), PLN(10000), PLN(500000), PLN(1000000)),
       forex = ForexState(4.33, PLN(0.0), PLN(190000000), PLN(0.0), PLN(0.0)),
       hh = HhState(100000, PLN(Config.BaseWage), PLN(Config.BaseReservationWage), PLN(0.0), PLN(0.0), PLN(0.0), PLN(0.0)),
-      automationRatio = 0.0,
-      hybridRatio = 0.0,
+      automationRatio = Ratio.Zero,
+      hybridRatio = Ratio.Zero,
       gdpProxy = 1e9,
       currentSigmas = SECTORS.map(_.sigma).toVector
     )

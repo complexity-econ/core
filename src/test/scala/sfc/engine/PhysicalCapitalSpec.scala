@@ -12,8 +12,8 @@ class PhysicalCapitalSpec extends AnyFlatSpec with Matchers:
     capitalStock: Double = 0.0): Firm =
     Firm(id = FirmId(0), cash = PLN(cash), debt = PLN.Zero,
       tech = TechState.Traditional(workers),
-      riskProfile = 0.5, innovationCostFactor = 1.0,
-      digitalReadiness = 0.3, sector = SectorIdx(sector),
+      riskProfile = Ratio(0.5), innovationCostFactor = 1.0,
+      digitalReadiness = Ratio(0.3), sector = SectorIdx(sector),
       neighbors = Array.empty[Int], initialSize = workers,
       capitalStock = PLN(capitalStock))
 
@@ -139,8 +139,8 @@ class PhysicalCapitalSpec extends AnyFlatSpec with Matchers:
   it should "return 0 for bankrupt firm" in {
     val f = Firm(id = FirmId(0), cash = PLN.Zero, debt = PLN.Zero,
       tech = TechState.Bankrupt("test"),
-      riskProfile = 0.5, innovationCostFactor = 1.0,
-      digitalReadiness = 0.3, sector = SectorIdx(0),
+      riskProfile = Ratio(0.5), innovationCostFactor = 1.0,
+      digitalReadiness = Ratio(0.3), sector = SectorIdx(0),
       neighbors = Array.empty[Int], capitalStock = PLN(100000.0))
     FirmOps.capacity(f) shouldBe 0.0
   }
@@ -151,8 +151,8 @@ class PhysicalCapitalSpec extends AnyFlatSpec with Matchers:
     // applyInvestment on a bankrupt firm should zero capitalStock
     val f = Firm(id = FirmId(0), cash = PLN.Zero, debt = PLN(100000),
       tech = TechState.Bankrupt("test"),
-      riskProfile = 0.5, innovationCostFactor = 1.0,
-      digitalReadiness = 0.3, sector = SectorIdx(1),
+      riskProfile = Ratio(0.5), innovationCostFactor = 1.0,
+      digitalReadiness = Ratio(0.3), sector = SectorIdx(1),
       neighbors = Array.empty[Int], capitalStock = PLN(2500000.0))
     val r = FirmResult(f, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
     // When PhysCapEnabled, applyInvestment should zero K for bankrupt

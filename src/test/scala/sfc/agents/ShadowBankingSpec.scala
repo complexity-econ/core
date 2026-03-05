@@ -22,7 +22,7 @@ class ShadowBankingSpec extends AnyFlatSpec with Matchers:
     z.lastNbfiOrigination.toDouble shouldBe 0.0
     z.lastNbfiRepayment.toDouble shouldBe 0.0
     z.lastNbfiDefaultAmount.toDouble shouldBe 0.0
-    z.lastBankTightness shouldBe 0.0
+    z.lastBankTightness shouldBe Ratio.Zero
     z.lastDepositDrain.toDouble shouldBe 0.0
   }
 
@@ -198,7 +198,7 @@ class ShadowBankingSpec extends AnyFlatSpec with Matchers:
     val tight = ShadowBanking.step(init, 50000, 8000.0, 1.0, 0.05, 0.06,
       0.05, 0.07, 0.005, 0.03, 1e8)
     tight.lastNbfiOrigination > normal.lastNbfiOrigination shouldBe true
-    tight.lastBankTightness should be > normal.lastBankTightness
+    tight.lastBankTightness.toDouble should be > normal.lastBankTightness.toDouble
   }
 
   it should "produce positive interest income from loan stock" in {

@@ -135,7 +135,7 @@ class FofSpec extends AnyFlatSpec with Matchers:
   // --- helpers ---
 
   private def mkFirm(id: Int, tech: TechState, sector: Int = 2): Firm =
-    Firm(FirmId(id), PLN(50000.0), PLN.Zero, tech, 0.5, 1.0, 0.5, SectorIdx(sector), Array.empty[Int])
+    Firm(FirmId(id), PLN(50000.0), PLN.Zero, tech, Ratio(0.5), 1.0, Ratio(0.5), SectorIdx(sector), Array.empty[Int])
 
   private def mkFirms(): Array[Firm] =
     // Create firms distributed across all 6 sectors

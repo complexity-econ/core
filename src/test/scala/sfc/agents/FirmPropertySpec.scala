@@ -107,9 +107,9 @@ class FirmPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckProperty
     forAll(Gen.choose(0, 5), Gen.choose(0.5, 2.0), Gen.choose(0.02, 0.98)) {
       (sector: Int, innov: Double, digiR: Double) =>
         // Same initialSize=16, different worker counts: sqrt(4/16) vs sqrt(16/16)
-        val f1 = Firm(FirmId(0), PLN.Zero, PLN.Zero, TechState.Traditional(4), 0.5, innov, digiR, SectorIdx(sector), Array.empty[Int],
+        val f1 = Firm(FirmId(0), PLN.Zero, PLN.Zero, TechState.Traditional(4), Ratio(0.5), innov, Ratio(digiR), SectorIdx(sector), Array.empty[Int],
           initialSize = 16)
-        val f2 = Firm(FirmId(0), PLN.Zero, PLN.Zero, TechState.Traditional(16), 0.5, innov, digiR, SectorIdx(sector), Array.empty[Int],
+        val f2 = Firm(FirmId(0), PLN.Zero, PLN.Zero, TechState.Traditional(16), Ratio(0.5), innov, Ratio(digiR), SectorIdx(sector), Array.empty[Int],
           initialSize = 16)
         val ratio = FirmOps.capacity(f2) / FirmOps.capacity(f1)
         ratio shouldBe (2.0 +- 0.01)
@@ -119,9 +119,9 @@ class FirmPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckProperty
   it should "scale linearly with initialSize at full employment" in {
     forAll(Gen.choose(0, 5), Gen.choose(0.5, 2.0), Gen.choose(0.02, 0.98)) {
       (sector: Int, innov: Double, digiR: Double) =>
-        val f1 = Firm(FirmId(0), PLN.Zero, PLN.Zero, TechState.Traditional(10), 0.5, innov, digiR, SectorIdx(sector), Array.empty[Int],
+        val f1 = Firm(FirmId(0), PLN.Zero, PLN.Zero, TechState.Traditional(10), Ratio(0.5), innov, Ratio(digiR), SectorIdx(sector), Array.empty[Int],
           initialSize = 10)
-        val f2 = Firm(FirmId(0), PLN.Zero, PLN.Zero, TechState.Traditional(25), 0.5, innov, digiR, SectorIdx(sector), Array.empty[Int],
+        val f2 = Firm(FirmId(0), PLN.Zero, PLN.Zero, TechState.Traditional(25), Ratio(0.5), innov, Ratio(digiR), SectorIdx(sector), Array.empty[Int],
           initialSize = 25)
         val ratio = FirmOps.capacity(f2) / FirmOps.capacity(f1)
         ratio shouldBe (2.5 +- 0.01)

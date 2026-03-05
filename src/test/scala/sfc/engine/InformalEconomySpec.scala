@@ -70,35 +70,35 @@ class InformalEconomySpec extends AnyFlatSpec with Matchers:
   // ==========================================================================
 
   "World" should "have informalCyclicalAdj defaulting to 0.0" in {
-    val w = World(0, 0.0, 1.0,
+    val w = World(0, Rate(0.0), 1.0,
       GovState(false, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
-      sfc.agents.NbpState(0.05),
+      sfc.agents.NbpState(Rate(0.05)),
       BankState(PLN.Zero, PLN.Zero, PLN(1e9), PLN(1e9)),
       ForexState(4.33, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
       sfc.agents.HhState(100, PLN(8000), PLN(4500), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
-      0, 0, 1e9, Vector.fill(6)(5.0))
+      Ratio(0.0), Ratio(0.0), 1e9, Vector.fill(6)(5.0))
     w.informalCyclicalAdj shouldBe 0.0
   }
 
   it should "have taxEvasionLoss defaulting to 0.0" in {
-    val w = World(0, 0.0, 1.0,
+    val w = World(0, Rate(0.0), 1.0,
       accounting.GovState(false, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
-      sfc.agents.NbpState(0.05),
+      sfc.agents.NbpState(Rate(0.05)),
       accounting.BankState(PLN.Zero, PLN.Zero, PLN(1e9), PLN(1e9)),
       accounting.ForexState(4.33, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
       sfc.agents.HhState(100, PLN(8000), PLN(4500), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
-      0, 0, 1e9, Vector.fill(6)(5.0))
+      Ratio(0.0), Ratio(0.0), 1e9, Vector.fill(6)(5.0))
     w.taxEvasionLoss.toDouble shouldBe 0.0
   }
 
   it should "have informalEmployed defaulting to 0.0" in {
-    val w = World(0, 0.0, 1.0,
+    val w = World(0, Rate(0.0), 1.0,
       accounting.GovState(false, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
-      sfc.agents.NbpState(0.05),
+      sfc.agents.NbpState(Rate(0.05)),
       accounting.BankState(PLN.Zero, PLN.Zero, PLN(1e9), PLN(1e9)),
       accounting.ForexState(4.33, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
       sfc.agents.HhState(100, PLN(8000), PLN(4500), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
-      0, 0, 1e9, Vector.fill(6)(5.0))
+      Ratio(0.0), Ratio(0.0), 1e9, Vector.fill(6)(5.0))
     w.informalEmployed.toDouble shouldBe 0.0
   }
 
@@ -108,7 +108,7 @@ class InformalEconomySpec extends AnyFlatSpec with Matchers:
 
   "FirmResult" should "have citEvasion defaulting to 0.0" in {
     val f = Firm(FirmId(0), PLN(50000.0), PLN.Zero, TechState.Traditional(10),
-      0.5, 1.0, 0.3, SectorIdx(0), Array.empty[Int])
+      Ratio(0.5), 1.0, Ratio(0.3), SectorIdx(0), Array.empty[Int])
     val r = FirmResult(f, PLN(100.0), PLN.Zero, PLN.Zero, PLN.Zero)
     r.citEvasion.toDouble shouldBe 0.0
   }
@@ -121,7 +121,7 @@ class InformalEconomySpec extends AnyFlatSpec with Matchers:
     // InformalEnabled defaults to false
     Config.InformalEnabled shouldBe false
     val f = Firm(FirmId(0), PLN(50000.0), PLN.Zero, TechState.Traditional(10),
-      0.5, 1.0, 0.3, SectorIdx(0), Array.empty[Int])
+      Ratio(0.5), 1.0, Ratio(0.3), SectorIdx(0), Array.empty[Int])
     val r = FirmResult(f, PLN(1000.0), PLN.Zero, PLN.Zero, PLN.Zero)
     // Since InformalEnabled is false, citEvasion should remain 0
     r.citEvasion.toDouble shouldBe 0.0
@@ -133,14 +133,14 @@ class InformalEconomySpec extends AnyFlatSpec with Matchers:
 
   "CIT evasion" should "be zero for bankrupt firms" in {
     val f = Firm(FirmId(0), PLN.Zero, PLN.Zero, TechState.Bankrupt("test"),
-      0.5, 1.0, 0.3, SectorIdx(0), Array.empty[Int])
+      Ratio(0.5), 1.0, Ratio(0.3), SectorIdx(0), Array.empty[Int])
     val r = FirmResult(f, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
     r.citEvasion.toDouble shouldBe 0.0
   }
 
   it should "be zero when taxPaid <= 0" in {
     val f = Firm(FirmId(0), PLN(50000.0), PLN.Zero, TechState.Traditional(10),
-      0.5, 1.0, 0.3, SectorIdx(0), Array.empty[Int])
+      Ratio(0.5), 1.0, Ratio(0.3), SectorIdx(0), Array.empty[Int])
     val r = FirmResult(f, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
     r.citEvasion.toDouble shouldBe 0.0
   }

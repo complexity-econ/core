@@ -16,26 +16,26 @@ class SfcCheckSpec extends AnyFlatSpec with Matchers:
                         bankNpl: Double = 0.0,
                         govDebt: Double = 0.0): World =
     World(
-      month = 1, inflation = 0.02, priceLevel = 1.0,
+      month = 1, inflation = Rate(0.02), priceLevel = 1.0,
       gov = GovState(false, PLN.Zero, PLN.Zero, PLN.Zero, PLN(govDebt), PLN.Zero),
-      nbp = NbpState(0.0575),
+      nbp = NbpState(Rate(0.0575)),
       bank = BankState(PLN(bankLoans), PLN(bankNpl), PLN(bankCapital), PLN(bankDeposits)),
       forex = ForexState(4.33, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
       hh = HhState(100, PLN(8266.0), PLN(4666.0), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
-      automationRatio = 0.0, hybridRatio = 0.0,
+      automationRatio = Ratio.Zero, hybridRatio = Ratio.Zero,
       gdpProxy = 1e9,
       currentSigmas = SECTORS.map(_.sigma).toVector
     )
 
   private def makeFirms(n: Int, cash: Double = 50000.0, debt: Double = 0.0): Array[Firm] =
     (0 until n).map { i =>
-      Firm(FirmId(i), PLN(cash), PLN(debt), TechState.Traditional(10), 0.5, 1.0, 0.3, SectorIdx(0), Array.empty[Int])
+      Firm(FirmId(i), PLN(cash), PLN(debt), TechState.Traditional(10), Ratio(0.5), 1.0, Ratio(0.3), SectorIdx(0), Array.empty[Int])
     }.toArray
 
   private def makeHouseholds(n: Int, savings: Double = 15000.0,
                               debt: Double = 0.0): Vector[Household] =
     (0 until n).map { i =>
-      Household(i, PLN(savings), PLN(debt), PLN(1800.0), 0.8, 0.0, 0.82,
+      Household(i, PLN(savings), PLN(debt), PLN(1800.0), Ratio(0.8), Ratio(0.0), Ratio(0.82),
         HhStatus.Employed(FirmId(0), SectorIdx(0), PLN(8266.0)), Array.empty[Int])
     }.toVector
 

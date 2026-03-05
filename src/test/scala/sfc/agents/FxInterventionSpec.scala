@@ -114,13 +114,13 @@ class FxInterventionSpec extends AnyFlatSpec with Matchers:
   // --- NbpState FX fields ---
 
   "NbpState" should "have backward-compatible constructor with FX defaults" in {
-    val nbp = NbpState(0.0575)
+    val nbp = NbpState(Rate(0.0575))
     nbp.fxReserves.toDouble shouldBe Config.NbpFxReserves
     nbp.lastFxTraded shouldBe PLN.Zero
   }
 
   it should "accept explicit FX field values" in {
-    val nbp = NbpState(0.05, fxReserves = PLN(5e9), lastFxTraded = PLN(-1e8))
+    val nbp = NbpState(Rate(0.05), fxReserves = PLN(5e9), lastFxTraded = PLN(-1e8))
     nbp.fxReserves shouldBe PLN(5e9)
     nbp.lastFxTraded shouldBe PLN(-1e8)
   }

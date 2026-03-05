@@ -71,7 +71,7 @@ object Generators:
     bankId <- Gen.choose(0, 6)
     eqR    <- Gen.choose(0.0, 1000000.0)
     iSize  <- Gen.choose(1, 500)
-  yield Firm(FirmId(id), PLN(cash), PLN(debt), tech, risk, innov, digiR, SectorIdx(sector), Array.empty[Int], BankId(bankId), PLN(eqR), iSize)
+  yield Firm(FirmId(id), PLN(cash), PLN(debt), tech, Ratio(risk), innov, Ratio(digiR), SectorIdx(sector), Array.empty[Int], BankId(bankId), PLN(eqR), iSize)
 
   val genAliveFirm: Gen[Firm] = for
     id     <- Gen.choose(0, 9999)
@@ -85,7 +85,7 @@ object Generators:
     bankId <- Gen.choose(0, 6)
     eqR    <- Gen.choose(0.0, 1000000.0)
     iSize  <- Gen.choose(1, 500)
-  yield Firm(FirmId(id), PLN(cash), PLN(debt), tech, risk, innov, digiR, SectorIdx(sector), Array.empty[Int], BankId(bankId), PLN(eqR), iSize)
+  yield Firm(FirmId(id), PLN(cash), PLN(debt), tech, Ratio(risk), innov, Ratio(digiR), SectorIdx(sector), Array.empty[Int], BankId(bankId), PLN(eqR), iSize)
 
   // --- Balance sheet state generators ---
 
@@ -108,7 +108,7 @@ object Generators:
     bondYield   <- Gen.choose(0.0, 0.15)
     debtService <- Gen.choose(0.0, 1e8)
   yield GovState(bdpActive, PLN(taxRev), PLN(bdpSpend), PLN(deficit), PLN(cumDebt), PLN(unempBen),
-    PLN(bondsOut), bondYield, PLN(debtService))
+    PLN(bondsOut), Rate(bondYield), PLN(debtService))
 
   val genForexState: Gen[ForexState] = for
     er       <- genExchangeRate
@@ -166,7 +166,7 @@ object Generators:
     bankId  <- Gen.choose(0, 6)
     eqW     <- Gen.choose(0.0, 100000.0)
     lastSec <- Gen.choose(-1, 5)
-  yield Household(id, PLN(savings), PLN(debt), PLN(rent), skill, health, mpc, status, Array.empty[Int], BankId(bankId), PLN(eqW), SectorIdx(lastSec))
+  yield Household(id, PLN(savings), PLN(debt), PLN(rent), Ratio(skill), Ratio(health), Ratio(mpc), status, Array.empty[Int], BankId(bankId), PLN(eqW), SectorIdx(lastSec))
 
   // --- World generator ---
 
@@ -185,9 +185,9 @@ object Generators:
     hybR     <- genFraction
     gdp      <- Gen.choose(1e6, 1e11)
   yield World(
-    month, infl, price, gov, NbpState(rate), bank, forex,
+    month, Rate(infl), price, gov, NbpState(Rate(rate)), bank, forex,
     HhState(employed, PLN(wage), PLN(resWage), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
-    autoR, hybR, gdp,
+    Ratio(autoR), Ratio(hybR), gdp,
     SECTORS.map(_.sigma)
   )
 
@@ -313,7 +313,7 @@ object Generators:
     qeCum    <- Gen.choose(0.0, 1e10)
     fxRes    <- Gen.choose(0.0, 1e11)
     lastFx   <- Gen.choose(-1e9, 1e9)
-  yield NbpState(rate, PLN(bonds), qeActive, PLN(qeCum), PLN(fxRes), PLN(lastFx))
+  yield NbpState(Rate(rate), PLN(bonds), qeActive, PLN(qeCum), PLN(fxRes), PLN(lastFx))
 
   // --- I-O matrix generator ---
 
@@ -337,7 +337,7 @@ object Generators:
     cet1   <- Gen.choose(0.10, 0.25)
     spread <- Gen.choose(-0.005, 0.005)
     aff    <- Gen.sequence[Vector[Double], Double]((0 until 6).map(_ => Gen.choose(0.05, 0.40)))
-  yield BankConfig(BankId(id), s"Bank$id", share, cet1, spread, aff)
+  yield BankConfig(BankId(id), s"Bank$id", Ratio(share), Ratio(cet1), Rate(spread), aff)
 
   val genIndividualBankState: Gen[IndividualBankState] = for
     id       <- Gen.choose(0, 6)
@@ -358,4 +358,4 @@ object Generators:
     banks  <- Gen.listOfN(nBanks, genIndividualBankState).map(_.toVector.zipWithIndex.map((b, i) => b.copy(id = BankId(i))))
     rate   <- genRate
     cfgs   <- Gen.listOfN(nBanks, genBankConfig).map(_.toVector.zipWithIndex.map((c, i) => c.copy(id = BankId(i))))
-  yield BankingSectorState(banks, rate, cfgs)
+  yield BankingSectorState(banks, Rate(rate), cfgs)

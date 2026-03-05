@@ -73,7 +73,7 @@ class DynamicNetworkSpec extends AnyFlatSpec with Matchers:
 
   private def mkFirms(n: Int): Array[Firm] =
     (0 until n).map { i =>
-      Firm(FirmId(i), PLN(50000.0), PLN.Zero, TechState.Traditional(10), 0.5, 1.0, 0.5, SectorIdx(0),
+      Firm(FirmId(i), PLN(50000.0), PLN.Zero, TechState.Traditional(10), Ratio(0.5), 1.0, Ratio(0.5), SectorIdx(0),
         Array((i + 1) % n, (i - 1 + n) % n))
     }.toArray
 
@@ -81,6 +81,6 @@ class DynamicNetworkSpec extends AnyFlatSpec with Matchers:
     (0 until n).map { i =>
       val tech = if i < nBankrupt then TechState.Bankrupt("test")
                  else TechState.Traditional(10)
-      Firm(FirmId(i), PLN(50000.0), PLN.Zero, tech, 0.5, 1.0, 0.5, SectorIdx(sector),
+      Firm(FirmId(i), PLN(50000.0), PLN.Zero, tech, Ratio(0.5), 1.0, Ratio(0.5), SectorIdx(sector),
         Array((i + 1) % n, (i - 1 + n) % n))
     }.toArray

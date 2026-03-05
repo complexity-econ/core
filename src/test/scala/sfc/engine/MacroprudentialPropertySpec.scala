@@ -4,6 +4,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import org.scalacheck.Gen
+import sfc.types.*
 
 /** Property-based tests for macroprudential instruments. */
 class MacroprudentialPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks:
@@ -14,10 +15,10 @@ class MacroprudentialPropertySpec extends AnyFlatSpec with Matchers with ScalaCh
     forAll(Gen.choose(0.0, 0.025), Gen.choose(-0.10, 0.10), Gen.choose(0.0, 1.0),
            Gen.choose(0.0, 1e10), Gen.choose(1.0, 1e9)) {
       (prevCcyb, prevGap, prevTrend, totalLoans, gdp) =>
-        val prev = MacropruState(prevCcyb, prevGap, prevTrend)
+        val prev = MacropruState(Rate(prevCcyb), prevGap, prevTrend)
         val result = Macroprudential.stepInternal(prev, totalLoans, gdp)
-        result.ccyb should be >= 0.0
-        result.ccyb should be <= sfc.config.Config.CcybMax
+        result.ccyb.toDouble should be >= 0.0
+        result.ccyb.toDouble should be <= sfc.config.Config.CcybMax
     }
   }
 

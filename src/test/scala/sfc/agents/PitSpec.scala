@@ -82,11 +82,11 @@ class PitSpec extends AnyFlatSpec with Matchers:
     val agg = HhAggregates(
       employed = 0, unemployed = 0, retraining = 0, bankrupt = 0,
       totalIncome = PLN.Zero, consumption = PLN.Zero, domesticConsumption = PLN.Zero, importConsumption = PLN.Zero,
-      marketWage = PLN.Zero, reservationWage = PLN.Zero, giniIndividual = 0, giniWealth = 0,
-      meanSavings = PLN.Zero, medianSavings = PLN.Zero, povertyRate50 = 0, bankruptcyRate = 0,
+      marketWage = PLN.Zero, reservationWage = PLN.Zero, giniIndividual = Ratio.Zero, giniWealth = Ratio.Zero,
+      meanSavings = PLN.Zero, medianSavings = PLN.Zero, povertyRate50 = Ratio.Zero, bankruptcyRate = Ratio.Zero,
       meanSkill = 0, meanHealthPenalty = 0, retrainingAttempts = 0, retrainingSuccesses = 0,
       consumptionP10 = PLN.Zero, consumptionP50 = PLN.Zero, consumptionP90 = PLN.Zero,
-      meanMonthsToRuin = 0, povertyRate30 = 0, totalRent = PLN.Zero,
+      meanMonthsToRuin = 0, povertyRate30 = Ratio.Zero, totalRent = PLN.Zero,
       totalDebtService = PLN.Zero, totalUnempBenefits = PLN.Zero
     )
     agg.totalPit.toDouble shouldBe 0.0
