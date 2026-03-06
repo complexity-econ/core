@@ -49,7 +49,7 @@ object Firm:
     energyCost: PLN = PLN.Zero,
     greenInvestment: PLN = PLN.Zero)
 
-  // ---- Ops (from FirmOps) ----
+  // ---- Ops ----
 
   def isAlive(f: State): Boolean = f.tech match
     case _: TechState.Bankrupt => false
@@ -113,7 +113,7 @@ object Firm:
   def sigmaThreshold(sigma: Double): Double =
     Math.min(1.0, 0.88 + 0.075 * Math.log(sigma) / Math.log(10.0))
 
-  // ---- Firm decision logic (from FirmLogic) ----
+  // ---- Firm decision logic ----
 
   /** Apply natural digital drift to all living firms (always-on). */
   private def applyDigitalDrift(r: Result): Result =

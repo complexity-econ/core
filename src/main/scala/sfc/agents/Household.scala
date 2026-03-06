@@ -113,7 +113,7 @@ object Household:
     totalConsumerPrincipal: PLN = PLN.Zero
   )
 
-  // ---- Init (from HouseholdInit) ----
+  // ---- Init ----
 
   object Init:
     /** Create households in Individual mode, with multi-bank assignment.
@@ -252,7 +252,7 @@ object Household:
             done = true
         result
 
-  // ---- Logic (from HouseholdLogic) ----
+  // ---- Logic ----
 
   /** Compute monthly PIT using progressive Polish brackets (2022+).
     * 12% on income ≤ 120k PLN/year, 32% above, minus kwota wolna tax credit.
