@@ -5,7 +5,7 @@ import sfc.types.*
 
 object CorporateBondMarket:
 
-  /** Corporate bond market state: Catalyst + non-public issuance (#40). */
+  /** Corporate bond market state: Catalyst + non-public issuance. */
   case class State(
     outstanding: PLN,          // total corp bonds outstanding
     bankHoldings: PLN,         // banks' share of outstanding
