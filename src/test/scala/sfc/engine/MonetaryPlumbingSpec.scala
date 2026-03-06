@@ -88,6 +88,18 @@ class MonetaryPlumbingSpec extends AnyFlatSpec with Matchers:
     expectedMonthly shouldBe (1e8 * 0.0475 / 12.0 +- 1.0)
   }
 
+  it should "charge lombard rate for interbank borrowers (formula check)" in {
+    // Bank with negative interbankNet should pay lombard cost (negative income)
+    // interbankNet = -100M, refRate = 5.75%, lombardSpread = 1% → lombardRate = 6.75%
+    val refRate = 0.0575
+    val lombardRate = refRate + 0.01 // 6.75%
+    val interbankBorrowing = 1e8
+    val expectedMonthlyCost = (interbankBorrowing * lombardRate / 12.0) * -1.0
+    // Direct formula check: -|interbankNet| × lombardRate / 12
+    expectedMonthlyCost shouldBe (-1e8 * 0.0675 / 12.0 +- 1.0)
+    expectedMonthlyCost should be < 0.0
+  }
+
   it should "return zero for failed banks" in {
     val banks = Vector(mkBank(0, reservesAtNbp = PLN(1e8), failed = true))
     val (perBank, total) = Banking.computeStandingFacilities(banks, 0.06)

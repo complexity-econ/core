@@ -293,9 +293,9 @@ object Simulation:
       ),
     )
     val ioFirms = s5.ioFirms; val finalHouseholds = s5.finalHouseholds
-    val sumTax = s5.sumTax; val sumCapex = s5.sumCapex; val sumTechImp = s5.sumTechImp
+    val sumTax = s5.sumTax; val sumTechImp = s5.sumTechImp
     val sumNewLoans = s5.sumNewLoans; val sumEquityIssuance = s5.sumEquityIssuance
-    val sumGrossInvestment = s5.sumGrossInvestment; val sumBondIssuance = s5.sumBondIssuance
+    val sumGrossInvestment = s5.sumGrossInvestment
     val sumProfitShifting = s5.sumProfitShifting; val sumFdiRepatriation = s5.sumFdiRepatriation
     val sumInventoryChange = s5.sumInventoryChange; val sumCitEvasion = s5.sumCitEvasion
     val sumEnergyCost = s5.sumEnergyCost; val sumGreenInvestment = s5.sumGreenInvestment
