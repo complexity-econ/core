@@ -2,7 +2,7 @@ package sfc.engine
 
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import sfc.accounting.SfcCheck
+import sfc.accounting.Sfc
 import sfc.agents.{Firm, TechState}
 import sfc.config.Config
 import sfc.types.*
@@ -102,9 +102,9 @@ class FofSpec extends AnyFlatSpec with Matchers:
     distributed(1) shouldBe 520000.0 // Manufacturing gets 52%
   }
 
-  "SfcCheck Identity 10" should "pass when fofResidual is zero" in {
+  "Sfc Identity 10" should "pass when fofResidual is zero" in {
     // All flows zero except fofResidual — all deltas are 0 = 0
-    val flows = SfcCheck.MonthlyFlows(
+    val flows = Sfc.MonthlyFlows(
       govSpending = PLN.Zero,
       govRevenue = PLN.Zero,
       nplLoss = PLN.Zero,
@@ -117,13 +117,13 @@ class FofSpec extends AnyFlatSpec with Matchers:
       fofResidual = PLN.Zero,
     )
     val snap =
-      SfcCheck.Snapshot(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN(500000.0), PLN(1000000.0), PLN.Zero, PLN.Zero)
-    val result = SfcCheck.validate(1, snap, snap, flows)
+      Sfc.Snapshot(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN(500000.0), PLN(1000000.0), PLN.Zero, PLN.Zero)
+    val result = Sfc.validate(1, snap, snap, flows)
     result shouldBe Right(())
   }
 
   it should "fail when fofResidual exceeds tolerance" in {
-    val flows = SfcCheck.MonthlyFlows(
+    val flows = Sfc.MonthlyFlows(
       govSpending = PLN.Zero,
       govRevenue = PLN.Zero,
       nplLoss = PLN.Zero,
@@ -136,10 +136,10 @@ class FofSpec extends AnyFlatSpec with Matchers:
       fofResidual = PLN(1.0),
     )
     val snap =
-      SfcCheck.Snapshot(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN(500000.0), PLN(1000000.0), PLN.Zero, PLN.Zero)
-    val result = SfcCheck.validate(1, snap, snap, flows)
+      Sfc.Snapshot(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN(500000.0), PLN(1000000.0), PLN.Zero, PLN.Zero)
+    val result = Sfc.validate(1, snap, snap, flows)
     result shouldBe a[Left[?, ?]]
-    result.swap.getOrElse(Vector.empty).find(_.identity == SfcCheck.SfcIdentity.FlowOfFunds).get.actual shouldBe 1.0 +- 0.01
+    result.swap.getOrElse(Vector.empty).find(_.identity == Sfc.SfcIdentity.FlowOfFunds).get.actual shouldBe 1.0 +- 0.01
   }
 
   // --- helpers ---

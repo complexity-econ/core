@@ -4,19 +4,19 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import sfc.types.*
 
-class BopSfcCheckSpec extends AnyFlatSpec with Matchers:
+class BopSfcSpec extends AnyFlatSpec with Matchers:
 
-  private def errorDelta(result: Either[Vector[SfcCheck.IdentityError], Unit], id: SfcCheck.SfcIdentity): Double =
+  private def errorDelta(result: Either[Vector[Sfc.IdentityError], Unit], id: Sfc.SfcIdentity): Double =
     result.swap.getOrElse(Vector.empty).find(_.identity == id).map(e => e.actual - e.expected).getOrElse(0.0)
 
-  private val zeroFlows = SfcCheck.MonthlyFlows(PLN(0), PLN(0), PLN(0), PLN(0), PLN(0), PLN(0), PLN(0), PLN(0), PLN(0))
+  private val zeroFlows = Sfc.MonthlyFlows(PLN(0), PLN(0), PLN(0), PLN(0), PLN(0), PLN(0), PLN(0), PLN(0), PLN(0))
   private val baseSnap =
-    SfcCheck.Snapshot(PLN(0), PLN(0), PLN(500000), PLN(0), PLN(200000), PLN(1000000), PLN(0), PLN(0), nfa = PLN(0.0))
+    Sfc.Snapshot(PLN(0), PLN(0), PLN(500000), PLN(0), PLN(200000), PLN(1000000), PLN(0), PLN(0), nfa = PLN(0.0))
 
   // ---- Identity 4: NFA ----
 
-  "SfcCheck.validate (NFA)" should "pass trivially when OPEN_ECON is off (all zeros)" in {
-    val result = SfcCheck.validate(1, baseSnap, baseSnap, zeroFlows)
+  "Sfc.validate (NFA)" should "pass trivially when OPEN_ECON is off (all zeros)" in {
+    val result = Sfc.validate(1, baseSnap, baseSnap, zeroFlows)
     result shouldBe Right(())
   }
 
@@ -26,7 +26,7 @@ class BopSfcCheckSpec extends AnyFlatSpec with Matchers:
     val prev = baseSnap.copy(nfa = PLN(100000.0))
     val curr = baseSnap.copy(nfa = PLN(100000.0) + ca + valuation)
     val flows = zeroFlows.copy(currentAccount = ca, valuationEffect = valuation)
-    val result = SfcCheck.validate(1, prev, curr, flows)
+    val result = Sfc.validate(1, prev, curr, flows)
     result shouldBe Right(())
   }
 
@@ -35,16 +35,16 @@ class BopSfcCheckSpec extends AnyFlatSpec with Matchers:
     // Bug: NFA unchanged despite positive CA
     val curr = baseSnap.copy(nfa = PLN(100000.0))
     val flows = zeroFlows.copy(currentAccount = PLN(25000.0), valuationEffect = PLN(0.0))
-    val result = SfcCheck.validate(1, prev, curr, flows)
+    val result = Sfc.validate(1, prev, curr, flows)
     result shouldBe a[Left[?, ?]]
-    errorDelta(result, SfcCheck.SfcIdentity.Nfa) shouldBe -25000.0 +- 0.01
+    errorDelta(result, Sfc.SfcIdentity.Nfa) shouldBe -25000.0 +- 0.01
   }
 
   it should "handle negative NFA changes (capital outflow)" in {
     val prev = baseSnap.copy(nfa = PLN(100000.0))
     val curr = baseSnap.copy(nfa = PLN(70000.0))
     val flows = zeroFlows.copy(currentAccount = PLN(-30000.0), valuationEffect = PLN(0.0))
-    val result = SfcCheck.validate(1, prev, curr, flows)
+    val result = Sfc.validate(1, prev, curr, flows)
     result shouldBe Right(())
   }
 
@@ -53,7 +53,7 @@ class BopSfcCheckSpec extends AnyFlatSpec with Matchers:
     // CA=-10000, valuation=+15000 → expected ΔNFA = +5000
     val curr = baseSnap.copy(nfa = PLN(105000.0))
     val flows = zeroFlows.copy(currentAccount = PLN(-10000.0), valuationEffect = PLN(15000.0))
-    val result = SfcCheck.validate(1, prev, curr, flows)
+    val result = Sfc.validate(1, prev, curr, flows)
     result shouldBe Right(())
   }
 
@@ -61,8 +61,8 @@ class BopSfcCheckSpec extends AnyFlatSpec with Matchers:
     val prev = baseSnap.copy(nfa = PLN(100000.0))
     // NFA jumps by 50000 but CA+valuation = 0 → error on identity 4 only
     val curr = baseSnap.copy(nfa = PLN(150000.0))
-    val result = SfcCheck.validate(1, prev, curr, zeroFlows)
+    val result = Sfc.validate(1, prev, curr, zeroFlows)
     result shouldBe a[Left[?, ?]]
-    result.swap.getOrElse(Vector.empty).map(_.identity) should contain only SfcCheck.SfcIdentity.Nfa
-    errorDelta(result, SfcCheck.SfcIdentity.Nfa) shouldBe 50000.0 +- 0.01
+    result.swap.getOrElse(Vector.empty).map(_.identity) should contain only Sfc.SfcIdentity.Nfa
+    errorDelta(result, Sfc.SfcIdentity.Nfa) shouldBe 50000.0 +- 0.01
   }

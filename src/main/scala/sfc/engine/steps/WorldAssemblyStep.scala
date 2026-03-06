@@ -142,10 +142,10 @@ object WorldAssemblyStep:
   )
 
   case class Output(
-    newWorld: World,
-    finalFirms: Array[Firm.State],
-    reassignedHouseholds: Option[Vector[Household.State]],
-    sfcResult: Either[Vector[SfcCheck.IdentityError], Unit],
+                     newWorld: World,
+                     finalFirms: Array[Firm.State],
+                     reassignedHouseholds: Option[Vector[Household.State]],
+                     sfcResult: Either[Vector[Sfc.IdentityError], Unit],
   )
 
   def run(in: Input): Output =
@@ -264,9 +264,9 @@ object WorldAssemblyStep:
     )
 
     // SFC accounting check
-    val prevSnap = SfcCheck.snapshot(in.w, in.firms, in.households)
-    val currSnap = SfcCheck.snapshot(newW, in.reassignedFirms, in.reassignedHouseholds)
-    val sfcFlows = SfcCheck.MonthlyFlows(
+    val prevSnap = Sfc.snapshot(in.w, in.firms, in.households)
+    val currSnap = Sfc.snapshot(newW, in.reassignedFirms, in.reassignedHouseholds)
+    val sfcFlows = Sfc.MonthlyFlows(
       govSpending = PLN(
         in.newGovWithYield.bdpSpending.toDouble + in.newGovWithYield.unempBenefitSpend.toDouble
           + in.newGovWithYield.socialTransferSpend.toDouble
@@ -333,7 +333,7 @@ object WorldAssemblyStep:
       bankCapitalDestruction = PLN(in.multiCapDestruction),
       investNetDepositFlow = PLN(in.investNetDepositFlow),
     )
-    val sfcResult = SfcCheck.validate(in.m, prevSnap, currSnap, sfcFlows)
+    val sfcResult = Sfc.validate(in.m, prevSnap, currSnap, sfcFlows)
 
     // FDI M&A: monthly domestic → foreign conversion (#33)
     val postFdiFirms =

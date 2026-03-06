@@ -5,7 +5,7 @@ import sfc.engine.World
 import sfc.types.*
 import sfc.util.KahanSum.*
 
-object SfcCheck:
+object Sfc:
 
   /** Snapshot of all monetary stocks in the economy at one point in time. */
   case class Snapshot(

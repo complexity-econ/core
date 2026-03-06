@@ -2,7 +2,7 @@ package sfc.agents
 
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import sfc.accounting.{BankState, SfcCheck}
+import sfc.accounting.{BankState, Sfc}
 import sfc.config.Config
 import sfc.types.*
 
@@ -190,10 +190,10 @@ class ConsumerCreditSpec extends AnyFlatSpec with Matchers:
     bank.car should be < bankNoCc.car
   }
 
-  "SfcCheck" should "pass consumer credit identity with zero flows" in {
-    val snap = SfcCheck.Snapshot(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN(100.0), PLN(200.0), PLN.Zero, PLN.Zero)
+  "Sfc" should "pass consumer credit identity with zero flows" in {
+    val snap = Sfc.Snapshot(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN(100.0), PLN(200.0), PLN.Zero, PLN.Zero)
     val flow =
-      SfcCheck.MonthlyFlows(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
-    val result = SfcCheck.validate(1, snap, snap, flow)
+      Sfc.MonthlyFlows(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
+    val result = Sfc.validate(1, snap, snap, flow)
     result shouldBe Right(())
   }

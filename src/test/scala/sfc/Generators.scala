@@ -263,7 +263,7 @@ object Generators:
 
   // --- SFC Check generators ---
 
-  val genSnapshot: Gen[SfcCheck.Snapshot] = for
+  val genSnapshot: Gen[Sfc.Snapshot] = for
     hhS <- Gen.choose(0.0, 1e10)
     hhD <- Gen.choose(0.0, 1e9)
     fCash <- Gen.choose(0.0, 1e10)
@@ -280,7 +280,7 @@ object Generators:
     fusBal <- Gen.choose(-1e10, 1e10)
     ppkBonds <- Gen.choose(0.0, 1e9)
     mortStock <- Gen.choose(0.0, 1e12)
-  yield SfcCheck.Snapshot(
+  yield Sfc.Snapshot(
     PLN(hhS),
     PLN(hhD),
     PLN(fCash),
@@ -301,7 +301,7 @@ object Generators:
     mortgageStock = PLN(mortStock),
   )
 
-  val genMonthlyFlows: Gen[SfcCheck.MonthlyFlows] = for
+  val genMonthlyFlows: Gen[Sfc.MonthlyFlows] = for
     govSpend <- Gen.choose(0.0, 1e9)
     govRev <- Gen.choose(0.0, 1e9)
     nplLoss <- Gen.choose(0.0, 1e8)
@@ -334,7 +334,7 @@ object Generators:
     mortOrig <- Gen.choose(0.0, 1e9)
     mortPrinc <- Gen.choose(0.0, 1e8)
     mortDefAmt <- Gen.choose(0.0, 1e7)
-  yield SfcCheck.MonthlyFlows(
+  yield Sfc.MonthlyFlows(
     PLN(govSpend),
     PLN(govRev),
     PLN(nplLoss),
@@ -370,7 +370,7 @@ object Generators:
   )
 
   /** Generate (prev, curr, flows) where all 9 SFC identities hold exactly. */
-  val genConsistentFlowsAndSnapshots: Gen[(SfcCheck.Snapshot, SfcCheck.Snapshot, SfcCheck.MonthlyFlows)] =
+  val genConsistentFlowsAndSnapshots: Gen[(Sfc.Snapshot, Sfc.Snapshot, Sfc.MonthlyFlows)] =
     for
       prev <- genSnapshot
       flows <- genMonthlyFlows

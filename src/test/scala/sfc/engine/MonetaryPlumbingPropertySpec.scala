@@ -5,7 +5,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import sfc.Generators.*
-import sfc.accounting.SfcCheck
+import sfc.accounting.Sfc
 import sfc.agents.Banking
 import sfc.types.*
 
@@ -103,9 +103,9 @@ class MonetaryPlumbingPropertySpec extends AnyFlatSpec with Matchers with ScalaC
   // SFC: consistent flows with monetary plumbing still pass
   // =========================================================================
 
-  "SfcCheck with monetary plumbing flows" should "pass for consistent snapshots" in {
+  "Sfc with monetary plumbing flows" should "pass for consistent snapshots" in {
     forAll(genConsistentFlowsAndSnapshots) { case (prev, curr, flows) =>
-      val result = SfcCheck.validate(1, prev, curr, flows)
+      val result = Sfc.validate(1, prev, curr, flows)
       result shouldBe Right(())
     }
   }
@@ -114,7 +114,7 @@ class MonetaryPlumbingPropertySpec extends AnyFlatSpec with Matchers with ScalaC
     forAll(genConsistentFlowsAndSnapshots, Gen.choose(1000.0, 1e6)) { case ((prev, curr, flows), delta) =>
       // Add reserve interest to flows but NOT to bank capital → should fail
       val perturbedFlows = flows.copy(reserveInterest = flows.reserveInterest + PLN(delta))
-      val result = SfcCheck.validate(1, prev, curr, perturbedFlows)
+      val result = Sfc.validate(1, prev, curr, perturbedFlows)
       result shouldBe a[Left[?, ?]]
     }
   }
