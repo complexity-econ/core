@@ -25,7 +25,19 @@ class SfcCheckPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckProp
 
   it should "pass with zero flows and identical snapshots" in {
     forAll(genSnapshot) { (snap: SfcCheck.Snapshot) =>
-      val zeroFlows = SfcCheck.MonthlyFlows(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
+      val zeroFlows = SfcCheck.MonthlyFlows(
+        PLN.Zero,
+        PLN.Zero,
+        PLN.Zero,
+        PLN.Zero,
+        PLN.Zero,
+        PLN.Zero,
+        PLN.Zero,
+        PLN.Zero,
+        PLN.Zero,
+        PLN.Zero,
+        PLN.Zero,
+      )
       val result = SfcCheck.validate(1, snap, snap, zeroFlows)
       result.passed shouldBe true
     }
@@ -175,9 +187,11 @@ class SfcCheckPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckProp
       val (prev, curr, flows) = triple
       // genMonthlyFlows generates non-zero dividend fields — verify all 8 identities hold
       val result = SfcCheck.validate(1, prev, curr, flows)
-      withClue(s"bankCapErr=${result.bankCapitalError} bankDepErr=${result.bankDepositsError} " +
-        s"govDebtErr=${result.govDebtError} nfaErr=${result.nfaError} divIncome=${flows.dividendIncome.toDouble} " +
-        s"foreignDiv=${flows.foreignDividendOutflow.toDouble} divTax=${flows.dividendTax.toDouble}: ") {
+      withClue(
+        s"bankCapErr=${result.bankCapitalError} bankDepErr=${result.bankDepositsError} " +
+          s"govDebtErr=${result.govDebtError} nfaErr=${result.nfaError} divIncome=${flows.dividendIncome.toDouble} " +
+          s"foreignDiv=${flows.foreignDividendOutflow.toDouble} divTax=${flows.dividendTax.toDouble}: ",
+      ) {
         result.passed shouldBe true
       }
     }

@@ -57,5 +57,5 @@ case class World(
   tourismExport: PLN = PLN.Zero,
   tourismImport: PLN = PLN.Zero,
   bfgFundBalance: PLN = PLN.Zero,
-  bailInLoss: PLN = PLN.Zero
+  bailInLoss: PLN = PLN.Zero,
 )

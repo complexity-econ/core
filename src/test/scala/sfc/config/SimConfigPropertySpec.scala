@@ -48,7 +48,7 @@ class SimConfigPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPro
   "Config.IoMatrix" should "have non-negative entries" in {
     for
       row <- Config.IoMatrix
-      v   <- row
+      v <- row
     do v should be >= 0.0
   }
 
@@ -89,7 +89,6 @@ class SimConfigPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPro
         j <- 0 until 6
       do m(i)(j) should be >= 0.0
 
-      for j <- 0 until 6 do
-        m.map(_(j)).sum should be < 1.0
+      for j <- 0 until 6 do m.map(_(j)).sum should be < 1.0
     }
   }

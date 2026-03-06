@@ -17,12 +17,12 @@ class BalanceSheetPropertySpec extends AnyFlatSpec with Matchers with ScalaCheck
   // Combined generator for gov update inputs (avoids >6 forAll limit)
   private val genGovUpdateInputs: Gen[(GovState, Double, Double, Boolean, Double, Double, Double)] =
     for
-      prev     <- genGovState
-      cit      <- Gen.choose(0.0, 1e8)
-      vat      <- Gen.choose(0.0, 1e8)
-      active   <- Gen.oneOf(true, false)
-      bdp      <- Gen.choose(0.0, 5000.0)
-      price    <- genPrice
+      prev <- genGovState
+      cit <- Gen.choose(0.0, 1e8)
+      vat <- Gen.choose(0.0, 1e8)
+      active <- Gen.oneOf(true, false)
+      bdp <- Gen.choose(0.0, 5000.0)
+      price <- genPrice
       unempBen <- Gen.choose(0.0, 1e7)
     yield (prev, cit, vat, active, bdp, price, unempBen)
 

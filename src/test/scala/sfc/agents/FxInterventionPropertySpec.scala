@@ -60,7 +60,8 @@ class FxInterventionPropertySpec extends AnyFlatSpec with Matchers with ScalaChe
     // Generate ER strictly inside band (0.5% margin avoids FP boundary issues)
     val genERInBand = Gen.choose(
       Config.BaseExRate * (1.0 - Config.NbpFxBand + 0.005),
-      Config.BaseExRate * (1.0 + Config.NbpFxBand - 0.005))
+      Config.BaseExRate * (1.0 + Config.NbpFxBand - 0.005),
+    )
     forAll(genERInBand, genReserves, genGdp) { (er, reserves, gdp) =>
       val result = fxEnabled(er, reserves, gdp)
       result.erEffect shouldBe 0.0
