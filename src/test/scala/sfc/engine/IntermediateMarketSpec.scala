@@ -3,7 +3,6 @@ package sfc.engine
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import sfc.agents.{Firm, TechState}
-import sfc.config.{Config, SECTORS}
 import sfc.types.*
 
 class IntermediateMarketSpec extends AnyFlatSpec with Matchers:
@@ -118,21 +117,12 @@ class IntermediateMarketSpec extends AnyFlatSpec with Matchers:
     )
     val result = IntermediateMarket.process(firms, Vector.fill(6)(1.0), 1.0, defaultMatrix, defaultColSums)
     // Firm 1 should get more I-O revenue than firm 2 (higher capacity)
-    val cap1 = Firm.capacity(firms(1))
-    val cap2 = Firm.capacity(firms(2))
+    val cap1 = Firm.capacity(result.firms(1))
+    val cap2 = Firm.capacity(result.firms(2))
     cap1 should be > cap2
-    // Revenue is proportional to capacity, cost is proportional to output
-    // Both have same sector, so same cost rate, but different absolute amounts
-    // The larger firm gets more revenue AND pays more cost; the ratio should match capacity ratio
-    val rev1share = cap1 / (cap1 + cap2)
-    val rev2share = cap2 / (cap1 + cap2)
-    // Total Mfg sector revenue from BPO sector: a_1_0 × bpoOutput
-    val bpoOutput = Firm.capacity(firms(0)) * 1.0 * 1.0
-    val mfgRevenueFromBpo = defaultMatrix(1)(0) * bpoOutput
-    // Firm 1 gets rev1share of total Mfg revenue, firm 2 gets rev2share
-    // This is just one part; they also get from each other (intra-sector)
-    // Just verify the ratio of total revenue received is close to capacity ratio
-    rev1share should be > rev2share
+    // Revenue is proportional to capacity: the larger firm gets more cash from I-O
+    result.firms(1).cash.toDouble should be > result.firms(2).cash.toDouble
+    result.totalPaid should be > 0.0
   }
 
   // ---- Test 7: totalPaid is positive ----

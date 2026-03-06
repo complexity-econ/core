@@ -625,6 +625,7 @@ object Household:
       else None
     (updated, correctedAgg, pbf)
 
+  @annotation.nowarn("msg=unused explicit parameter")
   private def computeIncome(hh: State, bdp: Double, marketWage: Double, world: World): (Double, Double, HhStatus) =
     hh.status match
       case HhStatus.Employed(firmId, sectorIdx, wage) =>

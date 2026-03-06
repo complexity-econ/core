@@ -3,13 +3,8 @@ package sfc.engine
 import sfc.accounting.*
 import sfc.agents.*
 import sfc.config.*
-import sfc.dynamics.{DynamicNetwork, SigmaDynamics}
-import sfc.engine.steps
-import sfc.networks.Network
 import sfc.types.*
 import sfc.util.KahanSum.*
-
-import scala.util.Random
 
 object Sectors:
   private def laborSupplyRatio(wage: Double, resWage: Double): Double =
@@ -365,7 +360,7 @@ object Simulation:
     val equityAfterIssuance = s7.equityAfterIssuance
     val netDomesticDividends = s7.netDomesticDividends
     val foreignDividendOutflow = s7.foreignDividendOutflow; val dividendTax = s7.dividendTax
-    val firmProfits = s7.firmProfits; val domesticGFCF = s7.domesticGFCF
+    val firmProfits = s7.firmProfits
     val investmentImports = s7.investmentImports; val aggInventoryChange = s7.aggInventoryChange
 
     // ---- Step 8: Open economy, monetary, bonds, insurance, NBFI ----
@@ -402,7 +397,7 @@ object Simulation:
       ),
     )
     val newForex = s8.newForex; val newBop = s8.newBop; val newGvc = s8.newGvc
-    val newRefRate = s8.newRefRate; val newExp = s8.newExp
+    val newExp = s8.newExp
     val totalReserveInterest = s8.totalReserveInterest
     val totalStandingFacilityIncome = s8.totalStandingFacilityIncome
     val totalInterbankInterest = s8.totalInterbankInterest
