@@ -218,18 +218,18 @@ object Sfc:
     * in balance sheet updates, and any new flow that modifies a stock without updating the counterpart.
     */
   def validate(
-    month: Int,
-    prev: Snapshot,
-    curr: Snapshot,
-    flows: MonthlyFlows,
-    tolerance: Double = 0.01,
-    nfaTolerance: Double = 1.0,
+    month: Int, // current simulation month (used only for diagnostics, not in formulas)
+    prev: Snapshot, // stocks at the beginning of the month (before Simulation.step)
+    curr: Snapshot, // stocks at the end of the month (after Simulation.step)
+    flows: MonthlyFlows, // all flows that occurred during the month
+    tolerance: PLN = PLN(0.01), // max allowed |actual − expected| for most identities
+    nfaTolerance: PLN = PLN(1.0), // wider tolerance for NFA (Identity 4) due to FP cancellation in BoP
   ): Either[Vector[IdentityError], Unit] =
     import SfcIdentity.*
     val errors = Vector.newBuilder[IdentityError]
 
-    def check(id: SfcIdentity, msg: String, expected: Double, actual: Double, tol: Double = tolerance): Unit =
-      if Math.abs(actual - expected) >= tol then
+    def check(id: SfcIdentity, msg: String, expected: Double, actual: Double, tol: PLN = tolerance): Unit =
+      if Math.abs(actual - expected) >= tol.toDouble then
         errors += IdentityError(id, msg, expected, actual)
 
     // Identity 1: Bank capital (profit retention + losses)

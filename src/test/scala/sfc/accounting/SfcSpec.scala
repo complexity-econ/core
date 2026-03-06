@@ -352,7 +352,7 @@ class SfcSpec extends AnyFlatSpec with Matchers:
     // Default tolerance (0.01): fails
     Sfc.validate(1, prev, curr, zeroFlows) shouldBe a[Left[?, ?]]
     // Loose tolerance (10.0): passes
-    Sfc.validate(1, prev, curr, zeroFlows, tolerance = 10.0) shouldBe Right(())
+    Sfc.validate(1, prev, curr, zeroFlows, tolerance = PLN(10.0)) shouldBe Right(())
   }
 
   // ---- Identity 5: Bond clearing ----

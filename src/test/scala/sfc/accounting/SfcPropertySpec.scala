@@ -141,8 +141,8 @@ class SfcPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyC
       (triple: (Sfc.Snapshot, Sfc.Snapshot, Sfc.MonthlyFlows), perturbation: Double) =>
         val (prev, curr, flows) = triple
         val perturbed = curr.copy(bankCapital = curr.bankCapital + PLN(perturbation))
-        val strictResult = Sfc.validate(1, prev, perturbed, flows, tolerance = perturbation)
-        val looseResult = Sfc.validate(1, prev, perturbed, flows, tolerance = perturbation * 10)
+        val strictResult = Sfc.validate(1, prev, perturbed, flows, tolerance = PLN(perturbation))
+        val looseResult = Sfc.validate(1, prev, perturbed, flows, tolerance = PLN(perturbation * 10))
         if strictResult.isRight then looseResult shouldBe Right(())
     }
   }
