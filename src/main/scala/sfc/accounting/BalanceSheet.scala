@@ -21,18 +21,31 @@ case class GovState(
   customsDutyRevenue: PLN = PLN.Zero,
 )
 
-/** Aggregate banking state — pure DTO set from bankingSector.aggregate each step. */
+/** Aggregate banking-sector balance sheet — sum over all 7 per-bank BankStates.
+  *
+  * Pure DTO recomputed every step via `Banking.State.aggregate`. Read-only snapshot
+  * consumed by output columns, SFC identities, macro feedback loops (corporate bond
+  * absorption, insurance/NBFI asset allocation), and government fiscal arithmetic.
+  * All mutation happens at the per-bank level in `Banking.BankState`; this aggregate
+  * is derived, never written back.
+  */
 case class BankingAggregate(
-  totalLoans: PLN,
-  nplAmount: PLN,
-  capital: PLN,
-  deposits: PLN,
-  govBondHoldings: PLN,
-  consumerLoans: PLN,
-  consumerNpl: PLN,
-  corpBondHoldings: PLN, // corporate bond holdings (bank share)
+  totalLoans: PLN, // Outstanding corporate loans (sum of per-bank `loans`)
+  nplAmount: PLN, // Non-performing corporate loan stock (KNF Stage 3)
+  capital: PLN, // Regulatory capital (Tier 1 + retained earnings)
+  deposits: PLN, // Total customer deposits (households + firms)
+  govBondHoldings: PLN, // Treasury bond portfolio (skarbowe papiery wartościowe)
+  consumerLoans: PLN, // Outstanding unsecured household credit
+  consumerNpl: PLN, // Non-performing consumer loan stock
+  corpBondHoldings: PLN, // Corporate bond portfolio — bank share only (default 30%, CORPBOND_BANK_SHARE)
 ):
+  /** Non-performing loan ratio: nplAmount / totalLoans. Returns 0.0 when loan book is empty. */
   def nplRatio: Double = if totalLoans.toDouble > 1.0 then (nplAmount / totalLoans) else 0.0
+
+  /** Capital adequacy ratio: capital / risk-weighted assets. Corporate bonds carry 50% risk weight
+    * (Basel III, BBB bucket). Returns 10.0 (well-capitalised floor) when risk-weighted assets ≤ 1
+    * to avoid division by zero.
+    */
   def car: Double =
     val totalRwa = (totalLoans + consumerLoans + corpBondHoldings * 0.50).toDouble
     if totalRwa > 1.0 then capital.toDouble / totalRwa else 10.0
