@@ -109,19 +109,22 @@ class IntermediateMarketSpec extends AnyFlatSpec with Matchers:
   // ---- Test 6: Proportional distribution ----
 
   it should "distribute revenue proportionally to capacity" in {
-    // 2 firms in sector 1: one Automated (higher capacity), one Traditional
-    val firms = Array(
-      makeFirm(0, 0), // BPO: generates demand for sector 1
-      makeFirm(1, 1, tech = TechState.Automated(1.5)), // High capacity Mfg
-      makeFirm(2, 1), // Normal capacity Mfg
-    )
+    // Many firms across all sectors so net I-O flows are meaningful;
+    // sector 1 has one Automated (higher capacity) and one Traditional.
+    val baseFirms = (0 until 6).flatMap { s =>
+      (0 until 10).map(i => makeFirm(s * 10 + i, s))
+    }.toArray
+    // Replace two sector-1 firms with our test subjects
+    val firm1 = makeFirm(100, 1, tech = TechState.Automated(1.5)) // High capacity Mfg
+    val firm2 = makeFirm(101, 1) // Normal capacity Mfg
+    val firms = baseFirms.filter(_.sector.toInt != 1) ++ Array(firm1, firm2)
     val result = IntermediateMarket.process(firms, Vector.fill(6)(1.0), 1.0, defaultMatrix, defaultColSums)
-    // Firm 1 should get more I-O revenue than firm 2 (higher capacity)
-    val cap1 = Firm.capacity(result.firms(1))
-    val cap2 = Firm.capacity(result.firms(2))
-    cap1 should be > cap2
-    // Revenue is proportional to capacity: the larger firm gets more cash from I-O
-    result.firms(1).cash.toDouble should be > result.firms(2).cash.toDouble
+    val r1 = result.firms.find(_.id == FirmId(100)).get
+    val r2 = result.firms.find(_.id == FirmId(101)).get
+    // Higher capacity firm receives more I-O revenue, so net cash gain is higher
+    val delta1 = r1.cash.toDouble - firm1.cash.toDouble
+    val delta2 = r2.cash.toDouble - firm2.cash.toDouble
+    delta1 should be > delta2
     result.totalPaid should be > 0.0
   }
 
