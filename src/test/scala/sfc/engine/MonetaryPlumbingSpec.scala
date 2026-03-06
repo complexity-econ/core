@@ -8,6 +8,40 @@ import sfc.types.*
 /** Reserve Interest, Standing Facilities, Interbank Interest tests. */
 class MonetaryPlumbingSpec extends AnyFlatSpec with Matchers:
 
+  import sfc.accounting.Sfc
+
+  private def zeroSnap: Sfc.Snapshot = Sfc.Snapshot(
+    hhSavings = PLN.Zero, hhDebt = PLN.Zero, firmCash = PLN.Zero, firmDebt = PLN.Zero,
+    bankCapital = PLN.Zero, bankDeposits = PLN.Zero, bankLoans = PLN.Zero, govDebt = PLN.Zero,
+    nfa = PLN.Zero, bankBondHoldings = PLN.Zero, nbpBondHoldings = PLN.Zero, bondsOutstanding = PLN.Zero,
+    interbankNetSum = PLN.Zero, jstDeposits = PLN.Zero, jstDebt = PLN.Zero, fusBalance = PLN.Zero,
+    ppkBondHoldings = PLN.Zero, mortgageStock = PLN.Zero, consumerLoans = PLN.Zero,
+    corpBondsOutstanding = PLN.Zero, insuranceGovBondHoldings = PLN.Zero, tfiGovBondHoldings = PLN.Zero,
+    nbfiLoanStock = PLN.Zero,
+  )
+
+  private def zeroFlows: Sfc.MonthlyFlows = Sfc.MonthlyFlows(
+    govSpending = PLN.Zero, govRevenue = PLN.Zero, nplLoss = PLN.Zero, interestIncome = PLN.Zero,
+    hhDebtService = PLN.Zero, totalIncome = PLN.Zero, totalConsumption = PLN.Zero, newLoans = PLN.Zero,
+    nplRecovery = PLN.Zero, currentAccount = PLN.Zero, valuationEffect = PLN.Zero,
+    bankBondIncome = PLN.Zero, qePurchase = PLN.Zero, newBondIssuance = PLN.Zero,
+    depositInterestPaid = PLN.Zero, reserveInterest = PLN.Zero, standingFacilityIncome = PLN.Zero,
+    interbankInterest = PLN.Zero, jstDepositChange = PLN.Zero, jstSpending = PLN.Zero,
+    jstRevenue = PLN.Zero, zusContributions = PLN.Zero, zusPensionPayments = PLN.Zero,
+    zusGovSubvention = PLN.Zero, dividendIncome = PLN.Zero, foreignDividendOutflow = PLN.Zero,
+    dividendTax = PLN.Zero, mortgageInterestIncome = PLN.Zero, mortgageNplLoss = PLN.Zero,
+    mortgageOrigination = PLN.Zero, mortgagePrincipalRepaid = PLN.Zero, mortgageDefaultAmount = PLN.Zero,
+    remittanceOutflow = PLN.Zero, fofResidual = PLN.Zero, consumerDebtService = PLN.Zero,
+    consumerNplLoss = PLN.Zero, consumerOrigination = PLN.Zero, consumerPrincipalRepaid = PLN.Zero,
+    consumerDefaultAmount = PLN.Zero, corpBondCouponIncome = PLN.Zero, corpBondDefaultLoss = PLN.Zero,
+    corpBondIssuance = PLN.Zero, corpBondAmortization = PLN.Zero, corpBondDefaultAmount = PLN.Zero,
+    insNetDepositChange = PLN.Zero, nbfiDepositDrain = PLN.Zero, nbfiOrigination = PLN.Zero,
+    nbfiRepayment = PLN.Zero, nbfiDefaultAmount = PLN.Zero, fdiProfitShifting = PLN.Zero,
+    fdiRepatriation = PLN.Zero, diasporaInflow = PLN.Zero, tourismExport = PLN.Zero,
+    tourismImport = PLN.Zero, bfgLevy = PLN.Zero, bailInLoss = PLN.Zero,
+    bankCapitalDestruction = PLN.Zero, investNetDepositFlow = PLN.Zero,
+  )
+
   private def mkBank(
     id: Int,
     deposits: PLN = PLN(1e9),
@@ -166,172 +200,54 @@ class MonetaryPlumbingSpec extends AnyFlatSpec with Matchers:
   // =========================================================================
 
   "Sfc" should "pass with reserve interest in bank capital" in {
-    import sfc.accounting.Sfc
-    val prev = Sfc.Snapshot(
-      PLN.Zero,
-      PLN.Zero,
-      PLN.Zero,
-      PLN.Zero,
-      bankCapital = PLN(1e8),
-      bankDeposits = PLN(1e9),
-      bankLoans = PLN(5e8),
-      govDebt = PLN.Zero,
-      nfa = PLN.Zero,
-      bankBondHoldings = PLN.Zero,
-      nbpBondHoldings = PLN.Zero,
-      bondsOutstanding = PLN.Zero,
-      interbankNetSum = PLN.Zero,
-    )
+    val prev = zeroSnap.copy(bankCapital = PLN(1e8), bankDeposits = PLN(1e9), bankLoans = PLN(5e8))
     val reserveInt = PLN(100000.0)
     val expectedCapChange = reserveInt * 0.3
     val curr = prev.copy(bankCapital = prev.bankCapital + expectedCapChange)
-    val flows = Sfc.MonthlyFlows(
-      PLN.Zero,
-      PLN.Zero,
-      PLN.Zero,
-      PLN.Zero,
-      PLN.Zero,
-      PLN.Zero,
-      PLN.Zero,
-      PLN.Zero,
-      PLN.Zero,
-      reserveInterest = reserveInt,
-    )
+    val flows = zeroFlows.copy(reserveInterest = reserveInt)
     val result = Sfc.validate(1, prev, curr, flows)
     result shouldBe Right(())
   }
 
   it should "pass with standing facility income in bank capital" in {
-    import sfc.accounting.Sfc
-    val prev = Sfc.Snapshot(
-      PLN.Zero,
-      PLN.Zero,
-      PLN.Zero,
-      PLN.Zero,
-      bankCapital = PLN(1e8),
-      bankDeposits = PLN(1e9),
-      bankLoans = PLN(5e8),
-      govDebt = PLN.Zero,
-      nfa = PLN.Zero,
-      bankBondHoldings = PLN.Zero,
-      nbpBondHoldings = PLN.Zero,
-      bondsOutstanding = PLN.Zero,
-      interbankNetSum = PLN.Zero,
-    )
+    val prev = zeroSnap.copy(bankCapital = PLN(1e8), bankDeposits = PLN(1e9), bankLoans = PLN(5e8))
     val sfIncome = PLN(50000.0)
     val expectedCapChange = sfIncome * 0.3
     val curr = prev.copy(bankCapital = prev.bankCapital + expectedCapChange)
-    val flows = Sfc.MonthlyFlows(
-      PLN.Zero,
-      PLN.Zero,
-      PLN.Zero,
-      PLN.Zero,
-      PLN.Zero,
-      PLN.Zero,
-      PLN.Zero,
-      PLN.Zero,
-      PLN.Zero,
-      standingFacilityIncome = sfIncome,
-    )
+    val flows = zeroFlows.copy(standingFacilityIncome = sfIncome)
     val result = Sfc.validate(1, prev, curr, flows)
     result shouldBe Right(())
   }
 
   it should "pass with interbank interest (net ≈ 0) in bank capital" in {
-    import sfc.accounting.Sfc
-    val prev = Sfc.Snapshot(
-      PLN.Zero,
-      PLN.Zero,
-      PLN.Zero,
-      PLN.Zero,
-      bankCapital = PLN(1e8),
-      bankDeposits = PLN(1e9),
-      bankLoans = PLN(5e8),
-      govDebt = PLN.Zero,
-      nfa = PLN.Zero,
-      bankBondHoldings = PLN.Zero,
-      nbpBondHoldings = PLN.Zero,
-      bondsOutstanding = PLN.Zero,
-      interbankNetSum = PLN.Zero,
-    )
+    val prev = zeroSnap.copy(bankCapital = PLN(1e8), bankDeposits = PLN(1e9), bankLoans = PLN(5e8))
     // Interbank interest nets to ~0 in aggregate, so bank capital unchanged
     val ibInt = PLN.Zero
     val curr = prev.copy(bankCapital = prev.bankCapital)
-    val flows = Sfc.MonthlyFlows(
-      PLN.Zero,
-      PLN.Zero,
-      PLN.Zero,
-      PLN.Zero,
-      PLN.Zero,
-      PLN.Zero,
-      PLN.Zero,
-      PLN.Zero,
-      PLN.Zero,
-      interbankInterest = ibInt,
-    )
+    val flows = zeroFlows.copy(interbankInterest = ibInt)
     val result = Sfc.validate(1, prev, curr, flows)
     result shouldBe Right(())
   }
 
   it should "detect mismatch when reserve interest not in flows" in {
-    import sfc.accounting.Sfc
-    val prev = Sfc.Snapshot(
-      PLN.Zero,
-      PLN.Zero,
-      PLN.Zero,
-      PLN.Zero,
-      bankCapital = PLN(1e8),
-      bankDeposits = PLN(1e9),
-      bankLoans = PLN(5e8),
-      govDebt = PLN.Zero,
-      nfa = PLN.Zero,
-      bankBondHoldings = PLN.Zero,
-      nbpBondHoldings = PLN.Zero,
-      bondsOutstanding = PLN.Zero,
-      interbankNetSum = PLN.Zero,
-    )
+    val prev = zeroSnap.copy(bankCapital = PLN(1e8), bankDeposits = PLN(1e9), bankLoans = PLN(5e8))
     val reserveInt = PLN(100000.0)
     val curr = prev.copy(bankCapital = prev.bankCapital + reserveInt * 0.3)
     // Flows do NOT include reserveInterest — should fail
-    val flows =
-      Sfc.MonthlyFlows(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
+    val flows = zeroFlows
     val result = Sfc.validate(1, prev, curr, flows)
     result shouldBe a[Left[?, ?]]
     result.swap.getOrElse(Vector.empty).exists(_.identity == Sfc.SfcIdentity.BankCapital) shouldBe true
   }
 
   it should "pass with all three monetary plumbing flows combined" in {
-    import sfc.accounting.Sfc
-    val prev = Sfc.Snapshot(
-      PLN.Zero,
-      PLN.Zero,
-      PLN.Zero,
-      PLN.Zero,
-      bankCapital = PLN(1e8),
-      bankDeposits = PLN(1e9),
-      bankLoans = PLN(5e8),
-      govDebt = PLN.Zero,
-      nfa = PLN.Zero,
-      bankBondHoldings = PLN.Zero,
-      nbpBondHoldings = PLN.Zero,
-      bondsOutstanding = PLN.Zero,
-      interbankNetSum = PLN.Zero,
-    )
+    val prev = zeroSnap.copy(bankCapital = PLN(1e8), bankDeposits = PLN(1e9), bankLoans = PLN(5e8))
     val resInt = PLN(200000.0)
     val sfInc = PLN(50000.0)
     val ibInt = PLN(-1000.0) // small net from rounding
     val expectedCapChange = (resInt + sfInc + ibInt) * 0.3
     val curr = prev.copy(bankCapital = prev.bankCapital + expectedCapChange)
-    val flows = Sfc.MonthlyFlows(
-      PLN.Zero,
-      PLN.Zero,
-      PLN.Zero,
-      PLN.Zero,
-      PLN.Zero,
-      PLN.Zero,
-      PLN.Zero,
-      PLN.Zero,
-      PLN.Zero,
+    val flows = zeroFlows.copy(
       reserveInterest = resInt,
       standingFacilityIncome = sfInc,
       interbankInterest = ibInt,
@@ -375,86 +291,27 @@ class MonetaryPlumbingSpec extends AnyFlatSpec with Matchers:
   // =========================================================================
 
   "Sfc Identity 2" should "include JST deposit change" in {
-    import sfc.accounting.Sfc
-    val prev = Sfc.Snapshot(
-      PLN.Zero,
-      PLN.Zero,
-      PLN.Zero,
-      PLN.Zero,
-      bankCapital = PLN(1e8),
-      bankDeposits = PLN(1e9),
-      bankLoans = PLN(5e8),
-      govDebt = PLN.Zero,
-      nfa = PLN.Zero,
-      bankBondHoldings = PLN.Zero,
-      nbpBondHoldings = PLN.Zero,
-      bondsOutstanding = PLN.Zero,
-      interbankNetSum = PLN.Zero,
-    )
+    val prev = zeroSnap.copy(bankCapital = PLN(1e8), bankDeposits = PLN(1e9), bankLoans = PLN(5e8))
     val jstDep = PLN(50000.0) // positive = JST adds to bank deposits
     val curr = prev.copy(bankDeposits = prev.bankDeposits + jstDep)
-    val flows = Sfc.MonthlyFlows(
-      PLN.Zero,
-      PLN.Zero,
-      PLN.Zero,
-      PLN.Zero,
-      PLN.Zero,
-      PLN.Zero,
-      PLN.Zero,
-      PLN.Zero,
-      PLN.Zero,
-      jstDepositChange = jstDep,
-    )
+    val flows = zeroFlows.copy(jstDepositChange = jstDep)
     val result = Sfc.validate(1, prev, curr, flows)
     result shouldBe Right(())
   }
 
   it should "fail when JST deposit change not accounted for" in {
-    import sfc.accounting.Sfc
-    val prev = Sfc.Snapshot(
-      PLN.Zero,
-      PLN.Zero,
-      PLN.Zero,
-      PLN.Zero,
-      bankCapital = PLN(1e8),
-      bankDeposits = PLN(1e9),
-      bankLoans = PLN(5e8),
-      govDebt = PLN.Zero,
-      nfa = PLN.Zero,
-      bankBondHoldings = PLN.Zero,
-      nbpBondHoldings = PLN.Zero,
-      bondsOutstanding = PLN.Zero,
-      interbankNetSum = PLN.Zero,
-    )
+    val prev = zeroSnap.copy(bankCapital = PLN(1e8), bankDeposits = PLN(1e9), bankLoans = PLN(5e8))
     val jstDep = PLN(50000.0)
     val curr = prev.copy(bankDeposits = prev.bankDeposits + jstDep)
     // Flows do NOT include jstDepositChange → should fail
-    val flows =
-      Sfc.MonthlyFlows(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
+    val flows = zeroFlows
     val result = Sfc.validate(1, prev, curr, flows)
     result shouldBe a[Left[?, ?]]
     result.swap.getOrElse(Vector.empty).exists(_.identity == Sfc.SfcIdentity.BankDeposits) shouldBe true
   }
 
   "Sfc Identity 7" should "pass when JST debt change matches" in {
-    import sfc.accounting.Sfc
-    val prev = Sfc.Snapshot(
-      PLN.Zero,
-      PLN.Zero,
-      PLN.Zero,
-      PLN.Zero,
-      bankCapital = PLN(1e8),
-      bankDeposits = PLN(1e9),
-      bankLoans = PLN(5e8),
-      govDebt = PLN.Zero,
-      nfa = PLN.Zero,
-      bankBondHoldings = PLN.Zero,
-      nbpBondHoldings = PLN.Zero,
-      bondsOutstanding = PLN.Zero,
-      interbankNetSum = PLN.Zero,
-      jstDeposits = PLN.Zero,
-      jstDebt = PLN.Zero,
-    )
+    val prev = zeroSnap.copy(bankCapital = PLN(1e8), bankDeposits = PLN(1e9), bankLoans = PLN(5e8))
     val jstSpend = PLN(1e7)
     val jstRev = PLN(9.8e6)
     val deficit = jstSpend - jstRev
@@ -463,16 +320,7 @@ class MonetaryPlumbingSpec extends AnyFlatSpec with Matchers:
       jstDebt = prev.jstDebt + deficit,
       bankDeposits = prev.bankDeposits + depChange, // Identity 2: deposits change by jstDepositChange
     )
-    val flows = Sfc.MonthlyFlows(
-      PLN.Zero,
-      PLN.Zero,
-      PLN.Zero,
-      PLN.Zero,
-      PLN.Zero,
-      PLN.Zero,
-      PLN.Zero,
-      PLN.Zero,
-      PLN.Zero,
+    val flows = zeroFlows.copy(
       jstSpending = jstSpend,
       jstRevenue = jstRev,
       jstDepositChange = depChange,
@@ -482,28 +330,12 @@ class MonetaryPlumbingSpec extends AnyFlatSpec with Matchers:
   }
 
   it should "fail when JST debt change mismatches" in {
-    import sfc.accounting.Sfc
-    val prev = Sfc.Snapshot(
-      PLN.Zero,
-      PLN.Zero,
-      PLN.Zero,
-      PLN.Zero,
-      bankCapital = PLN(1e8),
-      bankDeposits = PLN(1e9),
-      bankLoans = PLN(5e8),
-      govDebt = PLN.Zero,
-      nfa = PLN.Zero,
-      bankBondHoldings = PLN.Zero,
-      nbpBondHoldings = PLN.Zero,
-      bondsOutstanding = PLN.Zero,
-      interbankNetSum = PLN.Zero,
-      jstDeposits = PLN.Zero,
-      jstDebt = PLN(1000.0),
+    val prev = zeroSnap.copy(
+      bankCapital = PLN(1e8), bankDeposits = PLN(1e9), bankLoans = PLN(5e8), jstDebt = PLN(1000.0),
     )
     // JST debt goes up by 5000 but flows say zero
     val curr = prev.copy(jstDebt = prev.jstDebt + PLN(5000.0))
-    val flows =
-      Sfc.MonthlyFlows(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
+    val flows = zeroFlows
     val result = Sfc.validate(1, prev, curr, flows)
     result shouldBe a[Left[?, ?]]
     result.swap.getOrElse(Vector.empty).exists(_.identity == Sfc.SfcIdentity.JstDebt) shouldBe true
