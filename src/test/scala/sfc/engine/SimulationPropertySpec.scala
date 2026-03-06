@@ -5,7 +5,7 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import org.scalacheck.Gen
 import sfc.accounting.{ForexState, GovState}
-import sfc.testutil.Generators.*
+import sfc.Generators.*
 import sfc.config.{Config, MonetaryRegime, RunConfig}
 import sfc.types.*
 

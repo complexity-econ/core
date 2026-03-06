@@ -6,7 +6,7 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import sfc.agents.Banking
 import sfc.config.Config
-import sfc.testutil.Generators.*
+import sfc.Generators.*
 import sfc.types.*
 
 import scala.util.Random

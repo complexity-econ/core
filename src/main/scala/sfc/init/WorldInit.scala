@@ -1,21 +1,20 @@
 package sfc.init
 
-import scala.util.Random
-import sfc.agents.*
 import sfc.accounting.*
+import sfc.agents.*
 import sfc.config.*
 import sfc.engine.*
 import sfc.types.*
 import sfc.util.KahanSum.*
 
+import scala.util.Random
+
 /** Orchestrates all initialization factories and assembles World. */
 object WorldInit:
 
-  case class InitResult(world: World, firms: Array[Firm.State], households: Option[Vector[Household.State]])
-
   /** Initialize a complete simulation world from a seed. Side effects: calls Config.setTotalPopulation (twice: once for
-    * firm workers, once for immigrants).
-    */
+   * firm workers, once for immigrants).
+   */
   def initialize(seed: Int, rc: RunConfig): InitResult =
     Random.setSeed(seed.toLong)
 
@@ -135,3 +134,5 @@ object WorldInit:
     )
 
     InitResult(world, firms, households)
+
+  case class InitResult(world: World, firms: Array[Firm.State], households: Option[Vector[Household.State]])

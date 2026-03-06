@@ -6,7 +6,7 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import org.scalacheck.Gen
 import sfc.accounting.SfcCheck
 import sfc.agents.Banking
-import sfc.testutil.Generators.*
+import sfc.Generators.*
 import sfc.types.*
 
 /** Monetary plumbing property-based tests. */

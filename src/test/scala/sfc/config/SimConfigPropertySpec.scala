@@ -1,10 +1,10 @@
 package sfc.config
 
+import org.scalacheck.Gen
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import org.scalacheck.Gen
-import sfc.testutil.Generators.*
+import sfc.Generators.*
 import sfc.types.*
 
 class SimConfigPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks:

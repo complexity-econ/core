@@ -5,24 +5,15 @@ import sfc.types.*
 
 object Nbp:
 
-  case class State(
-    referenceRate: Rate,
-    govBondHoldings: PLN = PLN.Zero,
-    qeActive: Boolean = false,
-    qeCumulative: PLN = PLN.Zero,
-    fxReserves: PLN = PLN(Config.NbpFxReserves), // EUR-equivalent total (multi-currency)
-    lastFxTraded: PLN = PLN.Zero, // monthly FX intervention amount (EUR)
-  )
-
   /** Bond yield = refRate + termPremium + fiscalRiskPremium - qeCompression - foreignDemandEffect + credibilityPremium
-    */
+   */
   def bondYield(
-    refRate: Double,
-    debtToGdp: Double,
-    nbpBondGdpShare: Double,
-    nfa: Double,
-    credibilityPremium: Double = 0.0,
-  ): Double =
+                 refRate: Double,
+                 debtToGdp: Double,
+                 nbpBondGdpShare: Double,
+                 nfa: Double,
+                 credibilityPremium: Double = 0.0,
+               ): Double =
     if !Config.GovBondMarket then refRate
     else
       val termPremium = Config.GovTermPremium
@@ -54,24 +45,18 @@ object Nbp:
       )
       (newNbp, purchase)
 
-  /** FX intervention result. */
-  case class FxInterventionResult(
-    erEffect: Double, // added to erChange in OpenEconomy
-    eurTraded: Double, // positive = bought EUR (weakened PLN), negative = sold EUR
-    newReserves: Double, // updated reserve level
-  )
-
   /** Compute sterilized FX intervention. NBP buys/sells EUR to dampen ER deviations beyond the tolerance band.
-    * Sterilized: affects only ER, not bank deposits/capital.
-    * @param enabled
-    *   override for Config.NbpFxIntervention (for testability)
-    */
+   * Sterilized: affects only ER, not bank deposits/capital.
+   *
+   * @param enabled
+   * override for Config.NbpFxIntervention (for testability)
+   */
   def fxIntervention(
-    prevER: Double,
-    reserves: Double,
-    gdp: Double,
-    enabled: Boolean = Config.NbpFxIntervention,
-  ): FxInterventionResult =
+                      prevER: Double,
+                      reserves: Double,
+                      gdp: Double,
+                      enabled: Boolean = Config.NbpFxIntervention,
+                    ): FxInterventionResult =
     if !enabled then FxInterventionResult(0.0, 0.0, reserves)
     else
       val erDev = (prevER - Config.BaseExRate) / Config.BaseExRate
@@ -92,3 +77,19 @@ object Nbp:
         val gdpEffect = if gdp > 0 then Math.abs(eurTraded) * Config.BaseExRate / gdp else 0.0
         val erEffect = direction * gdpEffect * Config.NbpFxStrength
         FxInterventionResult(erEffect, eurTraded, Math.max(0.0, newReserves))
+
+  case class State(
+                    referenceRate: Rate,
+                    govBondHoldings: PLN = PLN.Zero,
+                    qeActive: Boolean = false,
+                    qeCumulative: PLN = PLN.Zero,
+                    fxReserves: PLN = PLN(Config.NbpFxReserves), // EUR-equivalent total (multi-currency)
+                    lastFxTraded: PLN = PLN.Zero, // monthly FX intervention amount (EUR)
+                  )
+
+  /** FX intervention result. */
+  case class FxInterventionResult(
+                                   erEffect: Double, // added to erChange in OpenEconomy
+                                   eurTraded: Double, // positive = bought EUR (weakened PLN), negative = sold EUR
+                                   newReserves: Double, // updated reserve level
+                                 )

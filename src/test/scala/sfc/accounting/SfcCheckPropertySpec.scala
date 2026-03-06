@@ -5,7 +5,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import sfc.accounting.SfcCheck
-import sfc.testutil.Generators.*
+import sfc.Generators.*
 import sfc.types.*
 
 class SfcCheckPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks:
@@ -169,7 +169,7 @@ class SfcCheckPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckProp
 
   it should "compute correct snapshot sums from firms" in {
     forAll(Gen.choose(3, 20)) { (n: Int) =>
-      forAll(Gen.listOfN(n, genAliveFirm)) { (firmList: List[_root_.sfc.agents.Firm.State]) =>
+      forAll(Gen.listOfN(n, genAliveFirm)) { (firmList: List[sfc.agents.Firm.State]) =>
         val firms = firmList.toArray
         val expectedCash = firms.map(_.cash.toDouble).sum
         val expectedDebt = firms.map(_.debt.toDouble).sum

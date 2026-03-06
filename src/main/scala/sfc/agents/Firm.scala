@@ -1,8 +1,8 @@
 package sfc.agents
 
 import sfc.config.{Config, RunConfig, SECTORS}
-import sfc.networks.Network
 import sfc.engine.World
+import sfc.networks.Network
 import sfc.types.*
 
 import scala.util.Random
@@ -10,64 +10,31 @@ import scala.util.Random
 // ---- Domain types ----
 
 sealed trait TechState
+
 object TechState:
   case class Traditional(workers: Int) extends TechState
+
   case class Hybrid(workers: Int, aiEfficiency: Double) extends TechState
+
   case class Automated(efficiency: Double) extends TechState
+
   case class Bankrupt(reason: String) extends TechState
 
 object Firm:
 
-  case class State(
-    id: FirmId,
-    cash: PLN,
-    debt: PLN,
-    tech: TechState,
-    riskProfile: Ratio,
-    innovationCostFactor: Double,
-    digitalReadiness: Ratio,
-    sector: SectorIdx, // Index into SECTORS
-    neighbors: Array[Int], // Network adjacency (firm IDs)
-    bankId: BankId = BankId(0), // Multi-bank: index into Banking.State.banks
-    equityRaised: PLN = PLN.Zero, // GPW: cumulative equity raised via IPO/SPO
-    initialSize: Int = 10, // Firm size at creation (v6.0: heterogeneous when FIRM_SIZE_DIST=gus)
-    capitalStock: PLN = PLN.Zero, // Physical capital stock (PLN), #31
-    bondDebt: PLN = PLN.Zero, // Outstanding corporate bond debt (#40)
-    foreignOwned: Boolean = false, // FDI (#33)
-    inventory: PLN = PLN.Zero, // Inventory stock (PLN), #43
-    greenCapital: PLN = PLN.Zero, // Green capital stock (PLN), #36
-  )
+  def isAlive(f: State): Boolean = f.tech match
+    case _: TechState.Bankrupt => false
+    case _ => true
 
   // ---- Firm step result ----
 
-  case class Result(
-    firm: State,
-    taxPaid: PLN,
-    capexSpent: PLN,
-    techImports: PLN,
-    newLoan: PLN,
-    equityIssuance: PLN = PLN.Zero,
-    grossInvestment: PLN = PLN.Zero,
-    bondIssuance: PLN = PLN.Zero,
-    profitShiftCost: PLN = PLN.Zero,
-    fdiRepatriation: PLN = PLN.Zero,
-    inventoryChange: PLN = PLN.Zero,
-    citEvasion: PLN = PLN.Zero,
-    energyCost: PLN = PLN.Zero,
-    greenInvestment: PLN = PLN.Zero,
-  )
-
-  // ---- Ops ----
-
-  def isAlive(f: State): Boolean = f.tech match
-    case _: TechState.Bankrupt => false
-    case _                     => true
-
   def workers(f: State): Int = f.tech match
     case TechState.Traditional(w) => w
-    case TechState.Hybrid(w, _)   => w
-    case _: TechState.Automated   => skeletonCrew(f)
-    case _: TechState.Bankrupt    => 0
+    case TechState.Hybrid(w, _) => w
+    case _: TechState.Automated => skeletonCrew(f)
+    case _: TechState.Bankrupt => 0
+
+  // ---- Ops ----
 
   /** Skeleton crew for automated firms — scales with firm size. */
   def skeletonCrew(f: State): Int =
@@ -104,6 +71,7 @@ object Firm:
     val sizeFactor = Math.pow(f.initialSize.toDouble / Config.WorkersPerFirm, 0.6)
     val digiDiscount = 1.0 - Config.DigiCapexDiscount * f.digitalReadiness.toDouble
     Config.AiCapex * SECTORS(f.sector.toInt).aiCapexMultiplier * f.innovationCostFactor * sizeFactor * digiDiscount
+
   def hybridCapex(f: State): Double =
     val sizeFactor = Math.pow(f.initialSize.toDouble / Config.WorkersPerFirm, 0.6)
     val digiDiscount = 1.0 - Config.DigiCapexDiscount * f.digitalReadiness.toDouble
@@ -117,151 +85,20 @@ object Firm:
     Config.DigiInvestCost * sizeFactor
 
   /** sigma-based threshold modifier: high sigma sectors find automation profitable at lower cost gap. Only used for
-    * profitability threshold, NOT for probability multiplier. Mapping: sigma=2->0.91, sigma=5->0.95, sigma=10->0.98,
-    * sigma=50->1.00 At equilibrium P~1.1: Manufacturing marginal, Healthcare blocked.
-    */
+   * profitability threshold, NOT for probability multiplier. Mapping: sigma=2->0.91, sigma=5->0.95, sigma=10->0.98,
+   * sigma=50->1.00 At equilibrium P~1.1: Manufacturing marginal, Healthcare blocked.
+   */
   def sigmaThreshold(sigma: Double): Double =
     Math.min(1.0, 0.88 + 0.075 * Math.log(sigma) / Math.log(10.0))
 
-  // ---- Firm decision logic ----
-
-  /** Apply natural digital drift to all living firms (always-on). */
-  private def applyDigitalDrift(r: Result): Result =
-    if Config.DigiDrift <= 0.0 then return r
-    val f = r.firm
-    if !isAlive(f) then return r
-    val newDR = Ratio(Math.min(1.0, f.digitalReadiness.toDouble + Config.DigiDrift))
-    r.copy(firm = f.copy(digitalReadiness = newDR))
-
-  /** Apply physical capital investment after firm decision. Depreciation, replacement + expansion investment,
-    * cash-constrained.
-    */
-  private def applyInvestment(r: Result): Result =
-    if !Config.PhysCapEnabled then return r
-    val f = r.firm
-    if !isAlive(f) then return r.copy(firm = f.copy(capitalStock = PLN.Zero))
-    val depRate = Config.PhysCapDepRates(f.sector.toInt) / 12.0
-    val depn = (f.capitalStock * depRate).toDouble
-    val postDepK = f.capitalStock.toDouble - depn
-    val targetK = workers(f).toDouble * Config.PhysCapKLRatios(f.sector.toInt)
-    val gap = Math.max(0.0, targetK - postDepK)
-    val desiredInv = depn + gap * Config.PhysCapAdjustSpeed
-    val actualInv = Math.min(desiredInv, Math.max(0.0, f.cash.toDouble))
-    val newK = postDepK + actualInv
-    r.copy(firm = f.copy(cash = f.cash - PLN(actualInv), capitalStock = PLN(newK)), grossInvestment = PLN(actualInv))
-
-  private def calcPnL(
-    firm: State,
-    wage: Double,
-    sectorDemandMult: Double,
-    price: Double,
-    lendRate: Double,
-    month: Int,
-  ): (Double, Double, Double, Double, Double) =
-    val revenue = capacity(firm) * sectorDemandMult * price
-    val labor = workers(firm) * wage * effectiveWageMult(firm.sector)
-    val sizeFactor = firm.initialSize.toDouble / Config.WorkersPerFirm
-    val rawOther = Config.OtherCosts * price * sizeFactor
-    val depnCost =
-      if Config.PhysCapEnabled then firm.capitalStock.toDouble * Config.PhysCapDepRates(firm.sector.toInt) / 12.0
-      else 0.0
-    val otherAfterCap = if Config.PhysCapEnabled then rawOther * (1.0 - Config.PhysCapCostReplace) else rawOther
-    // Reduce other costs when energy is explicit (was implicit in OtherCosts)
-    val other = if Config.EnergyEnabled then otherAfterCap * (1.0 - Config.EnergyCostReplace) else otherAfterCap
-    // AI/hybrid opex is partially imported (40%) -- not fully domestic price-sensitive
-    // OPEX scales sublinearly with firm size (exponent 0.5)
-    val opexSizeFactor = Math.pow(firm.initialSize.toDouble / Config.WorkersPerFirm, 0.5)
-    val aiMaint = firm.tech match
-      case _: TechState.Automated => Config.AiOpex * (0.60 + 0.40 * price) * opexSizeFactor
-      case _: TechState.Hybrid    => Config.HybridOpex * (0.60 + 0.40 * price) * opexSizeFactor
-      case _                      => 0.0
-    val interest = (firm.debt + firm.bondDebt).toDouble * (lendRate / 12.0)
-    // Inventory carrying cost: storage, insurance, obsolescence (previously implicit in OtherCosts)
-    val inventoryCost =
-      if Config.InventoryEnabled then firm.inventory.toDouble * Config.InventoryCarryingCost / 12.0 else 0.0
-    // Reduce other costs when inventory is explicit (was implicit in OtherCosts)
-    val otherAfterInv = if Config.InventoryEnabled then other * (1.0 - Config.InventoryCostReplace) else other
-    // Energy cost + EU ETS carbon surcharge (#36)
-    val energyCost = if Config.EnergyEnabled then
-      val baseEnergy = revenue * Config.EnergyCostShares(firm.sector.toInt)
-      val etsPrice = Config.EtsBasePrice * Math.pow(1.0 + Config.EtsPriceDrift / 12.0, month.toDouble)
-      val carbonSurcharge = Config.EnergyCarbonIntensity(firm.sector.toInt) * (etsPrice / Config.EtsBasePrice - 1.0)
-      val greenDiscount = if firm.greenCapital > PLN.Zero then
-        val targetGK = workers(firm).toDouble * Config.GreenKLRatios(firm.sector.toInt)
-        if targetGK > 0 then
-          Math.min(Config.GreenMaxDiscount, firm.greenCapital.toDouble / targetGK * Config.GreenMaxDiscount)
-        else 0.0
-      else 0.0
-      baseEnergy * (1.0 + Math.max(0.0, carbonSurcharge)) * (1.0 - greenDiscount)
-    else 0.0
-    val prePsCosts = labor + otherAfterInv + depnCost + aiMaint + interest + inventoryCost + energyCost
-    val grossProfit = revenue - prePsCosts
-    val profitShiftCost =
-      if Config.FdiEnabled && firm.foreignOwned then Math.max(0.0, grossProfit) * Config.FdiProfitShiftRate
-      else 0.0
-    val costs = prePsCosts + profitShiftCost
-    val profit = revenue - costs
-    val tax = Math.max(0.0, profit) * Config.CitRate
-    (revenue, costs, profit - tax, profitShiftCost, energyCost)
-
-  /** Apply green capital investment — separate cash pool (#36). Firms earmark GreenBudgetShare of cash for green
-    * investment; physical capital (applyInvestment) uses the remainder.
-    */
-  private def applyGreenInvestment(r: Result): Result =
-    if !Config.EnergyEnabled then return r
-    val f = r.firm
-    if !isAlive(f) then return r.copy(firm = f.copy(greenCapital = PLN.Zero))
-    val depRate = Config.GreenDepRate / 12.0
-    val depn = (f.greenCapital * depRate).toDouble
-    val postDepGK = f.greenCapital.toDouble - depn
-    val targetGK = workers(f).toDouble * Config.GreenKLRatios(f.sector.toInt)
-    val gap = Math.max(0.0, targetGK - postDepGK)
-    val desiredInv = depn + gap * Config.GreenAdjustSpeed
-    val greenBudget = Math.max(0.0, f.cash.toDouble) * Config.GreenBudgetShare
-    val actualInv = Math.min(desiredInv, greenBudget)
-    val newGK = postDepGK + actualInv
-    r.copy(firm = f.copy(cash = f.cash - PLN(actualInv), greenCapital = PLN(newGK)), greenInvestment = PLN(actualInv))
-
-  /** Apply inventory accumulation/drawdown after firm decision (#43). */
-  private def applyInventory(r: Result, sectorDemandMult: Double): Result =
-    if !Config.InventoryEnabled then return r
-    val f = r.firm
-    if !isAlive(f) then return r.copy(firm = f.copy(inventory = PLN.Zero))
-    val cap = capacity(f).toDouble
-    val productionValue = cap * Config.InventoryCostFraction
-    val salesValue = productionValue * Math.min(1.0, sectorDemandMult)
-    val unsoldValue = Math.max(0.0, productionValue - salesValue)
-    // Spoilage
-    val spoilRate = Config.InventorySpoilageRates(f.sector.toInt) / 12.0
-    val postSpoilage = (f.inventory * (1.0 - spoilRate)).toDouble
-    // Target-based adjustment
-    val revenue = cap * sectorDemandMult
-    val targetInv = revenue * Config.InventoryTargetRatios(f.sector.toInt)
-    val desired = (targetInv - postSpoilage) * Config.InventoryAdjustSpeed
-    // Accumulate unsold + adjust toward target
-    val rawChange = unsoldValue + desired
-    // Can't draw down more than available
-    val invChange = Math.max(-postSpoilage, rawChange)
-    val newInv = Math.max(0.0, postSpoilage + invChange)
-    // Stress liquidation: if cash < 0, sell inventory at discount
-    val (finalInv, cashBoost) = if f.cash < PLN.Zero && newInv > 0.0 then
-      val liquidate = Math.min(newInv, f.cash.abs.toDouble / Config.InventoryLiquidationDisc)
-      (newInv - liquidate, liquidate * Config.InventoryLiquidationDisc)
-    else (newInv, 0.0)
-    val actualChange = finalInv - f.inventory.toDouble
-    r.copy(
-      firm = f.copy(inventory = PLN(finalInv), cash = f.cash + PLN(cashBoost)),
-      inventoryChange = PLN(actualChange),
-    )
-
   def process(
-    firm: State,
-    w: World,
-    lendRate: Double,
-    bankCanLend: Double => Boolean,
-    allFirms: Array[State],
-    rc: RunConfig,
-  ): Result =
+               firm: State,
+               w: World,
+               lendRate: Double,
+               bankCanLend: Double => Boolean,
+               allFirms: Array[State],
+               rc: RunConfig,
+             ): Result =
 
     val rawResult: Result = firm.tech match
       case _: TechState.Bankrupt =>
@@ -468,13 +305,13 @@ object Firm:
 
         val pFull = uncertaintyDiscount *
           (if fProf && fPay && fReady && fBank then
-             ((firm.riskProfile.toDouble * 0.1) + panic + desper) * firm.digitalReadiness.toDouble
-           else strat)
+            ((firm.riskProfile.toDouble * 0.1) + panic + desper) * firm.digitalReadiness.toDouble
+          else strat)
 
         val pHyb = uncertaintyDiscount *
           (if hProf && hPay && hReady && hBank then
-             ((firm.riskProfile.toDouble * 0.04) + (panic * 0.5) + (desper * 0.5)) * firm.digitalReadiness.toDouble
-           else 0.0)
+            ((firm.riskProfile.toDouble * 0.04) + (panic * 0.5) + (desper * 0.5)) * firm.digitalReadiness.toDouble
+          else 0.0)
 
         val canReduce = wkrs > 3 && net < 0
         val roll = Random.nextDouble()
@@ -653,6 +490,137 @@ object Firm:
       w.informalCyclicalAdj,
     )
 
+  /** Apply natural digital drift to all living firms (always-on). */
+  private def applyDigitalDrift(r: Result): Result =
+    if Config.DigiDrift <= 0.0 then return r
+    val f = r.firm
+    if !isAlive(f) then return r
+    val newDR = Ratio(Math.min(1.0, f.digitalReadiness.toDouble + Config.DigiDrift))
+    r.copy(firm = f.copy(digitalReadiness = newDR))
+
+  // ---- Firm decision logic ----
+
+  /** Apply physical capital investment after firm decision. Depreciation, replacement + expansion investment,
+   * cash-constrained.
+   */
+  private def applyInvestment(r: Result): Result =
+    if !Config.PhysCapEnabled then return r
+    val f = r.firm
+    if !isAlive(f) then return r.copy(firm = f.copy(capitalStock = PLN.Zero))
+    val depRate = Config.PhysCapDepRates(f.sector.toInt) / 12.0
+    val depn = (f.capitalStock * depRate).toDouble
+    val postDepK = f.capitalStock.toDouble - depn
+    val targetK = workers(f).toDouble * Config.PhysCapKLRatios(f.sector.toInt)
+    val gap = Math.max(0.0, targetK - postDepK)
+    val desiredInv = depn + gap * Config.PhysCapAdjustSpeed
+    val actualInv = Math.min(desiredInv, Math.max(0.0, f.cash.toDouble))
+    val newK = postDepK + actualInv
+    r.copy(firm = f.copy(cash = f.cash - PLN(actualInv), capitalStock = PLN(newK)), grossInvestment = PLN(actualInv))
+
+  private def calcPnL(
+                       firm: State,
+                       wage: Double,
+                       sectorDemandMult: Double,
+                       price: Double,
+                       lendRate: Double,
+                       month: Int,
+                     ): (Double, Double, Double, Double, Double) =
+    val revenue = capacity(firm) * sectorDemandMult * price
+    val labor = workers(firm) * wage * effectiveWageMult(firm.sector)
+    val sizeFactor = firm.initialSize.toDouble / Config.WorkersPerFirm
+    val rawOther = Config.OtherCosts * price * sizeFactor
+    val depnCost =
+      if Config.PhysCapEnabled then firm.capitalStock.toDouble * Config.PhysCapDepRates(firm.sector.toInt) / 12.0
+      else 0.0
+    val otherAfterCap = if Config.PhysCapEnabled then rawOther * (1.0 - Config.PhysCapCostReplace) else rawOther
+    // Reduce other costs when energy is explicit (was implicit in OtherCosts)
+    val other = if Config.EnergyEnabled then otherAfterCap * (1.0 - Config.EnergyCostReplace) else otherAfterCap
+    // AI/hybrid opex is partially imported (40%) -- not fully domestic price-sensitive
+    // OPEX scales sublinearly with firm size (exponent 0.5)
+    val opexSizeFactor = Math.pow(firm.initialSize.toDouble / Config.WorkersPerFirm, 0.5)
+    val aiMaint = firm.tech match
+      case _: TechState.Automated => Config.AiOpex * (0.60 + 0.40 * price) * opexSizeFactor
+      case _: TechState.Hybrid => Config.HybridOpex * (0.60 + 0.40 * price) * opexSizeFactor
+      case _ => 0.0
+    val interest = (firm.debt + firm.bondDebt).toDouble * (lendRate / 12.0)
+    // Inventory carrying cost: storage, insurance, obsolescence (previously implicit in OtherCosts)
+    val inventoryCost =
+      if Config.InventoryEnabled then firm.inventory.toDouble * Config.InventoryCarryingCost / 12.0 else 0.0
+    // Reduce other costs when inventory is explicit (was implicit in OtherCosts)
+    val otherAfterInv = if Config.InventoryEnabled then other * (1.0 - Config.InventoryCostReplace) else other
+    // Energy cost + EU ETS carbon surcharge (#36)
+    val energyCost = if Config.EnergyEnabled then
+      val baseEnergy = revenue * Config.EnergyCostShares(firm.sector.toInt)
+      val etsPrice = Config.EtsBasePrice * Math.pow(1.0 + Config.EtsPriceDrift / 12.0, month.toDouble)
+      val carbonSurcharge = Config.EnergyCarbonIntensity(firm.sector.toInt) * (etsPrice / Config.EtsBasePrice - 1.0)
+      val greenDiscount = if firm.greenCapital > PLN.Zero then
+        val targetGK = workers(firm).toDouble * Config.GreenKLRatios(firm.sector.toInt)
+        if targetGK > 0 then
+          Math.min(Config.GreenMaxDiscount, firm.greenCapital.toDouble / targetGK * Config.GreenMaxDiscount)
+        else 0.0
+      else 0.0
+      baseEnergy * (1.0 + Math.max(0.0, carbonSurcharge)) * (1.0 - greenDiscount)
+    else 0.0
+    val prePsCosts = labor + otherAfterInv + depnCost + aiMaint + interest + inventoryCost + energyCost
+    val grossProfit = revenue - prePsCosts
+    val profitShiftCost =
+      if Config.FdiEnabled && firm.foreignOwned then Math.max(0.0, grossProfit) * Config.FdiProfitShiftRate
+      else 0.0
+    val costs = prePsCosts + profitShiftCost
+    val profit = revenue - costs
+    val tax = Math.max(0.0, profit) * Config.CitRate
+    (revenue, costs, profit - tax, profitShiftCost, energyCost)
+
+  /** Apply green capital investment — separate cash pool (#36). Firms earmark GreenBudgetShare of cash for green
+   * investment; physical capital (applyInvestment) uses the remainder.
+   */
+  private def applyGreenInvestment(r: Result): Result =
+    if !Config.EnergyEnabled then return r
+    val f = r.firm
+    if !isAlive(f) then return r.copy(firm = f.copy(greenCapital = PLN.Zero))
+    val depRate = Config.GreenDepRate / 12.0
+    val depn = (f.greenCapital * depRate).toDouble
+    val postDepGK = f.greenCapital.toDouble - depn
+    val targetGK = workers(f).toDouble * Config.GreenKLRatios(f.sector.toInt)
+    val gap = Math.max(0.0, targetGK - postDepGK)
+    val desiredInv = depn + gap * Config.GreenAdjustSpeed
+    val greenBudget = Math.max(0.0, f.cash.toDouble) * Config.GreenBudgetShare
+    val actualInv = Math.min(desiredInv, greenBudget)
+    val newGK = postDepGK + actualInv
+    r.copy(firm = f.copy(cash = f.cash - PLN(actualInv), greenCapital = PLN(newGK)), greenInvestment = PLN(actualInv))
+
+  /** Apply inventory accumulation/drawdown after firm decision (#43). */
+  private def applyInventory(r: Result, sectorDemandMult: Double): Result =
+    if !Config.InventoryEnabled then return r
+    val f = r.firm
+    if !isAlive(f) then return r.copy(firm = f.copy(inventory = PLN.Zero))
+    val cap = capacity(f).toDouble
+    val productionValue = cap * Config.InventoryCostFraction
+    val salesValue = productionValue * Math.min(1.0, sectorDemandMult)
+    val unsoldValue = Math.max(0.0, productionValue - salesValue)
+    // Spoilage
+    val spoilRate = Config.InventorySpoilageRates(f.sector.toInt) / 12.0
+    val postSpoilage = (f.inventory * (1.0 - spoilRate)).toDouble
+    // Target-based adjustment
+    val revenue = cap * sectorDemandMult
+    val targetInv = revenue * Config.InventoryTargetRatios(f.sector.toInt)
+    val desired = (targetInv - postSpoilage) * Config.InventoryAdjustSpeed
+    // Accumulate unsold + adjust toward target
+    val rawChange = unsoldValue + desired
+    // Can't draw down more than available
+    val invChange = Math.max(-postSpoilage, rawChange)
+    val newInv = Math.max(0.0, postSpoilage + invChange)
+    // Stress liquidation: if cash < 0, sell inventory at discount
+    val (finalInv, cashBoost) = if f.cash < PLN.Zero && newInv > 0.0 then
+      val liquidate = Math.min(newInv, f.cash.abs.toDouble / Config.InventoryLiquidationDisc)
+      (newInv - liquidate, liquidate * Config.InventoryLiquidationDisc)
+    else (newInv, 0.0)
+    val actualChange = finalInv - f.inventory.toDouble
+    r.copy(
+      firm = f.copy(inventory = PLN(finalInv), cash = f.cash + PLN(cashBoost)),
+      inventoryChange = PLN(actualChange),
+    )
+
   /** Apply informal CIT evasion — firm keeps evaded tax (#45). */
   private def applyInformalCitEvasion(r: Result, cyclicalAdj: Double): Result =
     if !Config.InformalEnabled then return r
@@ -678,3 +646,40 @@ object Firm:
       Math.min(Math.max(0.0, afterTaxProfit) * Config.FdiRepatriationRate, Math.max(0.0, r.firm.cash.toDouble))
     if repatriation <= 0.0 then return r
     r.copy(firm = r.firm.copy(cash = r.firm.cash - PLN(repatriation)), fdiRepatriation = PLN(repatriation))
+
+  case class State(
+                    id: FirmId,
+                    cash: PLN,
+                    debt: PLN,
+                    tech: TechState,
+                    riskProfile: Ratio,
+                    innovationCostFactor: Double,
+                    digitalReadiness: Ratio,
+                    sector: SectorIdx, // Index into SECTORS
+                    neighbors: Array[Int], // Network adjacency (firm IDs)
+                    bankId: BankId = BankId(0), // Multi-bank: index into Banking.State.banks
+                    equityRaised: PLN = PLN.Zero, // GPW: cumulative equity raised via IPO/SPO
+                    initialSize: Int = 10, // Firm size at creation (v6.0: heterogeneous when FIRM_SIZE_DIST=gus)
+                    capitalStock: PLN = PLN.Zero, // Physical capital stock (PLN), #31
+                    bondDebt: PLN = PLN.Zero, // Outstanding corporate bond debt (#40)
+                    foreignOwned: Boolean = false, // FDI (#33)
+                    inventory: PLN = PLN.Zero, // Inventory stock (PLN), #43
+                    greenCapital: PLN = PLN.Zero, // Green capital stock (PLN), #36
+                  )
+
+  case class Result(
+                     firm: State,
+                     taxPaid: PLN,
+                     capexSpent: PLN,
+                     techImports: PLN,
+                     newLoan: PLN,
+                     equityIssuance: PLN = PLN.Zero,
+                     grossInvestment: PLN = PLN.Zero,
+                     bondIssuance: PLN = PLN.Zero,
+                     profitShiftCost: PLN = PLN.Zero,
+                     fdiRepatriation: PLN = PLN.Zero,
+                     inventoryChange: PLN = PLN.Zero,
+                     citEvasion: PLN = PLN.Zero,
+                     energyCost: PLN = PLN.Zero,
+                     greenInvestment: PLN = PLN.Zero,
+                   )
