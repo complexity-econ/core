@@ -3,7 +3,7 @@ package sfc.engine.steps
 import sfc.agents.*
 import sfc.config.{Config, RunConfig, SECTORS}
 import sfc.dynamics.{DynamicNetwork, SigmaDynamics}
-import sfc.engine.{EquityMarket, EuFunds, Macroprudential, Sectors, World}
+import sfc.engine.*
 import sfc.types.*
 import sfc.util.KahanSum.*
 

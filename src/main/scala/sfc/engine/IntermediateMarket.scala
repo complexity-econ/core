@@ -1,7 +1,6 @@
 package sfc.engine
 
 import sfc.agents.{Firm, TechState}
-import sfc.config.Config
 import sfc.types.*
 import sfc.util.KahanSum.*
 

@@ -1,8 +1,8 @@
 package sfc.engine
 
 import sfc.accounting.{BopState, ForexState}
-import sfc.config.{Config, RunConfig, SECTORS}
 import sfc.agents.Nbp
+import sfc.config.{Config, RunConfig, SECTORS}
 import sfc.types.PLN
 import sfc.util.KahanSum.*
 

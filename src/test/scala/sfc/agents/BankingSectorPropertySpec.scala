@@ -4,9 +4,9 @@ import org.scalacheck.Gen
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import sfc.Generators.*
 import sfc.agents.Banking
 import sfc.config.Config
-import sfc.Generators.*
 import sfc.types.*
 
 import scala.util.Random

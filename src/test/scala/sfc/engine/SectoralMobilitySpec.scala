@@ -2,8 +2,8 @@ package sfc.engine
 
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import sfc.config.{Config, SECTORS}
 import sfc.agents.*
+import sfc.config.{Config, SECTORS}
 import sfc.types.*
 
 import scala.util.Random

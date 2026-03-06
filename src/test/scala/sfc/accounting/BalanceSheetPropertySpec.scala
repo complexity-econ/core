@@ -4,9 +4,9 @@ import org.scalacheck.Gen
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import sfc.Generators.*
 import sfc.accounting.{BankState, BopState, ForexState, GovState}
 import sfc.config.Config
-import sfc.Generators.*
 import sfc.types.*
 
 class BalanceSheetPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks:

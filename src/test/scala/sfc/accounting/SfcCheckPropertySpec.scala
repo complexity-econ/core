@@ -4,8 +4,8 @@ import org.scalacheck.Gen
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import sfc.accounting.SfcCheck
 import sfc.Generators.*
+import sfc.accounting.SfcCheck
 import sfc.types.*
 
 class SfcCheckPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks:

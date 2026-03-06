@@ -2,8 +2,8 @@ package sfc.engine
 
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import sfc.config.Config
 import sfc.agents.Household
+import sfc.config.Config
 import sfc.types.*
 
 class MinWageSpec extends AnyFlatSpec with Matchers:

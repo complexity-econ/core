@@ -1,7 +1,7 @@
 package sfc.accounting
 
-import sfc.config.Config
 import sfc.accounting.{BopState, MonetaryAggregates}
+import sfc.config.Config
 import sfc.types.*
 
 case class GovState(

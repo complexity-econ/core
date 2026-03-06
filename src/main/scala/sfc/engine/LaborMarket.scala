@@ -1,7 +1,7 @@
 package sfc.engine
 
-import sfc.config.{Config, SECTORS}
 import sfc.agents.*
+import sfc.config.{Config, SECTORS}
 import sfc.types.*
 import sfc.util.KahanSum.*
 

@@ -4,8 +4,8 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import sfc.accounting
 import sfc.accounting.{BankState, ForexState, GovState}
-import sfc.config.{Config, SECTORS}
 import sfc.agents.{Firm, TechState}
+import sfc.config.{Config, SECTORS}
 import sfc.types.*
 
 class InventorySpec extends AnyFlatSpec with Matchers:

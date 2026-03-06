@@ -1,12 +1,12 @@
 package sfc.engine
 
+import org.scalacheck.Gen
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import org.scalacheck.Gen
+import sfc.Generators.*
 import sfc.accounting.SfcCheck
 import sfc.agents.Banking
-import sfc.Generators.*
 import sfc.types.*
 
 /** Monetary plumbing property-based tests. */
