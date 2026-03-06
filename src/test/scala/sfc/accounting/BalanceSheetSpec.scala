@@ -13,8 +13,26 @@ class BalanceSheetSpec extends AnyFlatSpec with Matchers:
   }
 
   it should "return 0.0 when totalLoans <= 1" in {
-    BankingAggregate(PLN.Zero, PLN(100), PLN(200000), PLN(500000), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero).nplRatio shouldBe 0.0
-    BankingAggregate(PLN(1), PLN(100), PLN(200000), PLN(500000), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero).nplRatio shouldBe 0.0
+    BankingAggregate(
+      PLN.Zero,
+      PLN(100),
+      PLN(200000),
+      PLN(500000),
+      PLN.Zero,
+      PLN.Zero,
+      PLN.Zero,
+      PLN.Zero,
+    ).nplRatio shouldBe 0.0
+    BankingAggregate(
+      PLN(1),
+      PLN(100),
+      PLN(200000),
+      PLN(500000),
+      PLN.Zero,
+      PLN.Zero,
+      PLN.Zero,
+      PLN.Zero,
+    ).nplRatio shouldBe 0.0
   }
 
   "BankingAggregate.car" should "equal capital / totalLoans when totalLoans > 1" in {
@@ -23,7 +41,16 @@ class BalanceSheetSpec extends AnyFlatSpec with Matchers:
   }
 
   it should "return 10.0 when totalLoans <= 1" in {
-    BankingAggregate(PLN.Zero, PLN.Zero, PLN(200000), PLN(500000), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero).car shouldBe 10.0
+    BankingAggregate(
+      PLN.Zero,
+      PLN.Zero,
+      PLN(200000),
+      PLN(500000),
+      PLN.Zero,
+      PLN.Zero,
+      PLN.Zero,
+      PLN.Zero,
+    ).car shouldBe 10.0
   }
 
   // lendingRate and canLend removed from BankingAggregate — now only on Banking.BankState

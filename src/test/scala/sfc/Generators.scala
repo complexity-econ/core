@@ -120,7 +120,16 @@ object Generators:
     capital <- Gen.choose(1000.0, 1e9)
     deposits <- Gen.choose(0.0, 1e10)
     bonds <- Gen.choose(0.0, 1e9)
-  yield BankingAggregate(PLN(totalLoans), PLN(totalLoans * nplFrac), PLN(capital), PLN(deposits), PLN(bonds), PLN.Zero, PLN.Zero, PLN.Zero)
+  yield BankingAggregate(
+    PLN(totalLoans),
+    PLN(totalLoans * nplFrac),
+    PLN(capital),
+    PLN(deposits),
+    PLN(bonds),
+    PLN.Zero,
+    PLN.Zero,
+    PLN.Zero,
+  )
 
   val genGovState: Gen[GovState] = for
     bdpActive <- Gen.oneOf(true, false)

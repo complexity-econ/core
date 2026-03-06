@@ -23,11 +23,10 @@ case class GovState(
 
 /** Aggregate banking-sector balance sheet — sum over all 7 per-bank BankStates.
   *
-  * Pure DTO recomputed every step via `Banking.State.aggregate`. Read-only snapshot
-  * consumed by output columns, SFC identities, macro feedback loops (corporate bond
-  * absorption, insurance/NBFI asset allocation), and government fiscal arithmetic.
-  * All mutation happens at the per-bank level in `Banking.BankState`; this aggregate
-  * is derived, never written back.
+  * Pure DTO recomputed every step via `Banking.State.aggregate`. Read-only snapshot consumed by output columns, SFC
+  * identities, macro feedback loops (corporate bond absorption, insurance/NBFI asset allocation), and government fiscal
+  * arithmetic. All mutation happens at the per-bank level in `Banking.BankState`; this aggregate is derived, never
+  * written back.
   */
 case class BankingAggregate(
   totalLoans: PLN, // Outstanding corporate loans (sum of per-bank `loans`)
@@ -42,9 +41,8 @@ case class BankingAggregate(
   /** Non-performing loan ratio: nplAmount / totalLoans. Returns 0.0 when loan book is empty. */
   def nplRatio: Double = if totalLoans.toDouble > 1.0 then (nplAmount / totalLoans) else 0.0
 
-  /** Capital adequacy ratio: capital / risk-weighted assets. Corporate bonds carry 50% risk weight
-    * (Basel III, BBB bucket). Returns 10.0 (well-capitalised floor) when risk-weighted assets ≤ 1
-    * to avoid division by zero.
+  /** Capital adequacy ratio: capital / risk-weighted assets. Corporate bonds carry 50% risk weight (Basel III, BBB
+    * bucket). Returns 10.0 (well-capitalised floor) when risk-weighted assets ≤ 1 to avoid division by zero.
     */
   def car: Double =
     val totalRwa = (totalLoans + consumerLoans + corpBondHoldings * 0.50).toDouble

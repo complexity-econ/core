@@ -208,7 +208,8 @@ class EnergyClimateSpec extends AnyFlatSpec with Matchers:
       1.0,
       accounting.GovState(false, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
       sfc.agents.Nbp.State(Rate(0.0575)),
-      accounting.BankingAggregate(PLN.Zero, PLN.Zero, PLN(500000000.0), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
+      accounting
+        .BankingAggregate(PLN.Zero, PLN.Zero, PLN(500000000.0), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
       accounting.ForexState(4.33, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
       sfc.agents.Household.SectorState(100000, PLN(8266.0), PLN(4666.0), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
       Ratio.Zero,
@@ -227,7 +228,8 @@ class EnergyClimateSpec extends AnyFlatSpec with Matchers:
       1.0,
       accounting.GovState(false, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
       sfc.agents.Nbp.State(Rate(0.0575)),
-      accounting.BankingAggregate(PLN.Zero, PLN.Zero, PLN(500000000.0), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
+      accounting
+        .BankingAggregate(PLN.Zero, PLN.Zero, PLN(500000000.0), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
       accounting.ForexState(4.33, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
       sfc.agents.Household.SectorState(100000, PLN(8266.0), PLN(4666.0), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
       Ratio.Zero,
