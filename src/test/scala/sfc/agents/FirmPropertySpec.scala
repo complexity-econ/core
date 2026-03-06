@@ -166,3 +166,42 @@ class FirmPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckProperty
         ratio shouldBe (2.5 +- 0.01)
     }
   }
+
+  // --- localAutoRatio properties ---
+
+  "Firm.localAutoRatio" should "be in [0, 1]" in {
+    val firms = (0 until 10).map { i =>
+      val tech = if i < 3 then TechState.Automated(1.0) else TechState.Traditional(10)
+      Firm.State(
+        FirmId(i),
+        PLN(100000),
+        PLN.Zero,
+        tech,
+        Ratio(0.5),
+        1.0,
+        Ratio(0.4),
+        SectorIdx(0),
+        (0 until 10).filter(_ != i).map(FirmId(_)).toArray,
+      )
+    }.toArray
+    for f <- firms do
+      val r = Firm.localAutoRatio(f, firms)
+      r should be >= 0.0
+      r should be <= 1.0
+  }
+
+  it should "be 0 when no neighbors" in {
+    val firm = Firm.State(
+      FirmId(0),
+      PLN(100000),
+      PLN.Zero,
+      TechState.Traditional(10),
+      Ratio(0.5),
+      1.0,
+      Ratio(0.4),
+      SectorIdx(0),
+      Array.empty[FirmId],
+    )
+    val firms = Array(firm)
+    Firm.localAutoRatio(firm, firms) shouldBe 0.0
+  }

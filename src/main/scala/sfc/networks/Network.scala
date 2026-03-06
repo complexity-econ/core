@@ -1,15 +1,13 @@
 package sfc.networks
 
-import sfc.agents.{Firm, TechState}
-
 import scala.util.Random
 
 /** Graph generation algorithms for agent interaction networks.
   *
   * Used in two contexts:
-  *   - '''Firm supply-chain network''' (FirmInit) — topology governs technology diffusion via `localAutoRatio` and
-  *     input-output linkages. Topology selected by env var `NETWORK_TOPOLOGY` (ws/er/ba/lattice), parameterized by
-  *     `NETWORK_K` (degree) and `NETWORK_REWIRE_P` (WS only).
+  *   - '''Firm supply-chain network''' (FirmInit) — topology governs technology diffusion and input-output linkages.
+  *     Topology selected by env var `NETWORK_TOPOLOGY` (ws/er/ba/lattice), parameterized by `NETWORK_K` (degree) and
+  *     `NETWORK_REWIRE_P` (WS only).
   *   - '''Household social network''' (Household.initVector) — Watts-Strogatz small-world graph governing consumption
   *     peer effects and social learning. Parameterized by `HH_SOCIAL_K` and `HH_SOCIAL_P`.
   *
@@ -179,24 +177,3 @@ object Network:
       adj(i) += left
       adj(left) += i
     adj.map(_.toArray)
-
-  /** Fraction of a firm's network neighbors that have adopted automation (Automated or Hybrid tech).
-    *
-    * Used in technology adoption decisions: firms with more automated neighbors face stronger competitive pressure to
-    * digitalize (network externality / peer effect). Returns 0.0 for firms with no neighbors (isolates).
-    *
-    * @param firm
-    *   the focal firm whose neighborhood is evaluated
-    * @param firms
-    *   full firm array (neighbors are looked up by index)
-    * @return
-    *   ratio ∈ [0.0, 1.0] of neighbors with TechState.Automated or TechState.Hybrid
-    */
-  def localAutoRatio(firm: Firm.State, firms: Array[Firm.State]): Double =
-    val neighbors = firm.neighbors
-    if neighbors.isEmpty then return 0.0
-    val autoCount = neighbors.count { nid =>
-      val nf = firms(nid.toInt)
-      nf.tech.isInstanceOf[TechState.Automated] || nf.tech.isInstanceOf[TechState.Hybrid]
-    }
-    autoCount.toDouble / neighbors.length
