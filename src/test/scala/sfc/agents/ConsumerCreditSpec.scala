@@ -175,17 +175,17 @@ class ConsumerCreditSpec extends AnyFlatSpec with Matchers:
   }
 
   "BankingAggregate" should "have consumerLoans and consumerNpl fields" in {
-    val bank = BankingAggregate(PLN(1000.0), PLN(50.0), PLN(500.0), PLN(2000.0))
+    val bank = BankingAggregate(PLN(1000.0), PLN(50.0), PLN(500.0), PLN(2000.0), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
     bank.consumerLoans.toDouble shouldBe 0.0
     bank.consumerNpl.toDouble shouldBe 0.0
   }
 
   "BankingAggregate.car" should "include consumer loans in RWA" in {
-    val bank = BankingAggregate(PLN(1000.0), PLN(50.0), PLN(500.0), PLN(2000.0), consumerLoans = PLN(1000.0))
+    val bank = BankingAggregate(PLN(1000.0), PLN(50.0), PLN(500.0), PLN(2000.0), PLN.Zero, PLN(1000.0), PLN.Zero, PLN.Zero)
     // CAR = capital / (totalLoans + consumerLoans) = 500 / 2000 = 0.25
     bank.car shouldBe 0.25 +- 0.01
     // Without consumer loans: CAR = 500 / 1000 = 0.50
-    val bankNoCc = BankingAggregate(PLN(1000.0), PLN(50.0), PLN(500.0), PLN(2000.0))
+    val bankNoCc = BankingAggregate(PLN(1000.0), PLN(50.0), PLN(500.0), PLN(2000.0), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
     bankNoCc.car shouldBe 0.50 +- 0.01
     bank.car should be < bankNoCc.car
   }

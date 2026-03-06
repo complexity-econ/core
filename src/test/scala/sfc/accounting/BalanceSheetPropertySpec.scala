@@ -38,7 +38,7 @@ class BalanceSheetPropertySpec extends AnyFlatSpec with Matchers with ScalaCheck
 
   it should "be 0 when totalLoans <= 1" in {
     forAll(Gen.choose(-100.0, 1.0), Gen.choose(0.0, 1e6)) { (loans: Double, capital: Double) =>
-      val bs = BankingAggregate(PLN(loans), PLN(500.0), PLN(capital), PLN(1000.0))
+      val bs = BankingAggregate(PLN(loans), PLN(500.0), PLN(capital), PLN(1000.0), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
       bs.nplRatio shouldBe 0.0
     }
   }
@@ -46,7 +46,7 @@ class BalanceSheetPropertySpec extends AnyFlatSpec with Matchers with ScalaCheck
   "BankingAggregate.car" should "be >= 0 for non-negative capital and loans" in {
     forAll(Gen.choose(0.0, 1e9), Gen.choose(0.0, 1e9)) { (capital: Double, loans: Double) =>
       whenever(loans > 1.0) {
-        val bs = BankingAggregate(PLN(loans), PLN(0.0), PLN(capital), PLN(1000.0))
+        val bs = BankingAggregate(PLN(loans), PLN(0.0), PLN(capital), PLN(1000.0), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
         bs.car should be >= 0.0
       }
     }
@@ -54,7 +54,7 @@ class BalanceSheetPropertySpec extends AnyFlatSpec with Matchers with ScalaCheck
 
   it should "be 10.0 when totalLoans <= 1" in {
     forAll(Gen.choose(-100.0, 1.0)) { (loans: Double) =>
-      val bs = BankingAggregate(PLN(loans), PLN(0.0), PLN(1000.0), PLN(1000.0))
+      val bs = BankingAggregate(PLN(loans), PLN(0.0), PLN(1000.0), PLN(1000.0), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
       bs.car shouldBe 10.0
     }
   }

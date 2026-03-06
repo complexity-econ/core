@@ -27,10 +27,10 @@ case class BankingAggregate(
   nplAmount: PLN,
   capital: PLN,
   deposits: PLN,
-  govBondHoldings: PLN = PLN.Zero,
-  consumerLoans: PLN = PLN.Zero,
-  consumerNpl: PLN = PLN.Zero,
-  corpBondHoldings: PLN = PLN.Zero, // #40: corporate bond holdings (bank share)
+  govBondHoldings: PLN,
+  consumerLoans: PLN,
+  consumerNpl: PLN,
+  corpBondHoldings: PLN, // corporate bond holdings (bank share)
 ):
   def nplRatio: Double = if totalLoans.toDouble > 1.0 then (nplAmount / totalLoans) else 0.0
   def car: Double =

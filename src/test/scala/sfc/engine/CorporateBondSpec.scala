@@ -187,6 +187,9 @@ class CorporateBondSpec extends AnyFlatSpec with Matchers:
       nplAmount = PLN(0.0),
       capital = PLN(200.0),
       deposits = PLN(5000.0),
+      govBondHoldings = PLN.Zero,
+      consumerLoans = PLN.Zero,
+      consumerNpl = PLN.Zero,
       corpBondHoldings = PLN(400.0),
     )
     // RWA = 1000 + 400 * 0.5 = 1200; CAR = 200 / 1200 = 0.1667

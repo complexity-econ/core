@@ -25,7 +25,7 @@ class SfcSpec extends AnyFlatSpec with Matchers:
       priceLevel = 1.0,
       gov = GovState(false, PLN.Zero, PLN.Zero, PLN.Zero, PLN(govDebt), PLN.Zero),
       nbp = Nbp.State(Rate(0.0575)),
-      bank = BankingAggregate(PLN(bankLoans), PLN(bankNpl), PLN(bankCapital), PLN(bankDeposits)),
+      bank = BankingAggregate(PLN(bankLoans), PLN(bankNpl), PLN(bankCapital), PLN(bankDeposits), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
       forex = ForexState(4.33, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
       hh = Household.SectorState(100, PLN(8266.0), PLN(4666.0), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
       automationRatio = Ratio.Zero,
