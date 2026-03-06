@@ -65,7 +65,7 @@ object WorldInit:
     // --- World assembly ---
     val world = World(0, Rate(0.02), 1.0,
       GovState(false, PLN.Zero, PLN.Zero, PLN.Zero, PLN(Config.InitGovDebt), PLN.Zero, bondsOutstanding = initBondsOutstanding),
-      NbpState(Rate(initRate), govBondHoldings = PLN(Config.InitNbpGovBonds)),
+      Nbp.State(Rate(initRate), govBondHoldings = PLN(Config.InitNbpGovBonds)),
       BankState(PLN(Config.InitBankLoans), PLN.Zero, PLN(Config.InitBankCapital), PLN(Config.InitBankDeposits),
         govBondHoldings = PLN(Config.InitBankGovBonds), consumerLoans = PLN(initConsumerLoans),
         corpBondHoldings = PLN(Config.CorpBondInitStock * Config.CorpBondBankShare)),

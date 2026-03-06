@@ -328,7 +328,7 @@ class HouseholdSpec extends AnyFlatSpec with Matchers:
       inflation = Rate(0.02),
       priceLevel = 1.0,
       gov = GovState(false, PLN(0.0), PLN(0.0), PLN(0.0), PLN(0.0), PLN(0.0)),
-      nbp = NbpState(Rate(0.0575)),
+      nbp = Nbp.State(Rate(0.0575)),
       bank = BankState(PLN(1000000), PLN(10000), PLN(500000), PLN(1000000)),
       forex = ForexState(4.33, PLN(0.0), PLN(190000000), PLN(0.0), PLN(0.0)),
       hh = HhState(100000, PLN(Config.BaseWage), PLN(Config.BaseReservationWage), PLN(0.0), PLN(0.0), PLN(0.0), PLN(0.0)),

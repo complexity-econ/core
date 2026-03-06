@@ -57,7 +57,7 @@ class FirmEntrySpec extends AnyFlatSpec with Matchers:
   "World" should "have firmBirths defaulting to 0" in {
     val w = World(0, Rate(0.0), 1.0,
       GovState(false, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
-      sfc.agents.NbpState(Rate(0.05)),
+      sfc.agents.Nbp.State(Rate(0.05)),
       BankState(PLN.Zero, PLN.Zero, PLN(1e9), PLN(1e9)),
       ForexState(4.33, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
       sfc.agents.HhState(100, PLN(8000), PLN(4500), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
@@ -68,7 +68,7 @@ class FirmEntrySpec extends AnyFlatSpec with Matchers:
   it should "have firmDeaths defaulting to 0" in {
     val w = World(0, Rate(0.0), 1.0,
       accounting.GovState(false, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
-      sfc.agents.NbpState(Rate(0.05)),
+      sfc.agents.Nbp.State(Rate(0.05)),
       accounting.BankState(PLN.Zero, PLN.Zero, PLN(1e9), PLN(1e9)),
       accounting.ForexState(4.33, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
       sfc.agents.HhState(100, PLN(8000), PLN(4500), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),

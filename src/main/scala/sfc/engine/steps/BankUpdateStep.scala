@@ -83,7 +83,7 @@ object BankUpdateStep:
     monthlyDebtService: Double,
     bankBondIncome: Double,
     nbpRemittance: Double,
-    postFxNbp: NbpState,
+    postFxNbp: Nbp.State,
     qePurchaseAmount: Double,
     newCorpBonds: CorporateBondMarket.State,
     corpBondBankCoupon: Double,

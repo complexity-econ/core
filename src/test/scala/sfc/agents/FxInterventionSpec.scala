@@ -9,13 +9,13 @@ class FxInterventionSpec extends AnyFlatSpec with Matchers:
 
   // Helper: call fxIntervention with enabled=true for tests that need active intervention
   private def fxEnabled(er: Double, reserves: Double, gdp: Double) =
-    CentralBankLogic.fxIntervention(er, reserves, gdp, enabled = true)
+    Nbp.fxIntervention(er, reserves, gdp, enabled = true)
 
   // --- fxIntervention ---
 
-  "CentralBankLogic.fxIntervention" should "return zero effect when disabled (default)" in {
+  "Nbp.fxIntervention" should "return zero effect when disabled (default)" in {
     // Config.NbpFxIntervention defaults to false
-    val result = CentralBankLogic.fxIntervention(Config.BaseExRate * 1.5, 1e10, 1e9)
+    val result = Nbp.fxIntervention(Config.BaseExRate * 1.5, 1e10, 1e9)
     result.erEffect shouldBe 0.0
     result.eurTraded shouldBe 0.0
     result.newReserves shouldBe 1e10
@@ -105,7 +105,7 @@ class FxInterventionSpec extends AnyFlatSpec with Matchers:
   // --- FxInterventionResult ---
 
   "FxInterventionResult" should "be constructable with all fields" in {
-    val r = CentralBankLogic.FxInterventionResult(0.01, -5e8, 9.5e9)
+    val r = Nbp.FxInterventionResult(0.01, -5e8, 9.5e9)
     r.erEffect shouldBe 0.01
     r.eurTraded shouldBe -5e8
     r.newReserves shouldBe 9.5e9
@@ -113,14 +113,14 @@ class FxInterventionSpec extends AnyFlatSpec with Matchers:
 
   // --- NbpState FX fields ---
 
-  "NbpState" should "have backward-compatible constructor with FX defaults" in {
-    val nbp = NbpState(Rate(0.0575))
+  "Nbp.State" should "have backward-compatible constructor with FX defaults" in {
+    val nbp = Nbp.State(Rate(0.0575))
     nbp.fxReserves.toDouble shouldBe Config.NbpFxReserves
     nbp.lastFxTraded shouldBe PLN.Zero
   }
 
   it should "accept explicit FX field values" in {
-    val nbp = NbpState(Rate(0.05), fxReserves = PLN(5e9), lastFxTraded = PLN(-1e8))
+    val nbp = Nbp.State(Rate(0.05), fxReserves = PLN(5e9), lastFxTraded = PLN(-1e8))
     nbp.fxReserves shouldBe PLN(5e9)
     nbp.lastFxTraded shouldBe PLN(-1e8)
   }
