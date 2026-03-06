@@ -185,7 +185,7 @@ object Generators:
     hybR     <- genFraction
     gdp      <- Gen.choose(1e6, 1e11)
   yield World(
-    month, Rate(infl), price, gov, NbpState(Rate(rate)), bank, forex,
+    month, Rate(infl), price, gov, Nbp.State(Rate(rate)), bank, forex,
     HhState(employed, PLN(wage), PLN(resWage), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
     Ratio(autoR), Ratio(hybR), gdp,
     SECTORS.map(_.sigma)
@@ -304,16 +304,16 @@ object Generators:
     arr <- Gen.listOfN(n, Gen.choose(0.0, 100000.0))
   yield arr.toArray.sorted
 
-  // --- NbpState generator ---
+  // --- Nbp.State generator ---
 
-  val genNbpState: Gen[NbpState] = for
+  val genNbpState: Gen[Nbp.State] = for
     rate     <- genRate
     bonds    <- Gen.choose(0.0, 1e10)
     qeActive <- Gen.oneOf(true, false)
     qeCum    <- Gen.choose(0.0, 1e10)
     fxRes    <- Gen.choose(0.0, 1e11)
     lastFx   <- Gen.choose(-1e9, 1e9)
-  yield NbpState(Rate(rate), PLN(bonds), qeActive, PLN(qeCum), PLN(fxRes), PLN(lastFx))
+  yield Nbp.State(Rate(rate), PLN(bonds), qeActive, PLN(qeCum), PLN(fxRes), PLN(lastFx))
 
   // --- I-O matrix generator ---
 

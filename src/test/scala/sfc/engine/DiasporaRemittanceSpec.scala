@@ -192,7 +192,7 @@ class DiasporaRemittanceSpec extends AnyFlatSpec with Matchers:
   "World" should "default diasporaRemittanceInflow to 0.0" in {
     val w = World(0, Rate(0.02), 1.0,
       GovState(false, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
-      sfc.agents.NbpState(Rate(0.05)),
+      sfc.agents.Nbp.State(Rate(0.05)),
       BankState(PLN.Zero, PLN.Zero, PLN(100), PLN(1000)),
       ForexState(Config.BaseExRate, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
       sfc.agents.HhState(100, PLN(5000), PLN(4000), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),

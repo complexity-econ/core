@@ -1,7 +1,7 @@
 package sfc.engine
 
 import sfc.accounting.{BankState, BopState, ForexState, GovState, MonetaryAggregates}
-import sfc.agents.{BankingSectorState, HhAggregates, HhState, Household, Immigration, Insurance, Jst, Nbfi, NbpState, SocialSecurity}
+import sfc.agents.{BankingSectorState, HhAggregates, HhState, Household, Immigration, Insurance, Jst, Nbfi, Nbp, SocialSecurity}
 import sfc.types.*
 
 case class World(
@@ -9,7 +9,7 @@ case class World(
   inflation: Rate,
   priceLevel: Double,
   gov: GovState,
-  nbp: NbpState,
+  nbp: Nbp.State,
   bank: BankState,
   forex: ForexState,
   hh: HhState,

@@ -18,7 +18,7 @@ class SfcCheckSpec extends AnyFlatSpec with Matchers:
     World(
       month = 1, inflation = Rate(0.02), priceLevel = 1.0,
       gov = GovState(false, PLN.Zero, PLN.Zero, PLN.Zero, PLN(govDebt), PLN.Zero),
-      nbp = NbpState(Rate(0.0575)),
+      nbp = Nbp.State(Rate(0.0575)),
       bank = BankState(PLN(bankLoans), PLN(bankNpl), PLN(bankCapital), PLN(bankDeposits)),
       forex = ForexState(4.33, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
       hh = HhState(100, PLN(8266.0), PLN(4666.0), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),

@@ -54,7 +54,7 @@ object OpenEconomyStep:
     monthlyDebtService: Double,
     bankBondIncome: Double,
     nbpRemittance: Double,
-    postFxNbp: NbpState,
+    postFxNbp: Nbp.State,
     qePurchaseAmount: Double,
     newCorpBonds: CorporateBondMarket.State,
     corpBondBankCoupon: Double,
@@ -105,7 +105,7 @@ object OpenEconomyStep:
     else
       val fx = Sectors.updateForeign(in.w.forex, in.importCons, totalTechAndInvImports,
         in.autoR, in.w.nbp.referenceRate.toDouble, in.gdp, in.rc)
-      (fx, in.w.bop, 0.0, CentralBankLogic.FxInterventionResult(0.0, 0.0, in.w.nbp.fxReserves.toDouble))
+      (fx, in.w.bop, 0.0, Nbp.FxInterventionResult(0.0, 0.0, in.w.nbp.fxReserves.toDouble))
 
     // Adjust BOP for foreign dividend outflow (primary income component) + EU funds tracking
     val newBop1 = if in.foreignDividendOutflow > 0 && Config.OeEnabled then
@@ -160,7 +160,7 @@ object OpenEconomyStep:
         Math.abs(in.w.expectations.expectedInflation.toDouble - target) *
         Config.ExpBondSensitivity
     else 0.0
-    val newBondYield = CentralBankLogic.bondYield(newRefRate, debtToGdp, nbpBondGdpShare, in.w.bop.nfa.toDouble, credPremium)
+    val newBondYield = Nbp.bondYield(newRefRate, debtToGdp, nbpBondGdpShare, in.w.bop.nfa.toDouble, credPremium)
 
     // Debt service: use LAGGED bond stock
     val rawDebtService = in.w.gov.bondsOutstanding.toDouble * newBondYield / 12.0
@@ -170,13 +170,13 @@ object OpenEconomyStep:
     val nbpRemittance = nbpBondIncome - totalReserveInterest - totalStandingFacilityIncome
 
     // QE logic
-    val qeActivate = CentralBankLogic.shouldActivateQe(newRefRate, in.newInfl)
-    val qeTaper = CentralBankLogic.shouldTaperQe(in.newInfl)
+    val qeActivate = Nbp.shouldActivateQe(newRefRate, in.newInfl)
+    val qeTaper = Nbp.shouldTaperQe(in.newInfl)
     val qeActive = if qeActivate then true
                    else if qeTaper then false
                    else in.w.nbp.qeActive
-    val preQeNbp = NbpState(Rate(newRefRate), in.w.nbp.govBondHoldings, qeActive, in.w.nbp.qeCumulative)
-    val (postQeNbp, qePurchaseAmount) = CentralBankLogic.executeQe(
+    val preQeNbp = Nbp.State(Rate(newRefRate), in.w.nbp.govBondHoldings, qeActive, in.w.nbp.qeCumulative)
+    val (postQeNbp, qePurchaseAmount) = Nbp.executeQe(
       preQeNbp, in.w.bank.govBondHoldings.toDouble, annualGdpForBonds)
     val postFxNbp = postQeNbp.copy(
       fxReserves = PLN(fxResult.newReserves),

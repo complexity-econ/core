@@ -3,16 +3,16 @@ package sfc.agents
 import sfc.config.Config
 import sfc.types.*
 
-case class NbpState(
-  referenceRate: Rate,
-  govBondHoldings: PLN = PLN.Zero,
-  qeActive: Boolean = false,
-  qeCumulative: PLN = PLN.Zero,
-  fxReserves: PLN = PLN(Config.NbpFxReserves),   // EUR-equivalent total (multi-currency)
-  lastFxTraded: PLN = PLN.Zero                    // monthly FX intervention amount (EUR)
-)
+object Nbp:
 
-object CentralBankLogic:
+  case class State(
+    referenceRate: Rate,
+    govBondHoldings: PLN = PLN.Zero,
+    qeActive: Boolean = false,
+    qeCumulative: PLN = PLN.Zero,
+    fxReserves: PLN = PLN(Config.NbpFxReserves),   // EUR-equivalent total (multi-currency)
+    lastFxTraded: PLN = PLN.Zero                    // monthly FX intervention amount (EUR)
+  )
 
   /** Bond yield = refRate + termPremium + fiscalRiskPremium - qeCompression - foreignDemandEffect + credibilityPremium */
   def bondYield(refRate: Double, debtToGdp: Double, nbpBondGdpShare: Double, nfa: Double,
@@ -35,8 +35,8 @@ object CentralBankLogic:
   def shouldTaperQe(inflation: Double): Boolean =
     inflation > Config.NbpTargetInfl
 
-  /** Execute monthly QE purchase. Returns (newNbpState, purchaseAmount). */
-  def executeQe(nbp: NbpState, bankBondHoldings: Double, annualGdp: Double): (NbpState, Double) =
+  /** Execute monthly QE purchase. Returns (newState, purchaseAmount). */
+  def executeQe(nbp: State, bankBondHoldings: Double, annualGdp: Double): (State, Double) =
     if !nbp.qeActive then (nbp, 0.0)
     else
       val maxByGdp = (PLN(Config.NbpQeMaxGdpShare * annualGdp) - nbp.govBondHoldings).toDouble

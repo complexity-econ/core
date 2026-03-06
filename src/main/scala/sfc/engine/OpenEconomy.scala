@@ -2,7 +2,7 @@ package sfc.engine
 
 import sfc.accounting.{BopState, ForexState}
 import sfc.config.{Config, SECTORS, RunConfig}
-import sfc.agents.CentralBankLogic
+import sfc.agents.Nbp
 import sfc.types.PLN
 import sfc.util.KahanSum.*
 
@@ -13,8 +13,8 @@ object OpenEconomy:
     bop: BopState,
     importedIntermediates: Vector[Double],  // per-sector import cost (6 elements)
     valuationEffect: Double,                // exact valuation effect used in NFA update
-    fxIntervention: CentralBankLogic.FxInterventionResult =
-      CentralBankLogic.FxInterventionResult(0.0, 0.0, 0.0)
+    fxIntervention: Nbp.FxInterventionResult =
+      Nbp.FxInterventionResult(0.0, 0.0, 0.0)
   )
 
   def step(prevBop: BopState, prevForex: ForexState,
@@ -97,7 +97,7 @@ object OpenEconomy:
     val deltaReserves = -(currentAccount + capitalAccount)
 
     // H. Exchange rate + FX intervention
-    val fxResult = CentralBankLogic.fxIntervention(prevForex.exchangeRate, nbpFxReserves, gdp)
+    val fxResult = Nbp.fxIntervention(prevForex.exchangeRate, nbpFxReserves, gdp)
     val newExRate = if rc.isEurozone then Config.BaseExRate
     else
       val bopGdpRatio = if gdp > 0 then (currentAccount + capitalAccount) / gdp else 0.0

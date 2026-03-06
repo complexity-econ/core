@@ -17,9 +17,9 @@ class FxInterventionPropertySpec extends AnyFlatSpec with Matchers with ScalaChe
 
   // Helper: call with enabled=true
   private def fxEnabled(er: Double, reserves: Double, gdp: Double) =
-    CentralBankLogic.fxIntervention(er, reserves, gdp, enabled = true)
+    Nbp.fxIntervention(er, reserves, gdp, enabled = true)
 
-  "CentralBankLogic.fxIntervention (enabled)" should "never produce negative reserves" in {
+  "Nbp.fxIntervention (enabled)" should "never produce negative reserves" in {
     forAll(genER, genReserves, genGdp) { (er, reserves, gdp) =>
       val result = fxEnabled(er, reserves, gdp)
       result.newReserves should be >= 0.0
@@ -46,17 +46,17 @@ class FxInterventionPropertySpec extends AnyFlatSpec with Matchers with ScalaChe
     }
   }
 
-  "CentralBankLogic.fxIntervention (disabled)" should "return zero effect" in {
+  "Nbp.fxIntervention (disabled)" should "return zero effect" in {
     // Config.NbpFxIntervention defaults to false
     forAll(genER, genReserves, genGdp) { (er, reserves, gdp) =>
-      val result = CentralBankLogic.fxIntervention(er, reserves, gdp)
+      val result = Nbp.fxIntervention(er, reserves, gdp)
       result.erEffect shouldBe 0.0
       result.eurTraded shouldBe 0.0
       result.newReserves shouldBe reserves
     }
   }
 
-  "CentralBankLogic.fxIntervention (enabled)" should "return zero effect when ER within band" in {
+  "Nbp.fxIntervention (enabled)" should "return zero effect when ER within band" in {
     // Generate ER strictly inside band (0.5% margin avoids FP boundary issues)
     val genERInBand = Gen.choose(
       Config.BaseExRate * (1.0 - Config.NbpFxBand + 0.005),
