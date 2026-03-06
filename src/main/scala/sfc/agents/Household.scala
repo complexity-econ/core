@@ -329,15 +329,18 @@ object Household:
     var totalConsumerDefault = 0.0
 
     // Per-bank flow accumulators (only when bankRates provided)
-    val br = bankRates.orNull
-    val perBankInc = if br != null then new Array[Double](nBanks) else null
-    val perBankCons = if br != null then new Array[Double](nBanks) else null
-    val perBankDSvc = if br != null then new Array[Double](nBanks) else null
-    val perBankDepInt = if br != null then new Array[Double](nBanks) else null
-    val perBankCcDSvc = if br != null then new Array[Double](nBanks) else null
-    val perBankCcOrig = if br != null then new Array[Double](nBanks) else null
-    val perBankCcDef = if br != null then new Array[Double](nBanks) else null
-    val perBankCcPrin = if br != null then new Array[Double](nBanks) else null
+    val perBankArrays = bankRates.map { _ =>
+      (
+        new Array[Double](nBanks), // inc
+        new Array[Double](nBanks), // cons
+        new Array[Double](nBanks), // dSvc
+        new Array[Double](nBanks), // depInt
+        new Array[Double](nBanks), // ccDSvc
+        new Array[Double](nBanks), // ccOrig
+        new Array[Double](nBanks), // ccDef
+        new Array[Double](nBanks), // ccPrin
+      )
+    }
     var totalConsumerPrincipal = 0.0
 
     // Pre-compute distressed HH set: O(N_hh) instead of O(N_hh x k) per-HH lookup
@@ -356,14 +359,14 @@ object Household:
           val (baseIncome, benefit, newStatus) = computeIncome(hh, bdp)
 
           // Variable-rate debt service (monetary transmission channel 1)
-          val debtServiceRate =
-            if br != null then Config.HhBaseAmortRate + br.lendingRates(hh.bankId.toInt) / 12.0
-            else Config.HhDebtServiceRate
+          val debtServiceRate = bankRates match
+            case Some(br) => Config.HhBaseAmortRate + br.lendingRates(hh.bankId.toInt) / 12.0
+            case None     => Config.HhDebtServiceRate
 
           // Deposit interest (monetary transmission channel 2)
-          val depInterest =
-            if br != null then br.depositRates(hh.bankId.toInt) / 12.0 * hh.savings.toDouble
-            else 0.0
+          val depInterest = bankRates match
+            case Some(br) => br.depositRates(hh.bankId.toInt) / 12.0 * hh.savings.toDouble
+            case None     => 0.0
 
           val grossIncome =
             baseIncome + Math.max(0.0, depInterest) // floor at 0 (no negative interest on negative savings)
@@ -379,9 +382,9 @@ object Household:
           actualTotalDepositInterest += Math.max(0.0, depInterest)
 
           // Consumer credit debt service
-          val consumerRate =
-            if br != null then br.lendingRates(hh.bankId.toInt) + Config.CcSpread
-            else world.nbp.referenceRate.toDouble + Config.CcSpread
+          val consumerRate = bankRates match
+            case Some(br) => br.lendingRates(hh.bankId.toInt) + Config.CcSpread
+            case None     => world.nbp.referenceRate.toDouble + Config.CcSpread
           val consumerDebtSvc = hh.consumerDebt.toDouble * (Config.CcAmortRate + consumerRate / 12.0)
           totalConsumerDebtService += consumerDebtSvc
           val consumerPrin = hh.consumerDebt.toDouble * Config.CcAmortRate
@@ -432,23 +435,25 @@ object Household:
           actualTotalRent += hh.monthlyRent.toDouble
 
           // Per-bank accumulation
-          if perBankInc != null then
+          perBankArrays.foreach { case (pbInc, pbCons, pbDSvc, pbDepInt, pbCcDSvc, pbCcOrig, _, pbCcPrin) =>
             val bId = hh.bankId.toInt
-            perBankInc(bId) += income
-            perBankCons(bId) += consumptionWithWealth + hh.monthlyRent.toDouble
-            perBankDSvc(bId) += thisDebtService
-            perBankDepInt(bId) += Math.max(0.0, depInterest)
-            perBankCcDSvc(bId) += consumerDebtSvc
-            perBankCcOrig(bId) += newConsumerLoan
-            perBankCcPrin(bId) += consumerPrin
-          // end per-bank
+            pbInc(bId) += income
+            pbCons(bId) += consumptionWithWealth + hh.monthlyRent.toDouble
+            pbDSvc(bId) += thisDebtService
+            pbDepInt(bId) += Math.max(0.0, depInterest)
+            pbCcDSvc(bId) += consumerDebtSvc
+            pbCcOrig(bId) += newConsumerLoan
+            pbCcPrin(bId) += consumerPrin
+          }
 
           // Bankruptcy test
           if newSavings < Config.HhBankruptcyThreshold * hh.monthlyRent.toDouble then
             // Default amount: remaining consumer debt after this month's principal repayment + new loan
             val ccDefaultAmt = hh.consumerDebt.toDouble * (1.0 - Config.CcAmortRate) + newConsumerLoan
             totalConsumerDefault += ccDefaultAmt
-            if perBankCcDef != null then perBankCcDef(hh.bankId.toInt) += ccDefaultAmt
+            perBankArrays.foreach { case (_, _, _, _, _, _, pbCcDef, _) =>
+              pbCcDef(hh.bankId.toInt) += ccDefaultAmt
+            }
             hh.copy(
               savings = PLN(newSavings),
               debt = PLN(newDebt),
@@ -608,21 +613,9 @@ object Household:
       totalConsumerDefault = PLN(totalConsumerDefault),
       totalConsumerPrincipal = PLN(totalConsumerPrincipal),
     )
-    val pbf =
-      if perBankInc != null then
-        Some(
-          PerBankHhFlows(
-            perBankInc,
-            perBankCons,
-            perBankDSvc,
-            perBankDepInt,
-            perBankCcDSvc,
-            perBankCcOrig,
-            perBankCcDef,
-            perBankCcPrin,
-          ),
-        )
-      else None
+    val pbf = perBankArrays.map { case (pbInc, pbCons, pbDSvc, pbDepInt, pbCcDSvc, pbCcOrig, pbCcDef, pbCcPrin) =>
+      PerBankHhFlows(pbInc, pbCons, pbDSvc, pbDepInt, pbCcDSvc, pbCcOrig, pbCcDef, pbCcPrin)
+    }
     (updated, correctedAgg, pbf)
 
   private def computeIncome(hh: State, bdp: Double): (Double, Double, HhStatus) =
