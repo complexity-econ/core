@@ -38,21 +38,21 @@ object Sfc:
     * the corresponding mechanism is enabled (e.g. mortgageStock is zero when housing market is off).
     */
   case class Snapshot(
-    hhSavings: PLN,
-    hhDebt: PLN,
-    firmCash: PLN,
-    firmDebt: PLN,
-    bankCapital: PLN,
-    bankDeposits: PLN,
-    bankLoans: PLN,
-    govDebt: PLN,
-    nfa: PLN,
-    bankBondHoldings: PLN,
-    nbpBondHoldings: PLN,
-    bondsOutstanding: PLN,
-    interbankNetSum: PLN,
-    jstDeposits: PLN,
-    jstDebt: PLN,
+    hhSavings: PLN, // Σ household savings (individual mode only, 0 in aggregate)
+    hhDebt: PLN, // Σ household debt (individual mode only, 0 in aggregate)
+    firmCash: PLN, // Σ firm cash holdings
+    firmDebt: PLN, // Σ firm bank loan debt
+    bankCapital: PLN, // aggregate bank equity capital (retained earnings)
+    bankDeposits: PLN, // aggregate bank deposits (HH + firm + JST)
+    bankLoans: PLN, // aggregate bank loan book
+    govDebt: PLN, // cumulative government debt (deficit accumulation)
+    nfa: PLN, // net foreign assets (BoP cumulative)
+    bankBondHoldings: PLN, // bank holdings of government bonds
+    nbpBondHoldings: PLN, // NBP holdings of government bonds (QE)
+    bondsOutstanding: PLN, // total government bonds outstanding
+    interbankNetSum: PLN, // Σ interbank net positions (must be 0)
+    jstDeposits: PLN, // local government (JST) deposits at banks
+    jstDebt: PLN, // local government (JST) cumulative debt
     fusBalance: PLN, // ZUS/FUS raw surplus/deficit
     ppkBondHoldings: PLN, // PPK government bond holdings
     mortgageStock: PLN, // Outstanding mortgage debt
@@ -71,21 +71,21 @@ object Sfc:
     * may be disabled; when disabled, the flow is zero and the corresponding identity holds trivially.
     */
   case class MonthlyFlows(
-    govSpending: PLN,
-    govRevenue: PLN,
-    nplLoss: PLN,
-    interestIncome: PLN,
-    hhDebtService: PLN,
-    totalIncome: PLN,
-    totalConsumption: PLN,
-    newLoans: PLN,
-    nplRecovery: PLN,
-    currentAccount: PLN,
-    valuationEffect: PLN,
-    bankBondIncome: PLN,
-    qePurchase: PLN,
-    newBondIssuance: PLN,
-    depositInterestPaid: PLN,
+    govSpending: PLN, // total gov expenditure (BDP + benefits + transfers + debt service + ZUS subvention)
+    govRevenue: PLN, // total gov revenue (CIT + PIT + VAT + excise + customs + dividend tax + NBP remittance)
+    nplLoss: PLN, // bank NPL write-off loss (firm loans, after recovery)
+    interestIncome: PLN, // bank interest income from firm loans
+    hhDebtService: PLN, // household debt service payments → bank capital
+    totalIncome: PLN, // aggregate household income (wages + benefits + transfers)
+    totalConsumption: PLN, // aggregate household consumption expenditure
+    newLoans: PLN, // new firm loans originated this month
+    nplRecovery: PLN, // recovered amount from NPL (nplNew × recoveryRate)
+    currentAccount: PLN, // BoP current account balance
+    valuationEffect: PLN, // NFA valuation change from exchange rate movements
+    bankBondIncome: PLN, // bank coupon income from government bonds
+    qePurchase: PLN, // NBP quantitative easing bond purchases
+    newBondIssuance: PLN, // net new government bond issuance
+    depositInterestPaid: PLN, // bank interest paid on deposits → reduces bank capital
     reserveInterest: PLN, // NBP pays on required reserves
     standingFacilityIncome: PLN, // Deposit/lombard facility net
     interbankInterest: PLN, // Interbank interest (net ≈ 0)
