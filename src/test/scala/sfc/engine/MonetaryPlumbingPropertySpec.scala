@@ -106,12 +106,7 @@ class MonetaryPlumbingPropertySpec extends AnyFlatSpec with Matchers with ScalaC
   "SfcCheck with monetary plumbing flows" should "pass for consistent snapshots" in {
     forAll(genConsistentFlowsAndSnapshots) { case (prev, curr, flows) =>
       val result = SfcCheck.validate(1, prev, curr, flows)
-      withClue(
-        s"bankCapErr=${result.bankCapitalError}, bankDepErr=${result.bankDepositsError}, " +
-          s"govDebtErr=${result.govDebtError}: ",
-      ) {
-        result.passed shouldBe true
-      }
+      result shouldBe Right(())
     }
   }
 
@@ -120,6 +115,6 @@ class MonetaryPlumbingPropertySpec extends AnyFlatSpec with Matchers with ScalaC
       // Add reserve interest to flows but NOT to bank capital → should fail
       val perturbedFlows = flows.copy(reserveInterest = flows.reserveInterest + PLN(delta))
       val result = SfcCheck.validate(1, prev, curr, perturbedFlows)
-      result.passed shouldBe false
+      result shouldBe a[Left[?, ?]]
     }
   }

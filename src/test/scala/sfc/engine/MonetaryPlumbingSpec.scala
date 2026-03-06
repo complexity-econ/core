@@ -198,7 +198,7 @@ class MonetaryPlumbingSpec extends AnyFlatSpec with Matchers:
       reserveInterest = reserveInt,
     )
     val result = SfcCheck.validate(1, prev, curr, flows)
-    result.passed shouldBe true
+    result shouldBe Right(())
   }
 
   it should "pass with standing facility income in bank capital" in {
@@ -234,7 +234,7 @@ class MonetaryPlumbingSpec extends AnyFlatSpec with Matchers:
       standingFacilityIncome = sfIncome,
     )
     val result = SfcCheck.validate(1, prev, curr, flows)
-    result.passed shouldBe true
+    result shouldBe Right(())
   }
 
   it should "pass with interbank interest (net ≈ 0) in bank capital" in {
@@ -270,7 +270,7 @@ class MonetaryPlumbingSpec extends AnyFlatSpec with Matchers:
       interbankInterest = ibInt,
     )
     val result = SfcCheck.validate(1, prev, curr, flows)
-    result.passed shouldBe true
+    result shouldBe Right(())
   }
 
   it should "detect mismatch when reserve interest not in flows" in {
@@ -296,8 +296,8 @@ class MonetaryPlumbingSpec extends AnyFlatSpec with Matchers:
     val flows =
       SfcCheck.MonthlyFlows(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
     val result = SfcCheck.validate(1, prev, curr, flows)
-    result.passed shouldBe false
-    Math.abs(result.bankCapitalError) should be > 1.0
+    result shouldBe a[Left[?, ?]]
+    result.swap.getOrElse(Vector.empty).exists(_.identity == SfcCheck.SfcIdentity.BankCapital) shouldBe true
   }
 
   it should "pass with all three monetary plumbing flows combined" in {
@@ -337,7 +337,7 @@ class MonetaryPlumbingSpec extends AnyFlatSpec with Matchers:
       interbankInterest = ibInt,
     )
     val result = SfcCheck.validate(1, prev, curr, flows)
-    result.passed shouldBe true
+    result shouldBe Right(())
   }
 
   // =========================================================================
@@ -406,7 +406,7 @@ class MonetaryPlumbingSpec extends AnyFlatSpec with Matchers:
       jstDepositChange = jstDep,
     )
     val result = SfcCheck.validate(1, prev, curr, flows)
-    result.passed shouldBe true
+    result shouldBe Right(())
   }
 
   it should "fail when JST deposit change not accounted for" in {
@@ -432,8 +432,8 @@ class MonetaryPlumbingSpec extends AnyFlatSpec with Matchers:
     val flows =
       SfcCheck.MonthlyFlows(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
     val result = SfcCheck.validate(1, prev, curr, flows)
-    result.passed shouldBe false
-    Math.abs(result.bankDepositsError) should be > 1.0
+    result shouldBe a[Left[?, ?]]
+    result.swap.getOrElse(Vector.empty).exists(_.identity == SfcCheck.SfcIdentity.BankDeposits) shouldBe true
   }
 
   "SfcCheck Identity 7" should "pass when JST debt change matches" in {
@@ -478,7 +478,7 @@ class MonetaryPlumbingSpec extends AnyFlatSpec with Matchers:
       jstDepositChange = depChange,
     )
     val result = SfcCheck.validate(1, prev, curr, flows)
-    result.passed shouldBe true
+    result shouldBe Right(())
   }
 
   it should "fail when JST debt change mismatches" in {
@@ -505,6 +505,6 @@ class MonetaryPlumbingSpec extends AnyFlatSpec with Matchers:
     val flows =
       SfcCheck.MonthlyFlows(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
     val result = SfcCheck.validate(1, prev, curr, flows)
-    result.passed shouldBe false
-    Math.abs(result.jstDebtError) should be > 1.0
+    result shouldBe a[Left[?, ?]]
+    result.swap.getOrElse(Vector.empty).exists(_.identity == SfcCheck.SfcIdentity.JstDebt) shouldBe true
   }

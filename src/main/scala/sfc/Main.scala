@@ -40,7 +40,16 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
   val results = Array.ofDim[Double](Config.Duration, nCols)
 
   for t <- 0 until Config.Duration do
-    val (newW, newF, newHh) = Simulation.step(world, firms, rc, households)
+    val (newW, newF, newHh, sfcResult) = Simulation.step(world, firms, rc, households)
+    sfcResult match
+      case Left(errors) =>
+        errors.foreach { e =>
+          System.err.println(
+            f"[SFC] Month ${t + 1} ${e.identity}: expected=${e.expected}%.2f actual=${e.actual}%.2f" +
+              f" (Δ=${e.actual - e.expected}%.2f) — ${e.msg}",
+          )
+        }
+      case Right(()) => // OK
     world = newW
     firms = newF
     households = newHh

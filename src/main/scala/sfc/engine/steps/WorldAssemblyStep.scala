@@ -145,6 +145,7 @@ object WorldAssemblyStep:
     newWorld: World,
     finalFirms: Array[Firm.State],
     reassignedHouseholds: Option[Vector[Household.State]],
+    sfcResult: Either[Vector[SfcCheck.IdentityError], Unit],
   )
 
   def run(in: Input): Output =
@@ -338,24 +339,6 @@ object WorldAssemblyStep:
       inventoryChange = PLN(in.aggInventoryChange),
     )
     val sfcResult = SfcCheck.validate(in.m, prevSnap, currSnap, sfcFlows)
-    if !sfcResult.passed then
-      System.err.println(
-        f"[SFC] Month ${in.m} FAIL:" +
-          f" bankCap=${sfcResult.bankCapitalError}%.2f" +
-          f" bankDep=${sfcResult.bankDepositsError}%.2f" +
-          f" govDebt=${sfcResult.govDebtError}%.2f" +
-          f" nfa=${sfcResult.nfaError}%.2f" +
-          f" bondClr=${sfcResult.bondClearingError}%.2f" +
-          f" ibNet=${sfcResult.interbankNettingError}%.2f" +
-          f" jstDebt=${sfcResult.jstDebtError}%.2f" +
-          f" fusBal=${sfcResult.fusBalanceError}%.2f" +
-          f" mortgage=${sfcResult.mortgageStockError}%.2f" +
-          f" fof=${sfcResult.fofError}%.2f" +
-          f" ccStock=${sfcResult.consumerCreditError}%.2f" +
-          f" corpBond=${sfcResult.corpBondStockError}%.2f" +
-          f" nbfiCredit=${sfcResult.nbfiCreditError}%.2f" +
-          f" secBal=${sfcResult.sectoralBalancesError}%.2f",
-      )
 
     // FDI M&A: monthly domestic → foreign conversion (#33)
     val postFdiFirms =
@@ -480,4 +463,4 @@ object WorldAssemblyStep:
     else (postFdiFirms, 0)
 
     val finalW = newW.copy(firmBirths = firmBirths, firmDeaths = in.firmDeaths)
-    Output(finalW, finalFirms, in.reassignedHouseholds)
+    Output(finalW, finalFirms, in.reassignedHouseholds, sfcResult)

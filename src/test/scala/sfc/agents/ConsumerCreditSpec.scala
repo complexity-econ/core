@@ -190,10 +190,10 @@ class ConsumerCreditSpec extends AnyFlatSpec with Matchers:
     bank.car should be < bankNoCc.car
   }
 
-  "SfcCheck" should "include consumerCreditError in SfcResult" in {
+  "SfcCheck" should "pass consumer credit identity with zero flows" in {
     val snap = SfcCheck.Snapshot(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN(100.0), PLN(200.0), PLN.Zero, PLN.Zero)
     val flow =
       SfcCheck.MonthlyFlows(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
     val result = SfcCheck.validate(1, snap, snap, flow)
-    result.consumerCreditError shouldBe 0.0 +- 0.01
+    result shouldBe Right(())
   }

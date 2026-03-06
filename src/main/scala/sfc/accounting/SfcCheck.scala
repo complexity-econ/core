@@ -104,24 +104,17 @@ object SfcCheck:
     inventoryChange: PLN = PLN.Zero, // ΔInventories (SNA 2008)
   )
 
-  /** Result of the SFC check: ten exact balance-sheet identity checks. */
-  case class SfcResult(
-    month: Int,
-    bankCapitalError: Double,
-    bankDepositsError: Double,
-    govDebtError: Double,
-    nfaError: Double = 0.0,
-    bondClearingError: Double = 0.0,
-    interbankNettingError: Double = 0.0,
-    jstDebtError: Double = 0.0, // JST budget balance
-    fusBalanceError: Double = 0.0, // FUS balance
-    mortgageStockError: Double = 0.0, // Mortgage stock identity
-    fofError: Double = 0.0, // Flow-of-funds residual
-    consumerCreditError: Double = 0.0, // Consumer credit stock identity
-    corpBondStockError: Double = 0.0, // Corporate bond stock identity
-    nbfiCreditError: Double = 0.0, // NBFI credit stock identity
-    sectoralBalancesError: Double = 0.0, //  (S−I) + (G−T) + (X−M) = 0 (Godley & Lavoie 2007)
-    passed: Boolean,
+  enum SfcIdentity:
+    case BankCapital, BankDeposits, GovDebt, Nfa, BondClearing,
+      InterbankNetting, JstDebt, FusBalance, MortgageStock,
+      FlowOfFunds, ConsumerCredit, CorpBondStock, NbfiCredit,
+      SectoralBalances
+
+  case class IdentityError(
+    identity: SfcIdentity,
+    msg: String,
+    expected: Double,
+    actual: Double,
   )
 
   def snapshot(w: World, firms: Array[Firm.State], households: Option[Vector[Household.State]]): Snapshot =
@@ -154,13 +147,15 @@ object SfcCheck:
       nbfiLoanStock = w.nbfi.nbfiLoanStock,
     )
 
-  /** Validate ten exact balance-sheet identities.
+  /** Validate 14 exact balance-sheet identities. Returns `Right(())` if all pass,
+    * or `Left(errors)` with every violated identity and its expected/actual values.
     *
     * The monetary circuit closes via sector-level flow-of-funds (Identity 10).
     *
-    *   1. Bank capital: Δ = -nplLoss - mortgageNplLoss - consumerNplLoss - bfgLevy - bankCapitalDestruction +
-    *      (interestIncome + hhDebtService + bankBondIncome + mortgageInterestIncome + consumerDebtService -
-    *      depositInterestPaid + reserveInterest + standingFacilityIncome + interbankInterest) × 0.3
+    *   1. Bank capital: Δ = -nplLoss - mortgageNplLoss - consumerNplLoss - corpBondDefaultLoss - bfgLevy -
+    *      bankCapitalDestruction + (interestIncome + hhDebtService + bankBondIncome + mortgageInterestIncome +
+    *      consumerDebtService + corpBondCouponIncome - depositInterestPaid + reserveInterest +
+    *      standingFacilityIncome + interbankInterest) × 0.3
     *   2. Bank deposits: Δ = totalIncome - totalConsumption + investNetDepositFlow + jstDepositChange + dividendIncome -
     *      foreignDividendOutflow - remittanceOutflow + diasporaInflow + tourismExport - tourismImport - bailInLoss +
     *      consumerOrigination + insNetDepositChange + nbfiDepositDrain
@@ -179,8 +174,9 @@ object SfcCheck:
     *   13. NBFI credit stock: Δ nbfiLoanStock = origination - repayment - defaultAmount
     *   14. Sectoral balances (Godley & Lavoie 2007): (S − I) + (G − T) + (X − M) = 0 where (S − I) = private sector
     *       balance (savings minus investment), (G − T) = public sector balance (gov spending minus taxes), (X − M) =
-    *       external sector balance (exports minus imports). Master macro identity — if Identities 1–13 hold, this must
-    *       hold by construction.
+    *       external sector balance (exports minus imports). Derived macro identity — if Identities 1–13 hold, this
+    *       must hold by construction. Gated behind `validateSectoralBalances` flag (default false) because the
+    *       S, I, G, T, X, M mapping to model flows is incomplete.
     *
     * These catch: mis-routed flows (e.g. rent subtracted from HH but not added to bank/consumption), refactoring errors
     * in balance sheet updates, and any new flow that modifies a stock without updating the counterpart.
@@ -192,142 +188,100 @@ object SfcCheck:
     flows: MonthlyFlows,
     tolerance: Double = 0.01,
     nfaTolerance: Double = 1.0,
-  ): SfcResult =
+    validateSectoralBalances: Boolean = false,
+  ): Either[Vector[IdentityError], Unit] =
+    import SfcIdentity.*
+    val errors = Vector.newBuilder[IdentityError]
 
-    // Identity 1: Bank capital (includes bond coupon income, mortgage interest income,
-    // consumer credit debt service income, corp bond coupon income, minus deposit interest paid,
-    // minus mortgage NPL loss, minus consumer NPL loss, minus corp bond default loss,
-    // minus BFG levy (#48),
-    // plus reserve interest, standing facility income, interbank interest — all × 0.3 profit retention)
-    val expectedBankCapChange = -flows.nplLoss - flows.mortgageNplLoss - flows.consumerNplLoss
+    def check(id: SfcIdentity, msg: String, expected: Double, actual: Double, tol: Double = tolerance): Unit =
+      if Math.abs(actual - expected) >= tol then
+        errors += IdentityError(id, msg, expected, actual)
+
+    // Identity 1: Bank capital (profit retention + losses)
+    val expectedBankCapChange = (-flows.nplLoss - flows.mortgageNplLoss - flows.consumerNplLoss
       - flows.corpBondDefaultLoss - flows.bfgLevy - flows.bankCapitalDestruction +
       (flows.interestIncome + flows.hhDebtService + flows.bankBondIncome
         + flows.mortgageInterestIncome + flows.consumerDebtService + flows.corpBondCouponIncome
         - flows.depositInterestPaid
-        + flows.reserveInterest + flows.standingFacilityIncome + flows.interbankInterest) * 0.3
-    val actualBankCapChange = curr.bankCapital - prev.bankCapital
-    val bankCapErr = actualBankCapChange - expectedBankCapChange
+        + flows.reserveInterest + flows.standingFacilityIncome + flows.interbankInterest) * 0.3).toDouble
+    val actualBankCapChange = (curr.bankCapital - prev.bankCapital).toDouble
+    check(BankCapital, "bank capital change (profit retention + losses)", expectedBankCapChange, actualBankCapChange)
 
-    // Identity 2: Bank deposits (+ investment net flow + JST deposit flows + dividend flows - remittance outflow + diaspora inflow + tourism + consumer origination + insurance + NBFI - bail-in)
-    val expectedDepChange = flows.totalIncome - flows.totalConsumption + flows.investNetDepositFlow +
+    // Identity 2: Bank deposits
+    val expectedDepChange = (flows.totalIncome - flows.totalConsumption + flows.investNetDepositFlow +
       flows.jstDepositChange +
       flows.dividendIncome - flows.foreignDividendOutflow - flows.remittanceOutflow + flows.diasporaInflow +
       flows.tourismExport - flows.tourismImport - flows.bailInLoss +
-      flows.consumerOrigination + flows.insNetDepositChange + flows.nbfiDepositDrain
-    val actualDepChange = curr.bankDeposits - prev.bankDeposits
-    val bankDepErr = actualDepChange - expectedDepChange
+      flows.consumerOrigination + flows.insNetDepositChange + flows.nbfiDepositDrain).toDouble
+    val actualDepChange = (curr.bankDeposits - prev.bankDeposits).toDouble
+    check(BankDeposits, "bank deposits change", expectedDepChange, actualDepChange)
 
-    // Identity 3: Government debt (deficit = spending - revenue, revenue includes dividendTax)
-    val expectedGovDebtChange = flows.govSpending - flows.govRevenue
-    val actualGovDebtChange = curr.govDebt - prev.govDebt
-    val govDebtErr = actualGovDebtChange - expectedGovDebtChange
+    // Identity 3: Government debt (deficit = spending - revenue)
+    val expectedGovDebtChange = (flows.govSpending - flows.govRevenue).toDouble
+    val actualGovDebtChange = (curr.govDebt - prev.govDebt).toDouble
+    check(GovDebt, "government debt change", expectedGovDebtChange, actualGovDebtChange)
 
-    // Identity 4: NFA (Net Foreign Assets)
-    // ΔNFA = currentAccount + valuationEffect
-    // When OPEN_ECON=false: both sides = 0.0, trivially passes.
-    // currentAccount includes -foreignDividendOutflow (routed through OpenEconomy or legacy)
-    val expectedNfaChange = flows.currentAccount + flows.valuationEffect
-    val actualNfaChange = curr.nfa - prev.nfa
-    val nfaErr = actualNfaChange - expectedNfaChange
+    // Identity 4: NFA (Net Foreign Assets) — wider tolerance for FP cancellation
+    val expectedNfaChange = (flows.currentAccount + flows.valuationEffect).toDouble
+    val actualNfaChange = (curr.nfa - prev.nfa).toDouble
+    check(Nfa, "NFA change (current account + valuation)", expectedNfaChange, actualNfaChange, nfaTolerance)
 
-    // Identity 5: Bond clearing
-    // All outstanding bonds must be held by bank + NBP + PPK + insurance
-    // When GovBondMarket=false: all bond fields = 0.0, trivially passes.
-    val bondClearingErr =
-      (curr.bankBondHoldings + curr.nbpBondHoldings + curr.ppkBondHoldings + curr.insuranceGovBondHoldings + curr.tfiGovBondHoldings) - curr.bondsOutstanding
+    // Identity 5: Bond clearing (holders = outstanding)
+    val bondHolders = (curr.bankBondHoldings + curr.nbpBondHoldings + curr.ppkBondHoldings +
+      curr.insuranceGovBondHoldings + curr.tfiGovBondHoldings).toDouble
+    val bondsOut = curr.bondsOutstanding.toDouble
+    check(BondClearing, "bond clearing (holders vs outstanding)", bondsOut, bondHolders)
 
-    // Identity 6: Interbank netting
-    // Sum of all banks' interbankNet positions must be zero (closed system).
-    // Trivially 0 in single-bank mode (no bankingSector present).
-    val interbankErr = curr.interbankNetSum
+    // Identity 6: Interbank netting (should be zero)
+    check(InterbankNetting, "interbank netting (should be zero)", 0.0, curr.interbankNetSum.toDouble)
 
-    // Identity 7: JST debt (trivially 0 when JST disabled — both sides = 0)
-    val expectedJstDebtChange = flows.jstSpending - flows.jstRevenue
-    val actualJstDebtChange = curr.jstDebt - prev.jstDebt
-    val jstDebtErr = actualJstDebtChange - expectedJstDebtChange
+    // Identity 7: JST debt
+    val expectedJstDebtChange = (flows.jstSpending - flows.jstRevenue).toDouble
+    val actualJstDebtChange = (curr.jstDebt - prev.jstDebt).toDouble
+    check(JstDebt, "JST debt change", expectedJstDebtChange, actualJstDebtChange)
 
-    // Identity 8: FUS balance (trivially 0 when ZUS disabled — both sides = 0)
-    val expectedFusChange = flows.zusContributions - flows.zusPensionPayments
-    val actualFusChange = curr.fusBalance - prev.fusBalance
-    val fusErr = actualFusChange - expectedFusChange
+    // Identity 8: FUS balance
+    val expectedFusChange = (flows.zusContributions - flows.zusPensionPayments).toDouble
+    val actualFusChange = (curr.fusBalance - prev.fusBalance).toDouble
+    check(FusBalance, "FUS balance change (contributions - pensions)", expectedFusChange, actualFusChange)
 
-    // Identity 9: Mortgage stock (trivially 0 when RE disabled — both sides = 0)
-    val expectedMortgageChange = flows.mortgageOrigination - flows.mortgagePrincipalRepaid - flows.mortgageDefaultAmount
-    val actualMortgageChange = curr.mortgageStock - prev.mortgageStock
-    val mortgageErr = actualMortgageChange - expectedMortgageChange
+    // Identity 9: Mortgage stock
+    val expectedMortgageChange =
+      (flows.mortgageOrigination - flows.mortgagePrincipalRepaid - flows.mortgageDefaultAmount).toDouble
+    val actualMortgageChange = (curr.mortgageStock - prev.mortgageStock).toDouble
+    check(MortgageStock, "mortgage stock change", expectedMortgageChange, actualMortgageChange)
 
-    // Identity 10: Flow-of-funds — Σ firmRevenue = domesticCons + govPurchases + exports
-    // Closes by construction via sector-level demand multipliers.
-    val fofErr = flows.fofResidual
+    // Identity 10: Flow-of-funds residual (closes by construction)
+    check(FlowOfFunds, "flow-of-funds residual", 0.0, flows.fofResidual.toDouble)
 
-    // Identity 11: Consumer credit stock — Δ consumerLoans = origination - principalRepaid - defaultAmount
-    val expectedCcChange = flows.consumerOrigination - flows.consumerPrincipalRepaid - flows.consumerDefaultAmount
-    val actualCcChange = curr.consumerLoans - prev.consumerLoans
-    val ccErr = actualCcChange - expectedCcChange
+    // Identity 11: Consumer credit stock
+    val expectedCcChange =
+      (flows.consumerOrigination - flows.consumerPrincipalRepaid - flows.consumerDefaultAmount).toDouble
+    val actualCcChange = (curr.consumerLoans - prev.consumerLoans).toDouble
+    check(ConsumerCredit, "consumer credit stock change", expectedCcChange, actualCcChange)
 
-    // Identity 12: Corporate bond stock — Δ corpBondsOutstanding = issuance - amortization - defaultAmount
-    val expectedCorpBondChange = flows.corpBondIssuance - flows.corpBondAmortization - flows.corpBondDefaultAmount
-    val actualCorpBondChange = curr.corpBondsOutstanding - prev.corpBondsOutstanding
-    val corpBondErr = actualCorpBondChange - expectedCorpBondChange
+    // Identity 12: Corporate bond stock
+    val expectedCorpBondChange =
+      (flows.corpBondIssuance - flows.corpBondAmortization - flows.corpBondDefaultAmount).toDouble
+    val actualCorpBondChange = (curr.corpBondsOutstanding - prev.corpBondsOutstanding).toDouble
+    check(CorpBondStock, "corporate bond stock change", expectedCorpBondChange, actualCorpBondChange)
 
-    // Identity 13: NBFI credit stock — Δ nbfiLoanStock = origination - repayment - defaultAmount
-    val expectedNbfiChange = flows.nbfiOrigination - flows.nbfiRepayment - flows.nbfiDefaultAmount
-    val actualNbfiChange = curr.nbfiLoanStock - prev.nbfiLoanStock
-    val nbfiCreditErr = actualNbfiChange - expectedNbfiChange
+    // Identity 13: NBFI credit stock
+    val expectedNbfiChange = (flows.nbfiOrigination - flows.nbfiRepayment - flows.nbfiDefaultAmount).toDouble
+    val actualNbfiChange = (curr.nbfiLoanStock - prev.nbfiLoanStock).toDouble
+    check(NbfiCredit, "NBFI credit stock change", expectedNbfiChange, actualNbfiChange)
 
     // Identity 14: Sectoral balances (Godley & Lavoie 2007)
     // (S − I) + (G − T) + (X − M) = 0
-    // S = totalIncome - totalConsumption (private savings)
-    // I = grossInvestment + greenInvestment + inventoryChange (private investment)
-    // G − T = govSpending - govRevenue (public deficit, = Identity 3)
-    // X = exports + tourismExport + diasporaInflow (all external receipts)
-    // M = totalImports + tourismImport + remittanceOutflow + foreignDividendOutflow
-    //     + fdiProfitShifting + fdiRepatriation (all external payments)
     val privateBal = (flows.totalIncome - flows.totalConsumption) -
       (flows.grossInvestment + flows.greenInvestment + flows.inventoryChange)
     val publicBal = flows.govSpending - flows.govRevenue
     val externalX = flows.exports + flows.tourismExport + flows.diasporaInflow
     val externalM = flows.totalImports + flows.tourismImport + flows.remittanceOutflow +
       flows.foreignDividendOutflow + flows.fdiProfitShifting + flows.fdiRepatriation
-    val externalBal = externalX - externalM
-    val sectoralBalErr = privateBal + publicBal + externalBal
+    val sectoralBalErr = (privateBal + publicBal + (externalX - externalM)).toDouble
+    if validateSectoralBalances then
+      check(SectoralBalances, "sectoral balances (S-I)+(G-T)+(X-M)=0", 0.0, sectoralBalErr)
 
-    // NFA uses wider tolerance (default 10 PLN) because cumulative NFA
-    // values can reach billions, causing floating-point cancellation
-    // in the (curr.nfa - prev.nfa) subtraction.
-    // Sectoral balances (Identity 14) is a redundant macro identity — it must hold
-    // if Identities 1–13 hold, but unit tests set partial flows that don't satisfy
-    // all three sectoral balances simultaneously. Included in passed only when
-    // validateSectoralBalances = true (integration tests / full simulation).
-    val passed = bankCapErr.abs.toDouble < tolerance &&
-      bankDepErr.abs.toDouble < tolerance &&
-      govDebtErr.abs.toDouble < tolerance &&
-      nfaErr.abs.toDouble < nfaTolerance &&
-      bondClearingErr.abs.toDouble < tolerance &&
-      interbankErr.abs.toDouble < tolerance &&
-      jstDebtErr.abs.toDouble < tolerance &&
-      fusErr.abs.toDouble < tolerance &&
-      mortgageErr.abs.toDouble < tolerance &&
-      fofErr.abs.toDouble < tolerance &&
-      ccErr.abs.toDouble < tolerance &&
-      corpBondErr.abs.toDouble < tolerance &&
-      nbfiCreditErr.abs.toDouble < tolerance
-
-    SfcResult(
-      month,
-      bankCapErr.toDouble,
-      bankDepErr.toDouble,
-      govDebtErr.toDouble,
-      nfaErr.toDouble,
-      bondClearingErr.toDouble,
-      interbankErr.toDouble,
-      jstDebtErr.toDouble,
-      fusErr.toDouble,
-      mortgageErr.toDouble,
-      fofErr.toDouble,
-      ccErr.toDouble,
-      corpBondErr.toDouble,
-      nbfiCreditErr.toDouble,
-      sectoralBalErr.toDouble,
-      passed,
-    )
+    val result = errors.result()
+    if result.isEmpty then Right(()) else Left(result)

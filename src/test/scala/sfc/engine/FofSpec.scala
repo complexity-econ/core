@@ -119,8 +119,7 @@ class FofSpec extends AnyFlatSpec with Matchers:
     val snap =
       SfcCheck.Snapshot(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN(500000.0), PLN(1000000.0), PLN.Zero, PLN.Zero)
     val result = SfcCheck.validate(1, snap, snap, flows)
-    result.fofError shouldBe 0.0
-    result.passed shouldBe true
+    result shouldBe Right(())
   }
 
   it should "fail when fofResidual exceeds tolerance" in {
@@ -139,8 +138,8 @@ class FofSpec extends AnyFlatSpec with Matchers:
     val snap =
       SfcCheck.Snapshot(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN(500000.0), PLN(1000000.0), PLN.Zero, PLN.Zero)
     val result = SfcCheck.validate(1, snap, snap, flows)
-    result.fofError shouldBe 1.0
-    result.passed shouldBe false
+    result shouldBe a[Left[?, ?]]
+    result.swap.getOrElse(Vector.empty).find(_.identity == SfcCheck.SfcIdentity.FlowOfFunds).get.actual shouldBe 1.0 +- 0.01
   }
 
   // --- helpers ---

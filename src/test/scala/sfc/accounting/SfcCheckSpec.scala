@@ -9,6 +9,9 @@ import sfc.types.*
 
 class SfcCheckSpec extends AnyFlatSpec with Matchers:
 
+  private def errorDelta(result: Either[Vector[SfcCheck.IdentityError], Unit], id: SfcCheck.SfcIdentity): Double =
+    result.swap.getOrElse(Vector.empty).find(_.identity == id).map(e => e.actual - e.expected).getOrElse(0.0)
+
   private def makeWorld(
     bankCapital: Double = 500000.0,
     bankDeposits: Double = 1000000.0,
@@ -111,8 +114,7 @@ class SfcCheckSpec extends AnyFlatSpec with Matchers:
     val curr = prev.copy(bankCapital = prev.bankCapital - PLN(3400))
     val flows = zeroFlows.copy(nplLoss = PLN(7000), interestIncome = PLN(10000), hhDebtService = PLN(2000))
     val result = SfcCheck.validate(1, prev, curr, flows)
-    result.bankCapitalError shouldBe 0.0 +- 0.01
-    result.passed shouldBe true
+    result shouldBe Right(())
   }
 
   it should "detect error when NPL loss is not applied" in {
@@ -122,8 +124,8 @@ class SfcCheckSpec extends AnyFlatSpec with Matchers:
     val curr = prev.copy(bankCapital = prev.bankCapital)
     val flows = zeroFlows.copy(nplLoss = PLN(5000))
     val result = SfcCheck.validate(1, prev, curr, flows)
-    result.bankCapitalError shouldBe 5000.0 +- 0.01 // actual=0, expected=-5000
-    result.passed shouldBe false
+    result shouldBe a[Left[?, ?]]
+    errorDelta(result, SfcCheck.SfcIdentity.BankCapital) shouldBe 5000.0 +- 0.01 // actual=0, expected=-5000
   }
 
   it should "detect error when interest income routing is wrong" in {
@@ -134,8 +136,8 @@ class SfcCheckSpec extends AnyFlatSpec with Matchers:
     val flows = zeroFlows.copy(interestIncome = PLN(10000))
     val result = SfcCheck.validate(1, prev, curr, flows)
     // actual change = +5000, expected = +3000, error = 2000
-    result.bankCapitalError shouldBe 2000.0 +- 0.01
-    result.passed shouldBe false
+    result shouldBe a[Left[?, ?]]
+    errorDelta(result, SfcCheck.SfcIdentity.BankCapital) shouldBe 2000.0 +- 0.01
   }
 
   it should "detect error when debt service is not routed to bank" in {
@@ -145,8 +147,8 @@ class SfcCheckSpec extends AnyFlatSpec with Matchers:
     val curr = prev.copy(bankCapital = prev.bankCapital)
     val flows = zeroFlows.copy(hhDebtService = PLN(3000))
     val result = SfcCheck.validate(1, prev, curr, flows)
-    result.bankCapitalError shouldBe -900.0 +- 0.01 // actual=0, expected=+900
-    result.passed shouldBe false
+    result shouldBe a[Left[?, ?]]
+    errorDelta(result, SfcCheck.SfcIdentity.BankCapital) shouldBe -900.0 +- 0.01 // actual=0, expected=+900
   }
 
   // ---- Identity 2: Bank deposits ----
@@ -158,8 +160,7 @@ class SfcCheckSpec extends AnyFlatSpec with Matchers:
     val curr = prev.copy(bankDeposits = prev.bankDeposits + PLN(18000))
     val flows = zeroFlows.copy(totalIncome = PLN(100000), totalConsumption = PLN(82000))
     val result = SfcCheck.validate(1, prev, curr, flows)
-    result.bankDepositsError shouldBe 0.0 +- 0.01
-    result.passed shouldBe true
+    result shouldBe Right(())
   }
 
   it should "detect error when deposits don't match income-consumption" in {
@@ -169,8 +170,8 @@ class SfcCheckSpec extends AnyFlatSpec with Matchers:
     val curr = prev.copy(bankDeposits = prev.bankDeposits)
     val flows = zeroFlows.copy(totalIncome = PLN(100000), totalConsumption = PLN(82000))
     val result = SfcCheck.validate(1, prev, curr, flows)
-    result.bankDepositsError shouldBe -18000.0 +- 0.01
-    result.passed shouldBe false
+    result shouldBe a[Left[?, ?]]
+    errorDelta(result, SfcCheck.SfcIdentity.BankDeposits) shouldBe -18000.0 +- 0.01
   }
 
   // ---- Identity 3: Government debt ----
@@ -182,8 +183,7 @@ class SfcCheckSpec extends AnyFlatSpec with Matchers:
     val curr = prev.copy(govDebt = prev.govDebt + PLN(10000))
     val flows = zeroFlows.copy(govSpending = PLN(30000), govRevenue = PLN(20000))
     val result = SfcCheck.validate(1, prev, curr, flows)
-    result.govDebtError shouldBe 0.0 +- 0.01
-    result.passed shouldBe true
+    result shouldBe Right(())
   }
 
   it should "pass with government surplus (negative deficit)" in {
@@ -193,8 +193,7 @@ class SfcCheckSpec extends AnyFlatSpec with Matchers:
     val curr = prev.copy(govDebt = prev.govDebt - PLN(10000))
     val flows = zeroFlows.copy(govSpending = PLN(15000), govRevenue = PLN(25000))
     val result = SfcCheck.validate(1, prev, curr, flows)
-    result.govDebtError shouldBe 0.0 +- 0.01
-    result.passed shouldBe true
+    result shouldBe Right(())
   }
 
   it should "detect error when debt doesn't match deficit" in {
@@ -204,8 +203,8 @@ class SfcCheckSpec extends AnyFlatSpec with Matchers:
     val curr = prev.copy(govDebt = prev.govDebt)
     val flows = zeroFlows.copy(govSpending = PLN(30000), govRevenue = PLN(20000))
     val result = SfcCheck.validate(1, prev, curr, flows)
-    result.govDebtError shouldBe -10000.0 +- 0.01
-    result.passed shouldBe false
+    result shouldBe a[Left[?, ?]]
+    errorDelta(result, SfcCheck.SfcIdentity.GovDebt) shouldBe -10000.0 +- 0.01
   }
 
   // ---- Zero-flow identity ----
@@ -214,10 +213,7 @@ class SfcCheckSpec extends AnyFlatSpec with Matchers:
     val snap =
       SfcCheck.Snapshot(PLN(100000), PLN(5000), PLN(500000), PLN(10000), PLN(200000), PLN(800000), PLN(10000), PLN.Zero)
     val result = SfcCheck.validate(1, snap, snap, zeroFlows)
-    result.bankCapitalError shouldBe 0.0
-    result.bankDepositsError shouldBe 0.0
-    result.govDebtError shouldBe 0.0
-    result.passed shouldBe true
+    result shouldBe Right(())
   }
 
   // ---- Combined flows ----
@@ -253,10 +249,7 @@ class SfcCheckSpec extends AnyFlatSpec with Matchers:
       nplRecovery = PLN.Zero,
     )
     val result = SfcCheck.validate(1, prev, curr, flows)
-    result.bankCapitalError shouldBe 0.0 +- 0.01
-    result.bankDepositsError shouldBe 0.0 +- 0.01
-    result.govDebtError shouldBe 0.0 +- 0.01
-    result.passed shouldBe true
+    result shouldBe Right(())
   }
 
   // ---- Tolerance ----
@@ -267,7 +260,7 @@ class SfcCheckSpec extends AnyFlatSpec with Matchers:
     // Bank capital off by 0.005 (below default tolerance of 0.01)
     val curr = prev.copy(bankCapital = prev.bankCapital + PLN(0.005))
     val result = SfcCheck.validate(1, prev, curr, zeroFlows)
-    result.passed shouldBe true
+    result shouldBe Right(())
   }
 
   it should "fail when error exceeds tolerance" in {
@@ -276,7 +269,7 @@ class SfcCheckSpec extends AnyFlatSpec with Matchers:
     // Bank capital off by 0.02 (above default tolerance of 0.01)
     val curr = prev.copy(bankCapital = prev.bankCapital + PLN(0.02))
     val result = SfcCheck.validate(1, prev, curr, zeroFlows)
-    result.passed shouldBe false
+    result shouldBe a[Left[?, ?]]
   }
 
   it should "respect custom tolerance parameter" in {
@@ -284,9 +277,9 @@ class SfcCheckSpec extends AnyFlatSpec with Matchers:
       SfcCheck.Snapshot(PLN.Zero, PLN.Zero, PLN(500000), PLN.Zero, PLN(200000), PLN(1000000), PLN.Zero, PLN.Zero)
     val curr = prev.copy(bankCapital = prev.bankCapital + PLN(5.0))
     // Default tolerance (0.01): fails
-    SfcCheck.validate(1, prev, curr, zeroFlows).passed shouldBe false
+    SfcCheck.validate(1, prev, curr, zeroFlows) shouldBe a[Left[?, ?]]
     // Loose tolerance (10.0): passes
-    SfcCheck.validate(1, prev, curr, zeroFlows, tolerance = 10.0).passed shouldBe true
+    SfcCheck.validate(1, prev, curr, zeroFlows, tolerance = 10.0) shouldBe Right(())
   }
 
   // ---- Identity 5: Bond clearing ----
@@ -307,8 +300,7 @@ class SfcCheckSpec extends AnyFlatSpec with Matchers:
       bondsOutstanding = PLN(8000.0),
     )
     val result = SfcCheck.validate(1, prev, prev, zeroFlows)
-    result.bondClearingError shouldBe 0.0 +- 0.01
-    result.passed shouldBe true
+    result shouldBe Right(())
   }
 
   it should "detect error when holdings don't sum to outstanding" in {
@@ -327,16 +319,15 @@ class SfcCheckSpec extends AnyFlatSpec with Matchers:
       bondsOutstanding = PLN(10000.0),
     )
     val result = SfcCheck.validate(1, prev, prev, zeroFlows)
-    result.bondClearingError shouldBe -2000.0 +- 0.01
-    result.passed shouldBe false
+    result shouldBe a[Left[?, ?]]
+    errorDelta(result, SfcCheck.SfcIdentity.BondClearing) shouldBe -2000.0 +- 0.01
   }
 
   it should "pass trivially when all bond fields are zero" in {
     val prev =
       SfcCheck.Snapshot(PLN.Zero, PLN.Zero, PLN(500000), PLN.Zero, PLN(200000), PLN(1000000), PLN.Zero, PLN.Zero)
     val result = SfcCheck.validate(1, prev, prev, zeroFlows)
-    result.bondClearingError shouldBe 0.0
-    result.passed shouldBe true
+    result shouldBe Right(())
   }
 
   it should "include insurance gov bond holdings in bond clearing" in {
@@ -357,8 +348,7 @@ class SfcCheckSpec extends AnyFlatSpec with Matchers:
     )
     val result = SfcCheck.validate(1, prev, prev, zeroFlows)
     // 5000 + 3000 + 0 (ppk) + 2000 (insurance) = 10000 = outstanding
-    result.bondClearingError shouldBe 0.0 +- 0.01
-    result.passed shouldBe true
+    result shouldBe Right(())
   }
 
   // ---- Identity 1 with bond income ----
@@ -370,8 +360,7 @@ class SfcCheckSpec extends AnyFlatSpec with Matchers:
     val curr = prev.copy(bankCapital = prev.bankCapital + PLN(1800))
     val flows = zeroFlows.copy(bankBondIncome = PLN(6000))
     val result = SfcCheck.validate(1, prev, curr, flows)
-    result.bankCapitalError shouldBe 0.0 +- 0.01
-    result.passed shouldBe true
+    result shouldBe Right(())
   }
 
   // ---- Unemployment benefit SFC flow ----
@@ -391,8 +380,7 @@ class SfcCheckSpec extends AnyFlatSpec with Matchers:
       interbankNetSum = PLN.Zero,
     )
     val result = SfcCheck.validate(1, prev, prev, zeroFlows)
-    result.interbankNettingError shouldBe 0.0
-    result.passed shouldBe true
+    result shouldBe Right(())
   }
 
   it should "detect error when interbankNetSum is non-zero" in {
@@ -400,16 +388,15 @@ class SfcCheckSpec extends AnyFlatSpec with Matchers:
       SfcCheck.Snapshot(PLN.Zero, PLN.Zero, PLN(500000), PLN.Zero, PLN(200000), PLN(1000000), PLN.Zero, PLN.Zero)
     val curr = prev.copy(interbankNetSum = PLN(5000.0))
     val result = SfcCheck.validate(1, prev, curr, zeroFlows)
-    result.interbankNettingError shouldBe 5000.0 +- 0.01
-    result.passed shouldBe false
+    result shouldBe a[Left[?, ?]]
+    errorDelta(result, SfcCheck.SfcIdentity.InterbankNetting) shouldBe 5000.0 +- 0.01
   }
 
   it should "pass trivially in single-bank mode (interbankNetSum=0)" in {
     val snap =
       SfcCheck.Snapshot(PLN(100000), PLN(5000), PLN(500000), PLN(10000), PLN(200000), PLN(800000), PLN(10000), PLN.Zero)
     val result = SfcCheck.validate(1, snap, snap, zeroFlows)
-    result.interbankNettingError shouldBe 0.0
-    result.passed shouldBe true
+    result shouldBe Right(())
   }
 
   // ---- Identity 2 with insurance deposit change (#41) ----
@@ -422,8 +409,7 @@ class SfcCheckSpec extends AnyFlatSpec with Matchers:
     val curr = prev.copy(bankDeposits = prev.bankDeposits + insDepChange)
     val flows = zeroFlows.copy(insNetDepositChange = insDepChange)
     val result = SfcCheck.validate(1, prev, curr, flows)
-    result.bankDepositsError shouldBe 0.0 +- 0.01
-    result.passed shouldBe true
+    result shouldBe Right(())
   }
 
   // ---- Unemployment benefit SFC flow ----
@@ -439,8 +425,7 @@ class SfcCheckSpec extends AnyFlatSpec with Matchers:
     val curr = prev.copy(govDebt = prev.govDebt + expectedDeficit)
     val flows = zeroFlows.copy(govSpending = totalGovSpend, govRevenue = govRevenue)
     val result = SfcCheck.validate(1, prev, curr, flows)
-    result.govDebtError shouldBe 0.0 +- 0.01
-    result.passed shouldBe true
+    result shouldBe Right(())
   }
 
   // ---- Identity 1 with deposit interest ----
@@ -452,8 +437,7 @@ class SfcCheckSpec extends AnyFlatSpec with Matchers:
     val curr = prev.copy(bankCapital = prev.bankCapital - PLN(900))
     val flows = zeroFlows.copy(depositInterestPaid = PLN(3000))
     val result = SfcCheck.validate(1, prev, curr, flows)
-    result.bankCapitalError shouldBe 0.0 +- 0.01
-    result.passed shouldBe true
+    result shouldBe Right(())
   }
 
   it should "pass with combined interest income and deposit interest" in {
@@ -469,8 +453,7 @@ class SfcCheckSpec extends AnyFlatSpec with Matchers:
       depositInterestPaid = PLN(3000),
     )
     val result = SfcCheck.validate(1, prev, curr, flows)
-    result.bankCapitalError shouldBe 0.0 +- 0.01
-    result.passed shouldBe true
+    result shouldBe Right(())
   }
 
   it should "detect error when deposit interest not deducted from bank capital" in {
@@ -481,8 +464,8 @@ class SfcCheckSpec extends AnyFlatSpec with Matchers:
     val flows = zeroFlows.copy(depositInterestPaid = PLN(5000))
     val result = SfcCheck.validate(1, prev, curr, flows)
     // actual=0, expected=-5000*0.3=-1500, error=0-(-1500)=1500
-    result.bankCapitalError shouldBe 1500.0 +- 0.01
-    result.passed shouldBe false
+    result shouldBe a[Left[?, ?]]
+    errorDelta(result, SfcCheck.SfcIdentity.BankCapital) shouldBe 1500.0 +- 0.01
   }
 
   // ---- Identity 2 with dividend flows ----
@@ -494,8 +477,7 @@ class SfcCheckSpec extends AnyFlatSpec with Matchers:
     val curr = prev.copy(bankDeposits = prev.bankDeposits + PLN(5000))
     val flows = zeroFlows.copy(dividendIncome = PLN(5000))
     val result = SfcCheck.validate(1, prev, curr, flows)
-    result.bankDepositsError shouldBe 0.0 +- 0.01
-    result.passed shouldBe true
+    result shouldBe Right(())
   }
 
   it should "pass when foreignDividendOutflow deducted from deposits" in {
@@ -505,8 +487,7 @@ class SfcCheckSpec extends AnyFlatSpec with Matchers:
     val curr = prev.copy(bankDeposits = prev.bankDeposits - PLN(8000))
     val flows = zeroFlows.copy(foreignDividendOutflow = PLN(8000))
     val result = SfcCheck.validate(1, prev, curr, flows)
-    result.bankDepositsError shouldBe 0.0 +- 0.01
-    result.passed shouldBe true
+    result shouldBe Right(())
   }
 
   it should "pass with combined dividend flows (income - outflow)" in {
@@ -522,8 +503,7 @@ class SfcCheckSpec extends AnyFlatSpec with Matchers:
       foreignDividendOutflow = PLN(7000),
     )
     val result = SfcCheck.validate(1, prev, curr, flows)
-    result.bankDepositsError shouldBe 0.0 +- 0.01
-    result.passed shouldBe true
+    result shouldBe Right(())
   }
 
   it should "detect error when dividend income not added to deposits" in {
@@ -533,8 +513,8 @@ class SfcCheckSpec extends AnyFlatSpec with Matchers:
     val curr = prev.copy(bankDeposits = prev.bankDeposits)
     val flows = zeroFlows.copy(dividendIncome = PLN(10000))
     val result = SfcCheck.validate(1, prev, curr, flows)
-    result.bankDepositsError shouldBe -10000.0 +- 0.01
-    result.passed shouldBe false
+    result shouldBe a[Left[?, ?]]
+    errorDelta(result, SfcCheck.SfcIdentity.BankDeposits) shouldBe -10000.0 +- 0.01
   }
 
   // ---- Identity 1 with mortgage flows ----
@@ -546,8 +526,7 @@ class SfcCheckSpec extends AnyFlatSpec with Matchers:
     val curr = prev.copy(bankCapital = prev.bankCapital + PLN(2700))
     val flows = zeroFlows.copy(mortgageInterestIncome = PLN(9000))
     val result = SfcCheck.validate(1, prev, curr, flows)
-    result.bankCapitalError shouldBe 0.0 +- 0.01
-    result.passed shouldBe true
+    result shouldBe Right(())
   }
 
   it should "include mortgage NPL loss in Identity 1" in {
@@ -557,8 +536,7 @@ class SfcCheckSpec extends AnyFlatSpec with Matchers:
     val curr = prev.copy(bankCapital = prev.bankCapital - PLN(5000))
     val flows = zeroFlows.copy(mortgageNplLoss = PLN(5000))
     val result = SfcCheck.validate(1, prev, curr, flows)
-    result.bankCapitalError shouldBe 0.0 +- 0.01
-    result.passed shouldBe true
+    result shouldBe Right(())
   }
 
   it should "pass with combined mortgage interest and NPL" in {
@@ -568,8 +546,7 @@ class SfcCheckSpec extends AnyFlatSpec with Matchers:
     val curr = prev.copy(bankCapital = prev.bankCapital + PLN(1000))
     val flows = zeroFlows.copy(mortgageInterestIncome = PLN(10000), mortgageNplLoss = PLN(2000))
     val result = SfcCheck.validate(1, prev, curr, flows)
-    result.bankCapitalError shouldBe 0.0 +- 0.01
-    result.passed shouldBe true
+    result shouldBe Right(())
   }
 
   it should "detect error when mortgage interest not routed to bank capital" in {
@@ -580,8 +557,8 @@ class SfcCheckSpec extends AnyFlatSpec with Matchers:
     val flows = zeroFlows.copy(mortgageInterestIncome = PLN(6000))
     val result = SfcCheck.validate(1, prev, curr, flows)
     // actual=0, expected=+1800, error=-1800
-    result.bankCapitalError shouldBe -1800.0 +- 0.01
-    result.passed shouldBe false
+    result shouldBe a[Left[?, ?]]
+    errorDelta(result, SfcCheck.SfcIdentity.BankCapital) shouldBe -1800.0 +- 0.01
   }
 
   // ---- Identity 9: Mortgage stock ----
@@ -606,16 +583,14 @@ class SfcCheckSpec extends AnyFlatSpec with Matchers:
       mortgageDefaultAmount = PLN(1000),
     )
     val result = SfcCheck.validate(1, prev, curr, flows)
-    result.mortgageStockError shouldBe 0.0 +- 0.01
-    result.passed shouldBe true
+    result shouldBe Right(())
   }
 
   it should "pass trivially when RE disabled (all zeros)" in {
     val prev =
       SfcCheck.Snapshot(PLN.Zero, PLN.Zero, PLN(500000), PLN.Zero, PLN(200000), PLN(1000000), PLN.Zero, PLN.Zero)
     val result = SfcCheck.validate(1, prev, prev, zeroFlows)
-    result.mortgageStockError shouldBe 0.0
-    result.passed shouldBe true
+    result shouldBe Right(())
   }
 
   it should "detect error when stock doesn't match flows" in {
@@ -634,8 +609,8 @@ class SfcCheckSpec extends AnyFlatSpec with Matchers:
     val curr = prev.copy(mortgageStock = PLN(100000.0))
     val flows = zeroFlows.copy(mortgageOrigination = PLN(15000))
     val result = SfcCheck.validate(1, prev, curr, flows)
-    result.mortgageStockError shouldBe -15000.0 +- 0.01
-    result.passed shouldBe false
+    result shouldBe a[Left[?, ?]]
+    errorDelta(result, SfcCheck.SfcIdentity.MortgageStock) shouldBe -15000.0 +- 0.01
   }
 
   it should "handle net reduction in stock (repayment > origination)" in {
@@ -658,8 +633,7 @@ class SfcCheckSpec extends AnyFlatSpec with Matchers:
       mortgageDefaultAmount = PLN(500),
     )
     val result = SfcCheck.validate(1, prev, curr, flows)
-    result.mortgageStockError shouldBe 0.0 +- 0.01
-    result.passed shouldBe true
+    result shouldBe Right(())
   }
 
   // ---- Identity 2 with remittance outflow ----
@@ -671,8 +645,7 @@ class SfcCheckSpec extends AnyFlatSpec with Matchers:
     val curr = prev.copy(bankDeposits = prev.bankDeposits - PLN(12000))
     val flows = zeroFlows.copy(remittanceOutflow = PLN(12000))
     val result = SfcCheck.validate(1, prev, curr, flows)
-    result.bankDepositsError shouldBe 0.0 +- 0.01
-    result.passed shouldBe true
+    result shouldBe Right(())
   }
 
   it should "pass with combined income, consumption, and remittance" in {
@@ -683,8 +656,7 @@ class SfcCheckSpec extends AnyFlatSpec with Matchers:
     val curr = prev.copy(bankDeposits = prev.bankDeposits + PLN(15000))
     val flows = zeroFlows.copy(totalIncome = PLN(80000), totalConsumption = PLN(60000), remittanceOutflow = PLN(5000))
     val result = SfcCheck.validate(1, prev, curr, flows)
-    result.bankDepositsError shouldBe 0.0 +- 0.01
-    result.passed shouldBe true
+    result shouldBe Right(())
   }
 
   it should "detect error when remittance not deducted" in {
@@ -695,16 +667,15 @@ class SfcCheckSpec extends AnyFlatSpec with Matchers:
     val flows = zeroFlows.copy(remittanceOutflow = PLN(8000))
     val result = SfcCheck.validate(1, prev, curr, flows)
     // actual=0, expected=-8000, error=0-(-8000)=8000
-    result.bankDepositsError shouldBe 8000.0 +- 0.01
-    result.passed shouldBe false
+    result shouldBe a[Left[?, ?]]
+    errorDelta(result, SfcCheck.SfcIdentity.BankDeposits) shouldBe 8000.0 +- 0.01
   }
 
   it should "pass trivially when remittance is zero (immigration disabled)" in {
     val prev =
       SfcCheck.Snapshot(PLN.Zero, PLN.Zero, PLN(500000), PLN.Zero, PLN(200000), PLN(1000000), PLN.Zero, PLN.Zero)
     val result = SfcCheck.validate(1, prev, prev, zeroFlows)
-    result.bankDepositsError shouldBe 0.0
-    result.passed shouldBe true
+    result shouldBe Right(())
   }
 
   // ---- Identity 2 with NBFI deposit drain (#42) ----
@@ -717,8 +688,7 @@ class SfcCheckSpec extends AnyFlatSpec with Matchers:
     val curr = prev.copy(bankDeposits = prev.bankDeposits + nbfiDrain)
     val flows = zeroFlows.copy(nbfiDepositDrain = nbfiDrain)
     val result = SfcCheck.validate(1, prev, curr, flows)
-    result.bankDepositsError shouldBe 0.0 +- 0.01
-    result.passed shouldBe true
+    result shouldBe Right(())
   }
 
   it should "detect error when NBFI deposit drain not applied" in {
@@ -728,8 +698,8 @@ class SfcCheckSpec extends AnyFlatSpec with Matchers:
     val curr = prev.copy(bankDeposits = prev.bankDeposits)
     val flows = zeroFlows.copy(nbfiDepositDrain = PLN(-1000.0))
     val result = SfcCheck.validate(1, prev, curr, flows)
-    result.bankDepositsError shouldBe 1000.0 +- 0.01
-    result.passed shouldBe false
+    result shouldBe a[Left[?, ?]]
+    errorDelta(result, SfcCheck.SfcIdentity.BankDeposits) shouldBe 1000.0 +- 0.01
   }
 
   // ---- Identity 5 with TFI gov bond holdings (#42) ----
@@ -753,8 +723,7 @@ class SfcCheckSpec extends AnyFlatSpec with Matchers:
     )
     val result = SfcCheck.validate(1, prev, prev, zeroFlows)
     // 4000 + 3000 + 0 (ppk) + 2000 (insurance) + 3000 (TFI) = 12000 = outstanding
-    result.bondClearingError shouldBe 0.0 +- 0.01
-    result.passed shouldBe true
+    result shouldBe Right(())
   }
 
   it should "detect error when TFI holdings cause mismatch" in {
@@ -776,8 +745,8 @@ class SfcCheckSpec extends AnyFlatSpec with Matchers:
     )
     val result = SfcCheck.validate(1, prev, prev, zeroFlows)
     // 4000 + 3000 + 0 + 2000 + 5000 = 14000 vs 10000 = +4000 error
-    result.bondClearingError shouldBe 4000.0 +- 0.01
-    result.passed shouldBe false
+    result shouldBe a[Left[?, ?]]
+    errorDelta(result, SfcCheck.SfcIdentity.BondClearing) shouldBe 4000.0 +- 0.01
   }
 
   // ---- Identity 13: NBFI credit stock (#42) ----
@@ -798,16 +767,14 @@ class SfcCheckSpec extends AnyFlatSpec with Matchers:
     val curr = prev.copy(nbfiLoanStock = PLN(102500.0))
     val flows = zeroFlows.copy(nbfiOrigination = PLN(5000), nbfiRepayment = PLN(2000), nbfiDefaultAmount = PLN(500))
     val result = SfcCheck.validate(1, prev, curr, flows)
-    result.nbfiCreditError shouldBe 0.0 +- 0.01
-    result.passed shouldBe true
+    result shouldBe Right(())
   }
 
   it should "pass trivially when NBFI disabled (all zeros)" in {
     val prev =
       SfcCheck.Snapshot(PLN.Zero, PLN.Zero, PLN(500000), PLN.Zero, PLN(200000), PLN(1000000), PLN.Zero, PLN.Zero)
     val result = SfcCheck.validate(1, prev, prev, zeroFlows)
-    result.nbfiCreditError shouldBe 0.0
-    result.passed shouldBe true
+    result shouldBe Right(())
   }
 
   it should "detect error when NBFI stock doesn't match flows" in {
@@ -826,8 +793,8 @@ class SfcCheckSpec extends AnyFlatSpec with Matchers:
     val curr = prev.copy(nbfiLoanStock = PLN(100000.0))
     val flows = zeroFlows.copy(nbfiOrigination = PLN(8000))
     val result = SfcCheck.validate(1, prev, curr, flows)
-    result.nbfiCreditError shouldBe -8000.0 +- 0.01
-    result.passed shouldBe false
+    result shouldBe a[Left[?, ?]]
+    errorDelta(result, SfcCheck.SfcIdentity.NbfiCredit) shouldBe -8000.0 +- 0.01
   }
 
   it should "handle net reduction in NBFI stock (repayment > origination)" in {
@@ -846,6 +813,5 @@ class SfcCheckSpec extends AnyFlatSpec with Matchers:
     val curr = prev.copy(nbfiLoanStock = PLN(96800.0))
     val flows = zeroFlows.copy(nbfiOrigination = PLN(1000), nbfiRepayment = PLN(4000), nbfiDefaultAmount = PLN(200))
     val result = SfcCheck.validate(1, prev, curr, flows)
-    result.nbfiCreditError shouldBe 0.0 +- 0.01
-    result.passed shouldBe true
+    result shouldBe Right(())
   }
