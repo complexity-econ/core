@@ -149,7 +149,7 @@ class FofSpec extends AnyFlatSpec with Matchers:
     val snap = zeroSnap.copy(bankCapital = PLN(500000.0), bankDeposits = PLN(1000000.0))
     val result = Sfc.validate(1, snap, snap, flows)
     result shouldBe a[Left[?, ?]]
-    result.swap.getOrElse(Vector.empty).find(_.identity == Sfc.SfcIdentity.FlowOfFunds).get.actual shouldBe 1.0 +- 0.01
+    result.swap.getOrElse(Vector.empty).find(_.identity == Sfc.SfcIdentity.FlowOfFunds).get.actual.toDouble shouldBe 1.0 +- 0.01
   }
 
   // --- helpers ---

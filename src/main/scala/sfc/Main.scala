@@ -45,8 +45,8 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
       case Left(errors) =>
         errors.foreach { e =>
           System.err.println(
-            f"[SFC] Month ${t + 1} ${e.identity}: expected=${e.expected}%.2f actual=${e.actual}%.2f" +
-              f" (Δ=${e.actual - e.expected}%.2f) — ${e.msg}",
+            f"[SFC] Month ${t + 1} ${e.identity}: expected=${e.expected.toDouble}%.2f actual=${e.actual.toDouble}%.2f" +
+              f" (Δ=${(e.actual - e.expected).toDouble}%.2f) — ${e.msg}",
           )
         }
       case Right(()) => // OK
