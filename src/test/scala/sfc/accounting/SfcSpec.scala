@@ -9,7 +9,7 @@ import sfc.types.*
 
 class SfcSpec extends AnyFlatSpec with Matchers:
 
-  private def errorDelta(result: Either[Vector[Sfc.IdentityError], Unit], id: Sfc.SfcIdentity): Double =
+  private def errorDelta(result: Either[Vector[Sfc.SfcIdentityError], Unit], id: Sfc.SfcIdentity): Double =
     result.swap.getOrElse(Vector.empty).find(_.identity == id).map(e => (e.actual - e.expected).toDouble).getOrElse(0.0)
 
   private def makeWorld(

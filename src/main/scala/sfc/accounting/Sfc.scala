@@ -67,7 +67,7 @@ object Sfc:
     *
     * These values are assembled in WorldAssemblyStep from the intermediate results of Simulation.step.
     * They must match the '''exact''' values used in balance sheet updates — any discrepancy will cause
-    * validate to report an IdentityError. Fields with default PLN.Zero correspond to mechanisms that
+    * validate to report an SfcIdentityError. Fields with default PLN.Zero correspond to mechanisms that
     * may be disabled; when disabled, the flow is zero and the corresponding identity holds trivially.
     */
   case class MonthlyFlows(
@@ -132,7 +132,7 @@ object Sfc:
   )
 
   /** Enumeration of the 13 balance-sheet identities checked each month. Used as a discriminator
-    * in IdentityError so callers can programmatically identify which identity was violated.
+    * in SfcIdentityError so callers can programmatically identify which identity was violated.
     */
   enum SfcIdentity:
     case BankCapital, BankDeposits, GovDebt, Nfa, BondClearing,
@@ -142,7 +142,7 @@ object Sfc:
   /** A single identity violation, carrying the identity that failed, a human-readable description,
     * and the expected vs actual monetary values so callers can inspect the magnitude of the discrepancy.
     */
-  case class IdentityError(
+  case class SfcIdentityError(
     identity: SfcIdentity,
     msg: String,
     expected: PLN,
@@ -224,7 +224,7 @@ object Sfc:
     flows: MonthlyFlows, // all flows that occurred during the month
     tolerance: PLN = PLN(0.01), // max allowed |actual − expected| for most identities
     nfaTolerance: PLN = PLN(1.0), // wider tolerance for NFA (Identity 4) due to FP cancellation in BoP
-  ): Either[Vector[IdentityError], Unit] =
+  ): Either[Vector[SfcIdentityError], Unit] =
     import SfcIdentity.*
 
     val identities: Vector[(SfcIdentity, String, PLN, PLN, PLN)] = Vector(
@@ -346,6 +346,6 @@ object Sfc:
 
     val errors = identities.collect:
       case (id, msg, expected, actual, tol) if (actual - expected).abs >= tol =>
-        IdentityError(id, msg, expected, actual)
+        SfcIdentityError(id, msg, expected, actual)
 
     if errors.isEmpty then Right(()) else Left(errors)

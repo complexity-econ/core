@@ -145,7 +145,7 @@ object WorldAssemblyStep:
                      newWorld: World,
                      finalFirms: Array[Firm.State],
                      reassignedHouseholds: Option[Vector[Household.State]],
-                     sfcResult: Either[Vector[Sfc.IdentityError], Unit],
+                     sfcResult: Either[Vector[Sfc.SfcIdentityError], Unit],
   )
 
   def run(in: Input): Output =
