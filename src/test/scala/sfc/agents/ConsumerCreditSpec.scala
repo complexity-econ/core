@@ -2,7 +2,7 @@ package sfc.agents
 
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import sfc.accounting.{BankState, SfcCheck}
+import sfc.accounting.{BankState, Sfc}
 import sfc.config.Config
 import sfc.types.*
 
@@ -190,10 +190,44 @@ class ConsumerCreditSpec extends AnyFlatSpec with Matchers:
     bank.car should be < bankNoCc.car
   }
 
-  "SfcCheck" should "include consumerCreditError in SfcResult" in {
-    val snap = SfcCheck.Snapshot(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN(100.0), PLN(200.0), PLN.Zero, PLN.Zero)
-    val flow =
-      SfcCheck.MonthlyFlows(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
-    val result = SfcCheck.validate(1, snap, snap, flow)
-    result.consumerCreditError shouldBe 0.0 +- 0.01
+  private def zeroSnap: Sfc.Snapshot = Sfc.Snapshot(
+    hhSavings = PLN.Zero, hhDebt = PLN.Zero, firmCash = PLN.Zero, firmDebt = PLN.Zero,
+    bankCapital = PLN.Zero, bankDeposits = PLN.Zero, bankLoans = PLN.Zero, govDebt = PLN.Zero,
+    nfa = PLN.Zero, bankBondHoldings = PLN.Zero, nbpBondHoldings = PLN.Zero,
+    bondsOutstanding = PLN.Zero, interbankNetSum = PLN.Zero, jstDeposits = PLN.Zero,
+    jstDebt = PLN.Zero, fusBalance = PLN.Zero, ppkBondHoldings = PLN.Zero,
+    mortgageStock = PLN.Zero, consumerLoans = PLN.Zero, corpBondsOutstanding = PLN.Zero,
+    insuranceGovBondHoldings = PLN.Zero, tfiGovBondHoldings = PLN.Zero, nbfiLoanStock = PLN.Zero,
+  )
+
+  private def zeroFlows: Sfc.MonthlyFlows = Sfc.MonthlyFlows(
+    govSpending = PLN.Zero, govRevenue = PLN.Zero, nplLoss = PLN.Zero,
+    interestIncome = PLN.Zero, hhDebtService = PLN.Zero, totalIncome = PLN.Zero,
+    totalConsumption = PLN.Zero, newLoans = PLN.Zero, nplRecovery = PLN.Zero,
+    currentAccount = PLN.Zero, valuationEffect = PLN.Zero, bankBondIncome = PLN.Zero,
+    qePurchase = PLN.Zero, newBondIssuance = PLN.Zero, depositInterestPaid = PLN.Zero,
+    reserveInterest = PLN.Zero, standingFacilityIncome = PLN.Zero, interbankInterest = PLN.Zero,
+    jstDepositChange = PLN.Zero, jstSpending = PLN.Zero, jstRevenue = PLN.Zero,
+    zusContributions = PLN.Zero, zusPensionPayments = PLN.Zero, zusGovSubvention = PLN.Zero,
+    dividendIncome = PLN.Zero, foreignDividendOutflow = PLN.Zero, dividendTax = PLN.Zero,
+    mortgageInterestIncome = PLN.Zero, mortgageNplLoss = PLN.Zero, mortgageOrigination = PLN.Zero,
+    mortgagePrincipalRepaid = PLN.Zero, mortgageDefaultAmount = PLN.Zero,
+    remittanceOutflow = PLN.Zero, fofResidual = PLN.Zero,
+    consumerDebtService = PLN.Zero, consumerNplLoss = PLN.Zero, consumerOrigination = PLN.Zero,
+    consumerPrincipalRepaid = PLN.Zero, consumerDefaultAmount = PLN.Zero,
+    corpBondCouponIncome = PLN.Zero, corpBondDefaultLoss = PLN.Zero, corpBondIssuance = PLN.Zero,
+    corpBondAmortization = PLN.Zero, corpBondDefaultAmount = PLN.Zero,
+    insNetDepositChange = PLN.Zero, nbfiDepositDrain = PLN.Zero, nbfiOrigination = PLN.Zero,
+    nbfiRepayment = PLN.Zero, nbfiDefaultAmount = PLN.Zero,
+    fdiProfitShifting = PLN.Zero, fdiRepatriation = PLN.Zero,
+    diasporaInflow = PLN.Zero, tourismExport = PLN.Zero, tourismImport = PLN.Zero,
+    bfgLevy = PLN.Zero, bailInLoss = PLN.Zero, bankCapitalDestruction = PLN.Zero,
+    investNetDepositFlow = PLN.Zero,
+  )
+
+  "Sfc" should "pass consumer credit identity with zero flows" in {
+    val snap = zeroSnap.copy(bankCapital = PLN(100.0), bankDeposits = PLN(200.0))
+    val flow = zeroFlows
+    val result = Sfc.validate(snap, snap, flow)
+    result shouldBe Right(())
   }

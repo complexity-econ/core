@@ -233,13 +233,13 @@ object BankUpdateStep:
       capital = PLN(
         in.w.bank.capital.toDouble - in.nplLoss - mortgageDefaultLoss - in.consumerNplLoss
           - in.corpBondBankDefaultLoss - bfgLevy
-          + in.intIncome * 0.3 + in.hhDebtService * 0.3
-          + in.bankBondIncome * 0.3 - in.depositInterestPaid * 0.3
-          + in.totalReserveInterest * 0.3 + in.totalStandingFacilityIncome * 0.3
-          + in.totalInterbankInterest * 0.3
-          + mortgageInterestIncome * 0.3
-          + in.consumerDebtService * 0.3
-          + in.corpBondBankCoupon * 0.3,
+          + in.intIncome * Config.BankProfitRetention + in.hhDebtService * Config.BankProfitRetention
+          + in.bankBondIncome * Config.BankProfitRetention - in.depositInterestPaid * Config.BankProfitRetention
+          + in.totalReserveInterest * Config.BankProfitRetention + in.totalStandingFacilityIncome * Config.BankProfitRetention
+          + in.totalInterbankInterest * Config.BankProfitRetention
+          + mortgageInterestIncome * Config.BankProfitRetention
+          + in.consumerDebtService * Config.BankProfitRetention
+          + in.corpBondBankCoupon * Config.BankProfitRetention,
       ),
       deposits = PLN(
         in.w.bank.deposits.toDouble + (in.totalIncome - in.consumption) + investNetDepositFlow
@@ -403,12 +403,12 @@ object BankUpdateStep:
               nplAmount = PLN(Math.max(0.0, b.nplAmount.toDouble + bankNplNew - b.nplAmount.toDouble * 0.05)),
               capital = PLN(
                 b.capital.toDouble - bankNplLoss - bankMortgageNplLoss - bankCcNplLoss
-                  - bankCorpBondDefaultLoss - bankBfgLevy + bankIntIncome * 0.3 +
-                  bankHhDebtService * 0.3 + bankBondInc * 0.3 - bankDepInterest * 0.3
-                  + bankResInt * 0.3 + bankSfInc * 0.3 + bankIbInt * 0.3
-                  + bankMortgageIntIncome * 0.3
-                  + bankCcDSvc * 0.3
-                  + bankCorpBondCoupon * 0.3,
+                  - bankCorpBondDefaultLoss - bankBfgLevy + bankIntIncome * Config.BankProfitRetention +
+                  bankHhDebtService * Config.BankProfitRetention + bankBondInc * Config.BankProfitRetention - bankDepInterest * Config.BankProfitRetention
+                  + bankResInt * Config.BankProfitRetention + bankSfInc * Config.BankProfitRetention + bankIbInt * Config.BankProfitRetention
+                  + bankMortgageIntIncome * Config.BankProfitRetention
+                  + bankCcDSvc * Config.BankProfitRetention
+                  + bankCorpBondCoupon * Config.BankProfitRetention,
               ),
               deposits = PLN(newDep),
               demandDeposits = PLN(newDep * (1.0 - Config.BankTermDepositFrac)),

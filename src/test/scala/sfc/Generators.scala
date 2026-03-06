@@ -263,7 +263,7 @@ object Generators:
 
   // --- SFC Check generators ---
 
-  val genSnapshot: Gen[SfcCheck.Snapshot] = for
+  val genSnapshot: Gen[Sfc.Snapshot] = for
     hhS <- Gen.choose(0.0, 1e10)
     hhD <- Gen.choose(0.0, 1e9)
     fCash <- Gen.choose(0.0, 1e10)
@@ -280,28 +280,33 @@ object Generators:
     fusBal <- Gen.choose(-1e10, 1e10)
     ppkBonds <- Gen.choose(0.0, 1e9)
     mortStock <- Gen.choose(0.0, 1e12)
-  yield SfcCheck.Snapshot(
-    PLN(hhS),
-    PLN(hhD),
-    PLN(fCash),
-    PLN(fDebt),
-    PLN(bCap),
-    PLN(bDep),
-    PLN(bLoans),
-    PLN(govDebt),
-    PLN(nfa),
-    PLN(bankBonds),
-    PLN(nbpBonds),
-    PLN(bankBonds + nbpBonds + ppkBonds),
+  yield Sfc.Snapshot(
+    hhSavings = PLN(hhS),
+    hhDebt = PLN(hhD),
+    firmCash = PLN(fCash),
+    firmDebt = PLN(fDebt),
+    bankCapital = PLN(bCap),
+    bankDeposits = PLN(bDep),
+    bankLoans = PLN(bLoans),
+    govDebt = PLN(govDebt),
+    nfa = PLN(nfa),
+    bankBondHoldings = PLN(bankBonds),
+    nbpBondHoldings = PLN(nbpBonds),
+    bondsOutstanding = PLN(bankBonds + nbpBonds + ppkBonds),
     interbankNetSum = PLN.Zero,
     jstDeposits = PLN(jstDep),
     jstDebt = PLN(jstDebt),
     fusBalance = PLN(fusBal),
     ppkBondHoldings = PLN(ppkBonds),
     mortgageStock = PLN(mortStock),
+    consumerLoans = PLN.Zero,
+    corpBondsOutstanding = PLN.Zero,
+    insuranceGovBondHoldings = PLN.Zero,
+    tfiGovBondHoldings = PLN.Zero,
+    nbfiLoanStock = PLN.Zero,
   )
 
-  val genMonthlyFlows: Gen[SfcCheck.MonthlyFlows] = for
+  val genMonthlyFlows: Gen[Sfc.MonthlyFlows] = for
     govSpend <- Gen.choose(0.0, 1e9)
     govRev <- Gen.choose(0.0, 1e9)
     nplLoss <- Gen.choose(0.0, 1e8)
@@ -334,59 +339,96 @@ object Generators:
     mortOrig <- Gen.choose(0.0, 1e9)
     mortPrinc <- Gen.choose(0.0, 1e8)
     mortDefAmt <- Gen.choose(0.0, 1e7)
-  yield SfcCheck.MonthlyFlows(
-    PLN(govSpend),
-    PLN(govRev),
-    PLN(nplLoss),
-    PLN(intIncome),
-    PLN(hhDebtSvc),
-    PLN(totIncome),
-    PLN(totCons),
-    PLN(newLoans),
-    PLN(nplRecov),
-    PLN(ca),
-    PLN(valEff),
-    PLN(bankBondInc),
-    PLN(qePurchase),
-    PLN(newBondIssue),
-    PLN(depIntPaid),
-    PLN(resInt),
-    PLN(sfIncome),
-    PLN(ibInterest),
-    PLN(jstDepChg),
-    PLN(jstSpend),
-    PLN(jstRev),
-    PLN(zusContrib),
-    PLN(zusPension),
-    PLN(zusGovSub),
-    PLN(divIncome),
-    PLN(foreignDiv),
-    PLN(divTax),
-    PLN(mortIntInc),
-    PLN(mortNplLoss),
-    PLN(mortOrig),
-    PLN(mortPrinc),
-    PLN(mortDefAmt),
+  yield Sfc.MonthlyFlows(
+    govSpending = PLN(govSpend),
+    govRevenue = PLN(govRev),
+    nplLoss = PLN(nplLoss),
+    interestIncome = PLN(intIncome),
+    hhDebtService = PLN(hhDebtSvc),
+    totalIncome = PLN(totIncome),
+    totalConsumption = PLN(totCons),
+    newLoans = PLN(newLoans),
+    nplRecovery = PLN(nplRecov),
+    currentAccount = PLN(ca),
+    valuationEffect = PLN(valEff),
+    bankBondIncome = PLN(bankBondInc),
+    qePurchase = PLN(qePurchase),
+    newBondIssuance = PLN(newBondIssue),
+    depositInterestPaid = PLN(depIntPaid),
+    reserveInterest = PLN(resInt),
+    standingFacilityIncome = PLN(sfIncome),
+    interbankInterest = PLN(ibInterest),
+    jstDepositChange = PLN(jstDepChg),
+    jstSpending = PLN(jstSpend),
+    jstRevenue = PLN(jstRev),
+    zusContributions = PLN(zusContrib),
+    zusPensionPayments = PLN(zusPension),
+    zusGovSubvention = PLN(zusGovSub),
+    dividendIncome = PLN(divIncome),
+    foreignDividendOutflow = PLN(foreignDiv),
+    dividendTax = PLN(divTax),
+    mortgageInterestIncome = PLN(mortIntInc),
+    mortgageNplLoss = PLN(mortNplLoss),
+    mortgageOrigination = PLN(mortOrig),
+    mortgagePrincipalRepaid = PLN(mortPrinc),
+    mortgageDefaultAmount = PLN(mortDefAmt),
+    remittanceOutflow = PLN.Zero,
+    fofResidual = PLN.Zero,
+    consumerDebtService = PLN.Zero,
+    consumerNplLoss = PLN.Zero,
+    consumerOrigination = PLN.Zero,
+    consumerPrincipalRepaid = PLN.Zero,
+    consumerDefaultAmount = PLN.Zero,
+    corpBondCouponIncome = PLN.Zero,
+    corpBondDefaultLoss = PLN.Zero,
+    corpBondIssuance = PLN.Zero,
+    corpBondAmortization = PLN.Zero,
+    corpBondDefaultAmount = PLN.Zero,
+    insNetDepositChange = PLN.Zero,
+    nbfiDepositDrain = PLN.Zero,
+    nbfiOrigination = PLN.Zero,
+    nbfiRepayment = PLN.Zero,
+    nbfiDefaultAmount = PLN.Zero,
+    fdiProfitShifting = PLN.Zero,
+    fdiRepatriation = PLN.Zero,
+    diasporaInflow = PLN.Zero,
+    tourismExport = PLN.Zero,
+    tourismImport = PLN.Zero,
+    bfgLevy = PLN.Zero,
+    bailInLoss = PLN.Zero,
+    bankCapitalDestruction = PLN.Zero,
+    investNetDepositFlow = PLN.Zero,
   )
 
   /** Generate (prev, curr, flows) where all 9 SFC identities hold exactly. */
-  val genConsistentFlowsAndSnapshots: Gen[(SfcCheck.Snapshot, SfcCheck.Snapshot, SfcCheck.MonthlyFlows)] =
+  val genConsistentFlowsAndSnapshots: Gen[(Sfc.Snapshot, Sfc.Snapshot, Sfc.MonthlyFlows)] =
     for
       prev <- genSnapshot
       flows <- genMonthlyFlows
     yield
-      val expectedBankCapChange = -flows.nplLoss - flows.mortgageNplLoss +
+      val expectedBankCapChange = -flows.nplLoss - flows.mortgageNplLoss - flows.consumerNplLoss
+        - flows.corpBondDefaultLoss - flows.bfgLevy - flows.bankCapitalDestruction +
         (flows.interestIncome + flows.hhDebtService + flows.bankBondIncome
-          + flows.mortgageInterestIncome - flows.depositInterestPaid
+          + flows.mortgageInterestIncome + flows.consumerDebtService + flows.corpBondCouponIncome
+          - flows.depositInterestPaid
           + flows.reserveInterest + flows.standingFacilityIncome + flows.interbankInterest) * 0.3
-      val expectedDepChange = flows.totalIncome - flows.totalConsumption + flows.jstDepositChange +
-        flows.dividendIncome - flows.foreignDividendOutflow
+      val expectedDepChange = flows.totalIncome - flows.totalConsumption + flows.investNetDepositFlow +
+        flows.jstDepositChange +
+        flows.dividendIncome - flows.foreignDividendOutflow - flows.remittanceOutflow + flows.diasporaInflow +
+        flows.tourismExport - flows.tourismImport - flows.bailInLoss +
+        flows.consumerOrigination + flows.insNetDepositChange + flows.nbfiDepositDrain
       val expectedGovDebtChange = flows.govSpending - flows.govRevenue
       val expectedNfaChange = flows.currentAccount + flows.valuationEffect
       val expectedJstDebtChange = flows.jstSpending - flows.jstRevenue
       val expectedFusChange = flows.zusContributions - flows.zusPensionPayments
       val expectedMortgageChange =
         flows.mortgageOrigination - flows.mortgagePrincipalRepaid - flows.mortgageDefaultAmount
+      val expectedCcChange =
+        flows.consumerOrigination - flows.consumerPrincipalRepaid - flows.consumerDefaultAmount
+      val expectedCorpBondChange =
+        flows.corpBondIssuance - flows.corpBondAmortization - flows.corpBondDefaultAmount
+      val expectedNbfiChange =
+        flows.nbfiOrigination - flows.nbfiRepayment - flows.nbfiDefaultAmount
       val curr = prev.copy(
         bankCapital = prev.bankCapital + expectedBankCapChange,
         bankDeposits = prev.bankDeposits + expectedDepChange,
@@ -395,6 +437,9 @@ object Generators:
         jstDebt = prev.jstDebt + expectedJstDebtChange,
         fusBalance = prev.fusBalance + expectedFusChange,
         mortgageStock = prev.mortgageStock + expectedMortgageChange,
+        consumerLoans = prev.consumerLoans + expectedCcChange,
+        corpBondsOutstanding = prev.corpBondsOutstanding + expectedCorpBondChange,
+        nbfiLoanStock = prev.nbfiLoanStock + expectedNbfiChange,
       )
       // Bond clearing: bankBondHoldings + nbpBondHoldings + ppkBondHoldings = bondsOutstanding
       // genSnapshot already ensures this for prev; curr inherits prev's bond fields unchanged

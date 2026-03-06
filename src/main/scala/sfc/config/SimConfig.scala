@@ -661,6 +661,8 @@ object Config:
   // requirements, and bank failure/resolution mechanics.
   // BANK_MODE=single (default): aggregate banking sector (1 representative bank).
   // ───────────────────────────────────────────────────────────────────────
+  // Profit retention ratio: fraction of net interest income retained as capital (KNF/UKNF dividend policy)
+  val BankProfitRetention: Double = sys.env.get("BANK_PROFIT_RETENTION").map(_.trim.toDouble).getOrElse(0.30)
   val BankMulti: Boolean = sys.env.get("BANK_MODE").map(_.trim.toLowerCase).getOrElse("single") == "multi"
   val BankFailureEnabled: Boolean =
     sys.env.get("BANK_FAILURE").map(_.trim.toBoolean).getOrElse(false) // Bank failure & resolution
