@@ -656,7 +656,7 @@ object Firm:
     innovationCostFactor: Double,
     digitalReadiness: Ratio,
     sector: SectorIdx, // Index into SECTORS
-    neighbors: Array[Int], // Network adjacency (firm IDs)
+    neighbors: Array[FirmId], // Network adjacency (firm IDs)
     bankId: BankId = BankId(0), // Multi-bank: index into Banking.State.banks
     equityRaised: PLN = PLN.Zero, // GPW: cumulative equity raised via IPO/SPO
     initialSize: Int = 10, // Firm size at creation (v6.0: heterogeneous when FIRM_SIZE_DIST=gus)

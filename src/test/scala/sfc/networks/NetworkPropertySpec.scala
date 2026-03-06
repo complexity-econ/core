@@ -191,7 +191,7 @@ class NetworkPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPrope
         1.0,
         Ratio(0.4),
         SectorIdx(0),
-        (0 until 10).filter(_ != i).toArray,
+        (0 until 10).filter(_ != i).map(FirmId(_)).toArray,
       )
     }.toArray
     for f <- firms do
@@ -210,7 +210,7 @@ class NetworkPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPrope
       1.0,
       Ratio(0.4),
       SectorIdx(0),
-      Array.empty[Int],
+      Array.empty[FirmId],
     )
     val firms = Array(firm)
     Network.localAutoRatio(firm, firms) shouldBe 0.0

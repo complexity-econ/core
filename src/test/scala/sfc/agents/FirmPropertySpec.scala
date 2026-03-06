@@ -115,7 +115,7 @@ class FirmPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckProperty
           innov,
           Ratio(digiR),
           SectorIdx(sector),
-          Array.empty[Int],
+          Array.empty[FirmId],
           initialSize = 16,
         )
         val f2 = Firm.State(
@@ -127,7 +127,7 @@ class FirmPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckProperty
           innov,
           Ratio(digiR),
           SectorIdx(sector),
-          Array.empty[Int],
+          Array.empty[FirmId],
           initialSize = 16,
         )
         val ratio = Firm.capacity(f2) / Firm.capacity(f1)
@@ -147,7 +147,7 @@ class FirmPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckProperty
           innov,
           Ratio(digiR),
           SectorIdx(sector),
-          Array.empty[Int],
+          Array.empty[FirmId],
           initialSize = 10,
         )
         val f2 = Firm.State(
@@ -159,7 +159,7 @@ class FirmPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckProperty
           innov,
           Ratio(digiR),
           SectorIdx(sector),
-          Array.empty[Int],
+          Array.empty[FirmId],
           initialSize = 25,
         )
         val ratio = Firm.capacity(f2) / Firm.capacity(f1)
