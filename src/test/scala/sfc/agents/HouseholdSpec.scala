@@ -155,8 +155,9 @@ class HouseholdSpec extends AnyFlatSpec with Matchers:
       lendingRates = Array(0.06, 0.10),
       depositRates = Array(0.04, 0.04),
     )
-    val (_, agg, Some(pbf)) =
+    val (_, agg, maybePbf) =
       Household.step(hhs, mkWorld(), 2000.0, 8000.0, 4666.0, 0.4, rng, nBanks = 2, bankRates = Some(br))
+    val pbf = maybePbf.get
     // Expected debt service: debt * (HhBaseAmortRate + lendingRate/12)
     val expectedDs0 = debt.toDouble * (Config.HhBaseAmortRate + 0.06 / 12.0)
     val expectedDs1 = debt.toDouble * (Config.HhBaseAmortRate + 0.10 / 12.0)
@@ -177,8 +178,9 @@ class HouseholdSpec extends AnyFlatSpec with Matchers:
       lendingRates = Array(0.07),
       depositRates = Array(depRate),
     )
-    val (_, agg, Some(pbf)) =
+    val (_, agg, maybePbf) =
       Household.step(hhs, mkWorld(), 0.0, 8000.0, 4666.0, 0.4, rng, nBanks = 1, bankRates = Some(br))
+    val pbf = maybePbf.get
     val expectedDepInt = depRate / 12.0 * savings.toDouble
     pbf.depositInterest(0) shouldBe expectedDepInt +- 0.01
     agg.totalDepositInterest.toDouble shouldBe expectedDepInt +- 0.01
@@ -232,8 +234,9 @@ class HouseholdSpec extends AnyFlatSpec with Matchers:
       lendingRates = Array(0.07, 0.08),
       depositRates = Array(0.035, 0.035),
     )
-    val (_, _, Some(pbf)) =
+    val (_, _, maybePbf) =
       Household.step(hhs, mkWorld(), 0.0, 8000.0, 4666.0, 0.4, rng, nBanks = 2, bankRates = Some(br))
+    val pbf = maybePbf.get
     // Bank 0 has HH 0 and 1: income should include both
     pbf.income(0) should be > 0.0
     pbf.income(1) should be > 0.0
@@ -254,8 +257,9 @@ class HouseholdSpec extends AnyFlatSpec with Matchers:
       lendingRates = Array(0.07),
       depositRates = Array(0.04),
     )
-    val (_, agg, Some(pbf)) =
+    val (_, agg, maybePbf) =
       Household.step(hhs, mkWorld(), 0.0, 8000.0, 4666.0, 0.4, rng, nBanks = 1, bankRates = Some(br))
+    val pbf = maybePbf.get
     // Deposit interest on negative savings is floored at 0
     pbf.depositInterest(0) shouldBe 0.0
     agg.totalDepositInterest.toDouble shouldBe 0.0
