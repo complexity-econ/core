@@ -96,19 +96,12 @@ object SfcCheck:
     bailInLoss: PLN = PLN.Zero, // bail-in deposit destruction
     bankCapitalDestruction: PLN = PLN.Zero, // Capital wiped when bank fails (shareholders wiped)
     investNetDepositFlow: PLN = PLN.Zero, // Investment demand net flow: lagged revenue - current spending
-    // Identity 14 (sectoral balances): (S−I) + (G−T) + (X−M) = 0
-    exports: PLN = PLN.Zero, // Total goods exports (BoP)
-    totalImports: PLN = PLN.Zero, // Total goods imports (BoP, incl. profit shifting)
-    grossInvestment: PLN = PLN.Zero, // Firm gross fixed capital formation
-    greenInvestment: PLN = PLN.Zero, // Green capital investment
-    inventoryChange: PLN = PLN.Zero, // ΔInventories (SNA 2008)
   )
 
   enum SfcIdentity:
     case BankCapital, BankDeposits, GovDebt, Nfa, BondClearing,
       InterbankNetting, JstDebt, FusBalance, MortgageStock,
-      FlowOfFunds, ConsumerCredit, CorpBondStock, NbfiCredit,
-      SectoralBalances
+      FlowOfFunds, ConsumerCredit, CorpBondStock, NbfiCredit
 
   case class IdentityError(
     identity: SfcIdentity,
@@ -147,8 +140,11 @@ object SfcCheck:
       nbfiLoanStock = w.nbfi.nbfiLoanStock,
     )
 
-  /** Validate 14 exact balance-sheet identities. Returns `Right(())` if all pass,
+  /** Validate 13 exact balance-sheet identities. Returns `Right(())` if all pass,
     * or `Left(errors)` with every violated identity and its expected/actual values.
+    *
+    * Together these 13 identities ensure that every financial asset has a matching liability,
+    * which implies the Godley sectoral balances rule (S−I)+(G−T)+(X−M)=0 by construction.
     *
     * The monetary circuit closes via sector-level flow-of-funds (Identity 10).
     *
@@ -172,11 +168,6 @@ object SfcCheck:
     *   11. Consumer credit: Δ consumerLoans = origination - principalRepaid - defaultAmount
     *   12. Corp bond stock: Δ corpBondsOutstanding = issuance - amortization - defaultAmount
     *   13. NBFI credit stock: Δ nbfiLoanStock = origination - repayment - defaultAmount
-    *   14. Sectoral balances (Godley & Lavoie 2007): (S − I) + (G − T) + (X − M) = 0 where (S − I) = private sector
-    *       balance (savings minus investment), (G − T) = public sector balance (gov spending minus taxes), (X − M) =
-    *       external sector balance (exports minus imports). Derived macro identity — if Identities 1–13 hold, this
-    *       must hold by construction. Gated behind `validateSectoralBalances` flag (default false) because the
-    *       S, I, G, T, X, M mapping to model flows is incomplete.
     *
     * These catch: mis-routed flows (e.g. rent subtracted from HH but not added to bank/consumption), refactoring errors
     * in balance sheet updates, and any new flow that modifies a stock without updating the counterpart.
@@ -188,7 +179,6 @@ object SfcCheck:
     flows: MonthlyFlows,
     tolerance: Double = 0.01,
     nfaTolerance: Double = 1.0,
-    validateSectoralBalances: Boolean = false,
   ): Either[Vector[IdentityError], Unit] =
     import SfcIdentity.*
     val errors = Vector.newBuilder[IdentityError]
@@ -270,18 +260,6 @@ object SfcCheck:
     val expectedNbfiChange = (flows.nbfiOrigination - flows.nbfiRepayment - flows.nbfiDefaultAmount).toDouble
     val actualNbfiChange = (curr.nbfiLoanStock - prev.nbfiLoanStock).toDouble
     check(NbfiCredit, "NBFI credit stock change", expectedNbfiChange, actualNbfiChange)
-
-    // Identity 14: Sectoral balances (Godley & Lavoie 2007)
-    // (S − I) + (G − T) + (X − M) = 0
-    val privateBal = (flows.totalIncome - flows.totalConsumption) -
-      (flows.grossInvestment + flows.greenInvestment + flows.inventoryChange)
-    val publicBal = flows.govSpending - flows.govRevenue
-    val externalX = flows.exports + flows.tourismExport + flows.diasporaInflow
-    val externalM = flows.totalImports + flows.tourismImport + flows.remittanceOutflow +
-      flows.foreignDividendOutflow + flows.fdiProfitShifting + flows.fdiRepatriation
-    val sectoralBalErr = (privateBal + publicBal + (externalX - externalM)).toDouble
-    if validateSectoralBalances then
-      check(SectoralBalances, "sectoral balances (S-I)+(G-T)+(X-M)=0", 0.0, sectoralBalErr)
 
     val result = errors.result()
     if result.isEmpty then Right(()) else Left(result)

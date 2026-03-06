@@ -332,11 +332,6 @@ object WorldAssemblyStep:
       bailInLoss = PLN(in.bailInLoss),
       bankCapitalDestruction = PLN(in.multiCapDestruction),
       investNetDepositFlow = PLN(in.investNetDepositFlow),
-      exports = in.newBop.exports,
-      totalImports = in.newBop.totalImports,
-      grossInvestment = PLN(in.sumGrossInvestment),
-      greenInvestment = PLN(in.sumGreenInvestment),
-      inventoryChange = PLN(in.aggInventoryChange),
     )
     val sfcResult = SfcCheck.validate(in.m, prevSnap, currSnap, sfcFlows)
 
