@@ -663,7 +663,7 @@ object Config:
   // ───────────────────────────────────────────────────────────────────────
   // Profit retention ratio: fraction of net interest income retained as capital (KNF/UKNF dividend policy)
   val BankProfitRetention: Double = sys.env.get("BANK_PROFIT_RETENTION").map(_.trim.toDouble).getOrElse(0.30)
-  val BankMulti: Boolean = sys.env.get("BANK_MODE").map(_.trim.toLowerCase).getOrElse("single") == "multi"
+  // BankMulti removed — multi-bank is always-on (7 banks via Banking.DefaultConfigs)
   val BankFailureEnabled: Boolean =
     sys.env.get("BANK_FAILURE").map(_.trim.toBoolean).getOrElse(false) // Bank failure & resolution
   // Required reserves: 3.5% of deposits (Uchwała Zarządu NBP nr 7/2024; was 0.5% until Oct 2023)

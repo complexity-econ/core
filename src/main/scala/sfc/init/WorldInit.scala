@@ -78,7 +78,7 @@ object WorldInit:
         bondsOutstanding = initBondsOutstanding,
       ),
       Nbp.State(Rate(initRate), govBondHoldings = PLN(Config.InitNbpGovBonds)),
-      BankState(
+      BankingAggregate(
         PLN(Config.InitBankLoans),
         PLN.Zero,
         PLN(Config.InitBankCapital),

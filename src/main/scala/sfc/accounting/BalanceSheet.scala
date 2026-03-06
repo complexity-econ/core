@@ -1,6 +1,5 @@
 package sfc.accounting
 
-import sfc.config.Config
 import sfc.types.*
 
 case class GovState(
@@ -22,7 +21,8 @@ case class GovState(
   customsDutyRevenue: PLN = PLN.Zero,
 )
 
-case class BankState(
+/** Aggregate banking state — pure DTO set from bankingSector.aggregate each step. */
+case class BankingAggregate(
   totalLoans: PLN,
   nplAmount: PLN,
   capital: PLN,
@@ -36,11 +36,6 @@ case class BankState(
   def car: Double =
     val totalRwa = (totalLoans + consumerLoans + corpBondHoldings * 0.50).toDouble
     if totalRwa > 1.0 then capital.toDouble / totalRwa else 10.0
-  def lendingRate(refRate: Double): Double =
-    refRate + Config.BaseSpread + Math.min(0.15, nplRatio * Config.NplSpreadFactor)
-  def canLend(amount: Double): Boolean =
-    val projected = capital.toDouble / ((totalLoans + consumerLoans + corpBondHoldings * 0.50).toDouble + amount)
-    projected >= Config.MinCar
 
 case class ForexState(
   exchangeRate: Double,

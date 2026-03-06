@@ -180,9 +180,9 @@ class CorporateBondSpec extends AnyFlatSpec with Matchers:
     absorption shouldBe (0.3 +- 0.001)
   }
 
-  "BankState.car" should "include corpBondHoldings at 50% risk weight" in {
-    import sfc.accounting.BankState
-    val bank = BankState(
+  "BankingAggregate.car" should "include corpBondHoldings at 50% risk weight" in {
+    import sfc.accounting.BankingAggregate
+    val bank = BankingAggregate(
       totalLoans = PLN(1000.0),
       nplAmount = PLN(0.0),
       capital = PLN(200.0),
