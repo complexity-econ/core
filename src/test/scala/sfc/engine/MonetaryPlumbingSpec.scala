@@ -205,7 +205,7 @@ class MonetaryPlumbingSpec extends AnyFlatSpec with Matchers:
     val expectedCapChange = reserveInt * 0.3
     val curr = prev.copy(bankCapital = prev.bankCapital + expectedCapChange)
     val flows = zeroFlows.copy(reserveInterest = reserveInt)
-    val result = Sfc.validate(1, prev, curr, flows)
+    val result = Sfc.validate(prev, curr, flows)
     result shouldBe Right(())
   }
 
@@ -215,7 +215,7 @@ class MonetaryPlumbingSpec extends AnyFlatSpec with Matchers:
     val expectedCapChange = sfIncome * 0.3
     val curr = prev.copy(bankCapital = prev.bankCapital + expectedCapChange)
     val flows = zeroFlows.copy(standingFacilityIncome = sfIncome)
-    val result = Sfc.validate(1, prev, curr, flows)
+    val result = Sfc.validate(prev, curr, flows)
     result shouldBe Right(())
   }
 
@@ -225,7 +225,7 @@ class MonetaryPlumbingSpec extends AnyFlatSpec with Matchers:
     val ibInt = PLN.Zero
     val curr = prev.copy(bankCapital = prev.bankCapital)
     val flows = zeroFlows.copy(interbankInterest = ibInt)
-    val result = Sfc.validate(1, prev, curr, flows)
+    val result = Sfc.validate(prev, curr, flows)
     result shouldBe Right(())
   }
 
@@ -235,7 +235,7 @@ class MonetaryPlumbingSpec extends AnyFlatSpec with Matchers:
     val curr = prev.copy(bankCapital = prev.bankCapital + reserveInt * 0.3)
     // Flows do NOT include reserveInterest — should fail
     val flows = zeroFlows
-    val result = Sfc.validate(1, prev, curr, flows)
+    val result = Sfc.validate(prev, curr, flows)
     result shouldBe a[Left[?, ?]]
     result.swap.getOrElse(Vector.empty).exists(_.identity == Sfc.SfcIdentity.BankCapital) shouldBe true
   }
@@ -252,7 +252,7 @@ class MonetaryPlumbingSpec extends AnyFlatSpec with Matchers:
       standingFacilityIncome = sfInc,
       interbankInterest = ibInt,
     )
-    val result = Sfc.validate(1, prev, curr, flows)
+    val result = Sfc.validate(prev, curr, flows)
     result shouldBe Right(())
   }
 
@@ -295,7 +295,7 @@ class MonetaryPlumbingSpec extends AnyFlatSpec with Matchers:
     val jstDep = PLN(50000.0) // positive = JST adds to bank deposits
     val curr = prev.copy(bankDeposits = prev.bankDeposits + jstDep)
     val flows = zeroFlows.copy(jstDepositChange = jstDep)
-    val result = Sfc.validate(1, prev, curr, flows)
+    val result = Sfc.validate(prev, curr, flows)
     result shouldBe Right(())
   }
 
@@ -305,7 +305,7 @@ class MonetaryPlumbingSpec extends AnyFlatSpec with Matchers:
     val curr = prev.copy(bankDeposits = prev.bankDeposits + jstDep)
     // Flows do NOT include jstDepositChange → should fail
     val flows = zeroFlows
-    val result = Sfc.validate(1, prev, curr, flows)
+    val result = Sfc.validate(prev, curr, flows)
     result shouldBe a[Left[?, ?]]
     result.swap.getOrElse(Vector.empty).exists(_.identity == Sfc.SfcIdentity.BankDeposits) shouldBe true
   }
@@ -325,7 +325,7 @@ class MonetaryPlumbingSpec extends AnyFlatSpec with Matchers:
       jstRevenue = jstRev,
       jstDepositChange = depChange,
     )
-    val result = Sfc.validate(1, prev, curr, flows)
+    val result = Sfc.validate(prev, curr, flows)
     result shouldBe Right(())
   }
 
@@ -336,7 +336,7 @@ class MonetaryPlumbingSpec extends AnyFlatSpec with Matchers:
     // JST debt goes up by 5000 but flows say zero
     val curr = prev.copy(jstDebt = prev.jstDebt + PLN(5000.0))
     val flows = zeroFlows
-    val result = Sfc.validate(1, prev, curr, flows)
+    val result = Sfc.validate(prev, curr, flows)
     result shouldBe a[Left[?, ?]]
     result.swap.getOrElse(Vector.empty).exists(_.identity == Sfc.SfcIdentity.JstDebt) shouldBe true
   }

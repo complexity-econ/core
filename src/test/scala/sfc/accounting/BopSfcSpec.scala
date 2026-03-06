@@ -50,7 +50,7 @@ class BopSfcSpec extends AnyFlatSpec with Matchers:
   // ---- Identity 4: NFA ----
 
   "Sfc.validate (NFA)" should "pass trivially when OPEN_ECON is off (all zeros)" in {
-    val result = Sfc.validate(1, baseSnap, baseSnap, zeroFlows)
+    val result = Sfc.validate(baseSnap, baseSnap, zeroFlows)
     result shouldBe Right(())
   }
 
@@ -60,7 +60,7 @@ class BopSfcSpec extends AnyFlatSpec with Matchers:
     val prev = baseSnap.copy(nfa = PLN(100000.0))
     val curr = baseSnap.copy(nfa = PLN(100000.0) + ca + valuation)
     val flows = zeroFlows.copy(currentAccount = ca, valuationEffect = valuation)
-    val result = Sfc.validate(1, prev, curr, flows)
+    val result = Sfc.validate(prev, curr, flows)
     result shouldBe Right(())
   }
 
@@ -69,7 +69,7 @@ class BopSfcSpec extends AnyFlatSpec with Matchers:
     // Bug: NFA unchanged despite positive CA
     val curr = baseSnap.copy(nfa = PLN(100000.0))
     val flows = zeroFlows.copy(currentAccount = PLN(25000.0), valuationEffect = PLN(0.0))
-    val result = Sfc.validate(1, prev, curr, flows)
+    val result = Sfc.validate(prev, curr, flows)
     result shouldBe a[Left[?, ?]]
     errorDelta(result, Sfc.SfcIdentity.Nfa) shouldBe -25000.0 +- 0.01
   }
@@ -78,7 +78,7 @@ class BopSfcSpec extends AnyFlatSpec with Matchers:
     val prev = baseSnap.copy(nfa = PLN(100000.0))
     val curr = baseSnap.copy(nfa = PLN(70000.0))
     val flows = zeroFlows.copy(currentAccount = PLN(-30000.0), valuationEffect = PLN(0.0))
-    val result = Sfc.validate(1, prev, curr, flows)
+    val result = Sfc.validate(prev, curr, flows)
     result shouldBe Right(())
   }
 
@@ -87,7 +87,7 @@ class BopSfcSpec extends AnyFlatSpec with Matchers:
     // CA=-10000, valuation=+15000 → expected ΔNFA = +5000
     val curr = baseSnap.copy(nfa = PLN(105000.0))
     val flows = zeroFlows.copy(currentAccount = PLN(-10000.0), valuationEffect = PLN(15000.0))
-    val result = Sfc.validate(1, prev, curr, flows)
+    val result = Sfc.validate(prev, curr, flows)
     result shouldBe Right(())
   }
 
@@ -95,7 +95,7 @@ class BopSfcSpec extends AnyFlatSpec with Matchers:
     val prev = baseSnap.copy(nfa = PLN(100000.0))
     // NFA jumps by 50000 but CA+valuation = 0 → error on identity 4 only
     val curr = baseSnap.copy(nfa = PLN(150000.0))
-    val result = Sfc.validate(1, prev, curr, zeroFlows)
+    val result = Sfc.validate(prev, curr, zeroFlows)
     result shouldBe a[Left[?, ?]]
     result.swap.getOrElse(Vector.empty).map(_.identity) should contain only Sfc.SfcIdentity.Nfa
     errorDelta(result, Sfc.SfcIdentity.Nfa) shouldBe 50000.0 +- 0.01

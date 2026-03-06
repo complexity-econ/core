@@ -228,6 +228,6 @@ class ConsumerCreditSpec extends AnyFlatSpec with Matchers:
   "Sfc" should "pass consumer credit identity with zero flows" in {
     val snap = zeroSnap.copy(bankCapital = PLN(100.0), bankDeposits = PLN(200.0))
     val flow = zeroFlows
-    val result = Sfc.validate(1, snap, snap, flow)
+    val result = Sfc.validate(snap, snap, flow)
     result shouldBe Right(())
   }

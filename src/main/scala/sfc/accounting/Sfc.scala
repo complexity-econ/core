@@ -1,6 +1,7 @@
 package sfc.accounting
 
 import sfc.agents.{Firm, Household}
+import sfc.config.Config
 import sfc.engine.World
 import sfc.types.*
 import sfc.util.KahanSum.*
@@ -34,8 +35,8 @@ object Sfc:
   /** Point-in-time snapshot of all monetary stocks in the economy.
     *
     * Captured twice per month (before and after Simulation.step) so that validate can compute
-    * Δstock = curr - prev for each identity. Fields with default PLN.Zero are only relevant when
-    * the corresponding mechanism is enabled (e.g. mortgageStock is zero when housing market is off).
+    * Δstock = curr - prev for each identity. Fields corresponding to disabled mechanisms are simply
+    * zero — the identity holds trivially in that case.
     */
   case class Snapshot(
     hhSavings: PLN, // Σ household savings (individual mode only, 0 in aggregate)
@@ -67,8 +68,8 @@ object Sfc:
     *
     * These values are assembled in WorldAssemblyStep from the intermediate results of Simulation.step.
     * They must match the '''exact''' values used in balance sheet updates — any discrepancy will cause
-    * validate to report an SfcIdentityError. Fields with default PLN.Zero correspond to mechanisms that
-    * may be disabled; when disabled, the flow is zero and the corresponding identity holds trivially.
+    * validate to report an SfcIdentityError. Flows for disabled mechanisms are simply zero, so
+    * the corresponding identity holds trivially.
     */
   case class MonthlyFlows(
     govSpending: PLN, // total gov expenditure (BDP + benefits + transfers + debt service + ZUS subvention)
@@ -196,7 +197,7 @@ object Sfc:
     *   1. Bank capital: Δ = -nplLoss - mortgageNplLoss - consumerNplLoss - corpBondDefaultLoss - bfgLevy -
     *      bankCapitalDestruction + (interestIncome + hhDebtService + bankBondIncome + mortgageInterestIncome +
     *      consumerDebtService + corpBondCouponIncome - depositInterestPaid + reserveInterest +
-    *      standingFacilityIncome + interbankInterest) × 0.3
+    *      standingFacilityIncome + interbankInterest) × BankProfitRetention
     *   2. Bank deposits: Δ = totalIncome - totalConsumption + investNetDepositFlow + jstDepositChange + dividendIncome -
     *      foreignDividendOutflow - remittanceOutflow + diasporaInflow + tourismExport - tourismImport - bailInLoss +
     *      consumerOrigination + insNetDepositChange + nbfiDepositDrain
@@ -217,8 +218,9 @@ object Sfc:
     * These catch: mis-routed flows (e.g. rent subtracted from HH but not added to bank/consumption), refactoring errors
     * in balance sheet updates, and any new flow that modifies a stock without updating the counterpart.
     */
+  private case class IdentitySpec(id: SfcIdentity, msg: String, expected: PLN, actual: PLN, tolerance: PLN)
+
   def validate(
-    month: Int, // current simulation month (used only for diagnostics, not in formulas)
     prev: Snapshot, // stocks at the beginning of the month (before Simulation.step)
     curr: Snapshot, // stocks at the end of the month (after Simulation.step)
     flows: MonthlyFlows, // all flows that occurred during the month
@@ -227,125 +229,125 @@ object Sfc:
   ): Either[Vector[SfcIdentityError], Unit] =
     import SfcIdentity.*
 
-    val identities: Vector[(SfcIdentity, String, PLN, PLN, PLN)] = Vector(
-      // 1. Bank capital: losses + 30% profit retention
-      (
+    val identities: Vector[IdentitySpec] = Vector(
+      // 1. Bank capital: losses + profit retention (Config.BankProfitRetention)
+      IdentitySpec(
         BankCapital,
         "bank capital change (profit retention + losses)",
-        -flows.nplLoss - flows.mortgageNplLoss - flows.consumerNplLoss
+        expected = -flows.nplLoss - flows.mortgageNplLoss - flows.consumerNplLoss
           - flows.corpBondDefaultLoss - flows.bfgLevy - flows.bankCapitalDestruction +
           (flows.interestIncome + flows.hhDebtService + flows.bankBondIncome
             + flows.mortgageInterestIncome + flows.consumerDebtService + flows.corpBondCouponIncome
             - flows.depositInterestPaid
-            + flows.reserveInterest + flows.standingFacilityIncome + flows.interbankInterest) * 0.3,
-        curr.bankCapital - prev.bankCapital,
+            + flows.reserveInterest + flows.standingFacilityIncome + flows.interbankInterest) * Config.BankProfitRetention,
+        actual = curr.bankCapital - prev.bankCapital,
         tolerance,
       ),
       // 2. Bank deposits: HH income − consumption + all deposit-affecting flows
-      (
+      IdentitySpec(
         BankDeposits,
         "bank deposits change",
-        flows.totalIncome - flows.totalConsumption + flows.investNetDepositFlow +
+        expected = flows.totalIncome - flows.totalConsumption + flows.investNetDepositFlow +
           flows.jstDepositChange +
           flows.dividendIncome - flows.foreignDividendOutflow - flows.remittanceOutflow + flows.diasporaInflow +
           flows.tourismExport - flows.tourismImport - flows.bailInLoss +
           flows.consumerOrigination + flows.insNetDepositChange + flows.nbfiDepositDrain,
-        curr.bankDeposits - prev.bankDeposits,
+        actual = curr.bankDeposits - prev.bankDeposits,
         tolerance,
       ),
       // 3. Government debt: deficit = spending − revenue
-      (
+      IdentitySpec(
         GovDebt,
         "government debt change",
-        flows.govSpending - flows.govRevenue,
-        curr.govDebt - prev.govDebt,
+        expected = flows.govSpending - flows.govRevenue,
+        actual = curr.govDebt - prev.govDebt,
         tolerance,
       ),
       // 4. NFA: current account + valuation (wider tolerance for FP cancellation)
-      (
+      IdentitySpec(
         Nfa,
         "NFA change (current account + valuation)",
-        flows.currentAccount + flows.valuationEffect,
-        curr.nfa - prev.nfa,
+        expected = flows.currentAccount + flows.valuationEffect,
+        actual = curr.nfa - prev.nfa,
         nfaTolerance,
       ),
       // 5. Bond clearing: holders = outstanding (level, not delta)
-      (
+      IdentitySpec(
         BondClearing,
         "bond clearing (holders vs outstanding)",
-        curr.bondsOutstanding,
-        curr.bankBondHoldings + curr.nbpBondHoldings + curr.ppkBondHoldings +
+        expected = curr.bondsOutstanding,
+        actual = curr.bankBondHoldings + curr.nbpBondHoldings + curr.ppkBondHoldings +
           curr.insuranceGovBondHoldings + curr.tfiGovBondHoldings,
         tolerance,
       ),
       // 6. Interbank netting: Σ net positions = 0
-      (
+      IdentitySpec(
         InterbankNetting,
         "interbank netting (should be zero)",
-        PLN.Zero,
-        curr.interbankNetSum,
+        expected = PLN.Zero,
+        actual = curr.interbankNetSum,
         tolerance,
       ),
       // 7. JST debt: spending − revenue
-      (
+      IdentitySpec(
         JstDebt,
         "JST debt change",
-        flows.jstSpending - flows.jstRevenue,
-        curr.jstDebt - prev.jstDebt,
+        expected = flows.jstSpending - flows.jstRevenue,
+        actual = curr.jstDebt - prev.jstDebt,
         tolerance,
       ),
       // 8. FUS balance: contributions − pensions
-      (
+      IdentitySpec(
         FusBalance,
         "FUS balance change (contributions - pensions)",
-        flows.zusContributions - flows.zusPensionPayments,
-        curr.fusBalance - prev.fusBalance,
+        expected = flows.zusContributions - flows.zusPensionPayments,
+        actual = curr.fusBalance - prev.fusBalance,
         tolerance,
       ),
       // 9. Mortgage stock: origination − repayment − default
-      (
+      IdentitySpec(
         MortgageStock,
         "mortgage stock change",
-        flows.mortgageOrigination - flows.mortgagePrincipalRepaid - flows.mortgageDefaultAmount,
-        curr.mortgageStock - prev.mortgageStock,
+        expected = flows.mortgageOrigination - flows.mortgagePrincipalRepaid - flows.mortgageDefaultAmount,
+        actual = curr.mortgageStock - prev.mortgageStock,
         tolerance,
       ),
       // 10. Flow-of-funds: residual = 0 (closes by construction)
-      (
+      IdentitySpec(
         FlowOfFunds,
         "flow-of-funds residual",
-        PLN.Zero,
-        flows.fofResidual,
+        expected = PLN.Zero,
+        actual = flows.fofResidual,
         tolerance,
       ),
       // 11. Consumer credit: origination − repayment − default
-      (
+      IdentitySpec(
         ConsumerCredit,
         "consumer credit stock change",
-        flows.consumerOrigination - flows.consumerPrincipalRepaid - flows.consumerDefaultAmount,
-        curr.consumerLoans - prev.consumerLoans,
+        expected = flows.consumerOrigination - flows.consumerPrincipalRepaid - flows.consumerDefaultAmount,
+        actual = curr.consumerLoans - prev.consumerLoans,
         tolerance,
       ),
       // 12. Corporate bond stock: issuance − amortization − default
-      (
+      IdentitySpec(
         CorpBondStock,
         "corporate bond stock change",
-        flows.corpBondIssuance - flows.corpBondAmortization - flows.corpBondDefaultAmount,
-        curr.corpBondsOutstanding - prev.corpBondsOutstanding,
+        expected = flows.corpBondIssuance - flows.corpBondAmortization - flows.corpBondDefaultAmount,
+        actual = curr.corpBondsOutstanding - prev.corpBondsOutstanding,
         tolerance,
       ),
       // 13. NBFI credit: origination − repayment − default
-      (
+      IdentitySpec(
         NbfiCredit,
         "NBFI credit stock change",
-        flows.nbfiOrigination - flows.nbfiRepayment - flows.nbfiDefaultAmount,
-        curr.nbfiLoanStock - prev.nbfiLoanStock,
+        expected = flows.nbfiOrigination - flows.nbfiRepayment - flows.nbfiDefaultAmount,
+        actual = curr.nbfiLoanStock - prev.nbfiLoanStock,
         tolerance,
       ),
     )
 
     val errors = identities.collect:
-      case (id, msg, expected, actual, tol) if (actual - expected).abs >= tol =>
+      case IdentitySpec(id, msg, expected, actual, tol) if (actual - expected).abs >= tol =>
         SfcIdentityError(id, msg, expected, actual)
 
     if errors.isEmpty then Right(()) else Left(errors)

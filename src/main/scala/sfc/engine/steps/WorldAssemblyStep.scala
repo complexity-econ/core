@@ -333,7 +333,7 @@ object WorldAssemblyStep:
       bankCapitalDestruction = PLN(in.multiCapDestruction),
       investNetDepositFlow = PLN(in.investNetDepositFlow),
     )
-    val sfcResult = Sfc.validate(in.m, prevSnap, currSnap, sfcFlows)
+    val sfcResult = Sfc.validate(prevSnap, currSnap, sfcFlows)
 
     // FDI M&A: monthly domestic → foreign conversion (#33)
     val postFdiFirms =
