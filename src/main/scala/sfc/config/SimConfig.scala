@@ -11,10 +11,6 @@ enum MonetaryRegime:
 enum Topology:
   case Ws, Er, Ba, Lattice
 
-/** Household mode: aggregate (backward-compat) or individual agents. */
-enum HhMode:
-  case Aggregate, Individual
-
 /** Runtime configuration: values that depend on CLI arguments. Passed through runSingle and Simulation.step.
   */
 case class RunConfig(
@@ -137,12 +133,6 @@ val TOPOLOGY: Topology =
     case "ba"      => Topology.Ba
     case "lattice" => Topology.Lattice
     case _         => Topology.Ws
-
-/** Household mode parsed from HH_MODE env var (default: aggregate). */
-val HH_MODE: HhMode =
-  sys.env.get("HH_MODE").map(_.trim.toLowerCase) match
-    case Some("individual") => HhMode.Individual
-    case _                  => HhMode.Aggregate
 
 /** Firm size distribution: stratified draw from GUS 2024 Polish enterprise data. */
 object FirmSizeDistribution:

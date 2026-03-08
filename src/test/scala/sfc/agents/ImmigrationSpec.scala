@@ -59,12 +59,6 @@ class ImmigrationSpec extends AnyFlatSpec with Matchers:
     Immigration.computeRemittances(hhs) shouldBe 0.0
   }
 
-  // ---- computeRemittancesAggregate ----
-
-  "Immigration.computeRemittancesAggregate" should "return 0 when disabled" in {
-    Immigration.computeRemittancesAggregate(5000, 8000.0, 0.05) shouldBe 0.0
-  }
-
   // ---- chooseSector ----
 
   "Immigration.chooseSector" should "return valid sector index (0-5)" in {
@@ -248,7 +242,7 @@ class ImmigrationSpec extends AnyFlatSpec with Matchers:
 
   "Immigration.step" should "return zero state when disabled" in {
     val prev = Immigration.State(100, 0, 0, 0.0)
-    val result = Immigration.step(prev, None, 8000.0, 0.05, 100000, 1)
+    val result = Immigration.step(prev, Vector.empty, 8000.0, 0.05, 100000, 1)
     result.monthlyInflow shouldBe 0
     result.monthlyOutflow shouldBe 0
     result.remittanceOutflow shouldBe 0.0
@@ -258,7 +252,7 @@ class ImmigrationSpec extends AnyFlatSpec with Matchers:
   it should "maintain non-negative immigrant stock" in {
     // Even with large outflow, stock should not go negative
     val prev = Immigration.State(2, 0, 0, 0.0)
-    val result = Immigration.step(prev, None, 8000.0, 0.05, 100000, 1)
+    val result = Immigration.step(prev, Vector.empty, 8000.0, 0.05, 100000, 1)
     result.immigrantStock should be >= 0
   }
 

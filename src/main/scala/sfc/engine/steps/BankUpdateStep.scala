@@ -32,14 +32,14 @@ object BankUpdateStep:
     importAdj: Double,
     aggUnempBenefit: Double,
     perBankHhFlowsOpt: Option[PerBankHhFlows],
-    hhAgg: Option[Household.Aggregates],
+    hhAgg: Household.Aggregates,
     // Step 4 outputs
     govPurchases: Double,
     laggedInvestDemand: Double,
     // Step 5 outputs
     ioFirms: Array[Firm.State],
     rewiredFirms: Array[Firm.State],
-    finalHouseholds: Option[Vector[Household.State]],
+    finalHouseholds: Vector[Household.State],
     sumTax: Double,
     sumNewLoans: Double,
     nplNew: Double,
@@ -99,7 +99,7 @@ object BankUpdateStep:
     resolvedBank: BankingAggregate,
     finalBankingSector: Banking.State,
     reassignedFirms: Array[Firm.State],
-    reassignedHouseholds: Option[Vector[Household.State]],
+    reassignedHouseholds: Vector[Household.State],
     finalPpk: SocialSecurity.PpkState,
     finalInsurance: Insurance.State,
     finalNbfi: Nbfi.State,
@@ -110,7 +110,7 @@ object BankUpdateStep:
     bailInLoss: Double,
     multiCapDestruction: Double,
     monAgg: Option[MonetaryAggregates],
-    finalHhAgg: Option[Household.Aggregates],
+    finalHhAgg: Household.Aggregates,
     // Tax intermediates (needed by SFC check)
     vat: Double,
     vatAfterEvasion: Double,
@@ -136,17 +136,12 @@ object BankUpdateStep:
     val customsDutyRevenue =
       if Config.OeEnabled then in.newBop.totalImports.toDouble * Config.CustomsNonEuShare * Config.CustomsDutyRate
       else 0.0
-    val unempBenefitSpend = in.hhAgg.map(_.totalUnempBenefits.toDouble).getOrElse(in.aggUnempBenefit)
+    val unempBenefitSpend = in.hhAgg.totalUnempBenefits.toDouble
     val socialTransferSpend =
-      if Config.Social800Enabled then
-        in.hhAgg
-          .map(_.totalSocialTransfers.toDouble)
-          .getOrElse(
-            Config.TotalPopulation.toDouble * Config.Social800ChildrenPerHh * Config.Social800Rate,
-          )
+      if Config.Social800Enabled then in.hhAgg.totalSocialTransfers.toDouble
       else 0.0
 
-    // Informal economy: aggregate tax evasion (#45)
+    // Informal economy: aggregate tax evasion
     val informalCyclicalAdj = in.w.informalCyclicalAdj
     val effectiveShadowShare =
       if Config.InformalEnabled then
@@ -254,20 +249,18 @@ object BankUpdateStep:
       corpBondHoldings = in.newCorpBonds.bankHoldings,
     )
 
-    // Recompute hhAgg from final households if in individual mode
-    val monthlyRetAttempts = in.hhAgg.map(_.retrainingAttempts).getOrElse(0)
-    val monthlyRetSuccesses = in.hhAgg.map(_.retrainingSuccesses).getOrElse(0)
-    val finalHhAgg = in.finalHouseholds.map { hhs =>
-      Household.computeAggregates(
-        hhs,
-        in.newWage,
-        in.resWage,
-        in.importAdj,
-        monthlyRetAttempts,
-        monthlyRetSuccesses,
-        in.bdp,
-      )
-    }
+    // Recompute hhAgg from final households
+    val monthlyRetAttempts = in.hhAgg.retrainingAttempts
+    val monthlyRetSuccesses = in.hhAgg.retrainingSuccesses
+    val finalHhAgg = Household.computeAggregates(
+      in.finalHouseholds,
+      in.newWage,
+      in.resWage,
+      in.importAdj,
+      monthlyRetAttempts,
+      monthlyRetSuccesses,
+      in.bdp,
+    )
 
     val actualBondChange = (newGovWithYield.bondsOutstanding - in.w.gov.bondsOutstanding).toDouble
 
@@ -424,19 +417,17 @@ object BankUpdateStep:
     val finalBankingSector = bs.copy(banks = afterResolve, interbankRate = Rate(ibRate), interbankCurve = curve)
     val reassignedFirms =
       if anyFailed then
-        in.rewiredFirms.map { f =>
+        in.rewiredFirms.map: f =>
           if f.bankId.toInt < afterResolve.length && afterResolve(f.bankId.toInt).failed then
             f.copy(bankId = absorberId)
           else f
-        }
       else in.rewiredFirms
     val reassignedHouseholds =
       if anyFailed then
-        in.finalHouseholds.map(_.map { h =>
+        in.finalHouseholds.map: h =>
           if h.bankId.toInt < afterResolve.length && afterResolve(h.bankId.toInt).failed then
             h.copy(bankId = absorberId)
           else h
-        })
       else in.finalHouseholds
     val bailInLoss = multiBailInLoss
     val multiCapDestruction = multiCapDest

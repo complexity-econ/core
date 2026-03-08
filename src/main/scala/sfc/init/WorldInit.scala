@@ -31,7 +31,7 @@ object WorldInit:
     if popIncrease > 0 then Config.setTotalPopulation(Config.TotalPopulation + popIncrease)
 
     // --- Banking sector ---
-    val initConsumerLoans = households.map(_.kahanSumBy(_.consumerDebt.toDouble)).getOrElse(Config.InitConsumerLoans)
+    val initConsumerLoans = households.kahanSumBy(_.consumerDebt.toDouble)
     val initBankingSector = BankInit.create(firms, households)
 
     // --- Demographics ---
@@ -136,4 +136,4 @@ object WorldInit:
 
     InitResult(world, firms, households)
 
-  case class InitResult(world: World, firms: Array[Firm.State], households: Option[Vector[Household.State]])
+  case class InitResult(world: World, firms: Array[Firm.State], households: Vector[Household.State])

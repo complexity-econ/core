@@ -68,9 +68,7 @@ class IntegrationSfcSpec extends AnyFlatSpec with Matchers:
 
   // --- Symmetric Taylor + unemployment benefits (ON by default) ---
 
-  it should "have non-negative unemployment benefits in aggregate HH mode" in {
-    // Aggregate mode computes unemployment benefits as: unempCount * avgBenefit * coverage
-    assume(sfc.config.HH_MODE == sfc.config.HhMode.Aggregate, "HH_MODE=aggregate required")
+  it should "have non-negative unemployment benefits" in {
     for t <- ts.indices do
       withClue(s"Month ${t + 1}: ") {
         ts(t)(36) should be >= 0.0
@@ -127,7 +125,6 @@ class IntegrationSfcSpec extends AnyFlatSpec with Matchers:
 
   // --- Aggregate HH mode ---
 
-  it should "return None for terminalHhAgg in aggregate mode" in {
-    assume(sfc.config.HH_MODE == sfc.config.HhMode.Aggregate, "HH_MODE=aggregate required")
-    result.terminalHhAgg shouldBe None
+  it should "return defined terminalHhAgg" in {
+    result.terminalHhAgg.employed should be >= 0
   }

@@ -55,8 +55,7 @@ class IntegrationSpec extends AnyFlatSpec with Matchers:
     for t <- 0 until Config.Duration do result.timeSeries(t)(25) should be > 0.0
   }
 
-  it should "return None for terminalHhAgg in aggregate mode" in {
+  it should "return defined terminalHhAgg" in {
     val result = runSingle(42, rc)
-    // Default HH_MODE=aggregate → no household aggregates
-    result.terminalHhAgg shouldBe None
+    result.terminalHhAgg.employed should be >= 0
   }

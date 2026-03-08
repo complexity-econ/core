@@ -13,7 +13,7 @@ import java.io.{File, PrintWriter}
 /** Result of a single simulation run. */
 case class RunResult(
   timeSeries: Array[Array[Double]],
-  terminalHhAgg: Option[Household.Aggregates],
+  terminalHhAgg: Household.Aggregates,
 )
 
 /** Run one simulation with given seed. Returns time-series array + optional household aggregates. */
@@ -255,22 +255,18 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
       world.immigration.monthlyInflow.toDouble, // 123: MonthlyImmigInflow
       world.immigration.remittanceOutflow, // 124: RemittanceOutflow
       (if world.immigration.immigrantStock > 0 then // 125: ImmigrantUnempRate
-         households
-           .map { hhs =>
-             val immigrants = hhs.filter(_.isImmigrant)
-             if immigrants.nonEmpty then
-               immigrants.count(h => !h.status.isInstanceOf[HhStatus.Employed]).toDouble / immigrants.length
-             else 0.0
-           }
-           .getOrElse(0.0)
-       else 0.0),
+         val immigrants = households.filter(_.isImmigrant)
+         if immigrants.nonEmpty then
+           immigrants.count(h => !h.status.isInstanceOf[HhStatus.Employed]).toDouble / immigrants.length
+         else 0.0
+       else 0.0)
+      ,
       // PIT
-      world.hhAgg
-        .map { agg => // 126: EffectivePitRate
-          val gross = agg.totalIncome + agg.totalPit // totalIncome is net-of-PIT, add back
-          if gross > PLN.Zero then agg.totalPit / gross else 0.0
-        }
-        .getOrElse(if Config.PitEnabled then Config.PitEffectiveRate else 0.0),
+      { // 126: EffectivePitRate
+        val agg = world.hhAgg.get
+        val gross = agg.totalIncome + agg.totalPit
+        if gross > PLN.Zero then (agg.totalPit / gross).toDouble else 0.0
+      },
       // Social Transfers
       world.gov.socialTransferSpend.toDouble, // 127: SocialTransferSpend
       // Public Investment
@@ -289,6 +285,7 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
        else 0.0), // 137: ConsumerNplRatio
       world.hhAgg.map(_.totalConsumerOrigination.toDouble).getOrElse(0.0), // 138: ConsumerOrigination
       world.hhAgg.map(_.totalConsumerDebtService.toDouble).getOrElse(0.0), // 139: ConsumerDebtService
+
       // Physical Capital
       living.kahanSumBy(_.capitalStock.toDouble), // 140: AggCapitalStock
       world.grossInvestment.toDouble, // 141: GrossInvestment
@@ -378,7 +375,7 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
       world.bailInLoss.toDouble, // 196: BailInLoss
     )
 
-  RunResult(results, world.hhAgg)
+  RunResult(results, world.hhAgg.get)
 
 // ---- Monte Carlo main entry point ----
 
@@ -398,9 +395,7 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
 
   val topoLabel = TOPOLOGY.toString.toUpperCase
   val firmsLabel = f"${Config.FirmsCount}%,d"
-  val hhLabel = HH_MODE match
-    case HhMode.Individual => s" | HH=individual (${Config.HhCount})"
-    case HhMode.Aggregate  => ""
+  val hhLabel = s" | HH=individual (${Config.HhCount})"
   val bankLabel = " | BANK=multi (7)"
   println(s"+" + "=" * 68 + "+")
   println(s"|  SFC-ABM v8: BDP=${bdpAmount.toInt} PLN, N=${nSeeds} seeds, ${regimeLabel}${hhLabel}${bankLabel}")
@@ -414,7 +409,7 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
   val nMonths = Config.Duration
   val nCols = 197
   val allRuns = Array.ofDim[Double](nSeeds, nMonths, nCols)
-  val allHhAgg = new Array[Option[Household.Aggregates]](nSeeds)
+  val allHhAgg = new Array[Household.Aggregates](nSeeds)
 
   val startTime = System.currentTimeMillis()
 
@@ -496,8 +491,8 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
     termPw.write("\n")
   termPw.close()
 
-  // -- Write household terminal CSV (individual mode only) --
-  if HH_MODE == HhMode.Individual then
+  // -- Write household terminal CSV --
+  {
     val hhPw = new PrintWriter(new File(s"mc/${outputPrefix}_hh_terminal.csv"))
     hhPw.write(
       "Seed;HH_Employed;HH_Unemployed;HH_Retraining;HH_Bankrupt;" +
@@ -511,26 +506,25 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
         "PovertyRate_50pct;PovertyRate_30pct\n",
     )
     for seed <- 0 until nSeeds do
-      allHhAgg(seed) match
-        case Some(agg) =>
-          hhPw.write(s"${seed + 1}")
-          hhPw.write(f";${agg.employed};${agg.unemployed};${agg.retraining};${agg.bankrupt}")
-          hhPw.write(f";${agg.meanSavings.toDouble}%.2f;${agg.medianSavings.toDouble}%.2f")
-          // P10/P90 savings not tracked in agg — use mean as placeholder
-          hhPw.write(f";${(agg.meanSavings * 0.3).toDouble}%.2f;${(agg.meanSavings * 2.0).toDouble}%.2f")
-          hhPw.write(f";0.00;0.00") // MeanDebt, TotalDebt — would need household vector
-          hhPw.write(f";${agg.giniIndividual.toDouble}%.6f;${agg.giniWealth.toDouble}%.6f")
-          hhPw.write(f";${agg.meanSkill}%.6f;${agg.meanHealthPenalty}%.6f")
-          hhPw.write(f";${agg.retrainingAttempts};${agg.retrainingSuccesses}")
-          hhPw.write(
-            f";${agg.consumptionP10.toDouble}%.2f;${agg.consumptionP50.toDouble}%.2f;${agg.consumptionP90.toDouble}%.2f",
-          )
-          hhPw.write(f";${agg.bankruptcyRate.toDouble}%.6f;${agg.meanMonthsToRuin}%.2f")
-          hhPw.write(f";${agg.povertyRate50.toDouble}%.6f;${agg.povertyRate30.toDouble}%.6f")
-          hhPw.write("\n")
-        case None => ()
+      val agg = allHhAgg(seed)
+      hhPw.write(s"${seed + 1}")
+      hhPw.write(f";${agg.employed};${agg.unemployed};${agg.retraining};${agg.bankrupt}")
+      hhPw.write(f";${agg.meanSavings.toDouble}%.2f;${agg.medianSavings.toDouble}%.2f")
+      // P10/P90 savings not tracked in agg — use mean as placeholder
+      hhPw.write(f";${(agg.meanSavings * 0.3).toDouble}%.2f;${(agg.meanSavings * 2.0).toDouble}%.2f")
+      hhPw.write(f";0.00;0.00") // MeanDebt, TotalDebt — would need household vector
+      hhPw.write(f";${agg.giniIndividual.toDouble}%.6f;${agg.giniWealth.toDouble}%.6f")
+      hhPw.write(f";${agg.meanSkill}%.6f;${agg.meanHealthPenalty}%.6f")
+      hhPw.write(f";${agg.retrainingAttempts};${agg.retrainingSuccesses}")
+      hhPw.write(
+        f";${agg.consumptionP10.toDouble}%.2f;${agg.consumptionP50.toDouble}%.2f;${agg.consumptionP90.toDouble}%.2f",
+      )
+      hhPw.write(f";${agg.bankruptcyRate.toDouble}%.6f;${agg.meanMonthsToRuin}%.2f")
+      hhPw.write(f";${agg.povertyRate50.toDouble}%.6f;${agg.povertyRate30.toDouble}%.6f")
+      hhPw.write("\n")
     hhPw.close()
     println(s"Saved: mc/${outputPrefix}_hh_terminal.csv")
+  }
 
   // -- Write bank terminal CSV (always multi-bank) --
   {
@@ -787,21 +781,19 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
   statsSummary("Gov Debt (mld PLN)", 6, 1.0 / 1e9)
   statsSummary("NPL Ratio (%)", 7, 100.0)
 
-  // Household summary (individual mode only)
-  if HH_MODE == HhMode.Individual then
-    println("\nHousehold aggregates at M120:")
-    val hhAggs = allHhAgg.flatten
-    if hhAggs.nonEmpty then
-      val avgGini = hhAggs.kahanSumBy(_.giniIndividual.toDouble) / hhAggs.length
-      val avgWealth = hhAggs.kahanSumBy(_.giniWealth.toDouble) / hhAggs.length
-      val avgBankr = hhAggs.kahanSumBy(_.bankruptcyRate.toDouble) / hhAggs.length
-      val avgPov50 = hhAggs.kahanSumBy(_.povertyRate50.toDouble) / hhAggs.length
-      val avgSkill = hhAggs.kahanSumBy(_.meanSkill) / hhAggs.length
-      println(f"  Gini (income)        mean=${avgGini * 100}%8.2f%%")
-      println(f"  Gini (wealth)        mean=${avgWealth * 100}%8.2f%%")
-      println(f"  Bankruptcy rate      mean=${avgBankr * 100}%8.2f%%")
-      println(f"  Poverty rate (50%%)  mean=${avgPov50 * 100}%8.2f%%")
-      println(f"  Mean skill           mean=${avgSkill}%8.4f")
+  // Household summary
+  println("\nHousehold aggregates at M120:")
+  if allHhAgg.nonEmpty then
+    val avgGini = allHhAgg.kahanSumBy(_.giniIndividual.toDouble) / allHhAgg.length
+    val avgWealth = allHhAgg.kahanSumBy(_.giniWealth.toDouble) / allHhAgg.length
+    val avgBankr = allHhAgg.kahanSumBy(_.bankruptcyRate.toDouble) / allHhAgg.length
+    val avgPov50 = allHhAgg.kahanSumBy(_.povertyRate50.toDouble) / allHhAgg.length
+    val avgSkill = allHhAgg.kahanSumBy(_.meanSkill) / allHhAgg.length
+    println(f"  Gini (income)        mean=${avgGini * 100}%8.2f%%")
+    println(f"  Gini (wealth)        mean=${avgWealth * 100}%8.2f%%")
+    println(f"  Bankruptcy rate      mean=${avgBankr * 100}%8.2f%%")
+    println(f"  Poverty rate (50%%)  mean=${avgPov50 * 100}%8.2f%%")
+    println(f"  Mean skill           mean=${avgSkill}%8.4f")
 
   println("\nPer-sector adoption at M120:")
   val secNames = SECTORS.map(_.name)

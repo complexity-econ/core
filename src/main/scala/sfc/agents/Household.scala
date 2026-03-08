@@ -116,26 +116,20 @@ object Household:
   // ---- Init ----
 
   object Init:
-    /** Create households in Individual mode, with multi-bank assignment. Returns None in Aggregate mode.
-      */
-    def create(rng: Random, firms: Array[Firm.State]): Option[Vector[State]] =
+    /** Create individual households with multi-bank assignment. */
+    def create(rng: Random, firms: Array[Firm.State]): Vector[State] =
       import sfc.config.*
       import sfc.networks.Network
-      HH_MODE match
-        case HhMode.Individual =>
-          val hhCount = Config.TotalPopulation
-          val hhNetwork = Network.wattsStrogatz(hhCount, Config.HhSocialK, Config.HhSocialP)
-          val hhs = initialize(hhCount, Config.FirmsCount, firms, hhNetwork, rng)
-          // Multi-bank: assign households to same bank as their employer
-          // Assign households to same bank as their employer
-          val assigned = hhs.map { h =>
-            h.status match
-              case HhStatus.Employed(fid, _, _) if fid.toInt < firms.length =>
-                h.copy(bankId = firms(fid.toInt).bankId)
-              case _ => h
-          }
-          Some(assigned)
-        case HhMode.Aggregate => None
+      val hhCount = Config.TotalPopulation
+      val hhNetwork = Network.wattsStrogatz(hhCount, Config.HhSocialK, Config.HhSocialP)
+      val hhs = initialize(hhCount, Config.FirmsCount, firms, hhNetwork, rng)
+      // Assign households to same bank as their employer
+      hhs.map { h =>
+        h.status match
+          case HhStatus.Employed(fid, _, _) if fid.toInt < firms.length =>
+            h.copy(bankId = firms(fid.toInt).bankId)
+          case _ => h
+      }
 
     /** Initialize households, all employed, assigned proportionally to firm sizes. */
     def initialize(

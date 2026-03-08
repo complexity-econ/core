@@ -14,7 +14,7 @@ object WorldAssemblyStep:
   case class Input(
     w: World,
     firms: Array[Firm.State],
-    households: Option[Vector[Household.State]],
+    households: Vector[Household.State],
     living: Array[Firm.State],
     sectorCap: Vector[Double],
     // Step 1
@@ -34,7 +34,7 @@ object WorldAssemblyStep:
     importCons: Double,
     importAdj: Double,
     pitRevenue: Double,
-    hhAgg: Option[Household.Aggregates],
+    hhAgg: Household.Aggregates,
     // Step 4
     sectorMults: Vector[Double],
     govPurchases: Double,
@@ -111,7 +111,7 @@ object WorldAssemblyStep:
     resolvedBank: BankingAggregate,
     finalBankingSector: Banking.State,
     reassignedFirms: Array[Firm.State],
-    reassignedHouseholds: Option[Vector[Household.State]],
+    reassignedHouseholds: Vector[Household.State],
     finalPpk: SocialSecurity.PpkState,
     finalInsurance: Insurance.State,
     finalNbfi: Nbfi.State,
@@ -122,7 +122,7 @@ object WorldAssemblyStep:
     bailInLoss: Double,
     multiCapDestruction: Double,
     monAgg: Option[MonetaryAggregates],
-    finalHhAgg: Option[Household.Aggregates],
+    finalHhAgg: Household.Aggregates,
     vat: Double,
     vatAfterEvasion: Double,
     pitAfterEvasion: Double,
@@ -144,28 +144,17 @@ object WorldAssemblyStep:
   case class Output(
     newWorld: World,
     finalFirms: Array[Firm.State],
-    reassignedHouseholds: Option[Vector[Household.State]],
+    reassignedHouseholds: Vector[Household.State],
     sfcResult: Either[Vector[Sfc.SfcIdentityError], Unit],
   )
 
   def run(in: Input): Output =
     // GPW: finalize equity state with HH equity wealth
-    val (totalHhEquityWealth, totalWealthEffectAgg) = in.reassignedHouseholds match
-      case Some(hhs) =>
-        (hhs.kahanSumBy(_.equityWealth.toDouble), 0.0)
-      case None =>
-        if Config.GpwHhEquity && Config.GpwEnabled then
-          val prevHhEq = in.w.equity.hhEquityWealth.toDouble
-          val newHhEq = prevHhEq * (1.0 + in.equityAfterIssuance.monthlyReturn.toDouble)
-          val wEffect =
-            if in.equityAfterIssuance.monthlyReturn > Rate.Zero then (newHhEq - prevHhEq) * Config.GpwWealthEffectMpc
-            else 0.0
-          (newHhEq, wEffect)
-        else (0.0, 0.0)
+    val totalHhEquityWealth = in.reassignedHouseholds.kahanSumBy(_.equityWealth.toDouble)
 
     val equityAfterStep = in.equityAfterIssuance.copy(
       hhEquityWealth = PLN(totalHhEquityWealth),
-      lastWealthEffect = PLN(totalWealthEffectAgg),
+      lastWealthEffect = PLN.Zero,
       lastDomesticDividends = PLN(in.netDomesticDividends),
       lastForeignDividends = PLN(in.foreignDividendOutflow),
       lastDividendTax = PLN(in.dividendTax),
@@ -220,7 +209,7 @@ object WorldAssemblyStep:
       in.newSigmas,
       ioFlows = PLN(in.totalIoPaid),
       bop = in.newBop,
-      hhAgg = in.finalHhAgg,
+      hhAgg = Some(in.finalHhAgg),
       households = in.reassignedHouseholds,
       bankingSector = in.finalBankingSector,
       monetaryAgg = in.monAgg,
@@ -232,9 +221,9 @@ object WorldAssemblyStep:
       equity = equityAfterStep,
       housing = in.housingAfterFlows,
       sectoralMobility = SectoralMobility.State(
-        crossSectorHires = in.postFirmCrossSectorHires + in.hhAgg.map(_.crossSectorHires).getOrElse(0),
-        voluntaryQuits = in.hhAgg.map(_.voluntaryQuits).getOrElse(0),
-        sectorMobilityRate = in.finalHhAgg.map(_.sectorMobilityRate.toDouble).getOrElse(0.0),
+        crossSectorHires = in.postFirmCrossSectorHires + in.hhAgg.crossSectorHires,
+        voluntaryQuits = in.hhAgg.voluntaryQuits,
+        sectorMobilityRate = in.finalHhAgg.sectorMobilityRate.toDouble,
       ),
       gvc = in.newGvc,
       expectations = in.newExp,
@@ -264,7 +253,7 @@ object WorldAssemblyStep:
     )
 
     // SFC accounting check
-    val prevSnap = Sfc.snapshot(in.w, in.firms, in.households)
+    val prevSnap = Sfc.snapshot(in.w, in.firms, in.w.households)
     val currSnap = Sfc.snapshot(newW, in.reassignedFirms, in.reassignedHouseholds)
     val sfcFlows = Sfc.MonthlyFlows(
       govSpending = PLN(
@@ -402,7 +391,7 @@ object WorldAssemblyStep:
                   0.02,
                   Math.min(0.30, SECTORS(newSector).baseDigitalReadiness.toDouble + Random.nextGaussian() * 0.10),
                 )
-            val startWorkers = if in.households.isDefined then 0 else firmSize
+            val startWorkers = 0 // workers hired via labor market
             val tech = if isAiNative then
               val hw = Math.max(1, (startWorkers * 0.6).toInt)
               TechState.Hybrid(hw, 0.5 + Random.nextDouble() * 0.3)
