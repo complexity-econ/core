@@ -132,6 +132,7 @@ object WorldInit:
       nbfi = initNbfi,
       grossInvestment = initGrossInvestment,
       aggGreenInvestment = initGreenInvestment,
+      totalPopulation = Config.TotalPopulation,
     )
 
     InitResult(world, firms, households)
