@@ -101,9 +101,9 @@ private val BASE_SECTORS: Vector[SectorDef] = Vector(
   ), // ~8% BAEL, avg ~5 500 PLN
 )
 
-/** SectorDefs with optional sigma override via SIGMAS env var. Format: SIGMAS="3.5,2.0,2.5,0.8,0.5,1.2" (6 comma-separated
-  * values, one per sector). When unset, uses calibrated values from BASE_SECTORS. SIGMA_MULT env var multiplies all
-  * sector sigmas (applied after SIGMAS override).
+/** SectorDefs with optional sigma override via SIGMAS env var. Format: SIGMAS="3.5,2.0,2.5,0.8,0.5,1.2" (6
+  * comma-separated values, one per sector). When unset, uses calibrated values from BASE_SECTORS. SIGMA_MULT env var
+  * multiplies all sector sigmas (applied after SIGMAS override).
   */
 val SectorDefs: Vector[SectorDef] =
   val afterSigmas = sys.env.get("SIGMAS") match
