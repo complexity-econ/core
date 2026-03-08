@@ -1,5 +1,7 @@
 package sfc.config
 
+import sfc.types.*
+
 /** Shadow economy and tax evasion: counter-cyclical informal sector dynamics.
   *
   * Models the Polish informal economy (Schneider 2023: 20-25% of GDP) with 4-channel tax evasion: firm-level CIT
@@ -24,13 +26,13 @@ package sfc.config
   *   exponential smoothing parameter for lagged unemployment (higher = more inertia)
   */
 case class InformalConfig(
-  sectorShares: Vector[Double] = Vector(0.05, 0.15, 0.30, 0.20, 0.02, 0.35),
-  citEvasion: Double = 0.80,
-  vatEvasion: Double = 0.90,
-  pitEvasion: Double = 0.85,
-  exciseEvasion: Double = 0.70,
-  unempThreshold: Double = 0.05,
-  cyclicalSens: Double = 0.50,
-  smoothing: Double = 0.92,
+  sectorShares: Vector[Ratio] = Vector(Ratio(0.05), Ratio(0.15), Ratio(0.30), Ratio(0.20), Ratio(0.02), Ratio(0.35)),
+  citEvasion: Ratio = Ratio(0.80),
+  vatEvasion: Ratio = Ratio(0.90),
+  pitEvasion: Ratio = Ratio(0.85),
+  exciseEvasion: Ratio = Ratio(0.70),
+  unempThreshold: Rate = Rate(0.05),
+  cyclicalSens: Ratio = Ratio(0.50),
+  smoothing: Ratio = Ratio(0.92),
 ):
   require(sectorShares.length == 6, s"sectorShares must have 6 sectors: ${sectorShares.length}")

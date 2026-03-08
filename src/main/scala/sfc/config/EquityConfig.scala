@@ -1,5 +1,7 @@
 package sfc.config
 
+import sfc.types.*
+
 /** GPW (Warsaw Stock Exchange) equity market: index, issuance, household equity, and dividends.
   *
   * Models the WIG index with P/E-driven valuation, equity issuance by large firms (Catalyst), household equity
@@ -31,13 +33,13 @@ package sfc.config
   */
 case class EquityConfig(
   initIndex: Double = 2400.0,
-  initMcap: Double = 1.4e12, // raw — scaled by gdpRatio
+  initMcap: PLN = PLN(1.4e12), // raw — scaled by gdpRatio
   peMean: Double = 10.0,
-  divYield: Double = 0.057,
-  foreignShare: Double = 0.67,
-  issuanceFrac: Double = 0.10,
+  divYield: Rate = Rate(0.057),
+  foreignShare: Ratio = Ratio(0.67),
+  issuanceFrac: Ratio = Ratio(0.10),
   issuanceMinSize: Int = 5,
-  hhEquityFrac: Double = 0.07,
-  wealthEffectMpc: Double = 0.02,
-  divTax: Double = 0.19,
+  hhEquityFrac: Ratio = Ratio(0.07),
+  wealthEffectMpc: Ratio = Ratio(0.02),
+  divTax: Rate = Rate(0.19),
 )

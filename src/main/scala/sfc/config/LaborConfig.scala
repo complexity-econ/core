@@ -1,5 +1,6 @@
 package sfc.config
 
+import sfc.types.*
 import sfc.engine.markets.SectoralMobility
 
 /** Labor market: sectoral mobility, trade unions, and forward-looking expectations.
@@ -46,21 +47,21 @@ case class LaborConfig(
   // Sectoral mobility (GUS LFS 2024, Shimer 2005)
   frictionMatrix: Vector[Vector[Double]] = SectoralMobility.DefaultFrictionMatrix,
   frictionDurationMult: Double = 1.0,
-  frictionCostMult: Double = 0.5,
-  voluntarySearchProb: Double = 0.02,
-  voluntaryWageThreshold: Double = 0.20,
+  frictionCostMult: Ratio = Ratio(0.5),
+  voluntarySearchProb: Ratio = Ratio(0.02),
+  voluntaryWageThreshold: Ratio = Ratio(0.20),
   vacancyWeight: Double = 2.0,
-  adjacentFrictionMax: Double = 0.4,
+  adjacentFrictionMax: Ratio = Ratio(0.4),
   // Unions (GUS 2024)
-  unionDensity: Vector[Double] = Vector(0.02, 0.15, 0.03, 0.12, 0.30, 0.04),
-  unionWagePremium: Double = 0.08,
-  unionRigidity: Double = 0.50,
+  unionDensity: Vector[Ratio] = Vector(Ratio(0.02), Ratio(0.15), Ratio(0.03), Ratio(0.12), Ratio(0.30), Ratio(0.04)),
+  unionWagePremium: Ratio = Ratio(0.08),
+  unionRigidity: Ratio = Ratio(0.50),
   // Expectations (Carroll 2003, Bewley 1999)
-  expLambda: Double = 0.70,
-  expCredibilityInit: Double = 0.80,
-  expCredibilitySpeed: Double = 0.05,
-  expCredibilityThreshold: Double = 0.02,
-  expWagePassthrough: Double = 0.50,
-  expBondSensitivity: Double = 0.50,
+  expLambda: Ratio = Ratio(0.70),
+  expCredibilityInit: Ratio = Ratio(0.80),
+  expCredibilitySpeed: Ratio = Ratio(0.05),
+  expCredibilityThreshold: Rate = Rate(0.02),
+  expWagePassthrough: Ratio = Ratio(0.50),
+  expBondSensitivity: Ratio = Ratio(0.50),
 ):
   require(unionDensity.length == 6, s"unionDensity must have 6 sectors: ${unionDensity.length}")

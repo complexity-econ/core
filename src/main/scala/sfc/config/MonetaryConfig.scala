@@ -1,5 +1,7 @@
 package sfc.config
 
+import sfc.types.*
+
 /** NBP (National Bank of Poland) monetary policy: Taylor rule, standing facilities, QE, and FX intervention.
   *
   * Implements the NBP's interest rate corridor (deposit facility, lombard rate), Taylor-rule rate setting with inertia,
@@ -50,29 +52,32 @@ package sfc.config
   *   effectiveness of FX intervention on exchange rate
   */
 case class MonetaryConfig(
-  initialRate: Double = 0.0575,
-  targetInfl: Double = 0.025,
-  neutralRate: Double = 0.04,
+  initialRate: Rate = Rate(0.0575),
+  targetInfl: Rate = Rate(0.025),
+  neutralRate: Rate = Rate(0.04),
   taylorAlpha: Double = 1.5,
   taylorBeta: Double = 0.8,
-  taylorInertia: Double = 0.70,
-  rateFloor: Double = 0.001,
-  rateCeiling: Double = 0.25,
-  maxRateChange: Double = 0.0,
-  nairu: Double = 0.05,
+  taylorInertia: Ratio = Ratio(0.70),
+  rateFloor: Rate = Rate(0.001),
+  rateCeiling: Rate = Rate(0.25),
+  maxRateChange: Rate = Rate(0.0),
+  nairu: Rate = Rate(0.05),
   taylorDelta: Double = 0.5,
-  reserveRateMult: Double = 0.5,
-  depositFacilitySpread: Double = 0.01,
-  lombardSpread: Double = 0.01,
+  reserveRateMult: Ratio = Ratio(0.5),
+  depositFacilitySpread: Rate = Rate(0.01),
+  lombardSpread: Rate = Rate(0.01),
   // QE (raw — scaled by gdpRatio in SimParams.defaults)
-  qePace: Double = 5e9,
-  qeMaxGdpShare: Double = 0.30,
+  qePace: PLN = PLN(5e9),
+  qeMaxGdpShare: Ratio = Ratio(0.30),
   // FX intervention (raw — scaled by gdpRatio in SimParams.defaults)
-  fxBand: Double = 0.10,
-  fxReserves: Double = 185e9,
-  fxMaxMonthly: Double = 0.03,
-  fxStrength: Double = 0.5,
+  fxBand: Ratio = Ratio(0.10),
+  fxReserves: PLN = PLN(185e9),
+  fxMaxMonthly: Ratio = Ratio(0.03),
+  fxStrength: Ratio = Ratio(0.5),
 ):
   require(rateFloor < rateCeiling, s"rateFloor ($rateFloor) must be < rateCeiling ($rateCeiling)")
-  require(rateFloor >= 0, s"rateFloor must be non-negative: $rateFloor")
-  require(qeMaxGdpShare > 0 && qeMaxGdpShare <= 1.0, s"qeMaxGdpShare must be in (0,1]: $qeMaxGdpShare")
+  require(rateFloor >= Rate.Zero, s"rateFloor must be non-negative: $rateFloor")
+  require(
+    qeMaxGdpShare > Ratio.Zero && qeMaxGdpShare <= Ratio.One,
+    s"qeMaxGdpShare must be in (0,1]: $qeMaxGdpShare",
+  )

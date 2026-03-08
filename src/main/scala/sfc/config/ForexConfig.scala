@@ -1,5 +1,7 @@
 package sfc.config
 
+import sfc.types.*
+
 /** Foreign exchange market: PLN/EUR base rate, trade propensities, and interest rate parity.
   *
   * Models the bilateral PLN/EUR exchange rate with interest rate parity (IRP) adjustment, import propensity, technology
@@ -27,13 +29,16 @@ package sfc.config
   */
 case class ForexConfig(
   baseExRate: Double = 4.33,
-  foreignRate: Double = 0.04,
-  importPropensity: Double = 0.22,
-  exportBase: Double = 55.4e9, // raw — scaled by gdpRatio
-  techImportShare: Double = 0.40,
+  foreignRate: Rate = Rate(0.04),
+  importPropensity: Ratio = Ratio(0.22),
+  exportBase: PLN = PLN(55.4e9), // raw — scaled by gdpRatio
+  techImportShare: Ratio = Ratio(0.40),
   irpSensitivity: Double = 0.15,
-  exRateAdjSpeed: Double = 0.02,
-  exportAutoBoost: Double = 0.15,
+  exRateAdjSpeed: Ratio = Ratio(0.02),
+  exportAutoBoost: Ratio = Ratio(0.15),
 ):
   require(baseExRate > 0, s"baseExRate must be positive: $baseExRate")
-  require(importPropensity >= 0 && importPropensity <= 1.0, s"importPropensity must be in [0,1]: $importPropensity")
+  require(
+    importPropensity >= Ratio.Zero && importPropensity <= Ratio.One,
+    s"importPropensity must be in [0,1]: $importPropensity",
+  )

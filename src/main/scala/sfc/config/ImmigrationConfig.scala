@@ -1,5 +1,7 @@
 package sfc.config
 
+import sfc.types.*
+
 /** Labor immigration: inflow dynamics, sectoral allocation, skill profile, and return migration.
   *
   * Models endogenous labor immigration driven by wage differentials (NBP 2023 survey), with sector-specific allocation
@@ -26,14 +28,14 @@ package sfc.config
   *   initial immigrant stock at simulation start (number of workers)
   */
 case class ImmigrationConfig(
-  monthlyRate: Double = 0.001,
+  monthlyRate: Ratio = Ratio(0.001),
   wageElasticity: Double = 2.0,
-  foreignWage: Double = 4000.0,
-  remitRate: Double = 0.15,
-  returnRate: Double = 0.005,
-  sectorShares: Vector[Double] = Vector(0.05, 0.35, 0.25, 0.05, 0.05, 0.25),
-  skillMean: Double = 0.45,
-  wageDiscount: Double = 0.20,
+  foreignWage: PLN = PLN(4000.0),
+  remitRate: Ratio = Ratio(0.15),
+  returnRate: Ratio = Ratio(0.005),
+  sectorShares: Vector[Ratio] = Vector(Ratio(0.05), Ratio(0.35), Ratio(0.25), Ratio(0.05), Ratio(0.05), Ratio(0.25)),
+  skillMean: Ratio = Ratio(0.45),
+  wageDiscount: Ratio = Ratio(0.20),
   initStock: Int = 0,
 ):
   require(sectorShares.length == 6, s"sectorShares must have 6 sectors: ${sectorShares.length}")

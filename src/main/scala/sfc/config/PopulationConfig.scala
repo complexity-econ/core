@@ -1,5 +1,7 @@
 package sfc.config
 
+import sfc.types.*
+
 /** Firm size distribution strategy used to compute average workers per firm and gdpRatio.
   *   - `Uniform`: all firms have `workersPerFirm` employees (analytical baseline)
   *   - `Gus`: realistic micro/small/medium/large split calibrated to GUS CEIDG/KRS 2024
@@ -35,14 +37,14 @@ case class PopulationConfig(
   firmsCount: Int = 10000,
   workersPerFirm: Int = 10,
   firmSizeDist: FirmSizeDist = FirmSizeDist.Uniform,
-  firmSizeMicroShare: Double = 0.962,
-  firmSizeSmallShare: Double = 0.028,
-  firmSizeMediumShare: Double = 0.008,
-  firmSizeLargeShare: Double = 0.002,
+  firmSizeMicroShare: Ratio = Ratio(0.962),
+  firmSizeSmallShare: Ratio = Ratio(0.028),
+  firmSizeMediumShare: Ratio = Ratio(0.008),
+  firmSizeLargeShare: Ratio = Ratio(0.002),
   firmSizeLargeMax: Int = 1000,
-  realGdp: Double = 3500e9,
+  realGdp: PLN = PLN(3500e9),
 ):
   require(firmsCount > 0, s"firmsCount must be positive: $firmsCount")
   require(workersPerFirm > 0, s"workersPerFirm must be positive: $workersPerFirm")
-  require(realGdp > 0, s"realGdp must be positive: $realGdp")
+  require(realGdp > PLN.Zero, s"realGdp must be positive: $realGdp")
   require(firmSizeLargeMax >= 250, s"firmSizeLargeMax must be >= 250: $firmSizeLargeMax")

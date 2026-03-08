@@ -84,13 +84,14 @@ object SimParams:
       case FirmSizeDist.Gus =>
         val microMean = 5.0; val smallMean = 29.5; val mediumMean = 149.5
         val largeMean = (250.0 + pop.firmSizeLargeMax.toDouble) / 2.0
-        val mediumShare = 1.0 - pop.firmSizeMicroShare - pop.firmSizeSmallShare - pop.firmSizeLargeShare
-        pop.firmSizeMicroShare * microMean + pop.firmSizeSmallShare * smallMean +
-          mediumShare * mediumMean + pop.firmSizeLargeShare * largeMean
+        val mediumShare =
+          1.0 - pop.firmSizeMicroShare.toDouble - pop.firmSizeSmallShare.toDouble - pop.firmSizeLargeShare.toDouble
+        pop.firmSizeMicroShare.toDouble * microMean + pop.firmSizeSmallShare.toDouble * smallMean +
+          mediumShare * mediumMean + pop.firmSizeLargeShare.toDouble * largeMean
       case FirmSizeDist.Uniform => pop.workersPerFirm.toDouble
-    (pop.firmsCount.toDouble * expectedAvgWorkers / pop.workersPerFirm.toDouble * baseRevenue * 12.0) / pop.realGdp
+    (pop.firmsCount.toDouble * expectedAvgWorkers / pop.workersPerFirm.toDouble * baseRevenue * 12.0) / pop.realGdp.toDouble
 
-  private val DefaultGdpRatio: Double = computeGdpRatio(PopulationConfig(), FirmConfig().baseRevenue)
+  private val DefaultGdpRatio: Double = computeGdpRatio(PopulationConfig(), FirmConfig().baseRevenue.toDouble)
 
   /** All hardcoded defaults with gdpRatio-scaled stock variables.
     *
@@ -108,46 +109,46 @@ object SimParams:
       firm = firm,
       household = HouseholdConfig(count = totalPop),
       fiscal = FiscalConfig(
-        govBaseSpending = 58.3e9 * r,
-        initGovDebt = 1600e9 * r,
+        govBaseSpending = PLN(58.3e9) * r,
+        initGovDebt = PLN(1600e9) * r,
       ),
       monetary = MonetaryConfig(
-        qePace = 5e9 * r,
-        fxReserves = 185e9 * r,
+        qePace = PLN(5e9) * r,
+        fxReserves = PLN(185e9) * r,
       ),
       banking = BankingConfig(
-        initCapital = 270e9 * r,
-        initDeposits = 1900e9 * r,
-        initLoans = 700e9 * r,
-        initGovBonds = 400e9 * r,
-        initNbpGovBonds = 300e9 * r,
-        initConsumerLoans = 200e9 * r,
+        initCapital = PLN(270e9) * r,
+        initDeposits = PLN(1900e9) * r,
+        initLoans = PLN(700e9) * r,
+        initGovBonds = PLN(400e9) * r,
+        initNbpGovBonds = PLN(300e9) * r,
+        initConsumerLoans = PLN(200e9) * r,
       ),
       forex = ForexConfig(
-        exportBase = 55.4e9 * r,
+        exportBase = PLN(55.4e9) * r,
       ),
       openEcon = OpenEconConfig(
-        exportBase = 138.5e9 * r,
-        euTransfers = 1.458e9 * r,
-        fdiBase = 583.1e6 * r,
+        exportBase = PLN(138.5e9) * r,
+        euTransfers = PLN(1.458e9) * r,
+        fdiBase = PLN(583.1e6) * r,
       ),
       equity = EquityConfig(
-        initMcap = 1.4e12 * r,
+        initMcap = PLN(1.4e12) * r,
       ),
       corpBond = CorpBondConfig(
-        initStock = 90e9 * r,
+        initStock = PLN(90e9) * r,
       ),
       ins = InsuranceConfig(
-        lifeReserves = 110e9 * r,
-        nonLifeReserves = 90e9 * r,
+        lifeReserves = PLN(110e9) * r,
+        nonLifeReserves = PLN(90e9) * r,
       ),
       nbfi = NbfiConfig(
-        tfiInitAum = 380e9 * r,
-        creditInitStock = 231e9 * r,
+        tfiInitAum = PLN(380e9) * r,
+        creditInitStock = PLN(231e9) * r,
       ),
       housing = HousingConfig(
-        initValue = 3.0e12 * r,
-        initMortgage = 485e9 * r,
+        initValue = PLN(3.0e12) * r,
+        initMortgage = PLN(485e9) * r,
       ),
       social = SocialConfig(demInitialRetirees = 0),
       gdpRatio = r,

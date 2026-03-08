@@ -1,5 +1,7 @@
 package sfc.config
 
+import sfc.types.*
+
 /** Foreign Direct Investment composition: per-sector foreign ownership, profit outflows, and M&A.
   *
   * Models the two-channel FDI outflow (profit shifting + repatriation) calibrated to NBP IIP 2024 and GUS 2024 data on
@@ -18,10 +20,10 @@ package sfc.config
   *   minimum firm size (employees) eligible for M&A
   */
 case class FdiConfig(
-  foreignShares: Vector[Double] = Vector(0.15, 0.30, 0.10, 0.03, 0.00, 0.05),
-  profitShiftRate: Double = 0.15,
-  repatriationRate: Double = 0.70,
-  maProb: Double = 0.001,
+  foreignShares: Vector[Ratio] = Vector(Ratio(0.15), Ratio(0.30), Ratio(0.10), Ratio(0.03), Ratio(0.00), Ratio(0.05)),
+  profitShiftRate: Ratio = Ratio(0.15),
+  repatriationRate: Ratio = Ratio(0.70),
+  maProb: Ratio = Ratio(0.001),
   maSizeMin: Int = 50,
 ):
   require(foreignShares.length == 6, s"foreignShares must have 6 sectors: ${foreignShares.length}")

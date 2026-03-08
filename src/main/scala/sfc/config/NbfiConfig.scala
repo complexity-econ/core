@@ -1,5 +1,7 @@
 package sfc.config
 
+import sfc.types.*
+
 /** Non-bank financial institutions (NBFI): TFI investment funds and shadow banking credit.
   *
   * Models two NBFI channels: (1) TFI (Towarzystwa Funduszy Inwestycyjnych) investment funds with ~380 mld PLN AUM,
@@ -37,17 +39,17 @@ package sfc.config
   *   sensitivity of NBFI defaults to unemployment rate
   */
 case class NbfiConfig(
-  tfiInitAum: Double = 380e9, // raw — scaled by gdpRatio
-  tfiGovBondShare: Double = 0.40,
-  tfiCorpBondShare: Double = 0.10,
-  tfiEquityShare: Double = 0.10,
-  tfiInflowRate: Double = 0.001,
-  tfiRebalanceSpeed: Double = 0.05,
-  creditInitStock: Double = 231e9, // raw — scaled by gdpRatio
-  creditBaseRate: Double = 0.005,
-  creditRate: Double = 0.10,
+  tfiInitAum: PLN = PLN(380e9), // raw — scaled by gdpRatio
+  tfiGovBondShare: Ratio = Ratio(0.40),
+  tfiCorpBondShare: Ratio = Ratio(0.10),
+  tfiEquityShare: Ratio = Ratio(0.10),
+  tfiInflowRate: Ratio = Ratio(0.001),
+  tfiRebalanceSpeed: Ratio = Ratio(0.05),
+  creditInitStock: PLN = PLN(231e9), // raw — scaled by gdpRatio
+  creditBaseRate: Ratio = Ratio(0.005),
+  creditRate: Rate = Rate(0.10),
   countercyclical: Double = 2.0,
   creditMaturity: Double = 36.0,
-  defaultBase: Double = 0.002,
+  defaultBase: Ratio = Ratio(0.002),
   defaultUnempSens: Double = 3.0,
 )

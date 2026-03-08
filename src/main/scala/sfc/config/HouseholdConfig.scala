@@ -1,5 +1,7 @@
 package sfc.config
 
+import sfc.types.*
+
 /** Household agent parameters: wages, consumption, savings, debt, and consumer credit.
   *
   * Each household is an individual agent with heterogeneous MPC (Beta-distributed), log-normal savings and debt, skill
@@ -81,52 +83,52 @@ package sfc.config
   *   fraction of employed households eligible for consumer credit each month
   */
 case class HouseholdConfig(
-  baseWage: Double = 8266.0,
-  baseReservationWage: Double = 4666.0,
-  mpc: Double = 0.82,
+  baseWage: PLN = PLN(8266.0),
+  baseReservationWage: PLN = PLN(4666.0),
+  mpc: Ratio = Ratio(0.82),
   laborSupplySteepness: Double = 8.0,
-  wageAdjSpeed: Double = 0.12,
+  wageAdjSpeed: Ratio = Ratio(0.12),
   // Household count (defaults to totalPopulation — set in SimParams.defaults)
   count: Int = 100000,
   // Savings distribution
   savingsMu: Double = 9.6,
   savingsSigma: Double = 1.2,
   // Debt
-  debtFraction: Double = 0.40,
+  debtFraction: Ratio = Ratio(0.40),
   debtMu: Double = 10.5,
   debtSigma: Double = 1.5,
   // Rent
-  rentMean: Double = 1800.0,
-  rentStd: Double = 400.0,
-  rentFloor: Double = 800.0,
+  rentMean: PLN = PLN(1800.0),
+  rentStd: PLN = PLN(400.0),
+  rentFloor: PLN = PLN(800.0),
   // MPC distribution
   mpcAlpha: Double = 8.2,
   mpcBeta: Double = 1.8,
   // Skill decay & scarring
-  skillDecayRate: Double = 0.02,
-  scarringRate: Double = 0.02,
-  scarringCap: Double = 0.50,
+  skillDecayRate: Rate = Rate(0.02),
+  scarringRate: Rate = Rate(0.02),
+  scarringCap: Ratio = Ratio(0.50),
   scarringOnset: Int = 3,
   // Retraining
-  retrainingCost: Double = 5000.0,
+  retrainingCost: PLN = PLN(5000.0),
   retrainingDuration: Int = 6,
-  retrainingBaseSuccess: Double = 0.60,
-  retrainingProb: Double = 0.15,
+  retrainingBaseSuccess: Ratio = Ratio(0.60),
+  retrainingProb: Ratio = Ratio(0.15),
   retrainingEnabled: Boolean = true,
   // Bankruptcy
   bankruptcyThreshold: Double = -3.0,
   // Social network
   socialK: Int = 10,
-  socialP: Double = 0.15,
+  socialP: Ratio = Ratio(0.15),
   // Debt service
-  debtServiceRate: Double = 0.02,
-  baseAmortRate: Double = 0.015,
-  depositSpread: Double = 0.02,
+  debtServiceRate: Ratio = Ratio(0.02),
+  baseAmortRate: Ratio = Ratio(0.015),
+  depositSpread: Rate = Rate(0.02),
   // Consumer credit
-  ccSpread: Double = 0.04,
-  ccMaxDti: Double = 0.40,
-  ccMaxLoan: Double = 50000.0,
-  ccAmortRate: Double = 0.025,
-  ccNplRecovery: Double = 0.15,
-  ccEligRate: Double = 0.30,
+  ccSpread: Rate = Rate(0.04),
+  ccMaxDti: Ratio = Ratio(0.40),
+  ccMaxLoan: PLN = PLN(50000.0),
+  ccAmortRate: Rate = Rate(0.025),
+  ccNplRecovery: Ratio = Ratio(0.15),
+  ccEligRate: Ratio = Ratio(0.30),
 )

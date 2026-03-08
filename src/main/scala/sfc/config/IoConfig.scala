@@ -1,5 +1,7 @@
 package sfc.config
 
+import sfc.types.*
+
 /** Input-Output matrix for inter-sectoral intermediate demand.
   *
   * Implements the 6x6 technical coefficients matrix A (Leontief, 1936) where `matrix(i)(j)` is sector i's share of
@@ -15,7 +17,7 @@ package sfc.config
   */
 case class IoConfig(
   matrix: Vector[Vector[Double]] = IoConfig.DefaultMatrix,
-  scale: Double = 1.0,
+  scale: Ratio = Ratio(1.0),
 ):
   /** Pre-computed column sums of the technical coefficients matrix (used in intermediate demand calculation). */
   val columnSums: Vector[Double] =

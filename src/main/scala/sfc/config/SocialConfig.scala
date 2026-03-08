@@ -1,5 +1,7 @@
 package sfc.config
 
+import sfc.types.*
+
 /** Social security, pensions, demographics, and education.
   *
   * Covers ZUS (Social Insurance Institution) contributions and pension payments, PPK (Employee Capital Plans) with
@@ -42,25 +44,25 @@ package sfc.config
   */
 case class SocialConfig(
   // ZUS (Ustawa o systemie ubezpieczen spolecznych)
-  zusContribRate: Double = 0.1952,
-  zusBasePension: Double = 3500.0,
+  zusContribRate: Rate = Rate(0.1952),
+  zusBasePension: PLN = PLN(3500.0),
   zusScale: Double = 1.0,
   // PPK (Ustawa o PPK)
-  ppkEmployeeRate: Double = 0.02,
-  ppkEmployerRate: Double = 0.015,
-  ppkBondAlloc: Double = 0.60,
+  ppkEmployeeRate: Rate = Rate(0.02),
+  ppkEmployerRate: Rate = Rate(0.015),
+  ppkBondAlloc: Ratio = Ratio(0.60),
   // Demographics (GUS 2024)
-  demRetirementRate: Double = 0.001,
-  demWorkingAgeDecline: Double = 0.002,
+  demRetirementRate: Rate = Rate(0.001),
+  demWorkingAgeDecline: Rate = Rate(0.002),
   demInitialRetirees: Int = 0,
   // Education (GUS LFS 2024)
-  eduShares: Vector[Double] = Vector(0.08, 0.25, 0.30, 0.37),
+  eduShares: Vector[Ratio] = Vector(Ratio(0.08), Ratio(0.25), Ratio(0.30), Ratio(0.37)),
   eduSectorShares: Option[Vector[Vector[Double]]] = None,
   eduWagePreemia: Vector[Double] = Vector(0.70, 0.85, 1.00, 1.30),
   eduRetrainMult: Vector[Double] = Vector(0.67, 0.83, 1.00, 1.25),
-  eduSkillFloors: Vector[Double] = Vector(0.30, 0.35, 0.45, 0.55),
-  eduSkillCeilings: Vector[Double] = Vector(0.75, 0.85, 0.95, 1.00),
-  eduImmigShares: Vector[Double] = Vector(0.15, 0.40, 0.35, 0.10),
+  eduSkillFloors: Vector[Ratio] = Vector(Ratio(0.30), Ratio(0.35), Ratio(0.45), Ratio(0.55)),
+  eduSkillCeilings: Vector[Ratio] = Vector(Ratio(0.75), Ratio(0.85), Ratio(0.95), Ratio(1.00)),
+  eduImmigShares: Vector[Ratio] = Vector(Ratio(0.15), Ratio(0.40), Ratio(0.35), Ratio(0.10)),
 ):
 
   private val defaultEduSectorShares: Vector[Vector[Double]] = Vector(
@@ -79,7 +81,7 @@ case class SocialConfig(
 
   /** Draw education tier for an immigrant worker. */
   def drawImmigrantEducation(rng: scala.util.Random): Int =
-    SocialConfig.cdfSample(eduImmigShares, rng)
+    SocialConfig.cdfSample(eduImmigShares.map(_.toDouble), rng)
 
   /** Wage premium multiplier for given education tier (0-3). */
   def eduWagePremium(education: Int): Double =
@@ -92,7 +94,7 @@ case class SocialConfig(
   /** Skill floor and ceiling for given education tier (0-3). */
   def eduSkillRange(education: Int): (Double, Double) =
     val idx = education.max(0).min(3)
-    (eduSkillFloors(idx), eduSkillCeilings(idx))
+    (eduSkillFloors(idx).toDouble, eduSkillCeilings(idx).toDouble)
 
 object SocialConfig:
   /** Sample a categorical index from a probability vector using the inverse CDF method.
