@@ -95,6 +95,11 @@ case class SocialConfig(
     (eduSkillFloors(idx), eduSkillCeilings(idx))
 
 object SocialConfig:
+  /** Sample a categorical index from a probability vector using the inverse CDF method.
+    *
+    * Builds a cumulative distribution from `shares`, draws a uniform random number, and returns the first index whose
+    * cumulative probability exceeds the draw. The last category absorbs any floating-point residual.
+    */
   private[config] def cdfSample(shares: Vector[Double], rng: scala.util.Random): Int =
     val r = rng.nextDouble()
     var cum = 0.0
