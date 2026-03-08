@@ -1,5 +1,7 @@
 package sfc.config
 
+import sfc.types.*
+
 /** Government fiscal policy: taxation, spending, transfers, bond market, and local government (JST).
   *
   * Covers the full fiscal architecture of the Polish state: CIT/VAT/PIT/excise/customs revenue, government consumption
@@ -107,69 +109,70 @@ package sfc.config
   */
 case class FiscalConfig(
   // Tax rates
-  citRate: Double = 0.19,
-  vatRates: Vector[Double] = Vector(0.23, 0.19, 0.12, 0.06, 0.10, 0.07),
-  exciseRates: Vector[Double] = Vector(0.01, 0.04, 0.03, 0.005, 0.002, 0.02),
-  customsDutyRate: Double = 0.04,
-  customsNonEuShare: Double = 0.30,
+  citRate: Rate = Rate(0.19),
+  vatRates: Vector[Rate] = Vector(Rate(0.23), Rate(0.19), Rate(0.12), Rate(0.06), Rate(0.10), Rate(0.07)),
+  exciseRates: Vector[Rate] = Vector(Rate(0.01), Rate(0.04), Rate(0.03), Rate(0.005), Rate(0.002), Rate(0.02)),
+  customsDutyRate: Rate = Rate(0.04),
+  customsNonEuShare: Ratio = Ratio(0.30),
   // Government spending (raw — scaled by gdpRatio in SimParams.defaults)
-  govBaseSpending: Double = 58.3e9,
-  govFiscalRecyclingRate: Double = 0.85,
+  govBaseSpending: PLN = PLN(58.3e9),
+  govFiscalRecyclingRate: Ratio = Ratio(0.85),
   govAutoStabMult: Double = 3.0,
   // Government investment
-  govInvestShare: Double = 0.20,
+  govInvestShare: Ratio = Ratio(0.20),
   govCapitalMultiplier: Double = 1.5,
   govCurrentMultiplier: Double = 0.8,
-  govDepreciationRate: Double = 0.06,
-  govInitCapital: Double = 0.0,
+  govDepreciationRate: Rate = Rate(0.06),
+  govInitCapital: PLN = PLN(0.0),
   // EU Funds
   euFundsTotalEur: Double = 76e9,
   euFundsPeriodMonths: Int = 84,
   euFundsStartMonth: Int = 1,
   euFundsAlpha: Double = 2.0,
   euFundsBeta: Double = 5.0,
-  euCofinanceRate: Double = 0.15,
-  euCapitalShare: Double = 0.60,
+  euCofinanceRate: Ratio = Ratio(0.15),
+  euCapitalShare: Ratio = Ratio(0.60),
   // Minimum wage
   minWageAdjustMonths: Int = 12,
   minWageInflationIndex: Boolean = true,
-  minWageTargetRatio: Double = 0.50,
-  minWageConvergenceSpeed: Double = 0.33,
+  minWageTargetRatio: Ratio = Ratio(0.50),
+  minWageConvergenceSpeed: Ratio = Ratio(0.33),
   // Flow-of-Funds weights (6 sectors)
-  fofConsWeights: Vector[Double] = Vector(0.02, 0.22, 0.53, 0.06, 0.07, 0.10),
-  fofGovWeights: Vector[Double] = Vector(0.04, 0.12, 0.08, 0.16, 0.50, 0.10),
-  fofExportShares: Vector[Double] = Vector(0.07, 0.52, 0.12, 0.02, 0.03, 0.24),
-  fofInvestWeights: Vector[Double] = Vector(0.10, 0.40, 0.15, 0.05, 0.20, 0.10),
+  fofConsWeights: Vector[Ratio] = Vector(Ratio(0.02), Ratio(0.22), Ratio(0.53), Ratio(0.06), Ratio(0.07), Ratio(0.10)),
+  fofGovWeights: Vector[Ratio] = Vector(Ratio(0.04), Ratio(0.12), Ratio(0.08), Ratio(0.16), Ratio(0.50), Ratio(0.10)),
+  fofExportShares: Vector[Ratio] = Vector(Ratio(0.07), Ratio(0.52), Ratio(0.12), Ratio(0.02), Ratio(0.03), Ratio(0.24)),
+  fofInvestWeights: Vector[Ratio] =
+    Vector(Ratio(0.10), Ratio(0.40), Ratio(0.15), Ratio(0.05), Ratio(0.20), Ratio(0.10)),
   // Unemployment benefits
-  govBenefitM1to3: Double = 1500.0,
-  govBenefitM4to6: Double = 1200.0,
+  govBenefitM1to3: PLN = PLN(1500.0),
+  govBenefitM4to6: PLN = PLN(1200.0),
   govBenefitDuration: Int = 6,
-  govBenefitCoverage: Double = 0.15,
+  govBenefitCoverage: Ratio = Ratio(0.15),
   // Bond market
   govFiscalRiskBeta: Double = 2.0,
-  govTermPremium: Double = 0.005,
+  govTermPremium: Rate = Rate(0.005),
   // Government debt (raw — scaled by gdpRatio in SimParams.defaults)
-  initGovDebt: Double = 1600e9,
+  initGovDebt: PLN = PLN(1600e9),
   // JST (local government, Art. 4 Ustawa o dochodach JST)
-  jstPitShare: Double = 0.3846,
-  jstCitShare: Double = 0.0671,
-  jstPropertyTax: Double = 5000.0,
-  jstSubventionShare: Double = 0.03,
-  jstDotacjeShare: Double = 0.01,
+  jstPitShare: Ratio = Ratio(0.3846),
+  jstCitShare: Ratio = Ratio(0.0671),
+  jstPropertyTax: PLN = PLN(5000.0),
+  jstSubventionShare: Ratio = Ratio(0.03),
+  jstDotacjeShare: Ratio = Ratio(0.01),
   jstSpendingMult: Double = 1.02,
   // PIT (Ustawa o PIT 2024)
-  pitRate1: Double = 0.12,
-  pitRate2: Double = 0.32,
-  pitBracket1Annual: Double = 120000.0,
-  pitTaxCreditAnnual: Double = 3600.0,
-  pitEffectiveRate: Double = 0.09,
+  pitRate1: Rate = Rate(0.12),
+  pitRate2: Rate = Rate(0.32),
+  pitBracket1Annual: PLN = PLN(120000.0),
+  pitTaxCreditAnnual: PLN = PLN(3600.0),
+  pitEffectiveRate: Rate = Rate(0.09),
   // Social 800+ (Dz.U. 2023)
-  social800Rate: Double = 800.0,
+  social800Rate: PLN = PLN(800.0),
   social800ChildrenPerHh: Double = 0.35,
 ):
-  require(citRate >= 0 && citRate <= 1.0, s"citRate must be in [0,1]: $citRate")
-  require(govBaseSpending >= 0, s"govBaseSpending must be non-negative: $govBaseSpending")
-  require(initGovDebt >= 0, s"initGovDebt must be non-negative: $initGovDebt")
+  require(citRate >= Rate.Zero && citRate <= Rate(1.0), s"citRate must be in [0,1]: $citRate")
+  require(govBaseSpending >= PLN.Zero, s"govBaseSpending must be non-negative: $govBaseSpending")
+  require(initGovDebt >= PLN.Zero, s"initGovDebt must be non-negative: $initGovDebt")
   require(vatRates.length == 6, s"vatRates must have 6 sectors: ${vatRates.length}")
   require(exciseRates.length == 6, s"exciseRates must have 6 sectors: ${exciseRates.length}")
   require(fofConsWeights.length == 6, s"fofConsWeights must have 6 sectors: ${fofConsWeights.length}")

@@ -1,5 +1,7 @@
 package sfc.config
 
+import sfc.types.*
+
 /** Corporate bond market (Catalyst): issuance, buyer composition, and default recovery.
   *
   * Models the Polish corporate bond market with demand-side absorption constraint: issuance by qualifying firms (50+
@@ -26,12 +28,12 @@ package sfc.config
   *   average bond maturity in months
   */
 case class CorpBondConfig(
-  spread: Double = 0.025,
-  initStock: Double = 90e9, // raw — scaled by gdpRatio
+  spread: Rate = Rate(0.025),
+  initStock: PLN = PLN(90e9), // raw — scaled by gdpRatio
   minSize: Int = 50,
-  issuanceFrac: Double = 0.15,
-  bankShare: Double = 0.30,
-  ppkShare: Double = 0.15,
-  recovery: Double = 0.30,
+  issuanceFrac: Ratio = Ratio(0.15),
+  bankShare: Ratio = Ratio(0.30),
+  ppkShare: Ratio = Ratio(0.15),
+  recovery: Ratio = Ratio(0.30),
   maturity: Double = 60.0,
 )

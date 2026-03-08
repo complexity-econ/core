@@ -1,5 +1,7 @@
 package sfc.config
 
+import sfc.types.*
+
 /** Diaspora remittance inflows from Polish workers abroad.
   *
   * Models the inbound remittance channel calibrated to NBP BoP 2024 (~18 mld PLN/year). Remittances enter as household
@@ -16,8 +18,8 @@ package sfc.config
   *   sensitivity of remittances to excess domestic unemployment (counter-cyclical buffer)
   */
 case class RemittanceConfig(
-  perCapita: Double = 40.0,
+  perCapita: PLN = PLN(40.0),
   erElasticity: Double = 0.5,
-  growthRate: Double = 0.02,
-  cyclicalSens: Double = 0.3,
+  growthRate: Rate = Rate(0.02),
+  cyclicalSens: Ratio = Ratio(0.3),
 )

@@ -1,5 +1,7 @@
 package sfc.config
 
+import sfc.types.*
+
 /** Energy costs and climate policy: EU ETS carbon pricing, green capital investment, and decarbonization.
   *
   * Models per-sector energy cost burdens (Eurostat/GUS 2023), EU ETS carbon pricing with price drift (KOBiZE 2024, EC
@@ -35,19 +37,20 @@ package sfc.config
   *   share of energy sourced domestically (vs. imported)
   */
 case class ClimateConfig(
-  energyCostShares: Vector[Double] = Vector(0.02, 0.10, 0.04, 0.05, 0.03, 0.06),
+  energyCostShares: Vector[Ratio] =
+    Vector(Ratio(0.02), Ratio(0.10), Ratio(0.04), Ratio(0.05), Ratio(0.03), Ratio(0.06)),
   carbonIntensity: Vector[Double] = Vector(0.01, 0.08, 0.02, 0.01, 0.02, 0.04),
   etsBasePrice: Double = 80.0,
-  etsPriceDrift: Double = 0.03,
-  greenKLRatios: Vector[Double] = Vector(5000.0, 30000.0, 10000.0, 15000.0, 8000.0, 20000.0),
-  greenDepRate: Double = 0.04,
-  greenAdjustSpeed: Double = 0.08,
-  greenMaxDiscount: Double = 0.30,
-  greenImportShare: Double = 0.35,
-  greenInitRatio: Double = 0.10,
-  greenBudgetShare: Double = 0.20,
-  energyCostReplace: Double = 0.30,
-  energyDomesticShare: Double = 0.60,
+  etsPriceDrift: Rate = Rate(0.03),
+  greenKLRatios: Vector[PLN] = Vector(PLN(5000.0), PLN(30000.0), PLN(10000.0), PLN(15000.0), PLN(8000.0), PLN(20000.0)),
+  greenDepRate: Rate = Rate(0.04),
+  greenAdjustSpeed: Ratio = Ratio(0.08),
+  greenMaxDiscount: Ratio = Ratio(0.30),
+  greenImportShare: Ratio = Ratio(0.35),
+  greenInitRatio: Ratio = Ratio(0.10),
+  greenBudgetShare: Ratio = Ratio(0.20),
+  energyCostReplace: Ratio = Ratio(0.30),
+  energyDomesticShare: Ratio = Ratio(0.60),
 ):
   require(energyCostShares.length == 6, s"energyCostShares must have 6 sectors: ${energyCostShares.length}")
   require(carbonIntensity.length == 6, s"carbonIntensity must have 6 sectors: ${carbonIntensity.length}")

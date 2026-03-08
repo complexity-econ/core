@@ -1,5 +1,7 @@
 package sfc.config
 
+import sfc.types.*
+
 /** Physical capital and inventory accumulation at the firm level.
   *
   * Two mechanisms: (1) physical capital with per-sector capital-labor ratios, Cobb-Douglas production, and vintage
@@ -39,21 +41,23 @@ package sfc.config
   */
 case class CapitalConfig(
   // Physical capital (GUS F-01 2024)
-  klRatios: Vector[Double] = Vector(120000.0, 250000.0, 80000.0, 200000.0, 150000.0, 180000.0),
-  depRates: Vector[Double] = Vector(0.15, 0.08, 0.10, 0.07, 0.05, 0.08),
-  importShare: Double = 0.35,
-  adjustSpeed: Double = 0.10,
-  prodElast: Double = 0.30,
-  costReplace: Double = 0.50,
+  klRatios: Vector[PLN] =
+    Vector(PLN(120000.0), PLN(250000.0), PLN(80000.0), PLN(200000.0), PLN(150000.0), PLN(180000.0)),
+  depRates: Vector[Rate] = Vector(Rate(0.15), Rate(0.08), Rate(0.10), Rate(0.07), Rate(0.05), Rate(0.08)),
+  importShare: Ratio = Ratio(0.35),
+  adjustSpeed: Ratio = Ratio(0.10),
+  prodElast: Ratio = Ratio(0.30),
+  costReplace: Ratio = Ratio(0.50),
   // Inventories (GUS 2024)
-  inventoryTargetRatios: Vector[Double] = Vector(0.05, 0.25, 0.15, 0.10, 0.02, 0.30),
-  inventoryAdjustSpeed: Double = 0.10,
-  inventoryCarryingCost: Double = 0.06,
-  inventorySpoilageRates: Vector[Double] = Vector(0.0, 0.02, 0.05, 0.03, 0.0, 0.10),
-  inventoryCostFraction: Double = 0.50,
-  inventoryLiquidationDisc: Double = 0.50,
-  inventoryInitRatio: Double = 0.80,
-  inventoryCostReplace: Double = 0.10,
+  inventoryTargetRatios: Vector[Ratio] =
+    Vector(Ratio(0.05), Ratio(0.25), Ratio(0.15), Ratio(0.10), Ratio(0.02), Ratio(0.30)),
+  inventoryAdjustSpeed: Ratio = Ratio(0.10),
+  inventoryCarryingCost: Rate = Rate(0.06),
+  inventorySpoilageRates: Vector[Rate] = Vector(Rate(0.0), Rate(0.02), Rate(0.05), Rate(0.03), Rate(0.0), Rate(0.10)),
+  inventoryCostFraction: Ratio = Ratio(0.50),
+  inventoryLiquidationDisc: Ratio = Ratio(0.50),
+  inventoryInitRatio: Ratio = Ratio(0.80),
+  inventoryCostReplace: Ratio = Ratio(0.10),
 ):
   require(klRatios.length == 6, s"klRatios must have 6 sectors: ${klRatios.length}")
   require(depRates.length == 6, s"depRates must have 6 sectors: ${depRates.length}")

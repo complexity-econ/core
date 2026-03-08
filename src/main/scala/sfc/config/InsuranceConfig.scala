@@ -1,5 +1,7 @@
 package sfc.config
 
+import sfc.types.*
+
 /** Insurance sector: life and non-life reserves, asset allocation, and counter-cyclical claims.
   *
   * Models the Polish insurance industry with separate life (~110 mld PLN) and non-life (~90 mld PLN) reserve pools (KNF
@@ -32,15 +34,15 @@ package sfc.config
   *   monthly portfolio rebalancing speed toward target allocation
   */
 case class InsuranceConfig(
-  lifeReserves: Double = 110e9, // raw — scaled by gdpRatio
-  nonLifeReserves: Double = 90e9, // raw — scaled by gdpRatio
-  govBondShare: Double = 0.35,
-  corpBondShare: Double = 0.08,
-  equityShare: Double = 0.12,
-  lifePremiumRate: Double = 0.003,
-  nonLifePremiumRate: Double = 0.0025,
-  lifeLossRatio: Double = 0.85,
-  nonLifeLossRatio: Double = 0.70,
+  lifeReserves: PLN = PLN(110e9), // raw — scaled by gdpRatio
+  nonLifeReserves: PLN = PLN(90e9), // raw — scaled by gdpRatio
+  govBondShare: Ratio = Ratio(0.35),
+  corpBondShare: Ratio = Ratio(0.08),
+  equityShare: Ratio = Ratio(0.12),
+  lifePremiumRate: Ratio = Ratio(0.003),
+  nonLifePremiumRate: Ratio = Ratio(0.0025),
+  lifeLossRatio: Ratio = Ratio(0.85),
+  nonLifeLossRatio: Ratio = Ratio(0.70),
   nonLifeUnempSens: Double = 0.5,
-  rebalanceSpeed: Double = 0.05,
+  rebalanceSpeed: Ratio = Ratio(0.05),
 )

@@ -1,5 +1,7 @@
 package sfc.config
 
+import sfc.types.*
+
 /** Tourism sector: inbound and outbound flows, seasonality, and COVID-type shock capability.
   *
   * Models bilateral tourism flows calibrated to GUS Tourism Satellite Account 2023 and NBP BoP 2023. Inbound tourism
@@ -27,13 +29,13 @@ package sfc.config
   *   monthly recovery rate after shock (fraction of lost demand restored)
   */
 case class TourismConfig(
-  inboundShare: Double = 0.05,
-  outboundShare: Double = 0.03,
+  inboundShare: Ratio = Ratio(0.05),
+  outboundShare: Ratio = Ratio(0.03),
   erElasticity: Double = 0.6,
-  seasonality: Double = 0.40,
+  seasonality: Ratio = Ratio(0.40),
   peakMonth: Int = 7,
-  growthRate: Double = 0.03,
+  growthRate: Rate = Rate(0.03),
   shockMonth: Int = 0,
-  shockSize: Double = 0.80,
-  shockRecovery: Double = 0.03,
+  shockSize: Ratio = Ratio(0.80),
+  shockRecovery: Rate = Rate(0.03),
 )

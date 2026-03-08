@@ -1,5 +1,7 @@
 package sfc.config
 
+import sfc.types.*
+
 /** Global Value Chain integration: sectoral trade structure, ER pass-through, and demand shocks.
   *
   * Models Poland's deep integration into EU/global supply chains (WIOD/OECD ICIO), with per-sector export shares, GVC
@@ -30,17 +32,17 @@ package sfc.config
   *   monthly recovery rate from supply chain disruption
   */
 case class GvcConfig(
-  euTradeShare: Double = 0.70,
-  exportShares: Vector[Double] = Vector(0.05, 0.55, 0.15, 0.03, 0.02, 0.20),
-  depth: Vector[Double] = Vector(0.35, 0.75, 0.30, 0.40, 0.10, 0.45),
-  foreignInflation: Double = 0.02,
-  foreignGdpGrowth: Double = 0.015,
-  erPassthrough: Double = 0.60,
-  euErPassthrough: Double = 0.15,
+  euTradeShare: Ratio = Ratio(0.70),
+  exportShares: Vector[Ratio] = Vector(Ratio(0.05), Ratio(0.55), Ratio(0.15), Ratio(0.03), Ratio(0.02), Ratio(0.20)),
+  depth: Vector[Ratio] = Vector(Ratio(0.35), Ratio(0.75), Ratio(0.30), Ratio(0.40), Ratio(0.10), Ratio(0.45)),
+  foreignInflation: Rate = Rate(0.02),
+  foreignGdpGrowth: Rate = Rate(0.015),
+  erPassthrough: Ratio = Ratio(0.60),
+  euErPassthrough: Ratio = Ratio(0.15),
   demandShockMonth: Int = 0,
-  demandShockSize: Double = 0.0,
+  demandShockSize: Ratio = Ratio(0.0),
   demandShockSectors: Set[Int] = Set.empty,
-  disruptionRecovery: Double = 0.05,
+  disruptionRecovery: Ratio = Ratio(0.05),
 ):
   require(exportShares.length == 6, s"exportShares must have 6 sectors: ${exportShares.length}")
   require(depth.length == 6, s"depth must have 6 sectors: ${depth.length}")

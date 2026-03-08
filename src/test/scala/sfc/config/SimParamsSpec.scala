@@ -26,91 +26,91 @@ class SimParamsSpec extends AnyFlatSpec with Matchers:
   // ── Fiscal ──
 
   "FiscalConfig" should "have gdpRatio-scaled govBaseSpending" in {
-    p.fiscal.govBaseSpending shouldBe (58.3e9 * p.gdpRatio) +- 1.0
+    p.fiscal.govBaseSpending.toDouble shouldBe (58.3e9 * p.gdpRatio) +- 1.0
   }
 
   it should "have gdpRatio-scaled initGovDebt" in {
-    p.fiscal.initGovDebt shouldBe (1600e9 * p.gdpRatio) +- 1.0
+    p.fiscal.initGovDebt.toDouble shouldBe (1600e9 * p.gdpRatio) +- 1.0
   }
 
   "Config.InitGovDebt" should "delegate to fiscal.initGovDebt" in {
-    Config.InitGovDebt shouldBe p.fiscal.initGovDebt +- 1e-6
+    Config.InitGovDebt shouldBe p.fiscal.initGovDebt.toDouble +- 1e-6
   }
 
   // ── Banking ──
 
   "BankingConfig" should "have gdpRatio-scaled values" in {
-    p.banking.initCapital shouldBe (270e9 * p.gdpRatio) +- 1.0
-    p.banking.initDeposits shouldBe (1900e9 * p.gdpRatio) +- 1.0
-    p.banking.initLoans shouldBe (700e9 * p.gdpRatio) +- 1.0
-    p.banking.initGovBonds shouldBe (400e9 * p.gdpRatio) +- 1.0
-    p.banking.initNbpGovBonds shouldBe (300e9 * p.gdpRatio) +- 1.0
-    p.banking.initConsumerLoans shouldBe (200e9 * p.gdpRatio) +- 1.0
+    p.banking.initCapital.toDouble shouldBe (270e9 * p.gdpRatio) +- 1.0
+    p.banking.initDeposits.toDouble shouldBe (1900e9 * p.gdpRatio) +- 1.0
+    p.banking.initLoans.toDouble shouldBe (700e9 * p.gdpRatio) +- 1.0
+    p.banking.initGovBonds.toDouble shouldBe (400e9 * p.gdpRatio) +- 1.0
+    p.banking.initNbpGovBonds.toDouble shouldBe (300e9 * p.gdpRatio) +- 1.0
+    p.banking.initConsumerLoans.toDouble shouldBe (200e9 * p.gdpRatio) +- 1.0
   }
 
   // ── External sector sub-configs ──
 
   "ForexConfig" should "have gdpRatio-scaled exportBase" in {
-    p.forex.exportBase shouldBe (55.4e9 * p.gdpRatio) +- 1.0
+    p.forex.exportBase.toDouble shouldBe (55.4e9 * p.gdpRatio) +- 1.0
   }
 
   "OpenEconConfig" should "have gdpRatio-scaled values" in {
-    p.openEcon.exportBase shouldBe (138.5e9 * p.gdpRatio) +- 1.0
-    p.openEcon.euTransfers shouldBe (1.458e9 * p.gdpRatio) +- 1.0
-    p.openEcon.fdiBase shouldBe (583.1e6 * p.gdpRatio) +- 1.0
+    p.openEcon.exportBase.toDouble shouldBe (138.5e9 * p.gdpRatio) +- 1.0
+    p.openEcon.euTransfers.toDouble shouldBe (1.458e9 * p.gdpRatio) +- 1.0
+    p.openEcon.fdiBase.toDouble shouldBe (583.1e6 * p.gdpRatio) +- 1.0
   }
 
   // ── Financial sub-configs ──
 
   "EquityConfig" should "have gdpRatio-scaled initMcap" in {
-    p.equity.initMcap shouldBe (1.4e12 * p.gdpRatio) +- 1.0
+    p.equity.initMcap.toDouble shouldBe (1.4e12 * p.gdpRatio) +- 1.0
   }
 
   "CorpBondConfig" should "have gdpRatio-scaled initStock" in {
-    p.corpBond.initStock shouldBe (90e9 * p.gdpRatio) +- 1.0
+    p.corpBond.initStock.toDouble shouldBe (90e9 * p.gdpRatio) +- 1.0
   }
 
   "InsuranceConfig" should "have gdpRatio-scaled reserves" in {
-    p.ins.lifeReserves shouldBe (110e9 * p.gdpRatio) +- 1.0
-    p.ins.nonLifeReserves shouldBe (90e9 * p.gdpRatio) +- 1.0
+    p.ins.lifeReserves.toDouble shouldBe (110e9 * p.gdpRatio) +- 1.0
+    p.ins.nonLifeReserves.toDouble shouldBe (90e9 * p.gdpRatio) +- 1.0
   }
 
   "NbfiConfig" should "have gdpRatio-scaled values" in {
-    p.nbfi.tfiInitAum shouldBe (380e9 * p.gdpRatio) +- 1.0
-    p.nbfi.creditInitStock shouldBe (231e9 * p.gdpRatio) +- 1.0
+    p.nbfi.tfiInitAum.toDouble shouldBe (380e9 * p.gdpRatio) +- 1.0
+    p.nbfi.creditInitStock.toDouble shouldBe (231e9 * p.gdpRatio) +- 1.0
   }
 
   "HousingConfig" should "have gdpRatio-scaled values" in {
-    p.housing.initValue shouldBe (3.0e12 * p.gdpRatio) +- 1.0
-    p.housing.initMortgage shouldBe (485e9 * p.gdpRatio) +- 1.0
+    p.housing.initValue.toDouble shouldBe (3.0e12 * p.gdpRatio) +- 1.0
+    p.housing.initMortgage.toDouble shouldBe (485e9 * p.gdpRatio) +- 1.0
   }
 
   // ── Delegation consistency ──
 
   "Config delegation" should "match SimParams for all key external paths" in {
     Config.BaseExRate shouldBe p.forex.baseExRate
-    Config.ExportBase shouldBe p.forex.exportBase
-    Config.OeExportBase shouldBe p.openEcon.exportBase
-    Config.GvcEuTradeShare shouldBe p.gvc.euTradeShare
-    Config.FdiForeignShares shouldBe p.fdi.foreignShares
-    Config.ImmigMonthlyRate shouldBe p.immigration.monthlyRate
-    Config.TourismInboundShare shouldBe p.tourism.inboundShare
-    Config.RemittancePerCapita shouldBe p.remittance.perCapita
+    Config.ExportBase shouldBe p.forex.exportBase.toDouble
+    Config.OeExportBase shouldBe p.openEcon.exportBase.toDouble
+    Config.GvcEuTradeShare shouldBe p.gvc.euTradeShare.toDouble
+    Config.FdiForeignShares shouldBe p.fdi.foreignShares.map(_.toDouble)
+    Config.ImmigMonthlyRate shouldBe p.immigration.monthlyRate.toDouble
+    Config.TourismInboundShare shouldBe p.tourism.inboundShare.toDouble
+    Config.RemittancePerCapita shouldBe p.remittance.perCapita.toDouble
   }
 
   it should "match SimParams for all key financial paths" in {
-    Config.GpwInitMcap shouldBe p.equity.initMcap
-    Config.CorpBondInitStock shouldBe p.corpBond.initStock
-    Config.InsLifeReserves shouldBe p.ins.lifeReserves
-    Config.NbfiTfiInitAum shouldBe p.nbfi.tfiInitAum
-    Config.ReInitValue shouldBe p.housing.initValue
-    Config.ReInitMortgage shouldBe p.housing.initMortgage
+    Config.GpwInitMcap shouldBe p.equity.initMcap.toDouble
+    Config.CorpBondInitStock shouldBe p.corpBond.initStock.toDouble
+    Config.InsLifeReserves shouldBe p.ins.lifeReserves.toDouble
+    Config.NbfiTfiInitAum shouldBe p.nbfi.tfiInitAum.toDouble
+    Config.ReInitValue shouldBe p.housing.initValue.toDouble
+    Config.ReInitMortgage shouldBe p.housing.initMortgage.toDouble
   }
 
   // ── Inventory delegation ──
 
   "Config.InventoryTargetRatios" should "delegate to capital.inventoryTargetRatios" in {
-    Config.InventoryTargetRatios shouldBe p.capital.inventoryTargetRatios
+    Config.InventoryTargetRatios shouldBe p.capital.inventoryTargetRatios.map(_.toDouble)
   }
 
   // ── FirmSizeDist enum ──
@@ -122,8 +122,8 @@ class SimParamsSpec extends AnyFlatSpec with Matchers:
   // ── Remittance split ──
 
   "Config.RemittancePerCapita" should "delegate to remittance.perCapita" in {
-    Config.RemittancePerCapita shouldBe p.remittance.perCapita
-    Config.RemittanceGrowthRate shouldBe p.remittance.growthRate
+    Config.RemittancePerCapita shouldBe p.remittance.perCapita.toDouble
+    Config.RemittanceGrowthRate shouldBe p.remittance.growthRate.toDouble
   }
 
   // ── Validation ──
@@ -133,26 +133,31 @@ class SimParamsSpec extends AnyFlatSpec with Matchers:
   }
 
   "MonetaryConfig" should "reject rateFloor >= rateCeiling" in {
-    an[IllegalArgumentException] should be thrownBy MonetaryConfig(rateFloor = 0.5, rateCeiling = 0.1)
+    import sfc.types.*
+    an[IllegalArgumentException] should be thrownBy MonetaryConfig(rateFloor = Rate(0.5), rateCeiling = Rate(0.1))
   }
 
   "BankingConfig" should "reject invalid minCar" in {
-    an[IllegalArgumentException] should be thrownBy BankingConfig(minCar = 0.0)
-    an[IllegalArgumentException] should be thrownBy BankingConfig(minCar = 1.0)
+    import sfc.types.*
+    an[IllegalArgumentException] should be thrownBy BankingConfig(minCar = Ratio(0.0))
+    an[IllegalArgumentException] should be thrownBy BankingConfig(minCar = Ratio(1.0))
   }
 
   // ── Vector length validation ──
 
   "FiscalConfig" should "reject wrong-length vatRates" in {
-    an[IllegalArgumentException] should be thrownBy FiscalConfig(vatRates = Vector(0.23, 0.19))
+    import sfc.types.*
+    an[IllegalArgumentException] should be thrownBy FiscalConfig(vatRates = Vector(Rate(0.23), Rate(0.19)))
   }
 
   "CapitalConfig" should "reject wrong-length klRatios" in {
-    an[IllegalArgumentException] should be thrownBy CapitalConfig(klRatios = Vector(1.0))
+    import sfc.types.*
+    an[IllegalArgumentException] should be thrownBy CapitalConfig(klRatios = Vector(PLN(1.0)))
   }
 
   "ClimateConfig" should "reject wrong-length energyCostShares" in {
-    an[IllegalArgumentException] should be thrownBy ClimateConfig(energyCostShares = Vector(0.1))
+    import sfc.types.*
+    an[IllegalArgumentException] should be thrownBy ClimateConfig(energyCostShares = Vector(Ratio(0.1)))
   }
 
   // ── Private constructor ──
