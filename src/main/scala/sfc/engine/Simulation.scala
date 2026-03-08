@@ -176,18 +176,16 @@ object Sectors:
     )
 
 object Simulation:
-  /** Step with optional individual households. When households = None (aggregate mode), behavior is identical to Papers
-    * 1–5. When households = Some(...) (individual mode), uses HouseholdLogic + LaborMarket.
-    */
+  /** Step with individual households. */
   def step(
     w: World,
     firms: Array[Firm.State],
     rc: RunConfig,
-    households: Option[Vector[Household.State]] = None,
+    households: Vector[Household.State],
   ): (
     World,
     Array[Firm.State],
-    Option[Vector[Household.State]],
+    Vector[Household.State],
     Either[Vector[sfc.accounting.Sfc.SfcIdentityError], Unit],
   ) =
     // ---- Step 1: Fiscal constraint ----
@@ -228,7 +226,7 @@ object Simulation:
       ),
     )
     val newWage = s2.newWage; val employed = s2.employed; val wageGrowth = s2.wageGrowth
-    val newImmig = s2.newImmig; val netMigration = s2.netMigration
+    val newImmig = s2.newImmig
     val newDemographics = s2.newDemographics
     val newZus = s2.newZus; val newPpk = s2.newPpk; val rawPpkBondPurchase = s2.rawPpkBondPurchase
     val living = s2.living
@@ -297,7 +295,7 @@ object Simulation:
         rc = rc,
       ),
     )
-    val ioFirms = s5.ioFirms; val finalHouseholds = s5.finalHouseholds
+    val ioFirms = s5.ioFirms; val finalHouseholds = s5.households
     val sumTax = s5.sumTax; val sumTechImp = s5.sumTechImp
     val sumNewLoans = s5.sumNewLoans; val sumEquityIssuance = s5.sumEquityIssuance
     val sumGrossInvestment = s5.sumGrossInvestment
@@ -312,9 +310,6 @@ object Simulation:
     val perBankIntIncome = s5.perBankIntIncome; val perBankWorkers = s5.perBankWorkers
     val lendingRates = s5.lendingRates
     val postFirmCrossSectorHires = s5.postFirmCrossSectorHires
-
-    // Side effect: update TotalPopulation with net migration (aggregate mode)
-    if Config.ImmigEnabled && households.isEmpty then Config.setTotalPopulation(Config.TotalPopulation + netMigration)
 
     // ---- Step 6: Household financial flows ----
     val s6 = steps.HouseholdFinancialStep.run(

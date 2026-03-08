@@ -7,7 +7,7 @@ import sfc.types.*
 object HouseholdFinancialStep:
 
   case class Input(
-    hhAgg: Option[Household.Aggregates],
+    hhAgg: Household.Aggregates,
     newImmigRemittanceOutflow: Double,
     employed: Int,
     m: Int,
@@ -34,9 +34,9 @@ object HouseholdFinancialStep:
   )
 
   def run(in: Input): Output =
-    val hhDebtService = in.hhAgg.map(_.totalDebtService.toDouble).getOrElse(0.0)
-    val depositInterestPaid = in.hhAgg.map(_.totalDepositInterest.toDouble).getOrElse(0.0)
-    val remittanceOutflow = in.hhAgg.map(_.totalRemittances.toDouble).getOrElse(in.newImmigRemittanceOutflow)
+    val hhDebtService = in.hhAgg.totalDebtService.toDouble
+    val depositInterestPaid = in.hhAgg.totalDepositInterest.toDouble
+    val remittanceOutflow = in.hhAgg.totalRemittances.toDouble
 
     // Diaspora remittance inflow (#46)
     val diasporaInflow = if Config.RemittanceEnabled then
@@ -80,17 +80,11 @@ object HouseholdFinancialStep:
     else (0.0, 0.0)
 
     // Consumer credit flows
-    val aggConsumerDS = in.bankConsumerLoans * (Config.CcAmortRate + (in.lendingBaseRate + Config.CcSpread) / 12.0)
-    val aggConsumerOrig = in.domesticCons * 0.02
-    val consumerDebtService = in.hhAgg.map(_.totalConsumerDebtService.toDouble).getOrElse(aggConsumerDS)
-    val consumerOrigination = in.hhAgg.map(_.totalConsumerOrigination.toDouble).getOrElse(aggConsumerOrig)
-    val consumerDefaultAmt = in.hhAgg.map(_.totalConsumerDefault.toDouble).getOrElse(0.0)
+    val consumerDebtService = in.hhAgg.totalConsumerDebtService.toDouble
+    val consumerOrigination = in.hhAgg.totalConsumerOrigination.toDouble
+    val consumerDefaultAmt = in.hhAgg.totalConsumerDefault.toDouble
     val consumerNplLoss = consumerDefaultAmt * (1.0 - Config.CcNplRecovery)
-    val consumerPrincipal = in.hhAgg.map(_.totalConsumerPrincipal.toDouble).getOrElse {
-      if Config.CcAmortRate + (in.lendingBaseRate + Config.CcSpread) / 12.0 > 0 then
-        consumerDebtService * (Config.CcAmortRate / (Config.CcAmortRate + (in.lendingBaseRate + Config.CcSpread) / 12.0))
-      else 0.0
-    }
+    val consumerPrincipal = in.hhAgg.totalConsumerPrincipal.toDouble
 
     Output(
       hhDebtService,

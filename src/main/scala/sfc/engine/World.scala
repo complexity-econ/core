@@ -20,7 +20,7 @@ case class World(
   ioFlows: PLN = PLN.Zero,
   bop: BopState = BopState.zero,
   hhAgg: Option[Household.Aggregates] = None,
-  households: Option[Vector[Household.State]] = None,
+  households: Vector[Household.State] = Vector.empty,
   bankingSector: Banking.State,
   monetaryAgg: Option[MonetaryAggregates] = None,
   jst: Jst.State = Jst.State.zero,

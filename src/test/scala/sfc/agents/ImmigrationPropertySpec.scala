@@ -27,16 +27,6 @@ class ImmigrationPropertySpec extends AnyFlatSpec with Matchers:
       result should be >= 0
   }
 
-  "Immigration.computeRemittancesAggregate" should "always return non-negative" in {
-    val rng = new Random(42)
-    for _ <- 0 until 100 do
-      val stock = rng.nextInt(10000)
-      val wage = rng.nextDouble() * 20000
-      val unemp = rng.nextDouble()
-      val result = Immigration.computeRemittancesAggregate(stock, wage, unemp)
-      result should be >= 0.0
-  }
-
   "Immigration.chooseSector" should "produce all 6 sectors over many draws" in {
     val rng = new Random(42)
     val sectors = (0 until 1000).map(_ => Immigration.chooseSector(rng)).toSet
@@ -82,7 +72,7 @@ class ImmigrationPropertySpec extends AnyFlatSpec with Matchers:
     for _ <- 0 until 100 do
       val prevStock = rng.nextInt(5000)
       val prev = Immigration.State(prevStock, 0, 0, 0.0)
-      val result = Immigration.step(prev, None, 8000.0, 0.05, 100000, 1)
+      val result = Immigration.step(prev, Vector.empty, 8000.0, 0.05, 100000, 1)
       result.immigrantStock should be >= 0
   }
 

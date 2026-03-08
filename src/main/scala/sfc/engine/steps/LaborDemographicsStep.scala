@@ -15,7 +15,7 @@ object LaborDemographicsStep:
     immigration: Immigration.State,
     zusBalance: Double,
     ppkBondHoldings: Double,
-    households: Option[Vector[Household.State]],
+    households: Vector[Household.State],
     resWage: Double,
     expectedInflation: Double,
     m: Int,

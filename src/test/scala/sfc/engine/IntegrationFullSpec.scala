@@ -2,7 +2,7 @@ package sfc.engine
 
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import sfc.config.{Config, HH_MODE, HhMode, RunConfig}
+import sfc.config.{Config, RunConfig}
 import sfc.runSingle
 
 class IntegrationFullSpec extends AnyFlatSpec with Matchers:
@@ -12,7 +12,6 @@ class IntegrationFullSpec extends AnyFlatSpec with Matchers:
     assume(Config.NbpQe, "NBP_QE=true required")
     assume(Config.NbpFxIntervention, "NBP_FX_INTERVENTION=true required")
     assume(Config.IoEnabled, "IO_MODE=enabled required")
-    assume(HH_MODE == HhMode.Individual, "HH_MODE=individual required")
 
   private lazy val rc = RunConfig(2000.0, 1, "test")
 
@@ -107,21 +106,21 @@ class IntegrationFullSpec extends AnyFlatSpec with Matchers:
   // Individual HH specific
   // ==========================================================================
 
-  "Individual households" should "return Some for terminalHhAgg" in {
+  "Individual households" should "return defined terminalHhAgg" in {
     requireAllMechanisms()
-    result.terminalHhAgg shouldBe defined
+    result.terminalHhAgg.employed should be >= 0
   }
 
   it should "have employment counts summing to HhCount" in {
     requireAllMechanisms()
-    val agg = result.terminalHhAgg.get
+    val agg = result.terminalHhAgg
     val total = agg.employed + agg.unemployed + agg.retraining + agg.bankrupt
     total shouldBe Config.HhCount
   }
 
   it should "have Gini coefficients in [0, 1]" in {
     requireAllMechanisms()
-    val agg = result.terminalHhAgg.get
+    val agg = result.terminalHhAgg
     agg.giniIndividual.toDouble should be >= 0.0
     agg.giniIndividual.toDouble should be <= 1.0
     agg.giniWealth.toDouble should be >= 0.0

@@ -52,14 +52,6 @@ object Immigration:
         }
         .sum
 
-  /** Compute aggregate-mode remittances (no individual HH). */
-  def computeRemittancesAggregate(immigrantStock: Int, wage: Double, unempRate: Double): Double =
-    if !Config.ImmigEnabled then 0.0
-    else
-      val employedImmigrants = (immigrantStock * (1.0 - unempRate)).toInt
-      employedImmigrants * wage * (1.0 - Config.ImmigWageDiscount) *
-        Config.ImmigRemittanceRate
-
   /** Choose sector for new immigrant (weighted by Config.ImmigSectorShares). */
   def chooseSector(rng: Random): Int =
     val r = rng.nextDouble()
@@ -115,7 +107,7 @@ object Immigration:
   /** Full monthly step: compute inflow, outflow, remittances, update state. */
   def step(
     prev: State,
-    households: Option[Vector[Household.State]],
+    households: Vector[Household.State],
     wage: Double,
     unempRate: Double,
     workingAgePop: Int,
@@ -124,7 +116,5 @@ object Immigration:
     val inflow = computeInflow(workingAgePop, wage, unempRate, month)
     val outflow = computeOutflow(prev.immigrantStock)
     val newStock = (prev.immigrantStock + inflow - outflow).max(0)
-    val remittances = households match
-      case Some(hhs) => computeRemittances(hhs)
-      case None      => computeRemittancesAggregate(newStock, wage, unempRate)
+    val remittances = computeRemittances(households)
     State(newStock, inflow, outflow, remittances)

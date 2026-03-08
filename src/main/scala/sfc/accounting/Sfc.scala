@@ -147,15 +147,10 @@ object Sfc:
     actual: PLN,
   )
 
-  /** Build a Snapshot from the current simulation state by aggregating all agent-level stocks.
-    *
-    * In aggregate household mode (households = None), hhSavings and hhDebt are zero because household wealth is not
-    * tracked individually — the deposit identity still holds because totalIncome and totalConsumption capture the net
-    * HH flow into bank deposits.
-    */
-  def snapshot(w: World, firms: Array[Firm.State], households: Option[Vector[Household.State]]): Snapshot =
-    val hhS = PLN(households.map(_.kahanSumBy(_.savings.toDouble)).getOrElse(0.0))
-    val hhD = PLN(households.map(_.kahanSumBy(_.debt.toDouble)).getOrElse(0.0))
+  /** Build a Snapshot from the current simulation state by aggregating all agent-level stocks. */
+  def snapshot(w: World, firms: Array[Firm.State], households: Vector[Household.State]): Snapshot =
+    val hhS = PLN(households.kahanSumBy(_.savings.toDouble))
+    val hhD = PLN(households.kahanSumBy(_.debt.toDouble))
     val ibNet = PLN(w.bankingSector.banks.kahanSumBy(_.interbankNet.toDouble))
     Snapshot(
       hhSavings = hhS,

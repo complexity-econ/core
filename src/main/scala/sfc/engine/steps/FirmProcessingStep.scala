@@ -13,8 +13,8 @@ object FirmProcessingStep:
   case class Input(
     w: World,
     firms: Array[Firm.State],
-    households: Option[Vector[Household.State]],
-    updatedHouseholds: Option[Vector[Household.State]],
+    households: Vector[Household.State],
+    updatedHouseholds: Vector[Household.State],
     newWage: Double,
     resWage: Double,
     m: Int,
@@ -26,7 +26,7 @@ object FirmProcessingStep:
 
   case class Output(
     ioFirms: Array[Firm.State],
-    finalHouseholds: Option[Vector[Household.State]],
+    households: Vector[Household.State],
     sumTax: Double,
     sumCapex: Double,
     sumTechImp: Double,
@@ -178,21 +178,17 @@ object FirmProcessingStep:
     else (adjustedFirms, 0.0)
 
     var postFirmCrossSectorHires = 0
-    val preMigrationHouseholds = in.updatedHouseholds.map { hhs =>
-      val afterSep = LaborMarket.separations(hhs, in.firms, ioFirms)
-      val (afterSearch, csHires) = LaborMarket.jobSearch(afterSep, ioFirms, in.newWage, Random)
-      postFirmCrossSectorHires += csHires
-      LaborMarket.updateWages(afterSearch, in.newWage)
-    }
+    val afterSep = LaborMarket.separations(in.updatedHouseholds, in.firms, ioFirms)
+    val (afterSearch, csHires) = LaborMarket.jobSearch(afterSep, ioFirms, in.newWage, Random)
+    postFirmCrossSectorHires += csHires
+    val preMigrationHouseholds = LaborMarket.updateWages(afterSearch, in.newWage)
 
     val finalHouseholds =
       if Config.ImmigEnabled then
-        preMigrationHouseholds.map { hhs =>
-          val afterRemoval = Immigration.removeReturnMigrants(hhs, in.newImmig.monthlyOutflow)
-          val startId = afterRemoval.map(_.id.toInt).maxOption.getOrElse(-1) + 1
-          val newImmigrants = Immigration.spawnImmigrants(in.newImmig.monthlyInflow, startId, Random)
-          afterRemoval ++ newImmigrants
-        }
+        val afterRemoval = Immigration.removeReturnMigrants(preMigrationHouseholds, in.newImmig.monthlyOutflow)
+        val startId = afterRemoval.map(_.id.toInt).maxOption.getOrElse(-1) + 1
+        val newImmigrants = Immigration.spawnImmigrants(in.newImmig.monthlyInflow, startId, Random)
+        afterRemoval ++ newImmigrants
       else preMigrationHouseholds
 
     val prevAlive = in.firms.filter(Firm.isAlive).map(_.id).toSet
@@ -212,7 +208,7 @@ object FirmProcessingStep:
 
     Output(
       ioFirms = ioFirms,
-      finalHouseholds = finalHouseholds,
+      households = finalHouseholds,
       sumTax = sumTax,
       sumCapex = sumCapex,
       sumTechImp = sumTechImp,
