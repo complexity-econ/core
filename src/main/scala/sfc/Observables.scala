@@ -107,11 +107,8 @@ object Observables:
           .toDouble / secFirms.length
     }
 
-    lazy val effectiveBdp: Double =
-      if world.gov.bdpActive then (world.gov.bdpSpending / Config.TotalPopulation.toDouble).toDouble
-      else 0.0
-
-    lazy val unemployPct: Double = 1.0 - world.hh.employed.toDouble / Config.TotalPopulation
+    inline def unemployPct: Double = world.hh.unemploymentRate
+    inline def effectiveBdp: Double = world.gov.effectiveBdpPerCapita(Config.TotalPopulation)
 
   /** The schema: ordered sequence of (name, computation) pairs. SINGLE SOURCE OF TRUTH. */
   private val schema: IndexedSeq[ColumnDef] = IndexedSeq(
