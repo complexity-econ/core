@@ -60,9 +60,10 @@ object WorldAssemblyStep:
     }
 
     // Informal economy: aggregate metrics and next-month cyclical adjustment (#45)
-    val taxEvasionLoss = if Config.InformalEnabled then
-      in.s5.sumCitEvasion + (in.s9.vat - in.s9.vatAfterEvasion) + (in.s3.pitRevenue - in.s9.pitAfterEvasion) + (in.s9.exciseRevenue - in.s9.exciseAfterEvasion)
-    else 0.0
+    val taxEvasionLoss =
+      if Config.InformalEnabled then
+        in.s5.sumCitEvasion + (in.s9.vat - in.s9.vatAfterEvasion) + (in.s3.pitRevenue - in.s9.pitAfterEvasion) + (in.s9.exciseRevenue - in.s9.exciseAfterEvasion)
+      else 0.0
     val informalEmployed = if Config.InformalEnabled then in.s2.employed.toDouble * in.s9.effectiveShadowShare else 0.0
     val newInformalCyclicalAdj = if Config.InformalEnabled then
       val unemp = 1.0 - in.s2.employed.toDouble / Config.TotalPopulation

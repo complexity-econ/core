@@ -133,7 +133,8 @@ object OpenEconomyStep:
     val exRateChg =
       if in.rc.isEurozone then 0.0
       else (newForex.exchangeRate / in.w.forex.exchangeRate) - 1.0
-    val newRefRate = Sectors.updateCbRate(in.w.nbp.referenceRate.toDouble, in.s7.newInfl, exRateChg, in.s2.employed, in.rc)
+    val newRefRate =
+      Sectors.updateCbRate(in.w.nbp.referenceRate.toDouble, in.s7.newInfl, exRateChg, in.s2.employed, in.rc)
 
     // Expectations step: update after inflation + rate computed
     val unempRateForExp = 1.0 - in.s2.employed.toDouble / Config.TotalPopulation

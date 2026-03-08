@@ -269,8 +269,9 @@ object PriceEquityStep:
       if Config.EnergyEnabled then in.s5.sumGreenInvestment * (1.0 - Config.GreenImportShare) else 0.0
     val domesticGFCF = (if Config.PhysCapEnabled then in.s5.sumGrossInvestment * (1.0 - Config.PhysCapImportShare)
                         else 0.0) + greenDomesticGFCF
-    val investmentImports = (if Config.PhysCapEnabled then in.s5.sumGrossInvestment * Config.PhysCapImportShare else 0.0) +
-      (if Config.EnergyEnabled then in.s5.sumGreenInvestment * Config.GreenImportShare else 0.0)
+    val investmentImports =
+      (if Config.PhysCapEnabled then in.s5.sumGrossInvestment * Config.PhysCapImportShare else 0.0) +
+        (if Config.EnergyEnabled then in.s5.sumGreenInvestment * Config.GreenImportShare else 0.0)
     val aggInventoryChange = if Config.InventoryEnabled then in.s5.sumInventoryChange else 0.0
     val gdp =
       in.s3.domesticCons + govGdpContribution + euGdpContribution + in.w.forex.exports.toDouble + domesticGFCF + aggInventoryChange

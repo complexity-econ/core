@@ -23,7 +23,9 @@ object DemandStep:
   )
 
   def run(in: Input): Output =
-    val zusNetSurplus = if Config.ZusEnabled then Math.max(0.0, in.w.zus.contributions.toDouble - in.w.zus.pensionPayments.toDouble) else 0.0
+    val zusNetSurplus =
+      if Config.ZusEnabled then Math.max(0.0, in.w.zus.contributions.toDouble - in.w.zus.pensionPayments.toDouble)
+      else 0.0
     val unempRateForFiscal = 1.0 - in.s2.employed.toDouble / Config.TotalPopulation
     val unempGap = Math.max(0.0, unempRateForFiscal - Config.NbpNairu)
     val fiscalStimulus = Config.GovBaseSpending * unempGap * Config.GovAutoStabMult

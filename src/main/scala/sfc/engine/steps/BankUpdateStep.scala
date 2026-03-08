@@ -109,7 +109,14 @@ object BankUpdateStep:
     // JST (local government)
     val nLivingFirms = in.s5.ioFirms.count(Firm.isAlive)
     val (newJst, jstDepositChange) =
-      Jst.step(in.w.jst, newGovWithYield.taxRevenue.toDouble, in.s3.totalIncome, in.s7.gdp, nLivingFirms, pitAfterEvasion)
+      Jst.step(
+        in.w.jst,
+        newGovWithYield.taxRevenue.toDouble,
+        in.s3.totalIncome,
+        in.s7.gdp,
+        nLivingFirms,
+        pitAfterEvasion,
+      )
 
     // ---- Housing market step ----
     val unempRate = 1.0 - in.s2.employed.toDouble / Config.TotalPopulation
@@ -121,7 +128,14 @@ object BankUpdateStep:
     val mortgageRate = mortgageBaseRate + Config.ReMortgageSpread
 
     val housingAfterPrice =
-      HousingMarket.step(in.w.housing, mortgageRate, in.s7.newInfl, in.s2.wageGrowth, in.s2.employed, prevMortgageRate.toDouble)
+      HousingMarket.step(
+        in.w.housing,
+        mortgageRate,
+        in.s7.newInfl,
+        in.s2.wageGrowth,
+        in.s2.employed,
+        prevMortgageRate.toDouble,
+      )
     val housingAfterOrig = HousingMarket.processOrigination(housingAfterPrice, in.s3.totalIncome, mortgageRate, true)
     val (mortgageInterestIncome, mortgagePrincipal, mortgageDefaultLoss) =
       HousingMarket.processMortgageFlows(housingAfterOrig, mortgageRate, unempRate)
@@ -144,7 +158,8 @@ object BankUpdateStep:
     val investNetDepositFlow = in.s4.laggedInvestDemand - currentInvestDomestic
 
     val newBank = in.w.bank.copy(
-      totalLoans = PLN(Math.max(0, in.w.bank.totalLoans.toDouble + in.s5.sumNewLoans - in.s5.nplNew * Config.LoanRecovery)),
+      totalLoans =
+        PLN(Math.max(0, in.w.bank.totalLoans.toDouble + in.s5.sumNewLoans - in.s5.nplNew * Config.LoanRecovery)),
       nplAmount = PLN(Math.max(0, in.w.bank.nplAmount.toDouble + in.s5.nplNew - in.w.bank.nplAmount.toDouble * 0.05)),
       capital = PLN(
         in.w.bank.capital.toDouble - in.s5.nplLoss - mortgageDefaultLoss - in.s6.consumerNplLoss
@@ -211,7 +226,8 @@ object BankUpdateStep:
       (if Config.GovBondMarket then actualBondChange else 0.0) -
       in.s8.qePurchaseAmount - ppkBondPurchase - insBondPurchase
     val tfiBondPurchase = Math.max(0.0, Math.min(Math.max(0.0, tfiGovBondDelta), Math.max(0.0, availableBondsForTfi)))
-    val finalNbfi = in.s8.newNbfi.copy(tfiGovBondHoldings = PLN(in.w.nbfi.tfiGovBondHoldings.toDouble + tfiBondPurchase))
+    val finalNbfi =
+      in.s8.newNbfi.copy(tfiGovBondHoldings = PLN(in.w.nbfi.tfiGovBondHoldings.toDouble + tfiBondPurchase))
 
     // ---- Multi-bank update path ----
     val bs = in.w.bankingSector
