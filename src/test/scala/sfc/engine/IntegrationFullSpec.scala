@@ -15,7 +15,7 @@ class IntegrationFullSpec extends AnyFlatSpec with Matchers:
     assume(Config.NbpFxIntervention, "NBP_FX_INTERVENTION=true required")
     assume(Config.IoEnabled, "IO_MODE=enabled required")
 
-  private lazy val rc = RunConfig(2000.0, 1, "test")
+  private lazy val rc = RunConfig(1, "test")
 
   private lazy val result =
     requireAllMechanisms()

@@ -10,8 +10,6 @@ object FiscalBudget:
     prev: GovState,
     citPaid: Double,
     vat: Double,
-    bdpActive: Boolean,
-    bdpAmount: Double,
     priceLevel: Double,
     unempBenefitSpend: Double,
     debtService: Double = 0.0,
@@ -24,7 +22,6 @@ object FiscalBudget:
     customsDutyRevenue: Double = 0.0,
     govPurchasesActual: Double = 0.0,
   ): GovState =
-    val bdpSpend = if bdpActive then Config.TotalPopulation.toDouble * bdpAmount else 0.0
     val govBaseRaw =
       if govPurchasesActual > 0 then govPurchasesActual
       else Config.GovBaseSpending * priceLevel
@@ -32,7 +29,7 @@ object FiscalBudget:
       if Config.GovInvestEnabled then (govBaseRaw * (1.0 - Config.GovInvestShare), govBaseRaw * Config.GovInvestShare)
       else (govBaseRaw, 0.0)
     val totalSpend =
-      bdpSpend + unempBenefitSpend + socialTransferSpend + govCurrent + govCapital + debtService + zusGovSubvention + euCofinancing
+      unempBenefitSpend + socialTransferSpend + govCurrent + govCapital + debtService + zusGovSubvention + euCofinancing
     val totalRev = citPaid + vat + nbpRemittance + exciseRevenue + customsDutyRevenue
     val deficit = totalSpend - totalRev
     val newBondsOutstanding =
@@ -43,9 +40,7 @@ object FiscalBudget:
         prev.publicCapitalStock.toDouble * (1.0 - Config.GovDepreciationRate / 12.0) + govCapital + euProjectCapital
       else 0.0
     GovState(
-      bdpActive,
       PLN(totalRev),
-      PLN(bdpSpend),
       PLN(deficit),
       PLN(prev.cumulativeDebt.toDouble + deficit),
       PLN(unempBenefitSpend),

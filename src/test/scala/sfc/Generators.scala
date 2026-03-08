@@ -132,9 +132,7 @@ object Generators:
   )
 
   val genGovState: Gen[GovState] = for
-    bdpActive <- Gen.oneOf(true, false)
     taxRev <- Gen.choose(0.0, 1e9)
-    bdpSpend <- Gen.choose(0.0, 1e9)
     deficit <- Gen.choose(-1e9, 1e9)
     cumDebt <- Gen.choose(0.0, 1e10)
     unempBen <- Gen.choose(0.0, 1e8)
@@ -142,9 +140,7 @@ object Generators:
     bondYield <- Gen.choose(0.0, 0.15)
     debtService <- Gen.choose(0.0, 1e8)
   yield GovState(
-    bdpActive,
     PLN(taxRev),
-    PLN(bdpSpend),
     PLN(deficit),
     PLN(cumDebt),
     PLN(unempBen),
@@ -458,8 +454,7 @@ object Generators:
   // --- RunConfig generators ---
 
   val genRunConfig: Gen[RunConfig] =
-    for bdp <- Gen.choose(0.0, 5000.0)
-    yield RunConfig(bdp, 1, "test")
+    Gen.const(RunConfig(1, "test"))
 
   // --- Sorted array generator (for Gini tests) ---
 

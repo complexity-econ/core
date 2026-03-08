@@ -118,6 +118,6 @@ class SocialTransferSpec extends AnyFlatSpec with Matchers:
   }
 
   "GovState.socialTransferSpend" should "default to 0.0" in {
-    val gov = GovState(false, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
+    val gov = GovState(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
     gov.socialTransferSpend.toDouble shouldBe 0.0
   }

@@ -187,7 +187,7 @@ class EnergyClimateSpec extends AnyFlatSpec with Matchers:
       0,
       Rate(0.02),
       1.0,
-      GovState(false, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
+      GovState(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
       sfc.agents.Nbp.State(Rate(0.0575)),
       BankingAggregate(PLN.Zero, PLN.Zero, PLN(500000000.0), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
       ForexState(4.33, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
@@ -206,7 +206,7 @@ class EnergyClimateSpec extends AnyFlatSpec with Matchers:
       0,
       Rate(0.02),
       1.0,
-      accounting.GovState(false, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
+      accounting.GovState(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
       sfc.agents.Nbp.State(Rate(0.0575)),
       accounting
         .BankingAggregate(PLN.Zero, PLN.Zero, PLN(500000000.0), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
@@ -226,7 +226,7 @@ class EnergyClimateSpec extends AnyFlatSpec with Matchers:
       0,
       Rate(0.02),
       1.0,
-      accounting.GovState(false, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
+      accounting.GovState(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
       sfc.agents.Nbp.State(Rate(0.0575)),
       accounting
         .BankingAggregate(PLN.Zero, PLN.Zero, PLN(500000000.0), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),

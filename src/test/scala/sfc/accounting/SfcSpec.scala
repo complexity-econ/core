@@ -23,7 +23,7 @@ class SfcSpec extends AnyFlatSpec with Matchers:
       month = 1,
       inflation = Rate(0.02),
       priceLevel = 1.0,
-      gov = GovState(false, PLN.Zero, PLN.Zero, PLN.Zero, PLN(govDebt), PLN.Zero),
+      gov = GovState(PLN.Zero, PLN.Zero, PLN(govDebt), PLN.Zero),
       nbp = Nbp.State(Rate(0.0575)),
       bank = BankingAggregate(
         PLN(bankLoans),

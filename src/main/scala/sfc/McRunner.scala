@@ -193,7 +193,7 @@ object McRunner:
 
   private def printSummary(rc: RunConfig, results: McResults): Unit =
     println("\n" + "=" * 54)
-    println(s"MONTE CARLO SUMMARY: ${rc.outputPrefix} (BDP=${rc.bdpAmount.toInt}, N=${rc.nSeeds})")
+    println(s"MONTE CARLO SUMMARY: ${rc.outputPrefix} (N=${rc.nSeeds})")
     println("=" * 54)
 
     def statsSummary(name: String, col: Col, mult: Double = 1.0): Unit =
@@ -236,6 +236,6 @@ object McRunner:
     val hhLabel = s" | HH=individual (${Config.HhCount})"
     val bankLabel = " | BANK=multi (7)"
     println(s"+" + "=" * 68 + "+")
-    println(s"|  SFC-ABM v8: BDP=${rc.bdpAmount.toInt} PLN, N=${rc.nSeeds} seeds, PLN (NBP)${hhLabel}${bankLabel}")
+    println(s"|  SFC-ABM v8: N=${rc.nSeeds} seeds, PLN (NBP)${hhLabel}${bankLabel}")
     println(s"|  ${firmsLabel} firms x 6 sectors (GUS 2024) x ${topoLabel} network x 120m")
     println(s"+" + "=" * 68 + "+")

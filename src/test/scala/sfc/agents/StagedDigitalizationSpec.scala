@@ -19,7 +19,7 @@ class StagedDigitalizationSpec extends AnyFlatSpec with Matchers:
       month = 31,
       inflation = Rate(0.02),
       priceLevel = 1.0,
-      gov = GovState(false, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
+      gov = GovState(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
       nbp = Nbp.State(Rate(0.0575)),
       bank =
         BankingAggregate(PLN(1000000), PLN(10000), PLN(500000), PLN(1000000), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
@@ -40,7 +40,7 @@ class StagedDigitalizationSpec extends AnyFlatSpec with Matchers:
       bankingSector = Banking.initialize(1e9, 5e8, 5e8, 0, 0, Banking.DefaultConfigs),
     )
 
-  private val rc = RunConfig(2000.0, 1, "test")
+  private val rc = RunConfig(1, "test")
 
   // ---- Config defaults (3 tests) ----
 

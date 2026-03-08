@@ -9,7 +9,7 @@ import sfc.types.*
 
 class OpenEconomySpec extends AnyFlatSpec with Matchers:
 
-  private val rc = RunConfig(2000.0, 1, "test")
+  private val rc = RunConfig(1, "test")
 
   private val baseForex = ForexState(Config.BaseExRate, PLN.Zero, PLN(Config.ExportBase), PLN.Zero, PLN.Zero)
   private val baseSectorOutputs = Vector(30000.0, 160000.0, 450000.0, 60000.0, 220000.0, 80000.0)

@@ -312,11 +312,7 @@ object Firm:
 
         // Uncertainty discount with network demonstration effect
         val baseDiscount =
-          if rc.isNoBdp then
-            // No BDP: gradual natural competitive pressure
-            0.15 + 0.15 * (w.month.toDouble / Config.Duration.toDouble)
-          else if w.month < Config.ShockMonth then 0.15
-          else 1.0
+          0.15 + 0.15 * (w.month.toDouble / Config.Duration.toDouble)
         // Network demonstration: if many neighbors automated, reduce hesitation
         val demoBoost =
           if localAuto > Config.DemoEffectThresh then Config.DemoEffectBoost * (localAuto - Config.DemoEffectThresh)

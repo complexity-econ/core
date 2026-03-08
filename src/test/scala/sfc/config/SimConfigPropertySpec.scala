@@ -1,6 +1,5 @@
 package sfc.config
 
-import org.scalacheck.Gen
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
@@ -62,15 +61,6 @@ class SimConfigPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPro
     for j <- 0 until 6 do
       val expected = Config.IoMatrix.map(_(j)).sum
       Config.IoColumnSums(j) shouldBe (expected +- 1e-10)
-  }
-
-  // --- RunConfig properties ---
-
-  "RunConfig" should "have isNoBdp iff bdpAmount == 0" in {
-    forAll(Gen.choose(0.0, 5000.0)) { (bdp: Double) =>
-      val rc = RunConfig(bdp, 1, "test")
-      rc.isNoBdp shouldBe (bdp == 0.0)
-    }
   }
 
   // --- Generated IoMatrix properties ---

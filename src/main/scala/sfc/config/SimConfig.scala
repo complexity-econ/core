@@ -10,11 +10,9 @@ enum Topology:
 /** Runtime configuration: values that depend on CLI arguments. Passed through runSingle and Simulation.step.
   */
 case class RunConfig(
-  bdpAmount: Double,
   nSeeds: Int,
   outputPrefix: String,
-):
-  val isNoBdp: Boolean = bdpAmount == 0.0
+)
 
 /** 4-to-6 sector definition with heterogeneous sigma (CES elasticity of substitution). sigma affects: decision
   * threshold, automation efficiency, CAPEX costs.
@@ -225,11 +223,9 @@ object Config:
 
   // ═══════════════════════════════════════════════════════════════════════
   // SIMULATION TIMELINE
-  // Duration in months. ShockMonth = period when BDP (AI productivity) shock hits.
   // ═══════════════════════════════════════════════════════════════════════
 
   val Duration = sys.env.get("DURATION").map(_.trim.toInt).getOrElse(120) // months (default 10 years)
-  val ShockMonth = sys.env.get("SHOCK_MONTH").map(_.trim.toInt).getOrElse(30) // month of BDP shock
 
   // ═══════════════════════════════════════════════════════════════════════
   // FIRM PRODUCTION & COSTS
@@ -278,7 +274,6 @@ object Config:
   // ═══════════════════════════════════════════════════════════════════════
   val BaseWage = 8266.0 // GUS average gross monthly wage 2024 (PLN)
   val BaseReservationWage = 4666.0 // Statutory minimum wage 2025 (PLN/month gross)
-  val ReservationBdpMult = 0.5 // Reservation wage multiplier for BDP recipients
   val Mpc = 0.82 // Marginal propensity to consume (GUS BBGD 2023)
   val LaborSupplySteepness = 8.0 // Logistic labor supply curve steepness
   val WageAdjSpeed = 0.12 // Monthly wage Phillips-curve adjustment speed (fraction)

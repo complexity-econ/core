@@ -8,7 +8,7 @@ import sfc.types.*
 
 class ExpectationsSpec extends AnyFlatSpec with Matchers:
 
-  private val rc = RunConfig(2000.0, 1, "test")
+  private val rc = RunConfig(1, "test")
 
   // --- Initialization ---
 

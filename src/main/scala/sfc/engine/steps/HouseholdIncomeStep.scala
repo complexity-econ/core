@@ -54,7 +54,6 @@ object HouseholdIncomeStep:
     val (newHhs, agg, pbf) = Household.step(
       afterWages,
       in.w,
-      in.s1.bdp,
       in.s2.newWage,
       in.s1.resWage,
       importAdj,

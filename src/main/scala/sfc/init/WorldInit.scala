@@ -71,8 +71,6 @@ object WorldInit:
       Rate(0.02),
       1.0,
       GovState(
-        false,
-        PLN.Zero,
         PLN.Zero,
         PLN.Zero,
         PLN(Config.InitGovDebt),

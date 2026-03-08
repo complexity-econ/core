@@ -72,14 +72,6 @@ class MinWageSpec extends AnyFlatSpec with Matchers:
     result should be >= inflIndexed
   }
 
-  "BDP" should "stack on top of dynamic base" in {
-    val baseMinWage = 5000.0
-    val bdp = 2000.0
-    val bdpMult = Config.ReservationBdpMult // 0.5
-    val resWage = baseMinWage + bdp * bdpMult
-    resWage shouldBe (6000.0 +- 0.1)
-  }
-
   "Default adjustment frequency" should "be 12 months" in {
     Config.MinWageAdjustMonths shouldBe 12
   }

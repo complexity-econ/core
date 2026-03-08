@@ -10,7 +10,7 @@ import sfc.McRunner.runSingle
 class IntegrationSpec extends AnyFlatSpec with Matchers:
 
   // Use small firm count via env override if set, otherwise default
-  private val rc = RunConfig(2000.0, 1, "test")
+  private val rc = RunConfig(1, "test")
 
   "runSingle" should "complete without exception" in {
     noException should be thrownBy runSingle(42, rc)

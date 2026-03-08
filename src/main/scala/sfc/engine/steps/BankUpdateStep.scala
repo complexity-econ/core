@@ -92,8 +92,6 @@ object BankUpdateStep:
       in.w.gov,
       in.s5.sumTax + in.s7.dividendTax + pitAfterEvasion,
       vatAfterEvasion,
-      in.s1.bdpActive,
-      in.s1.bdp,
       in.s7.newPrice,
       unempBenefitSpend,
       in.s8.monthlyDebtService,
@@ -203,7 +201,6 @@ object BankUpdateStep:
       in.s3.importAdj,
       monthlyRetAttempts,
       monthlyRetSuccesses,
-      in.s1.bdp,
     )
 
     val actualBondChange = (newGovWithYield.bondsOutstanding - in.w.gov.bondsOutstanding).toDouble
