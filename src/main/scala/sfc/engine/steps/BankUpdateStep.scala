@@ -25,7 +25,7 @@ object BankUpdateStep:
   case class Output(
     resolvedBank: BankingAggregate,
     finalBankingSector: Banking.State,
-    reassignedFirms: Array[Firm.State],
+    reassignedFirms: Vector[Firm.State],
     reassignedHouseholds: Vector[Household.State],
     finalPpk: SocialSecurity.PpkState,
     finalInsurance: Insurance.State,

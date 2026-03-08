@@ -13,9 +13,9 @@ object WorldAssemblyStep:
 
   case class Input(
     w: World,
-    firms: Array[Firm.State],
-    households: Vector[Household.State],
     rc: RunConfig,
+    firms: Vector[Firm.State],
+    households: Vector[Household.State],
     s1: FiscalConstraintStep.Output,
     s2: LaborDemographicsStep.Output,
     s3: HouseholdIncomeStep.Output,
@@ -29,9 +29,9 @@ object WorldAssemblyStep:
 
   case class Output(
     newWorld: World,
-    finalFirms: Array[Firm.State],
+    finalFirms: Vector[Firm.State],
     reassignedHouseholds: Vector[Household.State],
-    sfcResult: Either[Vector[Sfc.SfcIdentityError], Unit],
+    sfcResult: Sfc.SfcResult,
   )
 
   def run(in: Input): Output =

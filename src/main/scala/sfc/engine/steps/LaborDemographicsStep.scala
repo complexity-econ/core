@@ -10,9 +10,9 @@ object LaborDemographicsStep:
 
   case class Input(
     w: World,
-    firms: Array[Firm.State],
-    households: Vector[Household.State],
     rc: RunConfig,
+    firms: Vector[Firm.State],
+    households: Vector[Household.State],
     s1: FiscalConstraintStep.Output,
   )
 
@@ -27,7 +27,7 @@ object LaborDemographicsStep:
     newZus: SocialSecurity.ZusState,
     newPpk: SocialSecurity.PpkState,
     rawPpkBondPurchase: Double,
-    living: Array[Firm.State],
+    living: Vector[Firm.State],
   )
 
   def run(in: Input): Output =

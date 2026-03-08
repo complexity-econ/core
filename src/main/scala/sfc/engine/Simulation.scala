@@ -56,16 +56,23 @@ import sfc.types.*
 // ---------------------------------------------------------------------------
 object Simulation:
 
+  /** Bundles the three mutable components of the simulation: the World state, the firm vector, and the household
+    * vector. These always travel together between simulation steps and the Main loop.
+    */
+  case class SimState(
+    world: World,
+    firms: Vector[Firm.State],
+    households: Vector[Household.State],
+  )
+
   /** Result of a single monthly simulation step.
     *
     * Bundles the updated simulation state together with the outcome of the SFC accounting check. The caller (Main)
     * should inspect `sfcCheck` and halt on `Left` — a failed identity means a monetary flow was mis-routed or omitted.
     */
   case class StepResult(
-    world: World, // updated World state (all macro aggregates, institutional sectors)
-    firms: Array[Firm.State], // post-step firm array (same length; bankrupt slots may be recycled)
-    households: Vector[Household.State], // post-step households (reassigned to living firms)
-    sfcCheck: Either[Vector[Sfc.SfcIdentityError], Unit], // Right(()) if all 13 identities hold
+    state: SimState, // updated simulation state (World + firms + households)
+    sfcCheck: Sfc.SfcResult, // Right(()) if all 13 identities hold
   )
 
   /** Transform current state into next state via the 10-stage pipeline.
@@ -85,64 +92,38 @@ object Simulation:
     *        └───────┴───────┴───────┴───────┴──────────────────────────────→ s10 (World assembly)
     * }}}
     *
-    * @param w
-    *   current World state (read-only within the step; a new World is assembled in s10)
-    * @param firms
-    *   current firm array (mutated only by FirmProcessingStep and PriceEquityStep's rewiring)
+    * '''Ordering invariant:''' Scala val bindings are strictly sequential in method bodies (forward references are
+    * compile errors), and each step's Input requires specific prior Output types — reordering would not compile.
+    *
+    * @param state
+    *   current simulation state (World + firms + households)
     * @param rc
     *   run configuration (currency regime, BDP amount, time horizon)
-    * @param households
-    *   current household vector (updated by HouseholdIncomeStep and HouseholdFinancialStep)
     * @return
     *   StepResult with updated state and SFC check outcome
     */
-  def step(
-    w: World,
-    firms: Array[Firm.State],
-    rc: RunConfig,
-    households: Vector[Household.State],
-  ): StepResult =
-    val s1 = steps.FiscalConstraintStep.run(
-      steps.FiscalConstraintStep.Input(
-        month = w.month,
-        gdpProxy = w.gdpProxy,
-        gov = w.gov,
-        priceLevel = w.priceLevel,
-        minWageLevel = w.hh.minWageLevel,
-        minWagePriceLevel = w.hh.minWagePriceLevel,
-        marketWage = w.hh.marketWage,
-        bankingSector = w.bankingSector,
-        nbpReferenceRate = w.nbp.referenceRate.toDouble,
-        expectedRate = w.expectations.expectedRate.toDouble,
-        bdpAmount = rc.bdpAmount,
-        isEurozone = rc.isEurozone,
-      ),
-    )
-    val s2 = steps.LaborDemographicsStep.run(
-      steps.LaborDemographicsStep.Input(w, firms, households, rc, s1),
-    )
-    val s3 = steps.HouseholdIncomeStep.run(
-      steps.HouseholdIncomeStep.Input(w, firms, households, rc, s1, s2),
-    )
-    val s4 = steps.DemandStep.run(
-      steps.DemandStep.Input(w, s2, s3),
-    )
-    val s5 = steps.FirmProcessingStep.run(
-      steps.FirmProcessingStep.Input(w, firms, households, rc, s1, s2, s3, s4),
-    )
-    val s6 = steps.HouseholdFinancialStep.run(
-      steps.HouseholdFinancialStep.Input(w, s1, s2, s3),
-    )
-    val s7 = steps.PriceEquityStep.run(
-      steps.PriceEquityStep.Input(w, rc, s1, s2, s3, s4, s5),
-    )
-    val s8 = steps.OpenEconomyStep.run(
-      steps.OpenEconomyStep.Input(w, rc, s1, s2, s3, s4, s5, s6, s7),
-    )
-    val s9 = steps.BankUpdateStep.run(
-      steps.BankUpdateStep.Input(w, rc, s1, s2, s3, s4, s5, s6, s7, s8),
-    )
-    val s10 = steps.WorldAssemblyStep.run(
-      steps.WorldAssemblyStep.Input(w, firms, households, rc, s1, s2, s3, s4, s5, s6, s7, s8, s9),
-    )
-    StepResult(s10.newWorld, s10.finalFirms, s10.reassignedHouseholds, s10.sfcResult)
+  def step(state: SimState, rc: RunConfig): StepResult =
+    import steps.{
+      FiscalConstraintStep as S1,
+      LaborDemographicsStep as S2,
+      HouseholdIncomeStep as S3,
+      DemandStep as S4,
+      FirmProcessingStep as S5,
+      HouseholdFinancialStep as S6,
+      PriceEquityStep as S7,
+      OpenEconomyStep as S8,
+      BankUpdateStep as S9,
+      WorldAssemblyStep as S10,
+    }
+    val SimState(w, firms, households) = state
+    val s1 = S1.run(S1.Input(w, rc))
+    val s2 = S2.run(S2.Input(w, rc, firms, households, s1))
+    val s3 = S3.run(S3.Input(w, rc, firms, households, s1, s2))
+    val s4 = S4.run(S4.Input(w, s2, s3))
+    val s5 = S5.run(S5.Input(w, rc, firms, households, s1, s2, s3, s4))
+    val s6 = S6.run(S6.Input(w, s1, s2, s3))
+    val s7 = S7.run(S7.Input(w, rc, s1, s2, s3, s4, s5))
+    val s8 = S8.run(S8.Input(w, rc, s1, s2, s3, s4, s5, s6, s7))
+    val s9 = S9.run(S9.Input(w, rc, s1, s2, s3, s4, s5, s6, s7, s8))
+    val s10 = S10.run(S10.Input(w, rc, firms, households, s1, s2, s3, s4, s5, s6, s7, s8, s9))
+    StepResult(SimState(s10.newWorld, s10.finalFirms, s10.reassignedHouseholds), s10.sfcResult)

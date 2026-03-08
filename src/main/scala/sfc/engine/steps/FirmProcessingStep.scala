@@ -12,9 +12,9 @@ object FirmProcessingStep:
 
   case class Input(
     w: World,
-    firms: Array[Firm.State],
-    households: Vector[Household.State],
     rc: RunConfig,
+    firms: Vector[Firm.State],
+    households: Vector[Household.State],
     s1: FiscalConstraintStep.Output,
     s2: LaborDemographicsStep.Output,
     s3: HouseholdIncomeStep.Output,
@@ -22,7 +22,7 @@ object FirmProcessingStep:
   )
 
   case class Output(
-    ioFirms: Array[Firm.State],
+    ioFirms: Vector[Firm.State],
     households: Vector[Household.State],
     sumTax: Double,
     sumCapex: Double,

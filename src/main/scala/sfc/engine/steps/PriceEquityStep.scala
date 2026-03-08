@@ -31,7 +31,7 @@ object PriceEquityStep:
     gdp: Double,
     newMacropru: Macroprudential.State,
     newSigmas: Vector[Double],
-    rewiredFirms: Array[Firm.State],
+    rewiredFirms: Vector[Firm.State],
     newInfl: Double,
     newPrice: Double,
     equityAfterIssuance: EquityMarket.State,
@@ -150,7 +150,7 @@ object PriceEquityStep:
     * @return
     *   updated firm array with same length
     */
-  private[steps] def rewireFirms(firms: Array[Firm.State], rho: Double): Array[Firm.State] =
+  private[steps] def rewireFirms(firms: Vector[Firm.State], rho: Double): Vector[Firm.State] =
     // Fast path: static network mode — no rewiring, return the exact same array instance.
     if rho == 0.0 then return firms
 
@@ -232,7 +232,7 @@ object PriceEquityStep:
         val newNb = adj(i).toArray.map(FirmId(_))
         if newNb.length != firms(i).neighbors.length then firms(i).copy(neighbors = newNb)
         else firms(i)
-    }.toArray
+    }.toVector
 
   // ---------------------------------------------------------------------------
   // Main step logic
