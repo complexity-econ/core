@@ -457,9 +457,9 @@ object Generators:
 
   // --- RunConfig generators ---
 
-  val genRunConfig: Gen[RunConfig] = for
-    bdp <- Gen.choose(0.0, 5000.0)
-  yield RunConfig(bdp, 1, "test")
+  val genRunConfig: Gen[RunConfig] =
+    for bdp <- Gen.choose(0.0, 5000.0)
+    yield RunConfig(bdp, 1, "test")
 
   // --- Sorted array generator (for Gini tests) ---
 
