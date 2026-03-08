@@ -1,6 +1,6 @@
 package sfc
 
-import sfc.Observables.Col
+import sfc.SimOutput.Col
 import sfc.engine.Simulation
 import sfc.util.KahanSum.*
 

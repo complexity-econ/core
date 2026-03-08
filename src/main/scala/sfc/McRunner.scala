@@ -1,6 +1,6 @@
 package sfc
 
-import sfc.Observables.Col
+import sfc.SimOutput.Col
 import sfc.accounting.Sfc
 import sfc.agents.Banking.BankState
 import sfc.agents.Household
@@ -21,7 +21,7 @@ object McRunner:
     val init = WorldInit.initialize(seed, rc)
     var state = Simulation.SimState(init.world, init.firms, init.households)
 
-    val results = Array.ofDim[Double](Config.Duration, Observables.nCols)
+    val results = Array.ofDim[Double](Config.Duration, SimOutput.nCols)
 
     for t <- 0 until Config.Duration do
       val stepResult = Simulation.step(state, rc)
@@ -29,7 +29,7 @@ object McRunner:
         case Left(errors) => throw Sfc.SfcViolationException(t + 1, errors)
         case Right(())    => // OK
       state = stepResult.state
-      results(t) = Observables.compute(t, state.world, state.firms, state.households)
+      results(t) = SimOutput.compute(t, state.world, state.firms, state.households)
 
     RunResult(TimeSeries.wrap(results), state)
 
@@ -87,8 +87,8 @@ object McRunner:
 
   // -- Per-seed terminal values CSV --
   private def writeTerminalCsv(rc: RunConfig, results: McResults, dir: File): Unit =
-    val nCols = Observables.nCols
-    val colNames = Observables.colNames
+    val nCols = SimOutput.nCols
+    val colNames = SimOutput.colNames
     CsvWriter.write(
       new File(dir, s"${rc.outputPrefix}_terminal.csv"),
       "Seed;" + colNames.drop(1).mkString(";"),
@@ -169,8 +169,8 @@ object McRunner:
   // -- Aggregated time-series (mean, std, p05, p95) via batch API --
   private def writeTimeseriesCsv(rc: RunConfig, results: McResults, dir: File): Unit =
     val nMonths = Config.Duration
-    val nCols = Observables.nCols
-    val colNames = Observables.colNames
+    val nCols = SimOutput.nCols
+    val colNames = SimOutput.colNames
     val headerParts = (1 until nCols).map(c => s"${colNames(c)}_mean;${colNames(c)}_std;${colNames(c)}_p05;${colNames(c)}_p95")
     CsvWriter.write(
       new File(dir, s"${rc.outputPrefix}_timeseries.csv"),

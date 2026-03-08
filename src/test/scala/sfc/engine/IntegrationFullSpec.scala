@@ -2,8 +2,8 @@ package sfc.engine
 
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import sfc.Observables
-import sfc.Observables.Col
+import sfc.SimOutput
+import sfc.SimOutput.Col
 import sfc.config.{Config, RunConfig}
 import sfc.McRunner.runSingle
 
@@ -40,7 +40,7 @@ class IntegrationFullSpec extends AnyFlatSpec with Matchers:
   it should "produce 120 rows x 197 columns" in {
     requireAllMechanisms()
     ts.length shouldBe Config.Duration
-    for row <- ts do row.length shouldBe Observables.nCols
+    for row <- ts do row.length shouldBe SimOutput.nCols
   }
 
   it should "produce no NaN or Infinity" in {
@@ -55,7 +55,7 @@ class IntegrationFullSpec extends AnyFlatSpec with Matchers:
   it should "be reproducible with the same seed" in {
     requireAllMechanisms()
     val r2 = runSingle(42, rc)
-    for t <- 0 until Config.Duration; c <- 0 until Observables.nCols do
+    for t <- 0 until Config.Duration; c <- 0 until SimOutput.nCols do
       withClue(s"Month ${t + 1}, col $c: ") {
         ts(t)(c) shouldBe r2.timeSeries(t)(c)
       }

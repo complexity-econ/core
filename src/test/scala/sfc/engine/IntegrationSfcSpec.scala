@@ -2,8 +2,8 @@ package sfc.engine
 
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import sfc.Observables
-import sfc.Observables.Col
+import sfc.SimOutput
+import sfc.SimOutput.Col
 import sfc.config.{Config, RunConfig}
 import sfc.McRunner.runSingle
 
