@@ -3,7 +3,7 @@ package sfc
 import org.scalacheck.Gen
 import sfc.accounting.*
 import sfc.agents.*
-import sfc.config.{Config, MonetaryRegime, RunConfig, SECTORS}
+import sfc.config.{Config, RunConfig, SECTORS}
 import sfc.engine.World
 import sfc.types.*
 
@@ -459,8 +459,7 @@ object Generators:
 
   val genRunConfig: Gen[RunConfig] = for
     bdp <- Gen.choose(0.0, 5000.0)
-    regime <- Gen.oneOf(MonetaryRegime.Pln, MonetaryRegime.Eur)
-  yield RunConfig(bdp, 1, "test", regime)
+  yield RunConfig(bdp, 1, "test")
 
   // --- Sorted array generator (for Gini tests) ---
 
