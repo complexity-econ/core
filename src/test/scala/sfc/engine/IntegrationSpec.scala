@@ -57,7 +57,7 @@ class IntegrationSpec extends AnyFlatSpec with Matchers:
     for t <- 0 until Config.Duration do result.timeSeries(t)(Col.MeanDegree.ordinal) should be > 0.0
   }
 
-  it should "return defined terminalHhAgg" in {
+  it should "return defined terminalState with hhAgg" in {
     val result = runSingle(42, rc)
-    result.terminalHhAgg.employed should be >= 0
+    result.terminalState.world.hhAgg.get.employed should be >= 0
   }
