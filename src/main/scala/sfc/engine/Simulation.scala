@@ -98,7 +98,7 @@ object Simulation:
     * @param state
     *   current simulation state (World + firms + households)
     * @param rc
-    *   run configuration (currency regime, BDP amount, time horizon)
+    *   run configuration (currency regime, time horizon)
     * @return
     *   StepResult with updated state and SFC check outcome
     */

@@ -58,7 +58,7 @@ pure function `Input → Output` with typed case classes — no hidden state.
 
 | # | Step | What it does |
 |---|------|-------------|
-| 1 | `FiscalConstraintStep` | Minimum wage path, BDP eligibility, lending base rate |
+| 1 | `FiscalConstraintStep` | Minimum wage path, lending base rate |
 | 2 | `LaborDemographicsStep` | Wage clearing, employment, demographics (aging/migration), ZUS/PPK |
 | 3 | `HouseholdIncomeStep` | Disposable income, consumption, PIT, wealth effects |
 | 4 | `DemandStep` | Per-sector demand multipliers, government purchases, capacity constraints |
