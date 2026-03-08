@@ -6,12 +6,14 @@ import sfc.config.*
 import sfc.types.*
 
 // ---------------------------------------------------------------------------
-// Simulation — monthly step function for the SFC-ABM engine
+// Simulation — step function for the SFC-ABM engine
 // ---------------------------------------------------------------------------
 //
 // This object is the top-level orchestrator of the simulation. Each call to
-// `step` advances the economy by one month, executing a fixed 10-stage
-// pipeline that mirrors the real-world sequence of economic decisions:
+// `step` transforms the current state into the next state by executing a
+// fixed 10-stage pipeline that mirrors the real-world sequence of economic
+// decisions. The caller (Main.runSingle) invokes `step` in a monthly loop,
+// but `step` itself is time-agnostic — it only sees the current state:
 //
 //   s1  FiscalConstraintStep    — fiscal rules, minimum wage, lending base rate
 //   s2  LaborDemographicsStep   — labor market clearing, wages, demographics, ZUS/PPK
@@ -66,10 +68,10 @@ object Simulation:
     sfcCheck: Either[Vector[Sfc.SfcIdentityError], Unit], // Right(()) if all 13 identities hold
   )
 
-  /** Advance the economy by one month.
+  /** Transform current state into next state via the 10-stage pipeline.
     *
-    * Executes the 10-stage pipeline (s1–s10) in causal order. Each stage receives typed Output references from all
-    * prior stages it depends on — no intermediate unpacking is needed. The dependency DAG is:
+    * Executes stages s1–s10 in causal order. Each stage receives typed Output references from all prior stages it
+    * depends on — no intermediate unpacking is needed. The dependency DAG is:
     *
     * {{{
     *   s1 ──┬──────────────────────────────────────────────────────────────→ s9, s10
