@@ -1,9 +1,12 @@
 package sfc
 
 import sfc.Observables.Col
+import sfc.accounting.Sfc
 import sfc.agents.Banking.BankState
 import sfc.agents.Household
 import sfc.config.*
+import sfc.engine.*
+import sfc.init.WorldInit
 import sfc.types.*
 import sfc.util.CsvWriter
 import sfc.util.KahanSum.*
@@ -12,6 +15,23 @@ import java.io.File
 
 /** Monte Carlo runner: simulation loop, CSV writers, summary statistics. */
 object McRunner:
+
+  /** Run one simulation with given seed. Throws [[Sfc.SfcViolationException]] on any SFC identity violation. */
+  def runSingle(seed: Int, rc: RunConfig): RunResult =
+    val init = WorldInit.initialize(seed, rc)
+    var state = Simulation.SimState(init.world, init.firms, init.households)
+
+    val results = Array.ofDim[Double](Config.Duration, Observables.nCols)
+
+    for t <- 0 until Config.Duration do
+      val stepResult = Simulation.step(state, rc)
+      stepResult.sfcCheck match
+        case Left(errors) => throw Sfc.SfcViolationException(t + 1, errors)
+        case Right(())    => // OK
+      state = stepResult.state
+      results(t) = Observables.compute(t, state.world, state.firms, state.households)
+
+    RunResult(TimeSeries.wrap(results), state)
 
   def run(rc: RunConfig): Unit =
     printBanner(rc)

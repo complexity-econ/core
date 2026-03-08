@@ -1,9 +1,16 @@
 package sfc
 
 import sfc.Observables.Col
+import sfc.engine.Simulation
 import sfc.util.KahanSum.*
 
 /** Zero-cost typed wrappers for Monte Carlo simulation output. */
+
+/** Result of a single simulation run. */
+case class RunResult(
+  timeSeries: TimeSeries,
+  terminalState: Simulation.SimState,
+)
 
 // ---------------------------------------------------------------------------
 //  TimeSeries — opaque over Array[Array[Double]]

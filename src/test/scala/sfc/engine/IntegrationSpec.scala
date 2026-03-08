@@ -5,7 +5,7 @@ import org.scalatest.matchers.should.Matchers
 import sfc.Observables
 import sfc.Observables.Col
 import sfc.config.{Config, RunConfig}
-import sfc.runSingle
+import sfc.McRunner.runSingle
 
 class IntegrationSpec extends AnyFlatSpec with Matchers:
 
