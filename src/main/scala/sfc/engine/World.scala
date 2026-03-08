@@ -68,4 +68,5 @@ case class World(
   depositFacilityUsage: Double = 0.0,
   etsPrice: Double = 0.0,
   tourismSeasonalFactor: Double = 1.0,
+  totalPopulation: Int = 0,
 )
