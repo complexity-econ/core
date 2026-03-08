@@ -171,7 +171,8 @@ object McRunner:
     val nMonths = Config.Duration
     val nCols = SimOutput.nCols
     val colNames = SimOutput.colNames
-    val headerParts = (1 until nCols).map(c => s"${colNames(c)}_mean;${colNames(c)}_std;${colNames(c)}_p05;${colNames(c)}_p95")
+    val headerParts =
+      (1 until nCols).map(c => s"${colNames(c)}_mean;${colNames(c)}_std;${colNames(c)}_p05;${colNames(c)}_p95")
     CsvWriter.write(
       new File(dir, s"${rc.outputPrefix}_timeseries.csv"),
       "Month;" + headerParts.mkString(";"),
