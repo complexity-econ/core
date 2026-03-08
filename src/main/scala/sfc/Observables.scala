@@ -8,8 +8,8 @@ import sfc.util.KahanSum.*
 
 /** Typed column schema for simulation output.
   *
-  * Each column is defined exactly once as a `(name, compute)` pair. Column handles are opaque — raw ints never appear at
-  * call sites. Adding a column = adding one ColumnDef; names, indices, CSV headers, and `toArray` all follow
+  * Each column is defined exactly once as a `(name, compute)` pair. Column handles are opaque — raw ints never appear
+  * at call sites. Adding a column = adding one ColumnDef; names, indices, CSV headers, and `toArray` all follow
   * automatically.
   */
 object Observables:
@@ -21,18 +21,18 @@ object Observables:
     private def auto(): Col = { val c = _next; _next += 1; c }
 
     // Named handles for columns referenced in tests/Main
-    val Month: Col = auto()             // 0
-    val Inflation: Col = auto()         // 1
-    val Unemployment: Col = auto()      // 2
-    val TotalAdoption: Col = auto()     // 3
-    val ExRate: Col = auto()            // 4
-    val MarketWage: Col = auto()        // 5
-    val GovDebt: Col = auto()           // 6
-    val NPL: Col = auto()              // 7
-    val RefRate: Col = auto()           // 8
-    val PriceLevel: Col = auto()        // 9
-    val AutoRatio: Col = auto()         // 10
-    val HybridRatio: Col = auto()       // 11
+    val Month: Col = auto() // 0
+    val Inflation: Col = auto() // 1
+    val Unemployment: Col = auto() // 2
+    val TotalAdoption: Col = auto() // 3
+    val ExRate: Col = auto() // 4
+    val MarketWage: Col = auto() // 5
+    val GovDebt: Col = auto() // 6
+    val NPL: Col = auto() // 7
+    val RefRate: Col = auto() // 8
+    val PriceLevel: Col = auto() // 9
+    val AutoRatio: Col = auto() // 10
+    val HybridRatio: Col = auto() // 11
     // 12–17: sector auto ratios
     val BpoAuto: Col = auto()
     val ManufAuto: Col = auto()
@@ -40,7 +40,7 @@ object Observables:
     val HealthAuto: Col = auto()
     val PublicAuto: Col = auto()
     val AgriAuto: Col = auto()
-    val EffectiveBDP: Col = auto()      // 18
+    val EffectiveBDP: Col = auto() // 18
     // 19–24: sector sigmas
     val BpoSigma: Col = auto()
     val ManufSigma: Col = auto()
@@ -48,34 +48,34 @@ object Observables:
     val HealthSigma: Col = auto()
     val PublicSigma: Col = auto()
     val AgriSigma: Col = auto()
-    val MeanDegree: Col = auto()        // 25
-    val IoFlows: Col = auto()           // 26
-    val IoGdpRatio: Col = auto()        // 27
-    val NFA: Col = auto()               // 28
-    val CurrentAccount: Col = auto()    // 29
-    val CapitalAccount: Col = auto()    // 30
-    val TradeBalance: Col = auto()      // 31
-    val Exports: Col = auto()           // 32
-    val TotalImports: Col = auto()      // 33
-    val ImportedInterm: Col = auto()    // 34
-    val FDI: Col = auto()               // 35
+    val MeanDegree: Col = auto() // 25
+    val IoFlows: Col = auto() // 26
+    val IoGdpRatio: Col = auto() // 27
+    val NFA: Col = auto() // 28
+    val CurrentAccount: Col = auto() // 29
+    val CapitalAccount: Col = auto() // 30
+    val TradeBalance: Col = auto() // 31
+    val Exports: Col = auto() // 32
+    val TotalImports: Col = auto() // 33
+    val ImportedInterm: Col = auto() // 34
+    val FDI: Col = auto() // 35
     val UnempBenefitSpend: Col = auto() // 36
-    val OutputGap: Col = auto()         // 37
-    val BondYield: Col = auto()         // 38
-    val BondsOutstanding: Col = auto()  // 39
-    val BankBondHoldings: Col = auto()  // 40
-    val NbpBondHoldings: Col = auto()   // 41
-    val QeActive: Col = auto()          // 42
-    val DebtService: Col = auto()       // 43
-    val NbpRemittance: Col = auto()     // 44
-    val FxReserves: Col = auto()        // 45
+    val OutputGap: Col = auto() // 37
+    val BondYield: Col = auto() // 38
+    val BondsOutstanding: Col = auto() // 39
+    val BankBondHoldings: Col = auto() // 40
+    val NbpBondHoldings: Col = auto() // 41
+    val QeActive: Col = auto() // 42
+    val DebtService: Col = auto() // 43
+    val NbpRemittance: Col = auto() // 44
+    val FxReserves: Col = auto() // 45
     val FxInterventionAmt: Col = auto() // 46
     val FxInterventionActive: Col = auto() // 47
-    val InterbankRate: Col = auto()     // 48
-    val MinBankCAR: Col = auto()        // 49
-    val MaxBankNPL: Col = auto()        // 50
-    val BankFailures: Col = auto()      // 51
-    val ReserveInterest: Col = auto()   // 52
+    val InterbankRate: Col = auto() // 48
+    val MinBankCAR: Col = auto() // 49
+    val MaxBankNPL: Col = auto() // 50
+    val BankFailures: Col = auto() // 51
+    val ReserveInterest: Col = auto() // 52
     val StandingFacilityNet: Col = auto() // 53
     val DepositFacilityUsage: Col = auto() // 54
     val InterbankInterestNet: Col = auto() // 55
@@ -141,7 +141,10 @@ object Observables:
     ColumnDef("Agri_Sigma", ctx => ctx.world.currentSigmas(5)),
     ColumnDef("MeanDegree", ctx => ctx.firms.kahanSumBy(_.neighbors.length.toDouble) / ctx.firms.length),
     ColumnDef("IoFlows", ctx => ctx.world.ioFlows.toDouble),
-    ColumnDef("IoGdpRatio", ctx => if ctx.world.gdpProxy > 0 then (ctx.world.ioFlows / ctx.world.gdpProxy).toDouble else 0.0),
+    ColumnDef(
+      "IoGdpRatio",
+      ctx => if ctx.world.gdpProxy > 0 then (ctx.world.ioFlows / ctx.world.gdpProxy).toDouble else 0.0,
+    ),
     // BoP
     ColumnDef("NFA", ctx => ctx.world.bop.nfa.toDouble),
     ColumnDef("CurrentAccount", ctx => ctx.world.bop.currentAccount.toDouble),
@@ -188,9 +191,14 @@ object Observables:
     // LCR/NSFR
     ColumnDef("MinBankLCR", ctx => if ctx.aliveBanks.isEmpty then 0.0 else ctx.aliveBanks.map(_.lcr).min),
     ColumnDef("MinBankNSFR", ctx => if ctx.aliveBanks.isEmpty then 0.0 else ctx.aliveBanks.map(_.nsfr).min),
-    ColumnDef("AvgTermDepositFrac", ctx =>
-      if ctx.aliveBanks.isEmpty then 0.0
-      else ctx.aliveBanks.map(b => if b.deposits > PLN.Zero then b.termDeposits / b.deposits else 0.0).sum / ctx.aliveBanks.length,
+    ColumnDef(
+      "AvgTermDepositFrac",
+      ctx =>
+        if ctx.aliveBanks.isEmpty then 0.0
+        else
+          ctx.aliveBanks
+            .map(b => if b.deposits > PLN.Zero then b.termDeposits / b.deposits else 0.0)
+            .sum / ctx.aliveBanks.length,
     ),
     // Term structure
     ColumnDef("WIBOR_1M", ctx => ctx.world.bankingSector.interbankCurve.map(_.wibor1m.toDouble).getOrElse(0.0)),
@@ -209,21 +217,28 @@ object Observables:
     // Macroprudential
     ColumnDef("CCyB", ctx => ctx.world.macropru.ccyb.toDouble),
     ColumnDef("CreditToGdpGap", ctx => ctx.world.macropru.creditToGdpGap),
-    ColumnDef("EffectiveMinCar", ctx =>
-      if ctx.aliveBanks.isEmpty then 0.0
-      else ctx.aliveBanks.map(b => Macroprudential.effectiveMinCar(b.id.toInt, ctx.world.macropru.ccyb.toDouble)).max,
+    ColumnDef(
+      "EffectiveMinCar",
+      ctx =>
+        if ctx.aliveBanks.isEmpty then 0.0
+        else ctx.aliveBanks.map(b => Macroprudential.effectiveMinCar(b.id.toInt, ctx.world.macropru.ccyb.toDouble)).max,
     ),
     // GPW Equity Market
     ColumnDef("GpwIndex", ctx => ctx.world.equity.index),
     ColumnDef("GpwMarketCap", ctx => ctx.world.equity.marketCap.toDouble),
-    ColumnDef("GpwPE", ctx => if ctx.world.equity.earningsYield.toDouble > 0 then 1.0 / ctx.world.equity.earningsYield.toDouble else 0.0),
+    ColumnDef(
+      "GpwPE",
+      ctx => if ctx.world.equity.earningsYield.toDouble > 0 then 1.0 / ctx.world.equity.earningsYield.toDouble else 0.0,
+    ),
     ColumnDef("GpwDivYield", ctx => ctx.world.equity.dividendYield.toDouble),
     ColumnDef("EquityIssuanceTotal", ctx => ctx.world.equity.lastIssuance.toDouble),
-    ColumnDef("EquityFinancedFrac", ctx =>
-      ctx.living.kahanSumBy(_.equityRaised.toDouble) / Math.max(
-        1.0,
-        ctx.living.kahanSumBy(f => (f.debt + f.equityRaised).toDouble),
-      ),
+    ColumnDef(
+      "EquityFinancedFrac",
+      ctx =>
+        ctx.living.kahanSumBy(_.equityRaised.toDouble) / Math.max(
+          1.0,
+          ctx.living.kahanSumBy(f => (f.debt + f.equityRaised).toDouble),
+        ),
     ),
     ColumnDef("HhEquityWealth", ctx => ctx.world.equity.hhEquityWealth.toDouble),
     ColumnDef("EquityWealthEffect", ctx => ctx.world.equity.lastWealthEffect.toDouble),
@@ -240,10 +255,12 @@ object Observables:
     ColumnDef("MortgageInterestIncome", ctx => ctx.world.housing.mortgageInterestIncome.toDouble),
     ColumnDef("HhHousingWealth", ctx => ctx.world.housing.hhHousingWealth.toDouble),
     ColumnDef("HousingWealthEffect", ctx => ctx.world.housing.lastWealthEffect.toDouble),
-    ColumnDef("MortgageToGdp", ctx =>
-      if ctx.world.gdpProxy > 0 && ctx.world.housing.mortgageStock > PLN.Zero
-      then (ctx.world.housing.mortgageStock / (ctx.world.gdpProxy * 12.0)).toDouble
-      else 0.0,
+    ColumnDef(
+      "MortgageToGdp",
+      ctx =>
+        if ctx.world.gdpProxy > 0 && ctx.world.housing.mortgageStock > PLN.Zero
+        then (ctx.world.housing.mortgageStock / (ctx.world.gdpProxy * 12.0)).toDouble
+        else 0.0,
     ),
     // Sectoral Labor Mobility
     ColumnDef("SectorMobilityRate", ctx => ctx.world.sectoralMobility.sectorMobilityRate),
@@ -272,20 +289,25 @@ object Observables:
     ColumnDef("ImmigrantStock", ctx => ctx.world.immigration.immigrantStock.toDouble),
     ColumnDef("MonthlyImmigInflow", ctx => ctx.world.immigration.monthlyInflow.toDouble),
     ColumnDef("RemittanceOutflow", ctx => ctx.world.immigration.remittanceOutflow),
-    ColumnDef("ImmigrantUnempRate", ctx =>
-      if ctx.world.immigration.immigrantStock > 0 then
-        val immigrants = ctx.households.filter(_.isImmigrant)
-        if immigrants.nonEmpty then
-          immigrants.count(h => !h.status.isInstanceOf[HhStatus.Employed]).toDouble / immigrants.length
-        else 0.0
-      else 0.0,
+    ColumnDef(
+      "ImmigrantUnempRate",
+      ctx =>
+        if ctx.world.immigration.immigrantStock > 0 then
+          val immigrants = ctx.households.filter(_.isImmigrant)
+          if immigrants.nonEmpty then
+            immigrants.count(h => !h.status.isInstanceOf[HhStatus.Employed]).toDouble / immigrants.length
+          else 0.0
+        else 0.0,
     ),
     // PIT
-    ColumnDef("EffectivePitRate", ctx => {
-      val agg = ctx.world.hhAgg.get
-      val gross = agg.totalIncome + agg.totalPit
-      if gross > PLN.Zero then (agg.totalPit / gross).toDouble else 0.0
-    }),
+    ColumnDef(
+      "EffectivePitRate",
+      ctx => {
+        val agg = ctx.world.hhAgg.get
+        val gross = agg.totalIncome + agg.totalPit
+        if gross > PLN.Zero then (agg.totalPit / gross).toDouble else 0.0
+      },
+    ),
     // Social Transfers
     ColumnDef("SocialTransferSpend", ctx => ctx.world.gov.socialTransferSpend.toDouble),
     // Public Investment
@@ -300,19 +322,23 @@ object Observables:
     ColumnDef("FofResidual", ctx => ctx.world.fofResidual),
     // Consumer Credit
     ColumnDef("ConsumerLoans", ctx => ctx.world.bank.consumerLoans.toDouble),
-    ColumnDef("ConsumerNplRatio", ctx =>
-      if ctx.world.bank.consumerLoans > PLN.Zero then ctx.world.bank.consumerNpl / ctx.world.bank.consumerLoans
-      else 0.0,
+    ColumnDef(
+      "ConsumerNplRatio",
+      ctx =>
+        if ctx.world.bank.consumerLoans > PLN.Zero then ctx.world.bank.consumerNpl / ctx.world.bank.consumerLoans
+        else 0.0,
     ),
     ColumnDef("ConsumerOrigination", ctx => ctx.world.hhAgg.map(_.totalConsumerOrigination.toDouble).getOrElse(0.0)),
     ColumnDef("ConsumerDebtService", ctx => ctx.world.hhAgg.map(_.totalConsumerDebtService.toDouble).getOrElse(0.0)),
     // Physical Capital
     ColumnDef("AggCapitalStock", ctx => ctx.living.kahanSumBy(_.capitalStock.toDouble)),
     ColumnDef("GrossInvestment", ctx => ctx.world.grossInvestment.toDouble),
-    ColumnDef("CapitalDepreciation", ctx =>
-      if Config.PhysCapEnabled then
-        ctx.living.kahanSumBy(f => (f.capitalStock * Config.PhysCapDepRates(f.sector.toInt) / 12.0).toDouble)
-      else 0.0,
+    ColumnDef(
+      "CapitalDepreciation",
+      ctx =>
+        if Config.PhysCapEnabled then
+          ctx.living.kahanSumBy(f => (f.capitalStock * Config.PhysCapDepRates(f.sector.toInt) / 12.0).toDouble)
+        else 0.0,
     ),
     // Excise & Customs
     ColumnDef("ExciseRevenue", ctx => ctx.world.gov.exciseRevenue.toDouble),
@@ -345,7 +371,10 @@ object Observables:
     ColumnDef("FdiProfitShifting", ctx => ctx.world.fdiProfitShifting.toDouble),
     ColumnDef("FdiRepatriation", ctx => ctx.world.fdiRepatriation.toDouble),
     ColumnDef("FdiGrossOutflow", ctx => (ctx.world.fdiProfitShifting + ctx.world.fdiRepatriation).toDouble),
-    ColumnDef("ForeignOwnedFrac", ctx => if ctx.nLiving > 0 then ctx.living.count(_.foreignOwned).toDouble / ctx.nLiving else 0.0),
+    ColumnDef(
+      "ForeignOwnedFrac",
+      ctx => if ctx.nLiving > 0 then ctx.living.count(_.foreignOwned).toDouble / ctx.nLiving else 0.0,
+    ),
     ColumnDef("FdiCitLoss", ctx => ctx.world.fdiCitLoss.toDouble),
     // Endogenous Firm Entry (#35)
     ColumnDef("FirmBirths", ctx => ctx.world.firmBirths.toDouble),
@@ -355,25 +384,40 @@ object Observables:
     // Inventories (#43)
     ColumnDef("AggInventoryStock", ctx => ctx.world.aggInventoryStock.toDouble),
     ColumnDef("InventoryChange", ctx => ctx.world.aggInventoryChange.toDouble),
-    ColumnDef("InventoryToGdp", ctx => if ctx.world.gdpProxy > 0 then (ctx.world.aggInventoryStock / ctx.world.gdpProxy).toDouble else 0.0),
+    ColumnDef(
+      "InventoryToGdp",
+      ctx => if ctx.world.gdpProxy > 0 then (ctx.world.aggInventoryStock / ctx.world.gdpProxy).toDouble else 0.0,
+    ),
     // Informal Economy (#45)
     ColumnDef("EffectiveShadowShare", ctx => ctx.world.effectiveShadowShare),
     ColumnDef("TaxEvasionLoss", ctx => ctx.world.taxEvasionLoss.toDouble),
     ColumnDef("InformalEmployment", ctx => ctx.world.informalEmployed.toDouble),
-    ColumnDef("EvasionToGdpRatio", ctx => if ctx.world.gdpProxy > 0 then (ctx.world.taxEvasionLoss / ctx.world.gdpProxy).toDouble else 0.0),
+    ColumnDef(
+      "EvasionToGdpRatio",
+      ctx => if ctx.world.gdpProxy > 0 then (ctx.world.taxEvasionLoss / ctx.world.gdpProxy).toDouble else 0.0,
+    ),
     // Energy / Climate (#36)
     ColumnDef("AggEnergyCost", ctx => ctx.world.aggEnergyCost.toDouble),
-    ColumnDef("EnergyCostToGdp", ctx => if ctx.world.gdpProxy > 0 then (ctx.world.aggEnergyCost / ctx.world.gdpProxy).toDouble else 0.0),
+    ColumnDef(
+      "EnergyCostToGdp",
+      ctx => if ctx.world.gdpProxy > 0 then (ctx.world.aggEnergyCost / ctx.world.gdpProxy).toDouble else 0.0,
+    ),
     ColumnDef("EtsPrice", ctx => ctx.world.etsPrice),
     ColumnDef("AggGreenCapital", ctx => ctx.world.aggGreenCapital.toDouble),
     ColumnDef("GreenInvestment", ctx => ctx.world.aggGreenInvestment.toDouble),
-    ColumnDef("GreenCapitalRatio", ctx => {
-      val aggK = ctx.living.kahanSumBy(_.capitalStock.toDouble)
-      if ctx.world.aggGreenCapital > PLN.Zero && aggK > 0 then ctx.world.aggGreenCapital.toDouble / aggK else 0.0
-    }),
+    ColumnDef(
+      "GreenCapitalRatio",
+      ctx => {
+        val aggK = ctx.living.kahanSumBy(_.capitalStock.toDouble)
+        if ctx.world.aggGreenCapital > PLN.Zero && aggK > 0 then ctx.world.aggGreenCapital.toDouble / aggK else 0.0
+      },
+    ),
     // Diaspora Remittances (#46)
     ColumnDef("DiasporaRemittanceInflow", ctx => ctx.world.diasporaRemittanceInflow.toDouble),
-    ColumnDef("NetRemittances", ctx => (ctx.world.diasporaRemittanceInflow - PLN(ctx.world.immigration.remittanceOutflow)).toDouble),
+    ColumnDef(
+      "NetRemittances",
+      ctx => (ctx.world.diasporaRemittanceInflow - PLN(ctx.world.immigration.remittanceOutflow)).toDouble,
+    ),
     // Tourism (#47)
     ColumnDef("TourismExport", ctx => ctx.world.tourismExport.toDouble),
     ColumnDef("TourismImport", ctx => ctx.world.tourismImport.toDouble),

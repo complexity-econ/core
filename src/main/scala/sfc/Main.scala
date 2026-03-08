@@ -148,7 +148,9 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
     bankPw.write("Seed;BankId;BankName;Deposits;Loans;Capital;NPL;CAR;GovBonds;InterbankNet;Failed\n")
     for seed <- 0 until nSeeds do
       val lastRow = allRuns(seed)(nMonths - 1)
-      bankPw.write(f"${seed + 1};0;Aggregate;0;0;0;${lastRow(Col.MaxBankNPL.ordinal)}%.6f;${lastRow(Col.MinBankCAR.ordinal)}%.6f;0;0;${lastRow(Col.BankFailures.ordinal)}%.0f\n")
+      bankPw.write(
+        f"${seed + 1};0;Aggregate;0;0;0;${lastRow(Col.MaxBankNPL.ordinal)}%.6f;${lastRow(Col.MinBankCAR.ordinal)}%.6f;0;0;${lastRow(Col.BankFailures.ordinal)}%.0f\n",
+      )
     bankPw.close()
     println(s"Saved: mc/${outputPrefix}_banks_terminal.csv")
   }
