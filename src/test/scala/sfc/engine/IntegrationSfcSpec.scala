@@ -9,7 +9,7 @@ import sfc.McRunner.runSingle
 
 class IntegrationSfcSpec extends AnyFlatSpec with Matchers:
 
-  private lazy val rc = RunConfig(2000.0, 1, "test")
+  private lazy val rc = RunConfig(1, "test")
 
   private lazy val result = runSingle(42, rc)
 

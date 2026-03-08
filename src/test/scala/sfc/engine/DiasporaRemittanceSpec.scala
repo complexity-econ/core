@@ -152,7 +152,7 @@ class DiasporaRemittanceSpec extends AnyFlatSpec with Matchers:
   "secondaryIncome" should "include diasporaInflow as credit" in {
     val prevBop = BopState.zero
     val prevForex = ForexState(Config.BaseExRate, PLN.Zero, PLN(Config.ExportBase), PLN.Zero, PLN.Zero)
-    val rc = sfc.config.RunConfig(2000.0, 1, "test")
+    val rc = sfc.config.RunConfig(1, "test")
 
     val resultWith =
       OpenEconomy.step(prevBop, prevForex, 0, 0, 0, 0.05, 1e9, 1.0, Vector.fill(6)(1e8), 1, rc, diasporaInflow = 1000.0)
@@ -165,7 +165,7 @@ class DiasporaRemittanceSpec extends AnyFlatSpec with Matchers:
   it should "net outflow and inflow" in {
     val prevBop = BopState.zero
     val prevForex = ForexState(Config.BaseExRate, PLN.Zero, PLN(Config.ExportBase), PLN.Zero, PLN.Zero)
-    val rc = sfc.config.RunConfig(2000.0, 1, "test")
+    val rc = sfc.config.RunConfig(1, "test")
 
     val result = OpenEconomy.step(
       prevBop,
@@ -206,7 +206,7 @@ class DiasporaRemittanceSpec extends AnyFlatSpec with Matchers:
       0,
       Rate(0.02),
       1.0,
-      GovState(false, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
+      GovState(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
       sfc.agents.Nbp.State(Rate(0.05)),
       BankingAggregate(PLN.Zero, PLN.Zero, PLN(100), PLN(1000), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
       ForexState(Config.BaseExRate, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),

@@ -16,19 +16,17 @@ class SimulationPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPr
   implicit override val generatorDrivenConfig: PropertyCheckConfiguration =
     PropertyCheckConfiguration(minSuccessful = 200)
 
-  private val rc = RunConfig(2000.0, 1, "test")
+  private val rc = RunConfig(1, "test")
 
   // Combined generator for gov inputs (avoids >6 forAll limit)
-  private val genGovInputs: Gen[(GovState, Double, Double, Boolean, Double, Double, Double)] =
+  private val genGovInputs: Gen[(GovState, Double, Double, Double, Double)] =
     for
       prev <- genGovState
       cit <- Gen.choose(0.0, 1e8)
       vat <- Gen.choose(0.0, 1e8)
-      active <- Gen.oneOf(true, false)
-      bdp <- Gen.choose(0.0, 5000.0)
       price <- genPrice
       unempBen <- Gen.choose(0.0, 1e7)
-    yield (prev, cit, vat, active, bdp, price, unempBen)
+    yield (prev, cit, vat, price, unempBen)
 
   // Combined generator for inflation inputs (avoids >6 forAll limit)
   private val genInflInputs: Gen[(Double, Double, Double, Double, Double, Double, Double)] =
@@ -110,50 +108,40 @@ class SimulationPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPr
   // --- updateGov properties ---
 
   "updateGov" should "have deficit = spending - revenue" in {
-    forAll(genGovInputs) { (inputs: (GovState, Double, Double, Boolean, Double, Double, Double)) =>
-      val (prev, cit, vat, active, bdp, price, unempBen) = inputs
-      val gov = FiscalBudget.update(prev, cit, vat, active, bdp, price, unempBen)
+    forAll(genGovInputs) { (inputs: (GovState, Double, Double, Double, Double)) =>
+      val (prev, cit, vat, price, unempBen) = inputs
+      val gov = FiscalBudget.update(prev, cit, vat, price, unempBen)
       val totalRev = cit + vat
-      val bdpSpend = if active then Config.TotalPopulation.toDouble * bdp else 0.0
-      val totalSpend = bdpSpend + unempBen + Config.GovBaseSpending * price
+      val totalSpend = unempBen + Config.GovBaseSpending * price
       gov.deficit.toDouble shouldBe (totalSpend - totalRev +- 1.0)
     }
   }
 
   it should "accumulate debt (newDebt = prev + deficit)" in {
-    forAll(genGovInputs) { (inputs: (GovState, Double, Double, Boolean, Double, Double, Double)) =>
-      val (prev, cit, vat, active, bdp, price, unempBen) = inputs
-      val gov = FiscalBudget.update(prev, cit, vat, active, bdp, price, unempBen)
+    forAll(genGovInputs) { (inputs: (GovState, Double, Double, Double, Double)) =>
+      val (prev, cit, vat, price, unempBen) = inputs
+      val gov = FiscalBudget.update(prev, cit, vat, price, unempBen)
       gov.cumulativeDebt.toDouble shouldBe (prev.cumulativeDebt.toDouble + gov.deficit.toDouble +- 1.0)
-    }
-  }
-
-  it should "have zero BDP spending when not active" in {
-    forAll(genGovState, Gen.choose(0.0, 1e8), Gen.choose(0.0, 1e8), Gen.choose(0.0, 5000.0), genPrice) {
-      (prev: GovState, cit: Double, vat: Double, bdp: Double, price: Double) =>
-        val gov = FiscalBudget.update(prev, cit, vat, false, bdp, price, 0.0)
-        gov.bdpSpending shouldBe PLN.Zero
     }
   }
 
   it should "include debtService in deficit calculation" in {
     forAll(genGovInputs, Gen.choose(0.0, 1e7)) {
-      (inputs: (GovState, Double, Double, Boolean, Double, Double, Double), debtSvc: Double) =>
-        val (prev, cit, vat, active, bdp, price, unempBen) = inputs
-        val gov = FiscalBudget.update(prev, cit, vat, active, bdp, price, unempBen, debtSvc)
+      (inputs: (GovState, Double, Double, Double, Double), debtSvc: Double) =>
+        val (prev, cit, vat, price, unempBen) = inputs
+        val gov = FiscalBudget.update(prev, cit, vat, price, unempBen, debtSvc)
         val totalRev = cit + vat
-        val bdpSpend = if active then Config.TotalPopulation.toDouble * bdp else 0.0
-        val totalSpend = bdpSpend + unempBen + Config.GovBaseSpending * price + debtSvc
+        val totalSpend = unempBen + Config.GovBaseSpending * price + debtSvc
         gov.deficit.toDouble shouldBe (totalSpend - totalRev +- 1.0)
     }
   }
 
   it should "include nbpRemittance in revenue" in {
     forAll(genGovInputs, Gen.choose(0.0, 1e7)) {
-      (inputs: (GovState, Double, Double, Boolean, Double, Double, Double), nbpRemit: Double) =>
-        val (prev, cit, vat, active, bdp, price, unempBen) = inputs
-        val govNoRemit = FiscalBudget.update(prev, cit, vat, active, bdp, price, unempBen)
-        val govWithRemit = FiscalBudget.update(prev, cit, vat, active, bdp, price, unempBen, 0.0, nbpRemit)
+      (inputs: (GovState, Double, Double, Double, Double), nbpRemit: Double) =>
+        val (prev, cit, vat, price, unempBen) = inputs
+        val govNoRemit = FiscalBudget.update(prev, cit, vat, price, unempBen)
+        val govWithRemit = FiscalBudget.update(prev, cit, vat, price, unempBen, 0.0, nbpRemit)
         // nbpRemittance reduces deficit
         govWithRemit.deficit.toDouble shouldBe (govNoRemit.deficit.toDouble - nbpRemit +- 1.0)
     }

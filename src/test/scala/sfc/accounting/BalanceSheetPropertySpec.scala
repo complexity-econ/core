@@ -15,16 +15,14 @@ class BalanceSheetPropertySpec extends AnyFlatSpec with Matchers with ScalaCheck
     PropertyCheckConfiguration(minSuccessful = 200)
 
   // Combined generator for gov update inputs (avoids >6 forAll limit)
-  private val genGovUpdateInputs: Gen[(GovState, Double, Double, Boolean, Double, Double, Double)] =
+  private val genGovUpdateInputs: Gen[(GovState, Double, Double, Double, Double)] =
     for
       prev <- genGovState
       cit <- Gen.choose(0.0, 1e8)
       vat <- Gen.choose(0.0, 1e8)
-      active <- Gen.oneOf(true, false)
-      bdp <- Gen.choose(0.0, 5000.0)
       price <- genPrice
       unempBen <- Gen.choose(0.0, 1e7)
-    yield (prev, cit, vat, active, bdp, price, unempBen)
+    yield (prev, cit, vat, price, unempBen)
 
   // --- BankState properties ---
 
@@ -67,12 +65,11 @@ class BalanceSheetPropertySpec extends AnyFlatSpec with Matchers with ScalaCheck
   // --- GovState properties ---
 
   "GovState" should "have deficit = spending - revenue via updateGov" in {
-    forAll(genGovUpdateInputs) { (inputs: (GovState, Double, Double, Boolean, Double, Double, Double)) =>
-      val (prev, cit, vat, active, bdp, price, unempBen) = inputs
-      val gov = FiscalBudget.update(prev, cit, vat, active, bdp, price, unempBen)
+    forAll(genGovUpdateInputs) { (inputs: (GovState, Double, Double, Double, Double)) =>
+      val (prev, cit, vat, price, unempBen) = inputs
+      val gov = FiscalBudget.update(prev, cit, vat, price, unempBen)
       val totalRev = cit + vat
-      val bdpSpend = if active then Config.TotalPopulation.toDouble * bdp else 0.0
-      val totalSpend = bdpSpend + unempBen + Config.GovBaseSpending * price
+      val totalSpend = unempBen + Config.GovBaseSpending * price
       gov.deficit.toDouble shouldBe (totalSpend - totalRev +- 1.0)
     }
   }

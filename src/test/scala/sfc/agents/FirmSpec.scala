@@ -131,7 +131,7 @@ class FirmSpec extends AnyFlatSpec with Matchers:
   "Firm.process" should "keep a Bankrupt firm bankrupt with zero tax/capex" in {
     Random.setSeed(42)
     val f = mkFirm(TechState.Bankrupt("test"))
-    val rc = RunConfig(0.0, 1, "test")
+    val rc = RunConfig(1, "test")
     val result = Firm.process(f, mkWorld(), 0.07, _ => true, Vector(f), rc)
     result.taxPaid shouldBe PLN.Zero
     result.capexSpent shouldBe PLN.Zero
@@ -141,7 +141,7 @@ class FirmSpec extends AnyFlatSpec with Matchers:
   it should "keep an Automated firm alive with large cash" in {
     Random.setSeed(42)
     val f = mkFirm(TechState.Automated(1.5)).copy(cash = PLN(10000000.0))
-    val rc = RunConfig(0.0, 1, "test")
+    val rc = RunConfig(1, "test")
     val result = Firm.process(f, mkWorld(), 0.07, _ => true, Vector(f), rc)
     Firm.isAlive(result.firm) shouldBe true
   }
@@ -151,7 +151,7 @@ class FirmSpec extends AnyFlatSpec with Matchers:
     // Very low cash + high price level = deep losses → bankrupt
     val f = mkFirm(TechState.Automated(0.1)).copy(cash = PLN(-500000.0), debt = PLN(5000000.0))
     val w = mkWorld().copy(priceLevel = 0.3, sectorDemandMult = Vector.fill(6)(0.1))
-    val rc = RunConfig(0.0, 1, "test")
+    val rc = RunConfig(1, "test")
     val result = Firm.process(f, w, 0.20, _ => true, Vector(f), rc)
     result.firm.tech shouldBe a[TechState.Bankrupt]
   }
@@ -179,7 +179,7 @@ class FirmSpec extends AnyFlatSpec with Matchers:
       month = 31,
       inflation = Rate(0.02),
       priceLevel = 1.0,
-      gov = GovState(false, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
+      gov = GovState(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
       nbp = Nbp.State(Rate(0.0575)),
       bank =
         BankingAggregate(PLN(1000000), PLN(10000), PLN(500000), PLN(1000000), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),

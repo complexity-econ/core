@@ -39,10 +39,6 @@ class SimConfigSpec extends AnyFlatSpec with Matchers:
     Config.Duration shouldBe 120
   }
 
-  it should "have ShockMonth = 30" in {
-    Config.ShockMonth shouldBe 30
-  }
-
   it should "have WorkersPerFirm = 10" in {
     Config.WorkersPerFirm shouldBe 10
   }
@@ -50,11 +46,6 @@ class SimConfigSpec extends AnyFlatSpec with Matchers:
   it should "have positive AI and Hybrid CAPEX" in {
     Config.AiCapex should be > 0.0
     Config.HybridCapex should be > 0.0
-  }
-
-  "RunConfig" should "derive isNoBdp correctly" in {
-    RunConfig(0.0, 1, "test").isNoBdp shouldBe true
-    RunConfig(2000.0, 1, "test").isNoBdp shouldBe false
   }
 
   "sigmaThreshold" should "return ~0.91 for sigma=2" in {

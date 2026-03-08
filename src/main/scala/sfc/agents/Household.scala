@@ -293,7 +293,6 @@ object Household:
   def step(
     households: Vector[State],
     world: World,
-    bdp: Double,
     marketWage: Double,
     reservationWage: Double,
     importAdj: Double,
@@ -351,7 +350,7 @@ object Household:
       hh.status match
         case HhStatus.Bankrupt => hh // absorbing barrier
         case _                 =>
-          val (baseIncome, benefit, newStatus) = computeIncome(hh, bdp)
+          val (baseIncome, benefit, newStatus) = computeIncome(hh)
 
           // Variable-rate debt service (monetary transmission channel 1)
           val debtServiceRate = bankRates match
@@ -613,15 +612,15 @@ object Household:
     }
     (updated, correctedAgg, pbf)
 
-  private def computeIncome(hh: State, bdp: Double): (Double, Double, HhStatus) =
+  private def computeIncome(hh: State): (Double, Double, HhStatus) =
     hh.status match
       case HhStatus.Employed(firmId, sectorIdx, wage) =>
-        (wage.toDouble + bdp, 0.0, hh.status) // UBI is universal: employed also receive BDP
+        (wage.toDouble, 0.0, hh.status)
       case HhStatus.Unemployed(months) =>
         val benefit = computeBenefit(months)
-        (bdp + benefit, benefit, HhStatus.Unemployed(months + 1))
+        (benefit, benefit, HhStatus.Unemployed(months + 1))
       case HhStatus.Retraining(monthsLeft, target, cost) =>
-        (bdp * 0.7, 0.0, hh.status) // reduced availability during training
+        (0.0, 0.0, hh.status)
       case HhStatus.Bankrupt =>
         (0.0, 0.0, HhStatus.Bankrupt)
 
@@ -647,10 +646,6 @@ object Household:
         i += 1
       count.toDouble / hh.socialNeighbors.length
 
-  /** Compute aggregate statistics from individual household states.
-    * @param bdp
-    *   current per-capita BDP (for income reconstruction)
-    */
   def computeAggregates(
     households: Vector[State],
     marketWage: Double,
@@ -658,7 +653,6 @@ object Household:
     importAdj: Double,
     retrainingAttempts: Int,
     retrainingSuccesses: Int,
-    bdp: Double = 0.0,
   ): Aggregates =
     val n = households.length
 
@@ -690,13 +684,13 @@ object Household:
         case HhStatus.Unemployed(months) =>
           nUnemployed += 1
           val benefit = computeBenefit(months)
-          incomes(i) = bdp + benefit
+          incomes(i) = benefit
           totalUnempBenefits += benefit
           sumSkill += hh.skill.toDouble
           sumHealth += hh.healthPenalty.toDouble
         case HhStatus.Retraining(_, _, _) =>
           nRetraining += 1
-          incomes(i) = bdp * 0.7
+          incomes(i) = 0.0
           sumSkill += hh.skill.toDouble
           sumHealth += hh.healthPenalty.toDouble
         case HhStatus.Bankrupt =>

@@ -14,8 +14,6 @@ object FiscalConstraintStep:
 
   case class Output(
     m: Int,
-    bdpActive: Boolean,
-    bdp: Double,
     baseMinWage: Double,
     updatedMinWagePriceLevel: Double,
     resWage: Double,
@@ -25,9 +23,6 @@ object FiscalConstraintStep:
   def run(in: Input): Output =
     val w = in.w
     val m = w.month + 1
-    val bdpActive = m >= Config.ShockMonth
-
-    val bdp = if bdpActive then in.rc.bdpAmount else 0.0
 
     val (baseMinWage, updatedMinWagePriceLevel) = if Config.MinWageEnabled then
       val isAdjustMonth = m > 0 && m % Config.MinWageAdjustMonths == 0
@@ -45,7 +40,7 @@ object FiscalConstraintStep:
       else (w.hh.minWageLevel.toDouble, w.hh.minWagePriceLevel)
     else (Config.BaseReservationWage, w.hh.minWagePriceLevel)
 
-    val resWage = baseMinWage + bdp * Config.ReservationBdpMult
+    val resWage = baseMinWage
 
     val rawLendingBaseRate: Double =
       if Config.InterbankTermStructure then YieldCurve.compute(w.bankingSector.interbankRate.toDouble).wibor3m.toDouble
@@ -55,4 +50,4 @@ object FiscalConstraintStep:
       if Config.ExpEnabled then 0.5 * rawLendingBaseRate + 0.5 * w.expectations.expectedRate.toDouble
       else rawLendingBaseRate
 
-    Output(m, bdpActive, bdp, baseMinWage, updatedMinWagePriceLevel, resWage, lendingBaseRate)
+    Output(m, baseMinWage, updatedMinWagePriceLevel, resWage, lendingBaseRate)

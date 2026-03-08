@@ -171,7 +171,7 @@ object WorldAssemblyStep:
     val currSnap = Sfc.snapshot(newW, in.s9.reassignedFirms, in.s9.reassignedHouseholds)
     val sfcFlows = Sfc.MonthlyFlows(
       govSpending = PLN(
-        in.s9.newGovWithYield.bdpSpending.toDouble + in.s9.newGovWithYield.unempBenefitSpend.toDouble
+        in.s9.newGovWithYield.unempBenefitSpend.toDouble
           + in.s9.newGovWithYield.socialTransferSpend.toDouble
           + in.s4.govPurchases + in.s8.monthlyDebtService + in.s2.newZus.govSubvention.toDouble
           + in.s7.euCofin,

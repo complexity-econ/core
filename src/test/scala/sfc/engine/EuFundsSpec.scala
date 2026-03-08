@@ -90,14 +90,12 @@ class EuFundsSpec extends AnyFlatSpec with Matchers:
   // --- updateGov integration ---
 
   "updateGov" should "include euCofinancing in deficit" in {
-    val prev = GovState(false, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
+    val prev = GovState(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
     val base =
       FiscalBudget.update(
         prev,
         100000,
         200000,
-        bdpActive = false,
-        bdpAmount = 0,
         priceLevel = 1.0,
         unempBenefitSpend = 0,
       )
@@ -105,8 +103,6 @@ class EuFundsSpec extends AnyFlatSpec with Matchers:
       prev,
       100000,
       200000,
-      bdpActive = false,
-      bdpAmount = 0,
       priceLevel = 1.0,
       unempBenefitSpend = 0,
       euCofinancing = 50000.0,
@@ -116,13 +112,11 @@ class EuFundsSpec extends AnyFlatSpec with Matchers:
   }
 
   it should "record euCofinancing in GovState" in {
-    val prev = GovState(false, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
+    val prev = GovState(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
     val result = FiscalBudget.update(
       prev,
       100000,
       200000,
-      bdpActive = false,
-      bdpAmount = 0,
       priceLevel = 1.0,
       unempBenefitSpend = 0,
       euCofinancing = 75000.0,
@@ -131,13 +125,11 @@ class EuFundsSpec extends AnyFlatSpec with Matchers:
   }
 
   it should "add euProjectCapital to govCapitalSpend when GovInvest disabled" in {
-    val prev = GovState(false, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
+    val prev = GovState(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
     val result = FiscalBudget.update(
       prev,
       100000,
       200000,
-      bdpActive = false,
-      bdpAmount = 0,
       priceLevel = 1.0,
       unempBenefitSpend = 0,
       euProjectCapital = 30000.0,

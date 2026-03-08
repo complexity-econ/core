@@ -10,7 +10,7 @@ import sfc.types.*
 
 class ExpectationsPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks:
 
-  private val rc = RunConfig(2000.0, 1, "test")
+  private val rc = RunConfig(1, "test")
 
   private val inflationGen = Gen.choose(-0.10, 0.20)
   private val rateGen = Gen.choose(0.001, 0.25)

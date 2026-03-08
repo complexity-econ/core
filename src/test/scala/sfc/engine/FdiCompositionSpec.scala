@@ -69,7 +69,7 @@ class FdiCompositionSpec extends AnyFlatSpec with Matchers:
   "calcPnL (via Firm.process)" should "produce profitShiftCost=0 for domestic firm" in {
     val f = mkFirm(TechState.Traditional(10)).copy(foreignOwned = false)
     val w = mkWorld()
-    val r = Firm.process(f, w, 0.06, _ => true, Vector(f), RunConfig(0, 1, "t"))
+    val r = Firm.process(f, w, 0.06, _ => true, Vector(f), RunConfig(1, "t"))
     r.profitShiftCost.toDouble shouldBe 0.0
   }
 
@@ -77,7 +77,7 @@ class FdiCompositionSpec extends AnyFlatSpec with Matchers:
     // FdiEnabled defaults to false
     val f = mkFirm(TechState.Traditional(10)).copy(foreignOwned = true)
     val w = mkWorld()
-    val r = Firm.process(f, w, 0.06, _ => true, Vector(f), RunConfig(0, 1, "t"))
+    val r = Firm.process(f, w, 0.06, _ => true, Vector(f), RunConfig(1, "t"))
     // Since FdiEnabled=false, profitShiftCost should be 0 even for foreign firm
     r.profitShiftCost.toDouble shouldBe 0.0
   }
@@ -85,7 +85,7 @@ class FdiCompositionSpec extends AnyFlatSpec with Matchers:
   it should "produce fdiRepatriation=0 when FDI disabled (default)" in {
     val f = mkFirm(TechState.Traditional(10)).copy(foreignOwned = true)
     val w = mkWorld()
-    val r = Firm.process(f, w, 0.06, _ => true, Vector(f), RunConfig(0, 1, "t"))
+    val r = Firm.process(f, w, 0.06, _ => true, Vector(f), RunConfig(1, "t"))
     r.fdiRepatriation.toDouble shouldBe 0.0
   }
 
@@ -112,7 +112,7 @@ class FdiCompositionSpec extends AnyFlatSpec with Matchers:
     // Since we can't set Config at test time, just verify the field exists
     val f = mkFirm(TechState.Automated(1.5)).copy(foreignOwned = true, cash = PLN(500000.0))
     val w = mkWorld()
-    val r = Firm.process(f, w, 0.06, _ => true, Vector(f), RunConfig(0, 1, "t"))
+    val r = Firm.process(f, w, 0.06, _ => true, Vector(f), RunConfig(1, "t"))
     // When FdiEnabled=false (default), profitShiftCost=0
     r.profitShiftCost.toDouble shouldBe 0.0
   }
@@ -120,7 +120,7 @@ class FdiCompositionSpec extends AnyFlatSpec with Matchers:
   it should "populate profitShiftCost for foreign Traditional firm (when FDI enabled)" in {
     val f = mkFirm(TechState.Traditional(10)).copy(foreignOwned = true, cash = PLN(500000.0))
     val w = mkWorld()
-    val r = Firm.process(f, w, 0.06, _ => true, Vector(f), RunConfig(0, 1, "t"))
+    val r = Firm.process(f, w, 0.06, _ => true, Vector(f), RunConfig(1, "t"))
     r.profitShiftCost.toDouble shouldBe 0.0
   }
 
@@ -139,7 +139,7 @@ class FdiCompositionSpec extends AnyFlatSpec with Matchers:
     // When FDI is enabled and firm has low cash, repatriation is capped
     val f = mkFirm(TechState.Traditional(10)).copy(foreignOwned = true, cash = PLN(100.0))
     val w = mkWorld()
-    val r = Firm.process(f, w, 0.06, _ => true, Vector(f), RunConfig(0, 1, "t"))
+    val r = Firm.process(f, w, 0.06, _ => true, Vector(f), RunConfig(1, "t"))
     // Even with FDI enabled, cash should not go below what the base logic sets
     // With FDI disabled (default), just verify firm processes normally
     Firm.isAlive(r.firm) || !Firm.isAlive(r.firm) shouldBe true // always true, no crash
@@ -188,7 +188,7 @@ class FdiCompositionSpec extends AnyFlatSpec with Matchers:
       month = 31,
       inflation = Rate(0.02),
       priceLevel = 1.0,
-      gov = GovState(false, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
+      gov = GovState(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
       nbp = Nbp.State(Rate(0.0575)),
       bank =
         BankingAggregate(PLN(1000000), PLN(10000), PLN(500000), PLN(1000000), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),

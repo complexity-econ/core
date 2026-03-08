@@ -41,8 +41,7 @@ object SimOutput:
     val HealthAuto: Col = auto()
     val PublicAuto: Col = auto()
     val AgriAuto: Col = auto()
-    val EffectiveBDP: Col = auto() // 18
-    // 19–24: sector sigmas
+    // 18–23: sector sigmas
     val BpoSigma: Col = auto()
     val ManufSigma: Col = auto()
     val RetailSigma: Col = auto()
@@ -82,7 +81,7 @@ object SimOutput:
     val InterbankInterestNet: Col = auto() // 55
 
     def sectorAuto(s: Int): Col = 12 + s
-    def sectorSigma(s: Int): Col = 19 + s
+    def sectorSigma(s: Int): Col = 18 + s
 
   extension (c: Col) def ordinal: Int = c
 
@@ -109,7 +108,6 @@ object SimOutput:
     }
 
     inline def unemployPct: Double = world.hh.unemploymentRate
-    inline def effectiveBdp: Double = world.gov.effectiveBdpPerCapita(Config.TotalPopulation)
 
   /** The schema: ordered sequence of (name, computation) pairs. SINGLE SOURCE OF TRUTH. */
   private val schema: IndexedSeq[ColumnDef] = IndexedSeq(
@@ -132,8 +130,7 @@ object SimOutput:
     ColumnDef("Health_Auto", ctx => ctx.sectorAuto(3)),
     ColumnDef("Public_Auto", ctx => ctx.sectorAuto(4)),
     ColumnDef("Agri_Auto", ctx => ctx.sectorAuto(5)),
-    ColumnDef("EffectiveBDP", ctx => ctx.effectiveBdp),
-    // 19–24: per-sector current sigma
+    // 18–23: per-sector current sigma
     ColumnDef("BPO_Sigma", ctx => ctx.world.currentSigmas(0)),
     ColumnDef("Manuf_Sigma", ctx => ctx.world.currentSigmas(1)),
     ColumnDef("Retail_Sigma", ctx => ctx.world.currentSigmas(2)),
