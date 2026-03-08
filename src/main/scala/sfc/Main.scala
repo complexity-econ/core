@@ -40,8 +40,8 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
   val results = Array.ofDim[Double](Config.Duration, nCols)
 
   for t <- 0 until Config.Duration do
-    val (newW, newF, newHh, sfcResult) = Simulation.step(world, firms, rc, households)
-    sfcResult match
+    val stepResult = Simulation.step(world, firms, rc, households)
+    stepResult.sfcCheck match
       case Left(errors) =>
         errors.foreach { e =>
           System.err.println(
@@ -50,9 +50,9 @@ def runSingle(seed: Int, rc: RunConfig): RunResult =
           )
         }
       case Right(()) => // OK
-    world = newW
-    firms = newF
-    households = newHh
+    world = stepResult.world
+    firms = stepResult.firms
+    households = stepResult.households
 
     val unemployPct = 1.0 - world.hh.employed.toDouble / Config.TotalPopulation
     val living = firms.filter(Firm.isAlive)
