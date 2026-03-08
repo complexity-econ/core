@@ -11,7 +11,7 @@ package sfc.config
   * @param spread
   *   credit spread over policy rate for corporate bonds (RRRF 2024 BBB avg: ~2.5%)
   * @param initStock
-  *   initial outstanding corporate bond stock in raw PLN (KNF 2024: ~90 bln PLN, scaled by gdpRatio)
+  *   initial outstanding corporate bond stock in raw PLN (KNF 2024: ~90 mld PLN, scaled by gdpRatio)
   * @param minSize
   *   minimum firm size (employees) for bond issuance eligibility
   * @param issuanceFrac

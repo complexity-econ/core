@@ -3,7 +3,7 @@ package sfc.config
 /** Foreign Direct Investment composition: per-sector foreign ownership, profit outflows, and M&A.
   *
   * Models the two-channel FDI outflow (profit shifting + repatriation) calibrated to NBP IIP 2024 and GUS 2024 data on
-  * foreign-owned firms in Poland. Cumulative FDI stock ~1.1 tln PLN (~50% GDP). Affects SFC Identity 4 (external
+  * foreign-owned firms in Poland. Cumulative FDI stock ~1.1 bln PLN (~50% GDP). Affects SFC Identity 4 (external
   * balance).
   *
   * @param foreignShares

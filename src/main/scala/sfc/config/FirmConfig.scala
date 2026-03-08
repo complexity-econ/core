@@ -3,8 +3,8 @@ package sfc.config
 /** Firm-level production, automation, entry, and digitalization parameters.
   *
   * Covers the supply side of the agent-based model: revenue generation, cost structure, AI/hybrid automation adoption
-  * with CAPEX/OPEX, endogenous firm entry, staged digitalization, and Watts-Strogatz network
-  * topology for demonstration effects.
+  * with CAPEX/OPEX, endogenous firm entry, staged digitalization, and Watts-Strogatz network topology for demonstration
+  * effects.
   *
   * @param baseRevenue
   *   monthly revenue per worker before demand shocks (PLN, calibrated to GUS F-01 2024)

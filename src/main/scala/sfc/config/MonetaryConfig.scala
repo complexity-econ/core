@@ -43,7 +43,7 @@ package sfc.config
   * @param fxBand
   *   intervention band width around base exchange rate
   * @param fxReserves
-  *   initial FX reserves in raw PLN (NBP 2024: ~185 bln PLN, scaled by gdpRatio)
+  *   initial FX reserves in raw PLN (NBP 2024: ~185 mld PLN, scaled by gdpRatio)
   * @param fxMaxMonthly
   *   maximum monthly intervention as fraction of reserves
   * @param fxStrength

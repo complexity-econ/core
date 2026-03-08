@@ -2,15 +2,15 @@ package sfc.config
 
 /** Non-bank financial institutions (NBFI): TFI investment funds and shadow banking credit.
   *
-  * Models two NBFI channels: (1) TFI (Towarzystwa Funduszy Inwestycyjnych) investment funds with ~380 bln PLN AUM,
+  * Models two NBFI channels: (1) TFI (Towarzystwa Funduszy Inwestycyjnych) investment funds with ~380 mld PLN AUM,
   * three-asset allocation across government bonds, corporate bonds, and equities; (2) counter-cyclical NBFI credit
-  * (~231 bln PLN stock) that acts as deposit drain from the banking system. Calibrated to KNF/IZFiA 2024 data. Affects
+  * (~231 mld PLN stock) that acts as deposit drain from the banking system. Calibrated to KNF/IZFiA 2024 data. Affects
   * SFC Identities 2, 5, and 13.
   *
   * Stock values are in raw PLN — scaled by `gdpRatio` in `SimParams.defaults`.
   *
   * @param tfiInitAum
-  *   initial TFI assets under management in raw PLN (IZFiA 2024: ~380 bln, scaled by gdpRatio)
+  *   initial TFI assets under management in raw PLN (IZFiA 2024: ~380 mld, scaled by gdpRatio)
   * @param tfiGovBondShare
   *   share of TFI AUM invested in government bonds
   * @param tfiCorpBondShare
@@ -22,7 +22,7 @@ package sfc.config
   * @param tfiRebalanceSpeed
   *   monthly portfolio rebalancing speed toward target allocation
   * @param creditInitStock
-  *   initial NBFI credit stock in raw PLN (KNF 2024: ~231 bln, scaled by gdpRatio)
+  *   initial NBFI credit stock in raw PLN (KNF 2024: ~231 mld, scaled by gdpRatio)
   * @param creditBaseRate
   *   base monthly NBFI credit origination rate (fraction of stock)
   * @param creditRate

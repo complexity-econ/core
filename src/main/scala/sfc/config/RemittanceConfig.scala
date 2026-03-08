@@ -2,7 +2,7 @@ package sfc.config
 
 /** Diaspora remittance inflows from Polish workers abroad.
   *
-  * Models the inbound remittance channel calibrated to NBP BoP 2024 (~18 bln PLN/year). Remittances enter as household
+  * Models the inbound remittance channel calibrated to NBP BoP 2024 (~18 mld PLN/year). Remittances enter as household
   * income, with exchange rate pass-through and counter-cyclical sensitivity to excess unemployment. Affects SFC
   * Identities 2 (bank balance sheet) and 4 (external balance).
   *

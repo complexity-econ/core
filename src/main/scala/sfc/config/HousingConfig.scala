@@ -12,9 +12,9 @@ package sfc.config
   * @param initHpi
   *   initial house price index (base = 100)
   * @param initValue
-  *   initial aggregate housing stock value in raw PLN (~3.0 tln PLN, scaled by gdpRatio)
+  *   initial aggregate housing stock value in raw PLN (~3.0 bln PLN, scaled by gdpRatio)
   * @param initMortgage
-  *   initial aggregate mortgage stock in raw PLN (NBP 2024: ~485 bln PLN, scaled by gdpRatio)
+  *   initial aggregate mortgage stock in raw PLN (NBP 2024: ~485 mld PLN, scaled by gdpRatio)
   * @param priceIncomeElast
   *   elasticity of house prices to income growth
   * @param priceRateElast

@@ -17,7 +17,7 @@ package sfc.config
   *   - `sectorDefs`, `topology`, `gdpRatio` — simulation infrastructure
   *
   * Stock values in sub-configs use raw PLN amounts. `SimParams.defaults` applies `gdpRatio` scaling so that agent-level
-  * flows map correctly to real Polish GDP (~3.5 tln PLN). Do NOT construct SimParams directly with unscaled values —
+  * flows map correctly to real Polish GDP (~3.5 bln PLN). Do NOT construct SimParams directly with unscaled values —
   * always start from `defaults` and use `.copy()`.
   */
 case class SimParams private (

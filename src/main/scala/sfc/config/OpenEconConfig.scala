@@ -15,7 +15,7 @@ package sfc.config
   * @param erCeiling
   *   exchange rate ceiling (PLN/EUR) — structural upper bound
   * @param exportBase
-  *   monthly export base in raw PLN (scaled by gdpRatio, NBP BoP 2024: ~138.5 bln)
+  *   monthly export base in raw PLN (scaled by gdpRatio, NBP BoP 2024: ~138.5 mld)
   * @param importPushCap
   *   maximum monthly import growth from demand pressure
   * @param foreignGdpGrowth
@@ -31,7 +31,7 @@ package sfc.config
   * @param nfaReturnRate
   *   annual return rate on net foreign assets
   * @param euTransfers
-  *   monthly EU structural transfers in raw PLN (scaled by gdpRatio, MFiPR 2024: ~1.458 bln)
+  *   monthly EU structural transfers in raw PLN (scaled by gdpRatio, MFiPR 2024: ~1.458 mld)
   * @param fdiBase
   *   monthly FDI base inflow in raw PLN (scaled by gdpRatio, NBP IIP 2024: ~583 mln)
   * @param portfolioSensitivity

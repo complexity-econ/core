@@ -11,7 +11,7 @@ package sfc.config
   * @param initIndex
   *   initial WIG index value (GPW 2024: ~2,400)
   * @param initMcap
-  *   initial market capitalization in raw PLN (GPW 2024: ~1.4 tln PLN, scaled by gdpRatio)
+  *   initial market capitalization in raw PLN (GPW 2024: ~1.4 bln PLN, scaled by gdpRatio)
   * @param peMean
   *   long-run mean P/E ratio for reversion (GPW 2024: ~10)
   * @param divYield

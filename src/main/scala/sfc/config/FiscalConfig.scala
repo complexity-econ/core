@@ -3,8 +3,8 @@ package sfc.config
 /** Government fiscal policy: taxation, spending, transfers, bond market, and local government (JST).
   *
   * Covers the full fiscal architecture of the Polish state: CIT/VAT/PIT/excise/customs revenue, government consumption
-  * and investment, EU fund absorption, minimum wage indexation, unemployment benefits, government bond market,
-  * JST (local government) fiscal sharing, PIT brackets, and 800+ social transfers.
+  * and investment, EU fund absorption, minimum wage indexation, unemployment benefits, government bond market, JST
+  * (local government) fiscal sharing, PIT brackets, and 800+ social transfers.
   *
   * Stock values (`govBaseSpending`, `initGovDebt`) are in raw PLN — scaled by `gdpRatio` in `SimParams.defaults`.
   *
@@ -13,7 +13,7 @@ package sfc.config
   * @param vatRates
   *   per-sector effective VAT rates (6 sectors, MF 2024: 23%/19%/12%/6%/10%/7%)
   * @param exciseRates
-  *   per-sector effective excise rates (6 sectors, MF 2024: ~80 bln PLN total)
+  *   per-sector effective excise rates (6 sectors, MF 2024: ~80 mld PLN total)
   * @param customsDutyRate
   *   average customs duty rate on non-EU imports (EU CET/Eurostat TARIC: ~4%)
   * @param customsNonEuShare
@@ -35,7 +35,7 @@ package sfc.config
   * @param govInitCapital
   *   initial public capital stock (PLN, 0 = built from flow)
   * @param euFundsTotalEur
-  *   total EU funds allocation 2021-2027 in EUR (EC 2021: 76 bln EUR)
+  *   total EU funds allocation 2021-2027 in EUR (EC 2021: 76 mld EUR)
   * @param euFundsPeriodMonths
   *   programming period length in months (7 years = 84)
   * @param euFundsStartMonth
@@ -77,7 +77,7 @@ package sfc.config
   * @param govTermPremium
   *   term premium on government bonds over policy rate (NBP 2024)
   * @param initGovDebt
-  *   initial government debt in raw PLN (scaled by gdpRatio, MF 2024: ~1.6 tln PLN)
+  *   initial government debt in raw PLN (scaled by gdpRatio, MF 2024: ~1.6 bln PLN)
   * @param jstPitShare
   *   JST (local government) share of PIT revenue (Art. 4 Ustawa o dochodach JST: 38.46%)
   * @param jstCitShare

@@ -9,17 +9,17 @@ package sfc.config
   * Stock values (`initCapital`, `initDeposits`, etc.) are in raw PLN — scaled by `gdpRatio` in `SimParams.defaults`.
   *
   * @param initCapital
-  *   initial aggregate bank equity (KNF 2024: ~270 bln PLN)
+  *   initial aggregate bank equity (KNF 2024: ~270 mld PLN)
   * @param initDeposits
-  *   initial aggregate deposits (NBP M3 2024: ~1,900 bln PLN)
+  *   initial aggregate deposits (NBP M3 2024: ~1,900 mld PLN)
   * @param initLoans
-  *   initial aggregate corporate loans (NBP 2024: ~700 bln PLN)
+  *   initial aggregate corporate loans (NBP 2024: ~700 mld PLN)
   * @param initGovBonds
-  *   initial commercial bank government bond holdings (NBP 2024: ~400 bln PLN)
+  *   initial commercial bank government bond holdings (NBP 2024: ~400 mld PLN)
   * @param initNbpGovBonds
-  *   initial NBP government bond holdings (NBP 2024: ~300 bln PLN)
+  *   initial NBP government bond holdings (NBP 2024: ~300 mld PLN)
   * @param initConsumerLoans
-  *   initial consumer loan stock (BIK 2024: ~200 bln PLN)
+  *   initial consumer loan stock (BIK 2024: ~200 mld PLN)
   * @param baseSpread
   *   base lending spread over policy rate
   * @param nplSpreadFactor

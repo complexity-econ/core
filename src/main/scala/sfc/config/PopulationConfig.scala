@@ -10,7 +10,7 @@ enum FirmSizeDist:
 /** Agent population and firm size distribution.
   *
   * Controls the number of heterogeneous firms and the mapping from firm count to total employment, which in turn
-  * determines `gdpRatio` — the scaling factor that maps agent-level flows to real Polish GDP (~3.5 tln PLN, GUS 2024).
+  * determines `gdpRatio` — the scaling factor that maps agent-level flows to real Polish GDP (~3.5 bln PLN, GUS 2024).
   *
   * @param firmsCount
   *   number of firm agents in the simulation
@@ -29,7 +29,7 @@ enum FirmSizeDist:
   * @param firmSizeLargeMax
   *   upper bound on headcount draw for large firms
   * @param realGdp
-  *   Polish real GDP in PLN used to compute `gdpRatio` (GUS 2024: ~3.5 tln PLN)
+  *   Polish real GDP in PLN used to compute `gdpRatio` (GUS 2024: ~3.5 bln PLN)
   */
 case class PopulationConfig(
   firmsCount: Int = 10000,
