@@ -137,7 +137,7 @@ object Firm:
         val (rev, costs, net, psCost, eCost) = calcPnL(
           firm,
           w.hh.marketWage.toDouble,
-          w.sectorDemandMult(firm.sector.toInt),
+          w.flows.sectorDemandMult(firm.sector.toInt),
           w.priceLevel,
           lendRate,
           w.month,
@@ -169,7 +169,7 @@ object Firm:
         val (rev, costs, net, psCost, eCost) = calcPnL(
           firm,
           w.hh.marketWage.toDouble,
-          w.sectorDemandMult(firm.sector.toInt),
+          w.flows.sectorDemandMult(firm.sector.toInt),
           w.priceLevel,
           lendRate,
           w.month,
@@ -198,7 +198,7 @@ object Firm:
 
         val prob =
           if profitable && canPay && ready && bankOk then
-            ((firm.riskProfile.toDouble * 0.15) + (w.automationRatio.toDouble * 0.3)) * firm.digitalReadiness.toDouble
+            ((firm.riskProfile.toDouble * 0.15) + (w.real.automationRatio.toDouble * 0.3)) * firm.digitalReadiness.toDouble
           else 0.0
 
         if Random.nextDouble() < prob then
@@ -275,7 +275,7 @@ object Firm:
         val (rev, costs, net, psCost, eCost) = calcPnL(
           firm,
           w.hh.marketWage.toDouble,
-          w.sectorDemandMult(firm.sector.toInt),
+          w.flows.sectorDemandMult(firm.sector.toInt),
           w.priceLevel,
           lendRate,
           w.month,
@@ -316,7 +316,7 @@ object Firm:
 
         // Network-aware mimetic pressure: blend local + global with moderate weights
         val localAuto   = localAutoRatio(firm, allFirms)
-        val globalPanic = (w.automationRatio.toDouble + w.hybridRatio.toDouble * 0.5) * 0.5
+        val globalPanic = (w.real.automationRatio.toDouble + w.real.hybridRatio.toDouble * 0.5) * 0.5
         val panic       = localAuto * 0.4 + globalPanic * 0.4 // Balanced local/global
         val desper      = if net < 0 then 0.2 else 0.0
         val strat       =
@@ -440,7 +440,7 @@ object Firm:
           val digiCost    = digiInvestCost(firm)
           val nc          = firm.cash + PLN(net)
           val canAfford   = nc.toDouble > digiCost * 2.0
-          val competitive = w.automationRatio.toDouble + w.hybridRatio.toDouble * 0.5
+          val competitive = w.real.automationRatio.toDouble + w.real.hybridRatio.toDouble * 0.5
           val diminishing = 1.0 - firm.digitalReadiness.toDouble
           val digiProb    = p.firm.digiInvestBaseProb.toDouble * firm.riskProfile.toDouble *
             diminishing * (0.5 + competitive)
@@ -509,12 +509,12 @@ object Firm:
               energyCost = PLN(eCost),
             )
 
-    val sectorDemandMult = w.sectorDemandMult(firm.sector.toInt)
+    val sectorDemandMult = w.flows.sectorDemandMult(firm.sector.toInt)
     applyInformalCitEvasion(
       applyFdiFlows(
         applyInventory(applyDigitalDrift(applyInvestment(applyGreenInvestment(rawResult))), sectorDemandMult),
       ),
-      w.informalCyclicalAdj,
+      w.mechanisms.informalCyclicalAdj,
     )
 
   /** Apply natural digital drift to all living firms (always-on). */

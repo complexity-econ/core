@@ -62,8 +62,9 @@ object OpenEconomyStep:
 
     // GVC / Deep External Sector (v5.0)
     val newGvc =
-      if p.flags.gvc && p.flags.openEcon then GvcTrade.step(in.w.gvc, sectorOutputs, in.w.priceLevel, in.w.forex.exchangeRate, in.s7.autoR, in.s1.m, in.rc)
-      else in.w.gvc
+      if p.flags.gvc && p.flags.openEcon then
+        GvcTrade.step(in.w.external.gvc, sectorOutputs, in.w.priceLevel, in.w.forex.exchangeRate, in.s7.autoR, in.s1.m, in.rc)
+      else in.w.external.gvc
 
     val (gvcExp, gvcImp) =
       if p.flags.gvc && p.flags.openEcon then (Some(newGvc.totalExports.toDouble), Some(newGvc.sectorImports.map(_.toDouble)))
@@ -144,8 +145,8 @@ object OpenEconomyStep:
     // Expectations step: update after inflation + rate computed
     val unempRateForExp = 1.0 - in.s2.employed.toDouble / in.w.totalPopulation
     val newExp          =
-      if p.flags.expectations then Expectations.step(in.w.expectations, in.s7.newInfl, newRefRate, unempRateForExp, in.rc)
-      else in.w.expectations
+      if p.flags.expectations then Expectations.step(in.w.mechanisms.expectations, in.s7.newInfl, newRefRate, unempRateForExp, in.rc)
+      else in.w.mechanisms.expectations
 
     // Reserve interest, standing facilities, interbank interest
     val bsec                             = in.w.bankingSector
@@ -161,8 +162,8 @@ object OpenEconomyStep:
     // Channel 3: De-anchored expectations → higher bond yields
     val credPremium       = if p.flags.expectations then
       val target = p.monetary.targetInfl.toDouble
-      (1.0 - in.w.expectations.credibility.toDouble) *
-        Math.abs(in.w.expectations.expectedInflation.toDouble - target) *
+      (1.0 - in.w.mechanisms.expectations.credibility.toDouble) *
+        Math.abs(in.w.mechanisms.expectations.expectedInflation.toDouble - target) *
         p.labor.expBondSensitivity.toDouble
     else 0.0
     val newBondYield      = Nbp.bondYield(newRefRate, debtToGdp, nbpBondGdpShare, in.w.bop.nfa.toDouble, credPremium)
@@ -189,29 +190,29 @@ object OpenEconomyStep:
     )
 
     // --- Corporate bond market step (#40) ---
-    val corpBondAmort                      = CorporateBondMarket.amortization(in.w.corporateBonds)
+    val corpBondAmort                      = CorporateBondMarket.amortization(in.w.financial.corporateBonds)
     val newCorpBonds                       = CorporateBondMarket
-      .step(in.w.corporateBonds, newBondYield, in.w.bank.nplRatio, in.s5.totalBondDefault, in.s5.actualBondIssuance)
+      .step(in.w.financial.corporateBonds, newBondYield, in.w.bank.nplRatio, in.s5.totalBondDefault, in.s5.actualBondIssuance)
       .copy(lastAbsorptionRate = Ratio(in.s5.corpBondAbsorption))
-    val (_, corpBondBankCoupon, _)         = CorporateBondMarket.computeCoupon(in.w.corporateBonds)
+    val (_, corpBondBankCoupon, _)         = CorporateBondMarket.computeCoupon(in.w.financial.corporateBonds)
     val (_, _, corpBondBankDefaultLoss, _) =
-      CorporateBondMarket.processDefaults(in.w.corporateBonds, in.s5.totalBondDefault)
+      CorporateBondMarket.processDefaults(in.w.financial.corporateBonds, in.s5.totalBondDefault)
 
     // --- Insurance sector step ---
     val insUnempRate        = 1.0 - in.s2.employed.toDouble / in.w.totalPopulation
     val newInsurance        =
       if p.flags.insurance then
         Insurance.step(
-          in.w.insurance,
+          in.w.financial.insurance,
           in.s2.employed,
           in.s2.newWage,
           in.w.priceLevel,
           insUnempRate,
           newBondYield,
-          in.w.corporateBonds.corpBondYield.toDouble,
-          in.w.equity.monthlyReturn.toDouble,
+          in.w.financial.corporateBonds.corpBondYield.toDouble,
+          in.w.financial.equity.monthlyReturn.toDouble,
         )
-      else in.w.insurance
+      else in.w.financial.insurance
     val insNetDepositChange = newInsurance.lastNetDepositChange.toDouble
 
     // --- Shadow Banking / NBFI step ---
@@ -220,19 +221,19 @@ object OpenEconomyStep:
     val newNbfi          =
       if p.flags.nbfi then
         Nbfi.step(
-          in.w.nbfi,
+          in.w.financial.nbfi,
           in.s2.employed,
           in.s2.newWage,
           in.w.priceLevel,
           nbfiUnempRate,
           in.w.bank.nplRatio,
           newBondYield,
-          in.w.corporateBonds.corpBondYield.toDouble,
-          in.w.equity.monthlyReturn.toDouble,
+          in.w.financial.corporateBonds.corpBondYield.toDouble,
+          in.w.financial.equity.monthlyReturn.toDouble,
           nbfiDepositRate,
           in.s3.domesticCons,
         )
-      else in.w.nbfi
+      else in.w.financial.nbfi
     val nbfiDepositDrain = newNbfi.lastDepositDrain.toDouble
 
     Output(

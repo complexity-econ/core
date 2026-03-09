@@ -4,7 +4,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import sfc.accounting.{BankingAggregate, ForexState, GovState}
 import sfc.config.{RunConfig, SectorDefs, SimParams}
-import sfc.engine.World
+import sfc.engine.{ExternalState, FinancialMarketsState, FlowState, MechanismsState, MonetaryPlumbingState, RealState, SocialState, World}
 import sfc.types.*
 
 import scala.util.Random
@@ -153,7 +153,7 @@ class FirmSpec extends AnyFlatSpec with Matchers:
     Random.setSeed(42)
     // Very low cash + high price level = deep losses → bankrupt
     val f      = mkFirm(TechState.Automated(0.1)).copy(cash = PLN(-500000.0), debt = PLN(5000000.0))
-    val w      = mkWorld().copy(priceLevel = 0.3, sectorDemandMult = Vector.fill(6)(0.1))
+    val w      = mkWorld().copy(priceLevel = 0.3, flows = mkWorld().flows.copy(sectorDemandMult = Vector.fill(6)(0.1)))
     val rc     = RunConfig(1, "test")
     val result = Firm.process(f, w, 0.20, _ => true, Vector(f), rc)
     result.firm.tech shouldBe a[TechState.Bankrupt]
@@ -182,9 +182,13 @@ class FirmSpec extends AnyFlatSpec with Matchers:
       month = 31,
       inflation = Rate(0.02),
       priceLevel = 1.0,
+      gdpProxy = 1e9,
+      currentSigmas = SectorDefs.map(_.sigma).toVector,
+      totalPopulation = 100000,
       gov = GovState(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
       nbp = Nbp.State(Rate(0.0575)),
       bank = BankingAggregate(PLN(1000000), PLN(10000), PLN(500000), PLN(1000000), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
+      bankingSector = Banking.initialize(1e9, 5e8, 5e8, 0, 0, Banking.DefaultConfigs),
       forex = ForexState(4.33, PLN.Zero, PLN(190000000), PLN.Zero, PLN.Zero),
       hh = Household.SectorState(
         100000,
@@ -195,9 +199,11 @@ class FirmSpec extends AnyFlatSpec with Matchers:
         PLN.Zero,
         PLN.Zero,
       ),
-      automationRatio = Ratio.Zero,
-      hybridRatio = Ratio.Zero,
-      gdpProxy = 1e9,
-      currentSigmas = SectorDefs.map(_.sigma).toVector,
-      bankingSector = Banking.initialize(1e9, 5e8, 5e8, 0, 0, Banking.DefaultConfigs),
+      social = SocialState.zero,
+      financial = FinancialMarketsState.zero,
+      external = ExternalState.zero,
+      real = RealState.zero,
+      mechanisms = MechanismsState.zero,
+      plumbing = MonetaryPlumbingState.zero,
+      flows = FlowState.zero,
     )

@@ -396,22 +396,28 @@ class KnfBfgSpec extends AnyFlatSpec with Matchers:
 
   "World" should "default bfgFundBalance=0 and bailInLoss=0" in {
     val w = World(
-      0,
-      Rate(0.02),
-      1.0,
-      GovState(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
-      sfc.agents.Nbp.State(Rate(0.05)),
-      BankingAggregate(PLN.Zero, PLN.Zero, PLN(100000), PLN(500000), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
-      ForexState(4.33, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
-      sfc.agents.Household.SectorState(100, PLN(8000), PLN(4000), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
-      Ratio.Zero,
-      Ratio.Zero,
-      100000,
-      Vector(1.0, 1.0, 1.0, 1.0, 1.0, 1.0),
+      month = 0,
+      inflation = Rate(0.02),
+      priceLevel = 1.0,
+      gdpProxy = 100000.0,
+      currentSigmas = Vector(1.0, 1.0, 1.0, 1.0, 1.0, 1.0),
+      totalPopulation = 100,
+      gov = GovState(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
+      nbp = sfc.agents.Nbp.State(Rate(0.05)),
+      bank = BankingAggregate(PLN.Zero, PLN.Zero, PLN(100000), PLN(500000), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
       bankingSector = Banking.initialize(1e9, 5e8, 5e8, 0, 0, Banking.DefaultConfigs),
+      forex = ForexState(4.33, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
+      hh = sfc.agents.Household.SectorState(100, PLN(8000), PLN(4000), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
+      social = SocialState.zero,
+      financial = FinancialMarketsState.zero,
+      external = ExternalState.zero,
+      real = RealState.zero,
+      mechanisms = MechanismsState.zero,
+      plumbing = MonetaryPlumbingState.zero,
+      flows = FlowState.zero,
     )
-    w.bfgFundBalance.toDouble shouldBe 0.0
-    w.bailInLoss.toDouble shouldBe 0.0
+    w.mechanisms.bfgFundBalance.toDouble shouldBe 0.0
+    w.flows.bailInLoss.toDouble shouldBe 0.0
   }
 
   // ==========================================================================

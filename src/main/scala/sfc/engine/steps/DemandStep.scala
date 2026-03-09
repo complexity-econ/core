@@ -24,7 +24,7 @@ object DemandStep:
 
   def run(in: Input)(using p: SimParams): Output =
     val zusNetSurplus      =
-      if p.flags.zus then Math.max(0.0, in.w.zus.contributions.toDouble - in.w.zus.pensionPayments.toDouble)
+      if p.flags.zus then Math.max(0.0, in.w.social.zus.contributions.toDouble - in.w.social.zus.pensionPayments.toDouble)
       else 0.0
     val unempRateForFiscal = 1.0 - in.s2.employed.toDouble / in.w.totalPopulation
     val unempGap           = Math.max(0.0, unempRateForFiscal - p.monetary.nairu.toDouble)
@@ -40,10 +40,10 @@ object DemandStep:
       in.s2.living.filter(_.sector.toInt == s).kahanSumBy(f => Firm.capacity(f).toDouble)
     }.toVector
     val sectorExports      =
-      if p.flags.gvc && p.flags.openEcon then in.w.gvc.sectorExports.map(_.toDouble)
+      if p.flags.gvc && p.flags.openEcon then in.w.external.gvc.sectorExports.map(_.toDouble)
       else p.fiscal.fofExportShares.map(_.toDouble).map(_ * laggedExports)
-    val laggedInvestDemand = in.w.grossInvestment.toDouble * (1.0 - p.capital.importShare.toDouble) +
-      in.w.aggGreenInvestment.toDouble * (1.0 - p.climate.greenImportShare.toDouble)
+    val laggedInvestDemand = in.w.real.grossInvestment.toDouble * (1.0 - p.capital.importShare.toDouble) +
+      in.w.real.aggGreenInvestment.toDouble * (1.0 - p.climate.greenImportShare.toDouble)
     val sectorDemand       = (0 until SectorDefs.length).map { s =>
       p.fiscal.fofConsWeights.map(_.toDouble)(s) * in.s3.domesticCons +
         p.fiscal.fofGovWeights.map(_.toDouble)(s) * govPurchases +
@@ -67,7 +67,7 @@ object DemandStep:
       else rawSectorMults(s) + spilloverFrac * (1.0 - rawSectorMults(s))
     }.toVector
     val realRateEffect     = if p.flags.expectations then
-      val realRate = in.w.nbp.referenceRate.toDouble - in.w.expectations.expectedInflation.toDouble
+      val realRate = in.w.nbp.referenceRate.toDouble - in.w.mechanisms.expectations.expectedInflation.toDouble
       -realRate * 0.02
     else 0.0
     val avgDemandMult      =

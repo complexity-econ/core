@@ -63,7 +63,7 @@ object FirmProcessingStep:
     val perBankIntIncome = new Array[Double](nBanks)
     val perBankWorkers   = new Array[Int](nBanks)
 
-    val currentCcyb                             = in.w.macropru.ccyb.toDouble
+    val currentCcyb                             = in.w.mechanisms.macropru.ccyb.toDouble
     val rates                                   = bsec.banks.zip(bsec.configs).map((b, cfg) => Banking.lendingRate(b, cfg, in.s1.lendingBaseRate))
     val getLendRate: Int => Double              = (bankId: Int) => rates(bankId)
     val bankCanLendFn: (Int, Double) => Boolean =
@@ -87,7 +87,7 @@ object FirmProcessingStep:
 
     val macro4firms = in.w.copy(
       month = in.s1.m,
-      sectorDemandMult = in.s4.sectorMults,
+      flows = in.w.flows.copy(sectorDemandMult = in.s4.sectorMults),
       hh = in.w.hh.copy(marketWage = PLN(in.s2.newWage), reservationWage = PLN(in.s1.resWage)),
     )
 
@@ -142,7 +142,7 @@ object FirmProcessingStep:
 
     val corpBondAbsorption =
       CorporateBondMarket.computeAbsorption(
-        in.w.corporateBonds,
+        in.w.financial.corporateBonds,
         sumBondIssuance,
         in.w.bank.car,
         p.banking.minCar.toDouble,

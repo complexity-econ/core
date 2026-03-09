@@ -130,9 +130,9 @@ class FdiCompositionSpec extends AnyFlatSpec with Matchers:
 
   "World" should "have FDI fields defaulting to 0" in {
     val w = mkWorld()
-    w.fdiProfitShifting.toDouble shouldBe 0.0
-    w.fdiRepatriation.toDouble shouldBe 0.0
-    w.fdiCitLoss.toDouble shouldBe 0.0
+    w.flows.fdiProfitShifting.toDouble shouldBe 0.0
+    w.flows.fdiRepatriation.toDouble shouldBe 0.0
+    w.flows.fdiCitLoss.toDouble shouldBe 0.0
   }
 
   // --- Repatriation cash constraint ---
@@ -189,9 +189,13 @@ class FdiCompositionSpec extends AnyFlatSpec with Matchers:
       month = 31,
       inflation = Rate(0.02),
       priceLevel = 1.0,
+      gdpProxy = 1e9,
+      currentSigmas = SectorDefs.map(_.sigma).toVector,
+      totalPopulation = 100000,
       gov = GovState(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
       nbp = Nbp.State(Rate(0.0575)),
       bank = BankingAggregate(PLN(1000000), PLN(10000), PLN(500000), PLN(1000000), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
+      bankingSector = Banking.initialize(1e9, 5e8, 5e8, 0, 0, Banking.DefaultConfigs),
       forex = ForexState(4.33, PLN.Zero, PLN(190000000), PLN.Zero, PLN.Zero),
       hh = Household.SectorState(
         100000,
@@ -202,9 +206,11 @@ class FdiCompositionSpec extends AnyFlatSpec with Matchers:
         PLN.Zero,
         PLN.Zero,
       ),
-      automationRatio = Ratio.Zero,
-      hybridRatio = Ratio.Zero,
-      gdpProxy = 1e9,
-      currentSigmas = SectorDefs.map(_.sigma).toVector,
-      bankingSector = Banking.initialize(1e9, 5e8, 5e8, 0, 0, Banking.DefaultConfigs),
+      social = SocialState.zero,
+      financial = FinancialMarketsState.zero,
+      external = ExternalState.zero,
+      real = RealState.zero,
+      mechanisms = MechanismsState.zero,
+      plumbing = MonetaryPlumbingState.zero,
+      flows = FlowState.zero,
     )

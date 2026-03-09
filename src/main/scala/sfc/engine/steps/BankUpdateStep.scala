@@ -79,7 +79,7 @@ object BankUpdateStep:
       else 0.0
 
     // Informal economy: aggregate tax evasion
-    val informalCyclicalAdj  = in.w.informalCyclicalAdj
+    val informalCyclicalAdj  = in.w.mechanisms.informalCyclicalAdj
     val effectiveShadowShare =
       if p.flags.informal then
         p.fiscal.fofConsWeights
@@ -119,7 +119,7 @@ object BankUpdateStep:
     val nLivingFirms               = in.s5.ioFirms.count(Firm.isAlive)
     val (newJst, jstDepositChange) =
       Jst.step(
-        in.w.jst,
+        in.w.social.jst,
         newGovWithYield.taxRevenue.toDouble,
         in.s3.totalIncome,
         in.s7.gdp,
@@ -129,7 +129,7 @@ object BankUpdateStep:
 
     // ---- Housing market step ----
     val unempRate                = 1.0 - in.s2.employed.toDouble / in.w.totalPopulation
-    val prevMortgageRate         = in.w.housing.avgMortgageRate
+    val prevMortgageRate         = in.w.real.housing.avgMortgageRate
     val mortgageBaseRate: Double =
       if p.flags.interbankTermStructure then YieldCurve.compute(in.w.bankingSector.interbankRate.toDouble).wibor3m.toDouble
       else in.w.nbp.referenceRate.toDouble
@@ -137,7 +137,7 @@ object BankUpdateStep:
 
     val housingAfterPrice                                                =
       HousingMarket.step(
-        in.w.housing,
+        in.w.real.housing,
         mortgageRate,
         in.s7.newInfl,
         in.s2.wageGrowth,
@@ -218,24 +218,24 @@ object BankUpdateStep:
     val availableBondsForPpk = newBank.govBondHoldings.toDouble +
       (if p.flags.govBondMarket then actualBondChange else 0.0) - in.s8.qePurchaseAmount
     val ppkBondPurchase      = Math.min(in.s2.rawPpkBondPurchase, Math.max(0.0, availableBondsForPpk))
-    val finalPpk             = in.s2.newPpk.copy(bondHoldings = PLN(in.w.ppk.bondHoldings.toDouble + ppkBondPurchase))
+    val finalPpk             = in.s2.newPpk.copy(bondHoldings = PLN(in.w.social.ppk.bondHoldings.toDouble + ppkBondPurchase))
 
     // Insurance gov bond purchases (capped at available bonds after QE + PPK)
-    val insGovBondDelta      = (in.s8.newInsurance.govBondHoldings - in.w.insurance.govBondHoldings).toDouble
+    val insGovBondDelta      = (in.s8.newInsurance.govBondHoldings - in.w.financial.insurance.govBondHoldings).toDouble
     val availableBondsForIns = newBank.govBondHoldings.toDouble +
       (if p.flags.govBondMarket then actualBondChange else 0.0) - in.s8.qePurchaseAmount - ppkBondPurchase
     val insBondPurchase      = Math.max(0.0, Math.min(Math.max(0.0, insGovBondDelta), Math.max(0.0, availableBondsForIns)))
     val finalInsurance       =
-      in.s8.newInsurance.copy(govBondHoldings = PLN(in.w.insurance.govBondHoldings.toDouble + insBondPurchase))
+      in.s8.newInsurance.copy(govBondHoldings = PLN(in.w.financial.insurance.govBondHoldings.toDouble + insBondPurchase))
 
     // TFI gov bond purchases (#42)
-    val tfiGovBondDelta      = (in.s8.newNbfi.tfiGovBondHoldings - in.w.nbfi.tfiGovBondHoldings).toDouble
+    val tfiGovBondDelta      = (in.s8.newNbfi.tfiGovBondHoldings - in.w.financial.nbfi.tfiGovBondHoldings).toDouble
     val availableBondsForTfi = newBank.govBondHoldings.toDouble +
       (if p.flags.govBondMarket then actualBondChange else 0.0) -
       in.s8.qePurchaseAmount - ppkBondPurchase - insBondPurchase
     val tfiBondPurchase      = Math.max(0.0, Math.min(Math.max(0.0, tfiGovBondDelta), Math.max(0.0, availableBondsForTfi)))
     val finalNbfi            =
-      in.s8.newNbfi.copy(tfiGovBondHoldings = PLN(in.w.nbfi.tfiGovBondHoldings.toDouble + tfiBondPurchase))
+      in.s8.newNbfi.copy(tfiGovBondHoldings = PLN(in.w.financial.nbfi.tfiGovBondHoldings.toDouble + tfiBondPurchase))
 
     // ---- Multi-bank update path ----
     val bs                       = in.w.bankingSector

@@ -41,7 +41,7 @@ object LaborDemographicsStep:
     val wageAfterExp = if p.flags.expectations then
       val target          = p.monetary.targetInfl.toDouble
       val expWagePressure = p.labor.expWagePassthrough.toDouble *
-        Math.max(0.0, in.w.expectations.expectedInflation.toDouble - target) / 12.0
+        Math.max(0.0, in.w.mechanisms.expectations.expectedInflation.toDouble - target) / 12.0
       Math.max(in.s1.resWage, rawWage * (1.0 + expWagePressure))
     else rawWage
 
@@ -55,25 +55,25 @@ object LaborDemographicsStep:
 
     // Demographics caps employment at working-age population
     val employed =
-      if p.flags.demographics then Math.min(rawEmployed, in.w.demographics.workingAgePop)
+      if p.flags.demographics then Math.min(rawEmployed, in.w.social.demographics.workingAgePop)
       else rawEmployed
 
     // Immigration
     val unempRateForImmig = 1.0 - employed.toDouble / in.w.totalPopulation
     val newImmig          = Immigration.step(
-      in.w.immigration,
+      in.w.external.immigration,
       in.households,
       newWage,
       unempRateForImmig,
-      in.w.demographics.workingAgePop.max(in.w.totalPopulation),
+      in.w.social.demographics.workingAgePop.max(in.w.totalPopulation),
       in.s1.m,
     )
     val netMigration      = newImmig.monthlyInflow - newImmig.monthlyOutflow
 
-    val newDemographics = SocialSecurity.demographicsStep(in.w.demographics, employed, netMigration)
+    val newDemographics = SocialSecurity.demographicsStep(in.w.social.demographics, employed, netMigration)
 
-    val newZus             = SocialSecurity.zusStep(in.w.zus.fusBalance.toDouble, employed, newWage, newDemographics.retirees)
-    val newPpk             = SocialSecurity.ppkStep(in.w.ppk.bondHoldings.toDouble, employed, newWage)
+    val newZus             = SocialSecurity.zusStep(in.w.social.zus.fusBalance.toDouble, employed, newWage, newDemographics.retirees)
+    val newPpk             = SocialSecurity.ppkStep(in.w.social.ppk.bondHoldings.toDouble, employed, newWage)
     val rawPpkBondPurchase = SocialSecurity.ppkBondPurchase(newPpk)
 
     val wageGrowth = if in.w.hh.marketWage.toDouble > 0 then newWage / in.w.hh.marketWage.toDouble - 1.0 else 0.0

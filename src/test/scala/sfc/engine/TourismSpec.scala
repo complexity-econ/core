@@ -239,20 +239,26 @@ class TourismSpec extends AnyFlatSpec with Matchers:
 
   "World" should "default tourismExport and tourismImport to 0.0" in {
     val w = World(
-      0,
-      Rate(0.02),
-      1.0,
-      GovState(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
-      sfc.agents.Nbp.State(Rate(0.05)),
-      BankingAggregate(PLN.Zero, PLN.Zero, PLN(100), PLN(1000), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
-      ForexState(p.forex.baseExRate, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
-      sfc.agents.Household.SectorState(100, PLN(5000), PLN(4000), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
-      Ratio(0.0),
-      Ratio(0.0),
-      1e9,
-      Vector.fill(6)(0.1),
+      month = 0,
+      inflation = Rate(0.02),
+      priceLevel = 1.0,
+      gdpProxy = 1e9,
+      currentSigmas = Vector.fill(6)(0.1),
+      totalPopulation = 100,
+      gov = GovState(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
+      nbp = sfc.agents.Nbp.State(Rate(0.05)),
+      bank = BankingAggregate(PLN.Zero, PLN.Zero, PLN(100), PLN(1000), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
       bankingSector = Banking.initialize(1e9, 5e8, 5e8, 0, 0, Banking.DefaultConfigs),
+      forex = ForexState(p.forex.baseExRate, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
+      hh = sfc.agents.Household.SectorState(100, PLN(5000), PLN(4000), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
+      social = SocialState.zero,
+      financial = FinancialMarketsState.zero,
+      external = ExternalState.zero,
+      real = RealState.zero,
+      mechanisms = MechanismsState.zero,
+      plumbing = MonetaryPlumbingState.zero,
+      flows = FlowState.zero,
     )
-    w.tourismExport shouldBe PLN.Zero
-    w.tourismImport shouldBe PLN.Zero
+    w.flows.tourismExport shouldBe PLN.Zero
+    w.flows.tourismImport shouldBe PLN.Zero
   }

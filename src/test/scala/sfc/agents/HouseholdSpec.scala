@@ -4,7 +4,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import sfc.accounting.{BankingAggregate, ForexState, GovState}
 import sfc.config.{SectorDefs, SimParams}
-import sfc.engine.World
+import sfc.engine.{ExternalState, FinancialMarketsState, FlowState, MechanismsState, MonetaryPlumbingState, RealState, SocialState, World}
 import sfc.types.*
 
 import scala.util.Random
@@ -392,9 +392,13 @@ class HouseholdSpec extends AnyFlatSpec with Matchers:
       month = 31,
       inflation = Rate(0.02),
       priceLevel = 1.0,
+      gdpProxy = 1e9,
+      currentSigmas = SectorDefs.map(_.sigma).toVector,
+      totalPopulation = 100000,
       gov = GovState(PLN(0.0), PLN(0.0), PLN(0.0), PLN(0.0)),
       nbp = Nbp.State(Rate(0.0575)),
       bank = BankingAggregate(PLN(1000000), PLN(10000), PLN(500000), PLN(1000000), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
+      bankingSector = Banking.initialize(1e9, 5e8, 5e8, 0, 0, Banking.DefaultConfigs),
       forex = ForexState(4.33, PLN(0.0), PLN(190000000), PLN(0.0), PLN(0.0)),
       hh = Household.SectorState(
         100000,
@@ -405,9 +409,11 @@ class HouseholdSpec extends AnyFlatSpec with Matchers:
         PLN(0.0),
         PLN(0.0),
       ),
-      automationRatio = Ratio.Zero,
-      hybridRatio = Ratio.Zero,
-      gdpProxy = 1e9,
-      currentSigmas = SectorDefs.map(_.sigma).toVector,
-      bankingSector = Banking.initialize(1e9, 5e8, 5e8, 0, 0, Banking.DefaultConfigs),
+      social = SocialState.zero,
+      financial = FinancialMarketsState.zero,
+      external = ExternalState.zero,
+      real = RealState.zero,
+      mechanisms = MechanismsState.zero,
+      plumbing = MonetaryPlumbingState.zero,
+      flows = FlowState.zero,
     )

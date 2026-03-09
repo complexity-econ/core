@@ -281,7 +281,7 @@ object PriceEquityStep:
       in.s3.domesticCons + govGdpContribution + euGdpContribution + in.w.forex.exports.toDouble + domesticGFCF + aggInventoryChange
 
     val totalSystemLoans = in.w.bankingSector.banks.kahanSumBy(_.loans.toDouble)
-    val newMacropru      = Macroprudential.step(in.w.macropru, totalSystemLoans, gdp)
+    val newMacropru      = Macroprudential.step(in.w.mechanisms.macropru, totalSystemLoans, gdp)
 
     val sectorAdoption = SectorDefs.indices.map { s =>
       val secFirms = living2.filter(_.sector.toInt == s)
@@ -326,7 +326,7 @@ object PriceEquityStep:
     val prevGdp             = if in.w.gdpProxy > 0 then in.w.gdpProxy else 1.0
     val gdpGrowthForEquity  = (gdp - prevGdp) / prevGdp
     val equityAfterIndex    =
-      EquityMarket.step(in.w.equity, in.w.nbp.referenceRate.toDouble, newInfl, gdpGrowthForEquity, firmProfits)
+      EquityMarket.step(in.w.financial.equity, in.w.nbp.referenceRate.toDouble, newInfl, gdpGrowthForEquity, firmProfits)
     val equityAfterIssuance = EquityMarket.processIssuance(in.s5.sumEquityIssuance, equityAfterIndex)
 
     val (netDomesticDividends, foreignDividendOutflow, dividendTax) =

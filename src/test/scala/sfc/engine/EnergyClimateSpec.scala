@@ -182,63 +182,41 @@ class EnergyClimateSpec extends AnyFlatSpec with Matchers:
   // World defaults
   // ==========================================================================
 
+  private def mkMinimalWorld() = World(
+    month = 0,
+    inflation = Rate(0.02),
+    priceLevel = 1.0,
+    gdpProxy = 1e9,
+    currentSigmas = Vector.fill(6)(5.0),
+    totalPopulation = 100000,
+    gov = GovState(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
+    nbp = sfc.agents.Nbp.State(Rate(0.0575)),
+    bank = BankingAggregate(PLN.Zero, PLN.Zero, PLN(500000000.0), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
+    bankingSector = Banking.initialize(1e9, 5e8, 5e8, 0, 0, Banking.DefaultConfigs),
+    forex = ForexState(4.33, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
+    hh = sfc.agents.Household.SectorState(100000, PLN(8266.0), PLN(4666.0), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
+    social = SocialState.zero,
+    financial = FinancialMarketsState.zero,
+    external = ExternalState.zero,
+    real = RealState.zero,
+    mechanisms = MechanismsState.zero,
+    plumbing = MonetaryPlumbingState.zero,
+    flows = FlowState.zero,
+  )
+
   "World" should "default aggEnergyCost to 0.0" in {
-    val w = World(
-      0,
-      Rate(0.02),
-      1.0,
-      GovState(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
-      sfc.agents.Nbp.State(Rate(0.0575)),
-      BankingAggregate(PLN.Zero, PLN.Zero, PLN(500000000.0), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
-      ForexState(4.33, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
-      sfc.agents.Household.SectorState(100000, PLN(8266.0), PLN(4666.0), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
-      Ratio.Zero,
-      Ratio.Zero,
-      1e9,
-      Vector.fill(6)(5.0),
-      bankingSector = Banking.initialize(1e9, 5e8, 5e8, 0, 0, Banking.DefaultConfigs),
-    )
-    w.aggEnergyCost.toDouble shouldBe 0.0
+    val w = mkMinimalWorld()
+    w.flows.aggEnergyCost.toDouble shouldBe 0.0
   }
 
   it should "default aggGreenCapital to 0.0" in {
-    val w = World(
-      0,
-      Rate(0.02),
-      1.0,
-      accounting.GovState(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
-      sfc.agents.Nbp.State(Rate(0.0575)),
-      accounting
-        .BankingAggregate(PLN.Zero, PLN.Zero, PLN(500000000.0), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
-      accounting.ForexState(4.33, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
-      sfc.agents.Household.SectorState(100000, PLN(8266.0), PLN(4666.0), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
-      Ratio.Zero,
-      Ratio.Zero,
-      1e9,
-      Vector.fill(6)(5.0),
-      bankingSector = Banking.initialize(1e9, 5e8, 5e8, 0, 0, Banking.DefaultConfigs),
-    )
-    w.aggGreenCapital.toDouble shouldBe 0.0
+    val w = mkMinimalWorld()
+    w.real.aggGreenCapital.toDouble shouldBe 0.0
   }
 
   it should "default aggGreenInvestment to 0.0" in {
-    val w = World(
-      0,
-      Rate(0.02),
-      1.0,
-      accounting.GovState(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
-      sfc.agents.Nbp.State(Rate(0.0575)),
-      accounting
-        .BankingAggregate(PLN.Zero, PLN.Zero, PLN(500000000.0), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
-      accounting.ForexState(4.33, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
-      sfc.agents.Household.SectorState(100000, PLN(8266.0), PLN(4666.0), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
-      Ratio.Zero,
-      Ratio.Zero,
-      1e9,
-      Vector.fill(6)(5.0),
-      bankingSector = Banking.initialize(1e9, 5e8, 5e8, 0, 0, Banking.DefaultConfigs),
-    )
-    w.aggGreenInvestment.toDouble shouldBe 0.0
+    val w = mkMinimalWorld()
+    w.real.aggGreenInvestment.toDouble shouldBe 0.0
   }
 
   // ==========================================================================
