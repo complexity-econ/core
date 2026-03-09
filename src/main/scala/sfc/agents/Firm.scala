@@ -235,8 +235,7 @@ object Firm:
     val bankOk            = bankCanLend(upLoan)
 
     val prob =
-      if profitable && canPay && ready && bankOk then
-        (firm.riskProfile.toDouble * 0.15 + w.real.automationRatio.toDouble * 0.3) * firm.digitalReadiness.toDouble
+      if profitable && canPay && ready && bankOk then ((firm.riskProfile * 0.15 + w.real.automationRatio * 0.3) * firm.digitalReadiness).toDouble
       else 0.0
 
     if Random.nextDouble() < prob then
