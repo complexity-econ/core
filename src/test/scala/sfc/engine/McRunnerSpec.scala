@@ -144,7 +144,7 @@ class McRunnerSpec extends AnyFlatSpec with Matchers:
       case Some(t) =>
         val rateAfterDeflation = ((t + 1) until p.timeline.duration).map(m => ts(m)(Col.RefRate.ordinal))
         rateAfterDeflation.exists(_ < initialRate) shouldBe true
-      case None =>
+      case None    =>
         succeed
   }
 
