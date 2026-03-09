@@ -479,15 +479,15 @@ object Firm:
       month: Int,
   )(using p: SimParams): PnL =
     val revenue: PLN         = computeCapacity(firm) * (sectorDemandMult * price)
-    val labor: PLN           = wage * (workerCount(firm).toDouble) * effectiveWageMult(firm.sector)
+    val labor: PLN           = wage * workerCount(firm).toDouble * effectiveWageMult(firm.sector)
     val sizeFactor           = firm.initialSize.toDouble / p.pop.workersPerFirm
     val rawOther: PLN        = p.firm.otherCosts * (price * sizeFactor)
     val depnCost: PLN        =
-      if p.flags.physCap then firm.capitalStock * (p.capital.depRates.map(_.toDouble)(firm.sector.toInt) / 12.0)
+      if p.flags.physCap then firm.capitalStock * (p.capital.depRates(firm.sector.toInt) / 12.0)
       else PLN.Zero
-    val otherAfterCap        = if p.flags.physCap then rawOther * (1.0 - p.capital.costReplace.toDouble) else rawOther
+    val otherAfterCap        = if p.flags.physCap then rawOther * (Ratio.One - p.capital.costReplace) else rawOther
     // Reduce other costs when energy is explicit (was implicit in OtherCosts)
-    val other                = if p.flags.energy then otherAfterCap * (1.0 - p.climate.energyCostReplace.toDouble) else otherAfterCap
+    val other                = if p.flags.energy then otherAfterCap * (Ratio.One - p.climate.energyCostReplace) else otherAfterCap
     // AI/hybrid opex is partially imported (40%) -- not fully domestic price-sensitive
     // OPEX scales sublinearly with firm size (exponent 0.5)
     val opexSizeFactor       = Math.pow(firm.initialSize.toDouble / p.pop.workersPerFirm, 0.5)
@@ -498,24 +498,20 @@ object Firm:
     val interest: PLN        = (firm.debt + firm.bondDebt) * (lendRate / 12.0)
     // Inventory carrying cost: storage, insurance, obsolescence (previously implicit in OtherCosts)
     val inventoryCost: PLN   =
-      if p.flags.inventory then firm.inventory * (p.capital.inventoryCarryingCost.toDouble / 12.0) else PLN.Zero
+      if p.flags.inventory then firm.inventory * (p.capital.inventoryCarryingCost / 12.0) else PLN.Zero
     // Reduce other costs when inventory is explicit (was implicit in OtherCosts)
-    val otherAfterInv        = if p.flags.inventory then other * (1.0 - p.capital.inventoryCostReplace.toDouble) else other
+    val otherAfterInv        = if p.flags.inventory then other * (Ratio.One - p.capital.inventoryCostReplace) else other
     // Energy cost + EU ETS carbon surcharge
     val energyCost: PLN      = if p.flags.energy then
-      val baseEnergy      = revenue.toDouble * p.climate.energyCostShares.map(_.toDouble)(firm.sector.toInt)
-      val etsPrice        = p.climate.etsBasePrice * Math.pow(1.0 + p.climate.etsPriceDrift.toDouble / 12.0, month.toDouble)
-      val carbonSurcharge = p.climate.carbonIntensity(firm.sector.toInt) * (etsPrice / p.climate.etsBasePrice - 1.0)
-      val greenDiscount   = if firm.greenCapital > PLN.Zero then
-        val targetGK = workerCount(firm).toDouble * p.climate.greenKLRatios.map(_.toDouble)(firm.sector.toInt)
-        if targetGK > 0 then
-          Math.min(
-            p.climate.greenMaxDiscount.toDouble,
-            firm.greenCapital.toDouble / targetGK * p.climate.greenMaxDiscount.toDouble,
-          )
-        else 0.0
-      else 0.0
-      PLN(baseEnergy * (1.0 + Math.max(0.0, carbonSurcharge)) * (1.0 - greenDiscount))
+      val baseEnergy: PLN      = revenue * p.climate.energyCostShares(firm.sector.toInt)
+      val etsPrice             = p.climate.etsBasePrice * Math.pow(1.0 + p.climate.etsPriceDrift.toDouble / 12.0, month.toDouble)
+      val carbonSurcharge      = p.climate.carbonIntensity(firm.sector.toInt) * (etsPrice / p.climate.etsBasePrice - 1.0)
+      val greenDiscount: Ratio = if firm.greenCapital > PLN.Zero then
+        val targetGK = p.climate.greenKLRatios(firm.sector.toInt) * workerCount(firm).toDouble
+        if targetGK > PLN.Zero then p.climate.greenMaxDiscount * Math.min(1.0, firm.greenCapital / targetGK)
+        else Ratio.Zero
+      else Ratio.Zero
+      baseEnergy * ((1.0 + Math.max(0.0, carbonSurcharge)) * (Ratio.One - greenDiscount).toDouble)
     else PLN.Zero
     val prePsCosts           = labor + otherAfterInv + depnCost + aiMaint + interest + inventoryCost + energyCost
     val grossProfit          = revenue - prePsCosts
