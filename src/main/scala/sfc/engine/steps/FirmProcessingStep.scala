@@ -96,7 +96,7 @@ object FirmProcessingStep:
     val newFirms = in.firms.map { f =>
       val firmRate                    = getFirmRate(f.bankId.toInt)
       val firmCanLend: PLN => Boolean = amt => bankCanLendFn(f.bankId.toInt, amt)
-      val r                           = Firm.process(f, macro4firms, firmRate, firmCanLend, in.firms, in.rc)
+      val r                           = Firm.process(f, macro4firms, firmRate, firmCanLend, in.firms)
       sumTax += r.taxPaid.toDouble
       sumCapex += r.capexSpent.toDouble
       sumTechImp += r.techImports.toDouble

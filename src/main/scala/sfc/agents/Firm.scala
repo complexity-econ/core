@@ -1,8 +1,7 @@
 package sfc.agents
 
-import sfc.config.{RunConfig, SectorDefs, SimParams}
+import sfc.config.{SectorDefs, SimParams}
 import sfc.engine.World
-
 import sfc.types.*
 
 import scala.util.Random
@@ -19,7 +18,6 @@ object BankruptReason:
   case class Other(msg: String)   extends BankruptReason
 
 sealed trait TechState
-
 object TechState:
   case class Traditional(workers: Int)                  extends TechState
   case class Hybrid(workers: Int, aiEfficiency: Double) extends TechState
@@ -180,7 +178,6 @@ object Firm:
       lendRate: Rate,
       bankCanLend: PLN => Boolean,
       allFirms: Vector[State],
-      rc: RunConfig,
   )(using p: SimParams): Result =
     val decision = decide(firm, w, lendRate, bankCanLend, allFirms)
     val r0       = execute(firm, decision)
