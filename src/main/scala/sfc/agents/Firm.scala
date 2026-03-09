@@ -331,13 +331,13 @@ object Firm:
     val roll      = Random.nextDouble()
 
     if roll < pFull then
-      val failRate = 0.05 + (1.0 - firm.digitalReadiness.toDouble) * 0.10
+      val failRate = 0.05 + (Ratio.One - firm.digitalReadiness).toDouble * 0.10
       if Random.nextDouble() < failRate then Decision.UpgradeFailed(pnl, BankruptReason.AiImplFailure, fCapex * 0.5, fLoan * 0.3, fDown * 0.5)
       else
         val eff = 1.0 + Random.between(0.05, 0.6) * firm.digitalReadiness.toDouble
         Decision.Upgrade(pnl, TechState.Automated(eff), fCapex, fLoan, fDown)
     else if roll < pFull + pHyb then
-      val failRate = 0.03 + (1.0 - firm.digitalReadiness.toDouble) * 0.07
+      val failRate = 0.03 + (Ratio.One - firm.digitalReadiness).toDouble * 0.07
       val ir       = Random.nextDouble()
       if ir < failRate * 0.4 then Decision.UpgradeFailed(pnl, BankruptReason.HybridImplFailure, hCapex * 0.5, hLoan * 0.3, hDown * 0.5)
       else if ir < failRate then
@@ -345,7 +345,7 @@ object Firm:
         Decision.Upgrade(pnl, TechState.Hybrid(hWkrs, badEff), hCapex, hLoan, hDown)
       else
         val goodEff = 1.0 + (0.05 + Random.between(0.0, 0.15)) *
-          (0.5 + firm.digitalReadiness.toDouble * 0.5)
+          (0.5 + (firm.digitalReadiness * 0.5).toDouble)
         Decision.Upgrade(pnl, TechState.Hybrid(hWkrs, goodEff), hCapex, hLoan, hDown)
     else if canReduce && Random.nextDouble() < 0.10 then
       val reductionAmt = Math.max(1, (workers * 0.05).toInt)
