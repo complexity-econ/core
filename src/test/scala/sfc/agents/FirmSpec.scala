@@ -135,7 +135,7 @@ class FirmSpec extends AnyFlatSpec with Matchers:
     Random.setSeed(42)
     val f      = mkFirm(TechState.Bankrupt(BankruptReason.Other("test")))
     val rc     = RunConfig(1, "test")
-    val result = Firm.process(f, mkWorld(), 0.07, _ => true, Vector(f), rc)
+    val result = Firm.process(f, mkWorld(), Rate(0.07), _ => true, Vector(f), rc)
     result.taxPaid shouldBe PLN.Zero
     result.capexSpent shouldBe PLN.Zero
     result.firm.tech shouldBe a[TechState.Bankrupt]
@@ -145,7 +145,7 @@ class FirmSpec extends AnyFlatSpec with Matchers:
     Random.setSeed(42)
     val f      = mkFirm(TechState.Automated(1.5)).copy(cash = PLN(10000000.0))
     val rc     = RunConfig(1, "test")
-    val result = Firm.process(f, mkWorld(), 0.07, _ => true, Vector(f), rc)
+    val result = Firm.process(f, mkWorld(), Rate(0.07), _ => true, Vector(f), rc)
     Firm.isAlive(result.firm) shouldBe true
   }
 
@@ -155,7 +155,7 @@ class FirmSpec extends AnyFlatSpec with Matchers:
     val f      = mkFirm(TechState.Automated(0.1)).copy(cash = PLN(-500000.0), debt = PLN(5000000.0))
     val w      = mkWorld().copy(priceLevel = 0.3, flows = mkWorld().flows.copy(sectorDemandMult = Vector.fill(6)(0.1)))
     val rc     = RunConfig(1, "test")
-    val result = Firm.process(f, w, 0.20, _ => true, Vector(f), rc)
+    val result = Firm.process(f, w, Rate(0.20), _ => true, Vector(f), rc)
     result.firm.tech shouldBe a[TechState.Bankrupt]
   }
 

@@ -43,11 +43,11 @@ object Firm:
       bankId: BankId = BankId(0),    // Multi-bank: index into Banking.State.banks
       equityRaised: PLN = PLN.Zero,  // GPW: cumulative equity raised via IPO/SPO
       initialSize: Int = 10,         // Firm size at creation (v6.0: heterogeneous when FIRM_SIZE_DIST=gus)
-      capitalStock: PLN = PLN.Zero,  // Physical capital stock (PLN), #31
-      bondDebt: PLN = PLN.Zero,      // Outstanding corporate bond debt (#40)
-      foreignOwned: Boolean = false, // FDI (#33)
-      inventory: PLN = PLN.Zero,     // Inventory stock (PLN), #43
-      greenCapital: PLN = PLN.Zero,  // Green capital stock (PLN), #36
+      capitalStock: PLN = PLN.Zero,  // Physical capital stock (PLN)
+      bondDebt: PLN = PLN.Zero,      // Outstanding corporate bond debt
+      foreignOwned: Boolean = false, // FDI
+      inventory: PLN = PLN.Zero,     // Inventory stock (PLN)
+      greenCapital: PLN = PLN.Zero,  // Green capital stock (PLN)
   )
 
   case class Result(
@@ -177,8 +177,8 @@ object Firm:
   def process(
       firm: State,
       w: World,
-      lendRate: Double,
-      bankCanLend: Double => Boolean,
+      lendRate: Rate,
+      bankCanLend: PLN => Boolean,
       allFirms: Vector[State],
       rc: RunConfig,
   )(using p: SimParams): Result =
@@ -199,8 +199,8 @@ object Firm:
   private def decide(
       firm: State,
       w: World,
-      lendRate: Double,
-      bankCanLend: Double => Boolean,
+      lendRate: Rate,
+      bankCanLend: PLN => Boolean,
       allFirms: Vector[State],
   )(using p: SimParams): Decision =
     firm.tech match
@@ -212,9 +212,9 @@ object Firm:
   private def decideAutomated(
       firm: State,
       w: World,
-      lendRate: Double,
+      lendRate: Rate,
   )(using p: SimParams): Decision =
-    val pnl = computePnL(firm, w.hh.marketWage.toDouble, w.flows.sectorDemandMult(firm.sector.toInt), w.priceLevel, lendRate, w.month)
+    val pnl = computePnL(firm, w.hh.marketWage, w.flows.sectorDemandMult(firm.sector.toInt), w.priceLevel, lendRate, w.month)
     val nc  = firm.cash + pnl.netAfterTax
     if nc < PLN.Zero then Decision.GoBankrupt(pnl, nc, BankruptReason.AiDebtTrap)
     else Decision.Survive(pnl, nc)
@@ -222,12 +222,12 @@ object Firm:
   private def decideHybrid(
       firm: State,
       w: World,
-      lendRate: Double,
-      bankCanLend: Double => Boolean,
+      lendRate: Rate,
+      bankCanLend: PLN => Boolean,
       wkrs: Int,
       aiEff: Double,
   )(using p: SimParams): Decision =
-    val pnl    = computePnL(firm, w.hh.marketWage.toDouble, w.flows.sectorDemandMult(firm.sector.toInt), w.priceLevel, lendRate, w.month)
+    val pnl    = computePnL(firm, w.hh.marketWage, w.flows.sectorDemandMult(firm.sector.toInt), w.priceLevel, lendRate, w.month)
     val ready2 = Ratio(Math.min(1.0, firm.digitalReadiness.toDouble + 0.005))
 
     val upCapex: PLN      = computeAiCapex(firm) * 0.6
@@ -243,7 +243,7 @@ object Firm:
     val profitable        = pnl.costs > upCost * 1.1
     val canPay            = firm.cash > upDown
     val ready             = firm.digitalReadiness >= p.firm.fullAiReadinessMin
-    val bankOk            = bankCanLend(upLoan.toDouble)
+    val bankOk            = bankCanLend(upLoan)
 
     val prob =
       if profitable && canPay && ready && bankOk then
@@ -273,12 +273,12 @@ object Firm:
   private def decideTraditional(
       firm: State,
       w: World,
-      lendRate: Double,
-      bankCanLend: Double => Boolean,
+      lendRate: Rate,
+      bankCanLend: PLN => Boolean,
       allFirms: Vector[State],
       wkrs: Int,
   )(using p: SimParams): Decision =
-    val pnl = computePnL(firm, w.hh.marketWage.toDouble, w.flows.sectorDemandMult(firm.sector.toInt), w.priceLevel, lendRate, w.month)
+    val pnl = computePnL(firm, w.hh.marketWage, w.flows.sectorDemandMult(firm.sector.toInt), w.priceLevel, lendRate, w.month)
 
     // Full AI
     val sWm              = effectiveWageMult(firm.sector)
@@ -294,7 +294,7 @@ object Firm:
     val fProf            = pnl.costs > fCost * (1.1 / sigmaThreshold(w.currentSigmas(firm.sector.toInt)))
     val fPay             = firm.cash > fDown
     val fReady           = firm.digitalReadiness >= p.firm.fullAiReadinessMin
-    val fBank            = bankCanLend(fLoan.toDouble)
+    val fBank            = bankCanLend(fLoan)
 
     // Hybrid -- sector-specific worker retention
     val hCapex: PLN      = computeHybridCapex(firm)
@@ -311,7 +311,7 @@ object Firm:
     val hProf            = pnl.costs > hCost * (1.05 / sigmaThreshold(w.currentSigmas(firm.sector.toInt)))
     val hPay             = firm.cash > hDown
     val hReady           = firm.digitalReadiness >= p.firm.hybridReadinessMin
-    val hBank            = bankCanLend(hLoan.toDouble)
+    val hBank            = bankCanLend(hLoan)
 
     // Network-aware mimetic pressure: blend local + global with moderate weights
     val localAuto   = computeLocalAutoRatio(firm, allFirms)
@@ -364,7 +364,7 @@ object Firm:
       val newWkrs      = Math.max(3, wkrs - reductionAmt)
       Decision.Downsize(pnl, newWkrs, firm.cash + pnl.netAfterTax, TechState.Traditional(newWkrs))
     else
-      // Digital investment attempt (always-on, #37)
+      // Digital investment attempt
       val digiCost: PLN = computeDigiInvestCost(firm)
       val nc            = firm.cash + pnl.netAfterTax
       val canAfford     = nc > digiCost * 2.0
@@ -483,14 +483,14 @@ object Firm:
 
   private def computePnL(
       firm: State,
-      wage: Double,
+      wage: PLN,
       sectorDemandMult: Double,
       price: Double,
-      lendRate: Double,
+      lendRate: Rate,
       month: Int,
   )(using p: SimParams): PnL =
     val revenue: PLN         = computeCapacity(firm) * (sectorDemandMult * price)
-    val labor: PLN           = PLN(workerCount(firm).toDouble * wage) * effectiveWageMult(firm.sector)
+    val labor: PLN           = wage * (workerCount(firm).toDouble) * effectiveWageMult(firm.sector)
     val sizeFactor           = firm.initialSize.toDouble / p.pop.workersPerFirm
     val rawOther: PLN        = p.firm.otherCosts * (price * sizeFactor)
     val depnCost: PLN        =
@@ -512,7 +512,7 @@ object Firm:
       if p.flags.inventory then firm.inventory * (p.capital.inventoryCarryingCost.toDouble / 12.0) else PLN.Zero
     // Reduce other costs when inventory is explicit (was implicit in OtherCosts)
     val otherAfterInv        = if p.flags.inventory then other * (1.0 - p.capital.inventoryCostReplace.toDouble) else other
-    // Energy cost + EU ETS carbon surcharge (#36)
+    // Energy cost + EU ETS carbon surcharge
     val energyCost: PLN      = if p.flags.energy then
       val baseEnergy      = revenue.toDouble * p.climate.energyCostShares.map(_.toDouble)(firm.sector.toInt)
       val etsPrice        = p.climate.etsBasePrice * Math.pow(1.0 + p.climate.etsPriceDrift.toDouble / 12.0, month.toDouble)
@@ -538,7 +538,7 @@ object Firm:
     val tax: PLN             = profit.max(PLN.Zero) * p.fiscal.citRate
     PnL(revenue, costs, tax, profit - tax, profitShiftCost, energyCost)
 
-  /** Apply green capital investment — separate cash pool (#36). Firms earmark
+  /** Apply green capital investment — separate cash pool. Firms earmark
     * GreenBudgetShare of cash for green investment; physical capital
     * (applyInvestment) uses the remainder.
     */
@@ -557,7 +557,7 @@ object Firm:
     val newGK       = postDepGK + actualInv
     r.copy(firm = f.copy(cash = f.cash - actualInv, greenCapital = newGK), greenInvestment = actualInv)
 
-  /** Apply inventory accumulation/drawdown after firm decision (#43). */
+  /** Apply inventory accumulation/drawdown after firm decision. */
   private def applyInventory(r: Result, sectorDemandMult: Double)(using p: SimParams): Result =
     if !p.flags.inventory then return r
     val f                     = r.firm
@@ -589,17 +589,22 @@ object Firm:
       inventoryChange = PLN(actualChange),
     )
 
-  /** Apply informal CIT evasion — firm keeps evaded tax (#45). */
+  /** Effective shadow share for a sector — base share + cyclical adjustment,
+    * clamped to [0, 1].
+    */
+  private def effectiveShadowShare(sector: SectorIdx, cyclicalAdj: Double)(using p: SimParams): Ratio =
+    Ratio(Math.min(1.0, p.informal.sectorShares.map(_.toDouble)(sector.toInt) + cyclicalAdj))
+
+  /** CIT evasion fraction for a sector — shadow share × CIT evasion rate. */
+  private def citEvasionFrac(sector: SectorIdx, cyclicalAdj: Double)(using p: SimParams): Ratio =
+    effectiveShadowShare(sector, cyclicalAdj) * p.informal.citEvasion
+
+  /** Apply informal CIT evasion — firm keeps evaded tax. */
   private def applyInformalCitEvasion(r: Result, cyclicalAdj: Double)(using p: SimParams): Result =
-    if !p.flags.informal then return r
-    val f               = r.firm
-    if !isAlive(f) || r.taxPaid <= PLN.Zero then return r
-    val baseShadow      = p.informal.sectorShares.map(_.toDouble)(f.sector.toInt)
-    val effectiveShadow = Math.min(1.0, baseShadow + cyclicalAdj)
-    val evasionFrac     = Ratio(effectiveShadow * p.informal.citEvasion.toDouble)
-    val evaded          = r.taxPaid * evasionFrac
+    if !p.flags.informal || !isAlive(r.firm) || r.taxPaid <= PLN.Zero then return r
+    val evaded = r.taxPaid * citEvasionFrac(r.firm.sector, cyclicalAdj)
     r.copy(
-      firm = f.copy(cash = f.cash + evaded),
+      firm = r.firm.copy(cash = r.firm.cash + evaded),
       taxPaid = r.taxPaid - evaded,
       citEvasion = evaded,
     )
