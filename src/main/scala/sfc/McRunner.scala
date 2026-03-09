@@ -35,6 +35,7 @@ object McRunner:
 
     RunResult(TimeSeries.wrap(results), state)
 
+  // $COVERAGE-OFF$ I/O: CSV writers, progress, banner
   def run(rc: RunConfig)(using SimParams): Unit =
     printBanner(rc)
     val results = runAll(rc, defaultProgress(rc))
@@ -241,3 +242,4 @@ object McRunner:
     println(s"|  SFC-ABM v8: N=${rc.nSeeds} seeds, PLN (NBP)${hhLabel}${bankLabel}")
     println(s"|  ${firmsLabel} firms x 6 sectors (GUS 2024) x ${topoLabel} network x 120m")
     println(s"+" + "=" * 68 + "+")
+  // $COVERAGE-ON$

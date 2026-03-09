@@ -14,7 +14,6 @@ lazy val root = project
       "-explain",
       "-Wunused:all",
       "-Wconf:msg=Alphanumeric method.*is not declared infix:s",
-      "-Wconf:msg=object Config in package sfc.config is deprecated:s",
     ),
     Compile / mainClass := Some("sfc.sfcMonteCarlo"),
     assembly / mainClass := Some("sfc.sfcMonteCarlo"),
