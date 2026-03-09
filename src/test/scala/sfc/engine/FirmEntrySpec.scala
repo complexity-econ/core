@@ -56,42 +56,36 @@ class FirmEntrySpec extends AnyFlatSpec with Matchers:
   // World fields
   // ==========================================================================
 
+  private def mkMinimalWorld() = World(
+    month = 0,
+    inflation = Rate(0.0),
+    priceLevel = 1.0,
+    gdpProxy = 1e9,
+    currentSigmas = Vector.fill(6)(5.0),
+    totalPopulation = 100,
+    gov = GovState(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
+    nbp = sfc.agents.Nbp.State(Rate(0.05)),
+    bank = BankingAggregate(PLN.Zero, PLN.Zero, PLN(1e9), PLN(1e9), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
+    bankingSector = Banking.initialize(1e9, 5e8, 5e8, 0, 0, Banking.DefaultConfigs),
+    forex = ForexState(4.33, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
+    hh = sfc.agents.Household.SectorState(100, PLN(8000), PLN(4500), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
+    social = SocialState.zero,
+    financial = FinancialMarketsState.zero,
+    external = ExternalState.zero,
+    real = RealState.zero,
+    mechanisms = MechanismsState.zero,
+    plumbing = MonetaryPlumbingState.zero,
+    flows = FlowState.zero,
+  )
+
   "World" should "have firmBirths defaulting to 0" in {
-    val w = World(
-      0,
-      Rate(0.0),
-      1.0,
-      GovState(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
-      sfc.agents.Nbp.State(Rate(0.05)),
-      BankingAggregate(PLN.Zero, PLN.Zero, PLN(1e9), PLN(1e9), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
-      ForexState(4.33, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
-      sfc.agents.Household.SectorState(100, PLN(8000), PLN(4500), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
-      Ratio(0),
-      Ratio(0),
-      1e9,
-      Vector.fill(6)(5.0),
-      bankingSector = Banking.initialize(1e9, 5e8, 5e8, 0, 0, Banking.DefaultConfigs),
-    )
-    w.firmBirths shouldBe 0
+    val w = mkMinimalWorld()
+    w.flows.firmBirths shouldBe 0
   }
 
   it should "have firmDeaths defaulting to 0" in {
-    val w = World(
-      0,
-      Rate(0.0),
-      1.0,
-      accounting.GovState(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
-      sfc.agents.Nbp.State(Rate(0.05)),
-      accounting.BankingAggregate(PLN.Zero, PLN.Zero, PLN(1e9), PLN(1e9), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
-      accounting.ForexState(4.33, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
-      sfc.agents.Household.SectorState(100, PLN(8000), PLN(4500), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
-      Ratio(0),
-      Ratio(0),
-      1e9,
-      Vector.fill(6)(5.0),
-      bankingSector = Banking.initialize(1e9, 5e8, 5e8, 0, 0, Banking.DefaultConfigs),
-    )
-    w.firmDeaths shouldBe 0
+    val w = mkMinimalWorld()
+    w.flows.firmDeaths shouldBe 0
   }
 
   // ==========================================================================

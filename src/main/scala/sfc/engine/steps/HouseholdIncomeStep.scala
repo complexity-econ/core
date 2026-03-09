@@ -46,7 +46,7 @@ object HouseholdIncomeStep:
         depositRates = bsec.banks.map(_ => Banking.hhDepositRate(in.w.nbp.referenceRate.toDouble)).toArray,
       ),
     )
-    val eqReturn           = in.w.equity.monthlyReturn.toDouble
+    val eqReturn           = in.w.financial.equity.monthlyReturn.toDouble
     val secWages           = if p.flags.sectoralMobility then Some(SectoralMobility.sectorWages(afterWages)) else None
     val secVacancies       =
       if p.flags.sectoralMobility then Some(SectoralMobility.sectorVacancies(afterWages, in.firms)) else None

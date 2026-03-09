@@ -69,7 +69,7 @@ object WorldAssemblyStep:
     val newInformalCyclicalAdj = if p.flags.informal then
       val unemp  = 1.0 - in.s2.employed.toDouble / in.w.totalPopulation
       val target = Math.max(0.0, unemp - p.informal.unempThreshold.toDouble) * p.informal.cyclicalSens.toDouble
-      in.w.informalCyclicalAdj * p.informal.smoothing.toDouble + target * (1.0 - p.informal.smoothing.toDouble)
+      in.w.mechanisms.informalCyclicalAdj * p.informal.smoothing.toDouble + target * (1.0 - p.informal.smoothing.toDouble)
     else 0.0
 
     // Pre-compute values surfaced on World for SimOutput
@@ -84,15 +84,29 @@ object WorldAssemblyStep:
     val tourismSeasonalFactor =
       1.0 + p.tourism.seasonality.toDouble * Math.cos(2 * Math.PI * (monthInYear - p.tourism.peakMonth) / 12.0)
 
+    val newEffectiveShadowShare =
+      if p.flags.informal then
+        p.fiscal.fofConsWeights
+          .map(_.toDouble)
+          .zip(p.informal.sectorShares.map(_.toDouble))
+          .map((cw, ss) => cw * Math.min(1.0, ss + newInformalCyclicalAdj))
+          .sum: Double
+      else 0.0
+
     val newW = World(
-      in.s1.m,
-      Rate(in.s7.newInfl),
-      in.s7.newPrice,
-      in.s9.newGovWithYield,
-      in.s8.postFxNbp,
-      in.s9.resolvedBank,
-      in.s8.newForex,
-      Household.SectorState(
+      month = in.s1.m,
+      inflation = Rate(in.s7.newInfl),
+      priceLevel = in.s7.newPrice,
+      gdpProxy = in.s7.gdp,
+      currentSigmas = in.s7.newSigmas,
+      totalPopulation = in.w.totalPopulation + in.s5.netMigration,
+      gov = in.s9.newGovWithYield,
+      nbp = in.s8.postFxNbp,
+      bank = in.s9.resolvedBank,
+      bankingSector = in.s9.finalBankingSector,
+      forex = in.s8.newForex,
+      bop = in.s8.newBop,
+      hh = Household.SectorState(
         in.s2.employed,
         PLN(in.s2.newWage),
         PLN(in.s1.resWage),
@@ -103,69 +117,73 @@ object WorldAssemblyStep:
         minWageLevel = PLN(in.s1.baseMinWage),
         minWagePriceLevel = in.s1.updatedMinWagePriceLevel,
       ),
-      Ratio(in.s7.autoR),
-      Ratio(in.s7.hybR),
-      in.s7.gdp,
-      in.s7.newSigmas,
-      ioFlows = PLN(in.s5.totalIoPaid),
-      bop = in.s8.newBop,
       hhAgg = Some(in.s9.finalHhAgg),
       households = in.s9.reassignedHouseholds,
-      bankingSector = in.s9.finalBankingSector,
       monetaryAgg = in.s9.monAgg,
-      jst = in.s9.newJst,
-      zus = in.s2.newZus,
-      ppk = in.s9.finalPpk,
-      demographics = in.s2.newDemographics,
-      macropru = in.s7.newMacropru,
-      equity = equityAfterStep,
-      housing = in.s9.housingAfterFlows,
-      sectoralMobility = SectoralMobility.State(
-        crossSectorHires = in.s5.postFirmCrossSectorHires + in.s3.hhAgg.crossSectorHires,
-        voluntaryQuits = in.s3.hhAgg.voluntaryQuits,
-        sectorMobilityRate = in.s9.finalHhAgg.sectorMobilityRate.toDouble,
+      social = SocialState(
+        jst = in.s9.newJst,
+        zus = in.s2.newZus,
+        ppk = in.s9.finalPpk,
+        demographics = in.s2.newDemographics,
       ),
-      gvc = in.s8.newGvc,
-      expectations = in.s8.newExp,
-      immigration = in.s2.newImmig,
-      corporateBonds = in.s8.newCorpBonds,
-      insurance = in.s9.finalInsurance,
-      nbfi = in.s9.finalNbfi,
-      sectorDemandMult = in.s4.sectorMults,
-      fofResidual = fofResidual,
-      grossInvestment = PLN(in.s5.sumGrossInvestment),
-      fdiProfitShifting = PLN(in.s5.sumProfitShifting),
-      fdiRepatriation = PLN(in.s5.sumFdiRepatriation),
-      fdiCitLoss = PLN(in.s8.fdiCitLoss),
-      aggInventoryStock = PLN(in.s7.aggInventoryStock),
-      aggInventoryChange = PLN(in.s7.aggInventoryChange),
-      informalCyclicalAdj = newInformalCyclicalAdj,
-      taxEvasionLoss = PLN(taxEvasionLoss),
-      informalEmployed = PLN(informalEmployed),
-      aggEnergyCost = PLN(in.s5.sumEnergyCost),
-      aggGreenCapital = PLN(in.s7.aggGreenCapital),
-      aggGreenInvestment = PLN(in.s5.sumGreenInvestment),
-      diasporaRemittanceInflow = PLN(in.s6.diasporaInflow),
-      tourismExport = PLN(in.s6.tourismExport),
-      tourismImport = PLN(in.s6.tourismImport),
-      bfgFundBalance = PLN(in.w.bfgFundBalance.toDouble + in.s9.bfgLevy),
-      bailInLoss = PLN(in.s9.bailInLoss),
-      effectiveShadowShare =
-        if p.flags.informal then
-          p.fiscal.fofConsWeights
-            .map(_.toDouble)
-            .zip(p.informal.sectorShares.map(_.toDouble))
-            .map((cw, ss) => cw * Math.min(1.0, ss + newInformalCyclicalAdj))
-            .sum
-        else 0.0,
-      bfgLevyTotal = in.s9.bfgLevy,
-      reserveInterestTotal = in.s8.totalReserveInterest,
-      standingFacilityNet = in.s8.totalStandingFacilityIncome,
-      interbankInterestNet = in.s8.totalInterbankInterest,
-      depositFacilityUsage = depositFacilityUsage,
-      etsPrice = etsPrice,
-      tourismSeasonalFactor = tourismSeasonalFactor,
-      totalPopulation = in.w.totalPopulation + in.s5.netMigration,
+      financial = FinancialMarketsState(
+        equity = equityAfterStep,
+        corporateBonds = in.s8.newCorpBonds,
+        insurance = in.s9.finalInsurance,
+        nbfi = in.s9.finalNbfi,
+      ),
+      external = ExternalState(
+        gvc = in.s8.newGvc,
+        immigration = in.s2.newImmig,
+        tourismSeasonalFactor = tourismSeasonalFactor,
+      ),
+      real = RealState(
+        housing = in.s9.housingAfterFlows,
+        sectoralMobility = SectoralMobility.State(
+          crossSectorHires = in.s5.postFirmCrossSectorHires + in.s3.hhAgg.crossSectorHires,
+          voluntaryQuits = in.s3.hhAgg.voluntaryQuits,
+          sectorMobilityRate = in.s9.finalHhAgg.sectorMobilityRate.toDouble,
+        ),
+        grossInvestment = PLN(in.s5.sumGrossInvestment),
+        aggGreenInvestment = PLN(in.s5.sumGreenInvestment),
+        aggGreenCapital = PLN(in.s7.aggGreenCapital),
+        etsPrice = etsPrice,
+        automationRatio = Ratio(in.s7.autoR),
+        hybridRatio = Ratio(in.s7.hybR),
+      ),
+      mechanisms = MechanismsState(
+        macropru = in.s7.newMacropru,
+        expectations = in.s8.newExp,
+        bfgFundBalance = PLN(in.w.mechanisms.bfgFundBalance.toDouble + in.s9.bfgLevy),
+        informalCyclicalAdj = newInformalCyclicalAdj,
+        effectiveShadowShare = newEffectiveShadowShare,
+      ),
+      plumbing = MonetaryPlumbingState(
+        reserveInterestTotal = PLN(in.s8.totalReserveInterest),
+        standingFacilityNet = PLN(in.s8.totalStandingFacilityIncome),
+        interbankInterestNet = PLN(in.s8.totalInterbankInterest),
+        depositFacilityUsage = PLN(depositFacilityUsage),
+        fofResidual = PLN(fofResidual),
+      ),
+      flows = FlowState(
+        ioFlows = PLN(in.s5.totalIoPaid),
+        fdiProfitShifting = PLN(in.s5.sumProfitShifting),
+        fdiRepatriation = PLN(in.s5.sumFdiRepatriation),
+        fdiCitLoss = PLN(in.s8.fdiCitLoss),
+        diasporaRemittanceInflow = PLN(in.s6.diasporaInflow),
+        tourismExport = PLN(in.s6.tourismExport),
+        tourismImport = PLN(in.s6.tourismImport),
+        aggInventoryStock = PLN(in.s7.aggInventoryStock),
+        aggInventoryChange = PLN(in.s7.aggInventoryChange),
+        aggEnergyCost = PLN(in.s5.sumEnergyCost),
+        firmBirths = 0,
+        firmDeaths = 0,
+        taxEvasionLoss = PLN(taxEvasionLoss),
+        informalEmployed = informalEmployed,
+        bailInLoss = PLN(in.s9.bailInLoss),
+        bfgLevyTotal = in.s9.bfgLevy,
+        sectorDemandMult = in.s4.sectorMults,
+      ),
     )
 
     // SFC accounting check
@@ -276,7 +294,7 @@ object WorldAssemblyStep:
       }.toArray
       val totalWeight   = sectorWeights.sum
 
-      val totalAdoption = newW.automationRatio.toDouble + newW.hybridRatio.toDouble
+      val totalAdoption = newW.real.automationRatio.toDouble + newW.real.hybridRatio.toDouble
       val livingIds     = postLiving.map(_.id.toInt)
       var births        = 0
 
@@ -363,5 +381,5 @@ object WorldAssemblyStep:
       (result, births)
     else (postFdiFirms, 0)
 
-    val finalW = newW.copy(firmBirths = firmBirths, firmDeaths = in.s5.firmDeaths)
+    val finalW = newW.updateFlows(_.copy(firmBirths = firmBirths, firmDeaths = in.s5.firmDeaths))
     Output(finalW, finalFirms, in.s9.reassignedHouseholds, sfcResult)

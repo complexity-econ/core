@@ -4,7 +4,7 @@ import org.scalacheck.Gen
 import sfc.accounting.*
 import sfc.agents.*
 import sfc.config.{RunConfig, SectorDefs, SimParams}
-import sfc.engine.World
+import sfc.engine.{ExternalState, FinancialMarketsState, FlowState, MechanismsState, MonetaryPlumbingState, RealState, SocialState, World}
 import sfc.types.*
 
 object Generators:
@@ -255,19 +255,25 @@ object Generators:
     hybR     <- genFraction
     gdp      <- Gen.choose(1e6, 1e11)
   yield World(
-    month,
-    Rate(infl),
-    price,
-    gov,
-    Nbp.State(Rate(rate)),
-    bank,
-    forex,
-    Household.SectorState(employed, PLN(wage), PLN(resWage), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
-    Ratio(autoR),
-    Ratio(hybR),
-    gdp,
-    SectorDefs.map(_.sigma),
+    month = month,
+    inflation = Rate(infl),
+    priceLevel = price,
+    gdpProxy = gdp,
+    currentSigmas = SectorDefs.map(_.sigma),
+    totalPopulation = employed,
+    gov = gov,
+    nbp = Nbp.State(Rate(rate)),
+    bank = bank,
     bankingSector = Banking.initialize(1e9, 5e8, 5e8, 0, 0, Banking.DefaultConfigs),
+    forex = forex,
+    hh = Household.SectorState(employed, PLN(wage), PLN(resWage), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
+    social = SocialState.zero,
+    financial = FinancialMarketsState.zero,
+    external = ExternalState.zero,
+    real = RealState.zero.copy(automationRatio = Ratio(autoR), hybridRatio = Ratio(hybR)),
+    mechanisms = MechanismsState.zero,
+    plumbing = MonetaryPlumbingState.zero,
+    flows = FlowState.zero,
   )
 
   // --- SFC Check generators ---

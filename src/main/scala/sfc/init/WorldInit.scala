@@ -4,7 +4,8 @@ import sfc.accounting.*
 import sfc.agents.*
 import sfc.config.*
 import sfc.engine.*
-import sfc.engine.markets.CorporateBondMarket
+import sfc.engine.markets.{CorporateBondMarket, SectoralMobility}
+import sfc.engine.mechanisms.Macroprudential
 import sfc.types.*
 import sfc.util.KahanSum.*
 
@@ -54,6 +55,9 @@ object WorldInit:
       month = 0,
       inflation = Rate(0.02),
       priceLevel = 1.0,
+      gdpProxy = p.firm.baseRevenue.toDouble * p.pop.firmsCount,
+      currentSigmas = SectorDefs.map(_.sigma),
+      totalPopulation = totalPop,
       gov = GovState(
         taxRevenue = PLN.Zero,
         deficit = PLN.Zero,
@@ -76,6 +80,7 @@ object WorldInit:
         consumerNpl = PLN.Zero,
         corpBondHoldings = p.corpBond.initStock * p.corpBond.bankShare.toDouble,
       ),
+      bankingSector = initBankingSector,
       forex = ForexState(
         exchangeRate = p.forex.baseExRate,
         imports = PLN.Zero,
@@ -92,25 +97,36 @@ object WorldInit:
         domesticConsumption = PLN.Zero,
         importConsumption = PLN.Zero,
       ),
-      automationRatio = Ratio.Zero,
-      hybridRatio = Ratio.Zero,
-      gdpProxy = p.firm.baseRevenue.toDouble * p.pop.firmsCount,
-      currentSigmas = SectorDefs.map(_.sigma),
-      bankingSector = initBankingSector,
-      demographics = initDemographics,
-      equity = EquityInit.create(totalPop),
-      housing = HousingInit.create(),
-      gvc = GvcInit.create(),
-      expectations = ExpectationsInit.create(),
-      immigration =
-        if p.flags.immigration then Immigration.State(p.immigration.initStock, 0, 0, 0.0)
-        else Immigration.State.zero,
-      corporateBonds = CorporateBondMarket.initial,
-      insurance = initInsurance,
-      nbfi = initNbfi,
-      grossInvestment = initGrossInvestment,
-      aggGreenInvestment = initGreenInvestment,
-      totalPopulation = totalPop,
+      social = SocialState(
+        jst = Jst.State.zero,
+        zus = SocialSecurity.ZusState.zero,
+        ppk = SocialSecurity.PpkState.zero,
+        demographics = initDemographics,
+      ),
+      financial = FinancialMarketsState(
+        equity = EquityInit.create(totalPop),
+        corporateBonds = CorporateBondMarket.initial,
+        insurance = initInsurance,
+        nbfi = initNbfi,
+      ),
+      external = ExternalState(
+        gvc = GvcInit.create(),
+        immigration =
+          if p.flags.immigration then Immigration.State(p.immigration.initStock, 0, 0, 0.0)
+          else Immigration.State.zero,
+      ),
+      real = RealState(
+        housing = HousingInit.create(),
+        sectoralMobility = SectoralMobility.zero,
+        grossInvestment = initGrossInvestment,
+        aggGreenInvestment = initGreenInvestment,
+      ),
+      mechanisms = MechanismsState(
+        macropru = Macroprudential.State.zero,
+        expectations = ExpectationsInit.create(),
+      ),
+      plumbing = MonetaryPlumbingState.zero,
+      flows = FlowState.zero,
     )
 
     InitResult(world, firms, households)

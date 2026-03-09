@@ -47,7 +47,7 @@ object FiscalConstraintStep:
       else w.nbp.referenceRate.toDouble
 
     val lendingBaseRate =
-      if p.flags.expectations then 0.5 * rawLendingBaseRate + 0.5 * w.expectations.expectedRate.toDouble
+      if p.flags.expectations then 0.5 * rawLendingBaseRate + 0.5 * w.mechanisms.expectations.expectedRate.toDouble
       else rawLendingBaseRate
 
     Output(m, baseMinWage, updatedMinWagePriceLevel, resWage, lendingBaseRate)

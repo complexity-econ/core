@@ -4,7 +4,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import sfc.agents.*
 import sfc.config.{SectorDefs, SimParams}
-import sfc.engine.World
+import sfc.engine.{ExternalState, FinancialMarketsState, FlowState, MechanismsState, MonetaryPlumbingState, RealState, SocialState, World}
 import sfc.types.*
 
 class SfcSpec extends AnyFlatSpec with Matchers:
@@ -25,25 +25,22 @@ class SfcSpec extends AnyFlatSpec with Matchers:
       month = 1,
       inflation = Rate(0.02),
       priceLevel = 1.0,
-      gov = GovState(PLN.Zero, PLN.Zero, PLN(govDebt), PLN.Zero),
-      nbp = Nbp.State(Rate(0.0575)),
-      bank = BankingAggregate(
-        PLN(bankLoans),
-        PLN(bankNpl),
-        PLN(bankCapital),
-        PLN(bankDeposits),
-        PLN.Zero,
-        PLN.Zero,
-        PLN.Zero,
-        PLN.Zero,
-      ),
-      forex = ForexState(4.33, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
-      hh = Household.SectorState(100, PLN(8266.0), PLN(4666.0), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
-      automationRatio = Ratio.Zero,
-      hybridRatio = Ratio.Zero,
       gdpProxy = 1e9,
       currentSigmas = SectorDefs.map(_.sigma).toVector,
+      totalPopulation = 100,
+      gov = GovState(PLN.Zero, PLN.Zero, PLN(govDebt), PLN.Zero),
+      nbp = Nbp.State(Rate(0.0575)),
+      bank = BankingAggregate(PLN(bankLoans), PLN(bankNpl), PLN(bankCapital), PLN(bankDeposits), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
       bankingSector = Banking.initialize(1e9, 5e8, 5e8, 0, 0, Banking.DefaultConfigs),
+      forex = ForexState(4.33, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
+      hh = Household.SectorState(100, PLN(8266.0), PLN(4666.0), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
+      social = SocialState.zero,
+      financial = FinancialMarketsState.zero,
+      external = ExternalState.zero,
+      real = RealState.zero,
+      mechanisms = MechanismsState.zero,
+      plumbing = MonetaryPlumbingState.zero,
+      flows = FlowState.zero,
     )
 
   private def makeFirms(n: Int, cash: Double = 50000.0, debt: Double = 0.0): Vector[Firm.State] =

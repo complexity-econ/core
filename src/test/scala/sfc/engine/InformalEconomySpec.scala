@@ -71,61 +71,41 @@ class InformalEconomySpec extends AnyFlatSpec with Matchers:
   // World fields
   // ==========================================================================
 
+  private def mkMinimalWorld() = World(
+    month = 0,
+    inflation = Rate(0.0),
+    priceLevel = 1.0,
+    gdpProxy = 1e9,
+    currentSigmas = Vector.fill(6)(5.0),
+    totalPopulation = 100,
+    gov = GovState(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
+    nbp = sfc.agents.Nbp.State(Rate(0.05)),
+    bank = BankingAggregate(PLN.Zero, PLN.Zero, PLN(1e9), PLN(1e9), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
+    bankingSector = Banking.initialize(1e9, 5e8, 5e8, 0, 0, Banking.DefaultConfigs),
+    forex = ForexState(4.33, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
+    hh = sfc.agents.Household.SectorState(100, PLN(8000), PLN(4500), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
+    social = SocialState.zero,
+    financial = FinancialMarketsState.zero,
+    external = ExternalState.zero,
+    real = RealState.zero,
+    mechanisms = MechanismsState.zero,
+    plumbing = MonetaryPlumbingState.zero,
+    flows = FlowState.zero,
+  )
+
   "World" should "have informalCyclicalAdj defaulting to 0.0" in {
-    val w = World(
-      0,
-      Rate(0.0),
-      1.0,
-      GovState(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
-      sfc.agents.Nbp.State(Rate(0.05)),
-      BankingAggregate(PLN.Zero, PLN.Zero, PLN(1e9), PLN(1e9), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
-      ForexState(4.33, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
-      sfc.agents.Household.SectorState(100, PLN(8000), PLN(4500), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
-      Ratio(0.0),
-      Ratio(0.0),
-      1e9,
-      Vector.fill(6)(5.0),
-      bankingSector = Banking.initialize(1e9, 5e8, 5e8, 0, 0, Banking.DefaultConfigs),
-    )
-    w.informalCyclicalAdj shouldBe 0.0
+    val w = mkMinimalWorld()
+    w.mechanisms.informalCyclicalAdj shouldBe 0.0
   }
 
   it should "have taxEvasionLoss defaulting to 0.0" in {
-    val w = World(
-      0,
-      Rate(0.0),
-      1.0,
-      accounting.GovState(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
-      sfc.agents.Nbp.State(Rate(0.05)),
-      accounting.BankingAggregate(PLN.Zero, PLN.Zero, PLN(1e9), PLN(1e9), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
-      accounting.ForexState(4.33, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
-      sfc.agents.Household.SectorState(100, PLN(8000), PLN(4500), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
-      Ratio(0.0),
-      Ratio(0.0),
-      1e9,
-      Vector.fill(6)(5.0),
-      bankingSector = Banking.initialize(1e9, 5e8, 5e8, 0, 0, Banking.DefaultConfigs),
-    )
-    w.taxEvasionLoss.toDouble shouldBe 0.0
+    val w = mkMinimalWorld()
+    w.flows.taxEvasionLoss.toDouble shouldBe 0.0
   }
 
   it should "have informalEmployed defaulting to 0.0" in {
-    val w = World(
-      0,
-      Rate(0.0),
-      1.0,
-      accounting.GovState(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
-      sfc.agents.Nbp.State(Rate(0.05)),
-      accounting.BankingAggregate(PLN.Zero, PLN.Zero, PLN(1e9), PLN(1e9), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
-      accounting.ForexState(4.33, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
-      sfc.agents.Household.SectorState(100, PLN(8000), PLN(4500), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
-      Ratio(0.0),
-      Ratio(0.0),
-      1e9,
-      Vector.fill(6)(5.0),
-      bankingSector = Banking.initialize(1e9, 5e8, 5e8, 0, 0, Banking.DefaultConfigs),
-    )
-    w.informalEmployed.toDouble shouldBe 0.0
+    val w = mkMinimalWorld()
+    w.flows.informalEmployed shouldBe 0.0
   }
 
   // ==========================================================================
