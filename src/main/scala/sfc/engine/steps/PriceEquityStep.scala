@@ -310,7 +310,7 @@ object PriceEquityStep:
     )
 
     val firmProfits = living2.kahanSumBy { f =>
-      val rev      = Firm.computeCapacity(f) * in.s4.sectorMults(f.sector.toInt) * newPrice
+      val rev      = Firm.computeCapacity(f).toDouble * in.s4.sectorMults(f.sector.toInt) * newPrice
       val labor    = Firm.workerCount(f) * in.s2.newWage * SectorDefs(f.sector.toInt).wageMultiplier
       val other    = p.firm.otherCosts.toDouble * newPrice
       val aiMaint  = f.tech match

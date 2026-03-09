@@ -3,8 +3,8 @@ package sfc.agents
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import sfc.accounting.{BankingAggregate, ForexState, GovState}
-import sfc.config.{RunConfig, SectorDefs, SimParams}
-import sfc.engine.{ExternalState, FinancialMarketsState, FlowState, MechanismsState, MonetaryPlumbingState, RealState, SocialState, World}
+import sfc.config.{SectorDefs, SimParams}
+import sfc.engine.*
 import sfc.types.*
 
 import scala.util.Random
@@ -54,20 +54,20 @@ class FirmSpec extends AnyFlatSpec with Matchers:
   // --- Firm.capacity ---
 
   "Firm.computeCapacity" should "be positive for alive firms" in {
-    Firm.computeCapacity(mkFirm(TechState.Traditional(10))) should be > 0.0
-    Firm.computeCapacity(mkFirm(TechState.Hybrid(5, 1.2))) should be > 0.0
-    Firm.computeCapacity(mkFirm(TechState.Automated(1.5))) should be > 0.0
+    Firm.computeCapacity(mkFirm(TechState.Traditional(10))) should be > PLN.Zero
+    Firm.computeCapacity(mkFirm(TechState.Hybrid(5, 1.2))) should be > PLN.Zero
+    Firm.computeCapacity(mkFirm(TechState.Automated(1.5))) should be > PLN.Zero
   }
 
   it should "be 0 for Bankrupt" in {
-    Firm.computeCapacity(mkFirm(TechState.Bankrupt(BankruptReason.Other("test")))) shouldBe 0.0
+    Firm.computeCapacity(mkFirm(TechState.Bankrupt(BankruptReason.Other("test")))) shouldBe PLN.Zero
   }
 
   // --- Firm.aiCapex / hybridCapex ---
 
   "Firm.computeAiCapex" should "be positive and scale with multipliers" in {
     val f  = mkFirm(TechState.Traditional(10))
-    Firm.computeAiCapex(f) should be > 0.0
+    Firm.computeAiCapex(f) should be > PLN.Zero
     // With higher innovationCostFactor → higher capex
     val f2 = f.copy(innovationCostFactor = 1.5)
     Firm.computeAiCapex(f2) should be > Firm.computeAiCapex(f)
@@ -75,7 +75,7 @@ class FirmSpec extends AnyFlatSpec with Matchers:
 
   "Firm.computeHybridCapex" should "be positive" in {
     val f = mkFirm(TechState.Traditional(10))
-    Firm.computeHybridCapex(f) should be > 0.0
+    Firm.computeHybridCapex(f) should be > PLN.Zero
   }
 
   // --- Firm.sigmaThreshold ---
@@ -134,8 +134,7 @@ class FirmSpec extends AnyFlatSpec with Matchers:
   "Firm.process" should "keep a Bankrupt firm bankrupt with zero tax/capex" in {
     Random.setSeed(42)
     val f      = mkFirm(TechState.Bankrupt(BankruptReason.Other("test")))
-    val rc     = RunConfig(1, "test")
-    val result = Firm.process(f, mkWorld(), 0.07, _ => true, Vector(f), rc)
+    val result = Firm.process(f, mkWorld(), Rate(0.07), _ => true, Vector(f))
     result.taxPaid shouldBe PLN.Zero
     result.capexSpent shouldBe PLN.Zero
     result.firm.tech shouldBe a[TechState.Bankrupt]
@@ -144,8 +143,7 @@ class FirmSpec extends AnyFlatSpec with Matchers:
   it should "keep an Automated firm alive with large cash" in {
     Random.setSeed(42)
     val f      = mkFirm(TechState.Automated(1.5)).copy(cash = PLN(10000000.0))
-    val rc     = RunConfig(1, "test")
-    val result = Firm.process(f, mkWorld(), 0.07, _ => true, Vector(f), rc)
+    val result = Firm.process(f, mkWorld(), Rate(0.07), _ => true, Vector(f))
     Firm.isAlive(result.firm) shouldBe true
   }
 
@@ -154,8 +152,7 @@ class FirmSpec extends AnyFlatSpec with Matchers:
     // Very low cash + high price level = deep losses → bankrupt
     val f      = mkFirm(TechState.Automated(0.1)).copy(cash = PLN(-500000.0), debt = PLN(5000000.0))
     val w      = mkWorld().copy(priceLevel = 0.3, flows = mkWorld().flows.copy(sectorDemandMult = Vector.fill(6)(0.1)))
-    val rc     = RunConfig(1, "test")
-    val result = Firm.process(f, w, 0.20, _ => true, Vector(f), rc)
+    val result = Firm.process(f, w, Rate(0.20), _ => true, Vector(f))
     result.firm.tech shouldBe a[TechState.Bankrupt]
   }
 

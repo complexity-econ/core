@@ -3,8 +3,8 @@ package sfc.agents
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import sfc.accounting.{BankingAggregate, ForexState, GovState}
-import sfc.config.{RunConfig, SectorDefs, SimParams}
-import sfc.engine.{ExternalState, FinancialMarketsState, FlowState, MechanismsState, MonetaryPlumbingState, RealState, SocialState, World}
+import sfc.config.{SectorDefs, SimParams}
+import sfc.engine.*
 import sfc.types.*
 
 class StagedDigitalizationSpec extends AnyFlatSpec with Matchers:
@@ -48,8 +48,6 @@ class StagedDigitalizationSpec extends AnyFlatSpec with Matchers:
       flows = FlowState.zero,
     )
 
-  private val rc = RunConfig(1, "test")
-
   // ---- Config defaults (3 tests) ----
 
   "p.firm.digiDrift.toDouble" should "be positive by default" in {
@@ -84,7 +82,7 @@ class StagedDigitalizationSpec extends AnyFlatSpec with Matchers:
     // With dr=0: discount factor = 1.0 - 0.30 * 0.0 = 1.0 (no discount)
     val expectedBase = p.firm.aiCapex.toDouble * SectorDefs(2).aiCapexMultiplier * 1.0 *
       Math.pow(10.0 / p.pop.workersPerFirm, 0.6)
-    Firm.computeAiCapex(f0) shouldBe expectedBase +- 0.01
+    Firm.computeAiCapex(f0).toDouble shouldBe expectedBase +- 0.01
   }
 
   // ---- Digital drift (3 tests) ----
@@ -92,7 +90,7 @@ class StagedDigitalizationSpec extends AnyFlatSpec with Matchers:
   "applyDigitalDrift" should "increase DR for alive firms" in {
     val f      = mkFirm(TechState.Traditional(10), dr = 0.40)
     val w      = mkWorld()
-    val result = Firm.process(f, w, 0.07, _ => true, Vector(f), rc)
+    val result = Firm.process(f, w, Rate(0.07), _ => true, Vector(f))
     // DR should be at least initial + drift (could also get digital investment boost)
     result.firm.digitalReadiness.toDouble should be >= (0.40 + p.firm.digiDrift.toDouble - 0.001)
   }
@@ -100,14 +98,14 @@ class StagedDigitalizationSpec extends AnyFlatSpec with Matchers:
   it should "cap digitalReadiness at 1.0" in {
     val f      = mkFirm(TechState.Traditional(10), dr = 0.999)
     val w      = mkWorld()
-    val result = Firm.process(f, w, 0.07, _ => true, Vector(f), rc)
+    val result = Firm.process(f, w, Rate(0.07), _ => true, Vector(f))
     result.firm.digitalReadiness.toDouble should be <= 1.0
   }
 
   it should "not change DR for bankrupt firms" in {
     val f      = mkFirm(TechState.Bankrupt(BankruptReason.Other("test")), dr = 0.50)
     val w      = mkWorld()
-    val result = Firm.process(f, w, 0.07, _ => true, Vector(f), rc)
+    val result = Firm.process(f, w, Rate(0.07), _ => true, Vector(f))
     result.firm.digitalReadiness.toDouble shouldBe 0.50
   }
 
@@ -121,7 +119,7 @@ class StagedDigitalizationSpec extends AnyFlatSpec with Matchers:
     // Run many times to catch at least one investment
     var invested = false
     for _ <- 0 until 500 if !invested do
-      val result = Firm.process(f, w, 0.07, _ => false, Vector(f), rc)
+      val result = Firm.process(f, w, Rate(0.07), _ => false, Vector(f))
       if result.firm.digitalReadiness.toDouble > f.digitalReadiness.toDouble + p.firm.digiDrift.toDouble + 0.001 then
         // Investment happened (DR increased beyond just drift)
         result.firm.cash.toDouble should be < f.cash.toDouble
@@ -130,13 +128,13 @@ class StagedDigitalizationSpec extends AnyFlatSpec with Matchers:
   }
 
   it should "not invest when firm cannot afford it" in {
-    val digiCost = Firm.computeDigiInvestCost(mkFirm(TechState.Traditional(10)))
+    val digiCost = Firm.computeDigiInvestCost(mkFirm(TechState.Traditional(10))).toDouble
     // Cash so low firm can't afford 2× digiCost, but not negative (would bankrupt)
     val f        = mkFirm(TechState.Traditional(10), cash = digiCost * 0.5, dr = 0.30)
     val w        = mkWorld(autoRatio = 0.5)
     // Over many trials, no investment should happen (only drift)
     for _ <- 0 until 100 do
-      val result = Firm.process(f, w, 0.07, _ => false, Vector(f), rc)
+      val result = Firm.process(f, w, Rate(0.07), _ => false, Vector(f))
       // DR should be at most initial + drift (no investment boost)
       // But net income is added to cash, so firm may become solvent enough
       // Just verify no investment boost beyond drift
@@ -161,7 +159,7 @@ class StagedDigitalizationSpec extends AnyFlatSpec with Matchers:
     costLarge should be > costSmall
     // But sublinearly: cost ratio < size ratio
     val sizeRatio = 100.0 / 5.0
-    val costRatio = costLarge / costSmall
+    val costRatio = costLarge / costSmall // PLN / PLN → Double
     costRatio should be < sizeRatio
   }
 
@@ -170,7 +168,7 @@ class StagedDigitalizationSpec extends AnyFlatSpec with Matchers:
   "Hybrid firm" should "gain at least 0.005 + drift in DR per month" in {
     val f      = mkFirm(TechState.Hybrid(5, 1.1), dr = 0.40)
     val w      = mkWorld()
-    val result = Firm.process(f, w, 0.07, _ => true, Vector(f), rc)
+    val result = Firm.process(f, w, Rate(0.07), _ => true, Vector(f))
     if Firm.isAlive(result.firm) then
       // Hybrid learning (+0.005) + natural drift (+0.001)
       result.firm.digitalReadiness.toDouble should be >= (0.40 + 0.005 + p.firm.digiDrift.toDouble - 0.001)
@@ -184,7 +182,7 @@ class StagedDigitalizationSpec extends AnyFlatSpec with Matchers:
     val w      = mkWorld()
     // Simulate 10 months — at minimum, drift alone adds 10 × 0.001 = 0.01
     for _ <- 0 until 10 do
-      val result = Firm.process(f, w, 0.07, _ => false, Vector(f), rc)
+      val result = Firm.process(f, w, Rate(0.07), _ => false, Vector(f))
       if Firm.isAlive(result.firm) then f = result.firm.copy(cash = PLN(1000000.0)) // reset cash for next round
     f.digitalReadiness.toDouble should be >= (initDR + 10 * p.firm.digiDrift.toDouble - 0.001)
   }

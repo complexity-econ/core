@@ -63,13 +63,13 @@ object FirmProcessingStep:
     val perBankIntIncome = new Array[Double](nBanks)
     val perBankWorkers   = new Array[Int](nBanks)
 
-    val currentCcyb                             = in.w.mechanisms.macropru.ccyb.toDouble
-    val rates                                   = bsec.banks.zip(bsec.configs).map((b, cfg) => Banking.lendingRate(b, cfg, in.s1.lendingBaseRate))
-    val getLendRate: Int => Double              = (bankId: Int) => rates(bankId)
-    val bankCanLendFn: (Int, Double) => Boolean =
-      (bankId: Int, amt: Double) => Banking.canLend(bsec.banks(bankId), amt, Random, currentCcyb)
+    val currentCcyb                          = in.w.mechanisms.macropru.ccyb.toDouble
+    val rates                                = bsec.banks.zip(bsec.configs).map((b, cfg) => Banking.lendingRate(b, cfg, in.s1.lendingBaseRate))
+    val getFirmRate: Int => Rate             = (bankId: Int) => Rate(rates(bankId))
+    val bankCanLendFn: (Int, PLN) => Boolean =
+      (bankId: Int, amt: PLN) => Banking.canLend(bsec.banks(bankId), amt.toDouble, Random, currentCcyb)
 
-    val lendingRates = (0 until nBanks).map(getLendRate).toArray
+    val lendingRates = rates.toArray
 
     var sumTax             = 0.0
     var sumCapex           = 0.0
@@ -94,9 +94,9 @@ object FirmProcessingStep:
     val firmBondAmounts = scala.collection.mutable.HashMap.empty[FirmId, Double]
 
     val newFirms = in.firms.map { f =>
-      val firmRate                       = getLendRate(f.bankId.toInt)
-      val firmCanLend: Double => Boolean = amt => bankCanLendFn(f.bankId.toInt, amt)
-      val r                              = Firm.process(f, macro4firms, firmRate, firmCanLend, in.firms, in.rc)
+      val firmRate                    = getFirmRate(f.bankId.toInt)
+      val firmCanLend: PLN => Boolean = amt => bankCanLendFn(f.bankId.toInt, amt)
+      val r                           = Firm.process(f, macro4firms, firmRate, firmCanLend, in.firms)
       sumTax += r.taxPaid.toDouble
       sumCapex += r.capexSpent.toDouble
       sumTechImp += r.techImports.toDouble
@@ -203,7 +203,7 @@ object FirmProcessingStep:
 
     for f <- newlyDead do perBankNplDebt(f.bankId.toInt) += f.debt.toDouble
 
-    for f <- in.firms if Firm.isAlive(f) do perBankIntIncome(f.bankId.toInt) += f.debt.toDouble * getLendRate(f.bankId.toInt) / 12.0
+    for f <- in.firms if Firm.isAlive(f) do perBankIntIncome(f.bankId.toInt) += f.debt.toDouble * rates(f.bankId.toInt) / 12.0
 
     val intIncome    = perBankIntIncome.kahanSum
     val netMigration = in.s2.newImmig.monthlyInflow - in.s2.newImmig.monthlyOutflow

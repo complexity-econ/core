@@ -39,10 +39,14 @@ object types:
       inline def *(scalar: Double): PLN  = p * scalar
       @targetName("plnTimesRate")
       inline def *(r: Rate): PLN         = p * r
+      @targetName("plnTimesRatio")
+      inline def *(r: Ratio): PLN        = p * r
       @targetName("plnDivPln")
       inline def /(other: PLN): Double   = p / other
       @targetName("plnDivScalar")
       inline def /(scalar: Double): PLN  = p / scalar
+      @targetName("plnDivRatio")
+      inline def /(r: Ratio): PLN        = p / r
       inline def unary_- : PLN           = -p
       inline def abs: PLN                = math.abs(p)
       inline def max(other: PLN): PLN    = math.max(p, other)
@@ -52,6 +56,7 @@ object types:
       inline def <(other: PLN): Boolean  = p < other
       inline def >=(other: PLN): Boolean = p >= other
       inline def <=(other: PLN): Boolean = p <= other
+    given Ordering[PLN]              = Ordering.Double.TotalOrdering
 
   // === Interest rates (annual, e.g., 0.0575 = 5.75%) ===
   opaque type Rate = Double
@@ -63,6 +68,8 @@ object types:
       inline def -(other: Rate): Rate     = r - other
       inline def *(scalar: Double): Rate  = r * scalar
       inline def /(scalar: Double): Rate  = r / scalar
+      @targetName("rateDivRate")
+      inline def /(other: Rate): Double   = r / other
       inline def unary_- : Rate           = -r
       inline def abs: Rate                = math.abs(r)
       inline def max(other: Rate): Rate   = math.max(r, other)
@@ -72,6 +79,7 @@ object types:
       inline def <(other: Rate): Boolean  = r < other
       inline def >=(other: Rate): Boolean = r >= other
       inline def <=(other: Rate): Boolean = r <= other
+    given Ordering[Rate]              = Ordering.Double.TotalOrdering
 
   // === Ratios (0-1 range: shares, probabilities, adoption rates) ===
   opaque type Ratio = Double
@@ -85,6 +93,8 @@ object types:
       inline def *(scalar: Double): Ratio  = r * scalar
       @targetName("ratioTimesRatio")
       inline def *(other: Ratio): Ratio    = r * other
+      @targetName("ratioTimesPln")
+      inline def *(p: PLN): PLN            = p * r
       @targetName("ratioDivScalar")
       inline def /(scalar: Double): Ratio  = r / scalar
       inline def max(other: Ratio): Ratio  = math.max(r, other)
@@ -94,3 +104,4 @@ object types:
       inline def <(other: Ratio): Boolean  = r < other
       inline def >=(other: Ratio): Boolean = r >= other
       inline def <=(other: Ratio): Boolean = r <= other
+    given Ordering[Ratio]              = Ordering.Double.TotalOrdering
