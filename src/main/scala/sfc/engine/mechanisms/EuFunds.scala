@@ -1,25 +1,25 @@
 package sfc.engine.mechanisms
 
-import sfc.config.Config
+import sfc.config.SimParams
 
 object EuFunds:
 
   /** Monthly EU transfer in PLN, following a Beta(α,β) absorption curve. */
-  def monthlyTransfer(month: Int): Double =
-    val totalPln = Config.EuFundsTotalEur * Config.BaseExRate *
-      (Config.FirmsCount.toDouble / 10000.0)
-    val T = Config.EuFundsPeriodMonths
-    val t = (month - Config.EuFundsStartMonth).toDouble / T
+  def monthlyTransfer(month: Int)(using p: SimParams): Double =
+    val totalPln = p.fiscal.euFundsTotalEur * p.forex.baseExRate *
+      (p.pop.firmsCount.toDouble / 10000.0)
+    val T = p.fiscal.euFundsPeriodMonths
+    val t = (month - p.fiscal.euFundsStartMonth).toDouble / T
     if t <= 0.0 || t >= 1.0 then 0.0
-    else totalPln * betaPdf(t, Config.EuFundsAlpha, Config.EuFundsBeta) / T
+    else totalPln * betaPdf(t, p.fiscal.euFundsAlpha, p.fiscal.euFundsBeta) / T
 
   /** Domestic co-financing (gov budget). */
-  def cofinancing(euMonthly: Double): Double =
-    euMonthly * Config.EuCofinanceRate / (1.0 - Config.EuCofinanceRate)
+  def cofinancing(euMonthly: Double)(using p: SimParams): Double =
+    euMonthly * p.fiscal.euCofinanceRate.toDouble / (1.0 - p.fiscal.euCofinanceRate.toDouble)
 
   /** Capital portion of total EU project spending (EU + cofin). */
-  def capitalInvestment(euMonthly: Double, cofin: Double): Double =
-    (euMonthly + cofin) * Config.EuCapitalShare
+  def capitalInvestment(euMonthly: Double, cofin: Double)(using p: SimParams): Double =
+    (euMonthly + cofin) * p.fiscal.euCapitalShare.toDouble
 
   /** Beta probability density function. */
   private[engine] def betaPdf(x: Double, a: Double, b: Double): Double =

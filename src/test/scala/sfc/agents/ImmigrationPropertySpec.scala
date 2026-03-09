@@ -8,6 +8,9 @@ import scala.util.Random
 
 class ImmigrationPropertySpec extends AnyFlatSpec with Matchers:
 
+  import sfc.config.SimParams
+  given SimParams = SimParams.defaults
+
   "Immigration.computeInflow" should "always return non-negative" in {
     val rng = new Random(42)
     for _ <- 0 until 100 do

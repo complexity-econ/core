@@ -12,6 +12,9 @@ import scala.util.Random
 
 class SectoralMobilityPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks:
 
+  import sfc.config.SimParams
+  given SimParams = SimParams.defaults
+
   // --- Friction matrix properties ---
 
   "DefaultFrictionMatrix" should "have all off-diagonal elements in (0, 1)" in {

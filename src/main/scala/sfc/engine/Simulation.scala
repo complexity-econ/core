@@ -102,7 +102,7 @@ object Simulation:
     * @return
     *   StepResult with updated state and SFC check outcome
     */
-  def step(state: SimState, rc: RunConfig): StepResult =
+  def step(state: SimState, rc: RunConfig)(using SimParams): StepResult =
     import steps.{
       FiscalConstraintStep as S1,
       LaborDemographicsStep as S2,

@@ -1,7 +1,7 @@
 package sfc.engine.steps
 
 import sfc.agents.*
-import sfc.config.{Config, RunConfig}
+import sfc.config.{RunConfig, SimParams}
 import sfc.engine.markets.{LaborMarket, SectoralMobility}
 import sfc.engine.World
 import sfc.types.*
@@ -32,9 +32,9 @@ object HouseholdIncomeStep:
     aggUnempBenefit: Double,
   )
 
-  def run(in: Input): Output =
-    val importAdj = Config.ImportPropensity *
-      Math.pow(Config.BaseExRate / in.w.forex.exchangeRate, 0.5)
+  def run(in: Input)(using p: SimParams): Output =
+    val importAdj = p.forex.importPropensity.toDouble *
+      Math.pow(p.forex.baseExRate / in.w.forex.exchangeRate, 0.5)
 
     val afterSep = LaborMarket.separations(in.households, in.firms, in.firms)
     val afterWages = LaborMarket.updateWages(afterSep, in.s2.newWage)
@@ -48,9 +48,9 @@ object HouseholdIncomeStep:
       ),
     )
     val eqReturn = in.w.equity.monthlyReturn.toDouble
-    val secWages = if Config.LmSectoralMobility then Some(SectoralMobility.sectorWages(afterWages)) else None
+    val secWages = if p.flags.sectoralMobility then Some(SectoralMobility.sectorWages(afterWages)) else None
     val secVacancies =
-      if Config.LmSectoralMobility then Some(SectoralMobility.sectorVacancies(afterWages, in.firms)) else None
+      if p.flags.sectoralMobility then Some(SectoralMobility.sectorVacancies(afterWages, in.firms)) else None
     val (newHhs, agg, pbf) = Household.step(
       afterWages,
       in.w,
@@ -66,7 +66,7 @@ object HouseholdIncomeStep:
     )
 
     val pitRevenue =
-      if Config.PitEnabled then agg.totalPit.toDouble
+      if p.flags.pit then agg.totalPit.toDouble
       else 0.0
 
     Output(

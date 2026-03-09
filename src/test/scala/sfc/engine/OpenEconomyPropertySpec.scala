@@ -6,11 +6,14 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import sfc.Generators.*
 import sfc.accounting.{BopState, ForexState}
-import sfc.config.{Config, RunConfig}
+import sfc.config.{RunConfig, SimParams}
 import sfc.engine.markets.OpenEconomy
 import sfc.types.*
 
 class OpenEconomyPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks:
+
+  given SimParams = SimParams.defaults
+  private val p: SimParams = summon[SimParams]
 
   implicit override val generatorDrivenConfig: PropertyCheckConfiguration =
     PropertyCheckConfiguration(minSuccessful = 200)
@@ -19,7 +22,7 @@ class OpenEconomyPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckP
 
   private val defaultSectorOutputs = Vector.fill(6)(1e8)
 
-  private def makeForex(er: Double = Config.BaseExRate): ForexState =
+  private def makeForex(er: Double = p.forex.baseExRate): ForexState =
     ForexState(er, PLN(1e8), PLN(1e8), PLN.Zero, PLN(1e7))
 
   private def makeBop(nfa: Double = 0.0, fAssets: Double = 1e9): BopState =
@@ -71,8 +74,8 @@ class OpenEconomyPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckP
         month,
         rc,
       )
-      r.forex.exchangeRate should be >= Config.OeErFloor
-      r.forex.exchangeRate should be <= Config.OeErCeiling
+      r.forex.exchangeRate should be >= p.openEcon.erFloor
+      r.forex.exchangeRate should be <= p.openEcon.erCeiling
     }
   }
 

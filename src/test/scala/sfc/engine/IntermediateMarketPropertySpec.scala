@@ -6,17 +6,20 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import sfc.Generators.*
 import sfc.agents.{Firm, TechState}
-import sfc.config.Config
 import sfc.engine.markets.IntermediateMarket
 import sfc.types.*
 
 class IntermediateMarketPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks:
 
+  import sfc.config.SimParams
+  given SimParams = SimParams.defaults
+  private val p: SimParams = summon[SimParams]
+
   implicit override val generatorDrivenConfig: PropertyCheckConfiguration =
     PropertyCheckConfiguration(minSuccessful = 200)
 
-  private val defaultMatrix = Config.IoMatrix
-  private val defaultColSums = Config.IoColumnSums
+  private val defaultMatrix = p.io.matrix
+  private val defaultColSums = p.io.columnSums
 
   private def makeFirms(n: Int, sectors: Seq[Int] = Seq(0, 1, 2, 3, 4, 5)): Vector[Firm.State] =
     (0 until n).map { i =>

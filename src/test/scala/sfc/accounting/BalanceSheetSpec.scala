@@ -6,6 +6,9 @@ import sfc.types.*
 
 class BalanceSheetSpec extends AnyFlatSpec with Matchers:
 
+  import sfc.config.SimParams
+  given SimParams = SimParams.defaults
+
   "BankingAggregate.nplRatio" should "equal nplAmount / totalLoans when totalLoans > 1" in {
     val b =
       BankingAggregate(PLN(1000000), PLN(50000), PLN(200000), PLN(500000), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)

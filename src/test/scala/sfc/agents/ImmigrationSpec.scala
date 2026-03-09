@@ -8,10 +8,13 @@ import scala.util.Random
 
 class ImmigrationSpec extends AnyFlatSpec with Matchers:
 
+  import sfc.config.SimParams
+  given SimParams = SimParams.defaults
+
   // ---- computeInflow ----
 
   "Immigration.computeInflow" should "return 0 when disabled" in {
-    // Config.ImmigEnabled is false by default
+    // p.flags.immigration is false by default
     Immigration.computeInflow(100000, 8000.0, 0.05, 1) shouldBe 0
   }
 

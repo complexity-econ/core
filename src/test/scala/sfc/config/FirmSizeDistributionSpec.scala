@@ -8,19 +8,22 @@ import scala.util.Random
 
 class FirmSizeDistributionSpec extends AnyFlatSpec with Matchers:
 
+  given SimParams = SimParams.defaults
+  private val p: SimParams = summon[SimParams]
+
   "FirmSizeDistribution.draw" should "return WorkersPerFirm when FirmSizeDist=uniform" in {
     // Default config is "uniform" — all firms get WorkersPerFirm (10)
     val rng = new Random(42)
-    for _ <- 0 until 100 do FirmSizeDistribution.draw(rng) shouldBe Config.WorkersPerFirm
+    for _ <- 0 until 100 do FirmSizeDistribution.draw(rng) shouldBe p.pop.workersPerFirm
   }
 
   it should "return values in valid ranges for all size classes" in {
     // We can't test "gus" mode directly via env vars in unit tests,
     // so we test the draw logic by verifying the returned values for
-    // the default (uniform) mode are always Config.WorkersPerFirm
+    // the default (uniform) mode are always p.pop.workersPerFirm
     val rng = new Random(42)
     val sizes = (0 until 10000).map(_ => FirmSizeDistribution.draw(rng))
-    sizes.foreach(_ shouldBe Config.WorkersPerFirm)
+    sizes.foreach(_ shouldBe p.pop.workersPerFirm)
   }
 
   // --- FirmOps size-dependent methods ---
@@ -39,7 +42,7 @@ class FirmSizeDistributionSpec extends AnyFlatSpec with Matchers:
       Array.empty[FirmId],
       initialSize = 5,
     )
-    Firm.skeletonCrew(f) shouldBe Config.AutoSkeletonCrew
+    Firm.skeletonCrew(f) shouldBe p.firm.autoSkeletonCrew
   }
 
   it should "scale with initialSize for large firms" in {
@@ -74,7 +77,7 @@ class FirmSizeDistributionSpec extends AnyFlatSpec with Matchers:
         Array.empty[FirmId],
         initialSize = size,
       )
-      Firm.skeletonCrew(f) should be >= Config.AutoSkeletonCrew
+      Firm.skeletonCrew(f) should be >= p.firm.autoSkeletonCrew
   }
 
   // --- Capacity scaling ---

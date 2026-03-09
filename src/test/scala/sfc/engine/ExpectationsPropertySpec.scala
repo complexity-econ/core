@@ -4,11 +4,14 @@ import org.scalacheck.Gen
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import sfc.config.{Config, RunConfig}
+import sfc.config.{RunConfig, SimParams}
 import sfc.engine.mechanisms.Expectations
 import sfc.types.*
 
 class ExpectationsPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks:
+
+  given SimParams = SimParams.defaults
+  private val p: SimParams = summon[SimParams]
 
   private val rc = RunConfig(1, "test")
 
@@ -52,7 +55,7 @@ class ExpectationsPropertySpec extends AnyFlatSpec with Matchers with ScalaCheck
 
   it should "increase credibility monotonically as deviation decreases (at fixed credibility)" in {
     val prev = Expectations.initial.copy(credibility = Ratio(0.5))
-    val target = Config.NbpTargetInfl
+    val target = p.monetary.targetInfl.toDouble
     // Low deviation
     val r1 = Expectations.step(prev, target + 0.005, 0.0575, 0.05, rc)
     // High deviation
@@ -64,8 +67,9 @@ class ExpectationsPropertySpec extends AnyFlatSpec with Matchers with ScalaCheck
     forAll(inflationGen, credGen) { (infl: Double, cred: Double) =>
       val prev = Expectations.initial.copy(credibility = Ratio(cred))
       val r = Expectations.step(prev, infl, 0.0575, 0.05, rc)
-      val target = Config.NbpTargetInfl
-      val adaptive = prev.expectedInflation.toDouble + Config.ExpLambda * (infl - prev.expectedInflation.toDouble)
+      val target = p.monetary.targetInfl.toDouble
+      val adaptive =
+        prev.expectedInflation.toDouble + p.labor.expLambda.toDouble * (infl - prev.expectedInflation.toDouble)
       val lo = Math.min(target, adaptive)
       val hi = Math.max(target, adaptive)
       r.expectedInflation.toDouble should be >= lo - 1e-10
@@ -97,8 +101,8 @@ class ExpectationsPropertySpec extends AnyFlatSpec with Matchers with ScalaCheck
 
   "step with no change" should "preserve stability at target" in {
     val prev = Expectations.initial
-    val r = Expectations.step(prev, Config.NbpTargetInfl, Config.NbpInitialRate, 0.05, rc)
+    val r = Expectations.step(prev, p.monetary.targetInfl.toDouble, p.monetary.initialRate.toDouble, 0.05, rc)
     // Expectations should stay near initial values
-    Math.abs(r.expectedInflation.toDouble - Config.NbpTargetInfl) should be < 0.01
+    Math.abs(r.expectedInflation.toDouble - p.monetary.targetInfl.toDouble) should be < 0.01
     r.credibility.toDouble should be >= prev.credibility.toDouble
   }

@@ -2,7 +2,7 @@ package sfc.engine.steps
 
 import sfc.accounting.{BankingAggregate, BopState, GovState, MonetaryAggregates}
 import sfc.agents.*
-import sfc.config.{Config, RunConfig}
+import sfc.config.{RunConfig, SimParams}
 import sfc.engine.*
 import sfc.engine.markets.{FiscalBudget, HousingMarket}
 import sfc.engine.mechanisms.YieldCurve
@@ -59,33 +59,43 @@ object BankUpdateStep:
     actualBondChange: Double,
   )
 
-  def run(in: Input): Output =
-    val vat = in.s3.consumption * Config.FofConsWeights.zip(Config.VatRates).map((w, r) => w * r).kahanSum
-    val exciseRevenue = in.s3.consumption * Config.FofConsWeights.zip(Config.ExciseRates).map((w, r) => w * r).kahanSum
+  def run(in: Input)(using p: SimParams): Output =
+    val vat = in.s3.consumption * p.fiscal.fofConsWeights
+      .map(_.toDouble)
+      .zip(p.fiscal.vatRates.map(_.toDouble))
+      .map((w, r) => w * r)
+      .kahanSum
+    val exciseRevenue = in.s3.consumption * p.fiscal.fofConsWeights
+      .map(_.toDouble)
+      .zip(p.fiscal.exciseRates.map(_.toDouble))
+      .map((w, r) => w * r)
+      .kahanSum
     val customsDutyRevenue =
-      if Config.OeEnabled then in.s8.newBop.totalImports.toDouble * Config.CustomsNonEuShare * Config.CustomsDutyRate
+      if p.flags.openEcon then
+        in.s8.newBop.totalImports.toDouble * p.fiscal.customsNonEuShare.toDouble * p.fiscal.customsDutyRate.toDouble
       else 0.0
     val unempBenefitSpend = in.s3.hhAgg.totalUnempBenefits.toDouble
     val socialTransferSpend =
-      if Config.Social800Enabled then in.s3.hhAgg.totalSocialTransfers.toDouble
+      if p.flags.social800 then in.s3.hhAgg.totalSocialTransfers.toDouble
       else 0.0
 
     // Informal economy: aggregate tax evasion
     val informalCyclicalAdj = in.w.informalCyclicalAdj
     val effectiveShadowShare =
-      if Config.InformalEnabled then
-        Config.FofConsWeights
-          .zip(Config.InformalSectorShares)
+      if p.flags.informal then
+        p.fiscal.fofConsWeights
+          .map(_.toDouble)
+          .zip(p.informal.sectorShares.map(_.toDouble))
           .map((cw, ss) => cw * Math.min(1.0, ss + informalCyclicalAdj))
           .kahanSum
       else 0.0
     val vatAfterEvasion =
-      if Config.InformalEnabled then vat * (1.0 - effectiveShadowShare * Config.InformalVatEvasion) else vat
+      if p.flags.informal then vat * (1.0 - effectiveShadowShare * p.informal.vatEvasion.toDouble) else vat
     val exciseAfterEvasion =
-      if Config.InformalEnabled then exciseRevenue * (1.0 - effectiveShadowShare * Config.InformalExciseEvasion)
+      if p.flags.informal then exciseRevenue * (1.0 - effectiveShadowShare * p.informal.exciseEvasion.toDouble)
       else exciseRevenue
     val pitAfterEvasion =
-      if Config.InformalEnabled then in.s3.pitRevenue * (1.0 - effectiveShadowShare * Config.InformalPitEvasion)
+      if p.flags.informal then in.s3.pitRevenue * (1.0 - effectiveShadowShare * p.informal.pitEvasion.toDouble)
       else in.s3.pitRevenue
 
     val newGov = FiscalBudget.update(
@@ -119,13 +129,13 @@ object BankUpdateStep:
       )
 
     // ---- Housing market step ----
-    val unempRate = 1.0 - in.s2.employed.toDouble / Config.TotalPopulation
+    val unempRate = 1.0 - in.s2.employed.toDouble / in.w.totalPopulation
     val prevMortgageRate = in.w.housing.avgMortgageRate
     val mortgageBaseRate: Double =
-      if Config.InterbankTermStructure then
+      if p.flags.interbankTermStructure then
         YieldCurve.compute(in.w.bankingSector.interbankRate.toDouble).wibor3m.toDouble
       else in.w.nbp.referenceRate.toDouble
-    val mortgageRate = mortgageBaseRate + Config.ReMortgageSpread
+    val mortgageRate = mortgageBaseRate + p.housing.mortgageSpread.toDouble
 
     val housingAfterPrice =
       HousingMarket.step(
@@ -140,37 +150,39 @@ object BankUpdateStep:
     val (mortgageInterestIncome, mortgagePrincipal, mortgageDefaultLoss) =
       HousingMarket.processMortgageFlows(housingAfterOrig, mortgageRate, unempRate)
     val mortgageDefaultAmount =
-      if Config.ReMortgageRecovery < 1.0 then mortgageDefaultLoss / (1.0 - Config.ReMortgageRecovery)
+      if p.housing.mortgageRecovery.toDouble < 1.0 then
+        mortgageDefaultLoss / (1.0 - p.housing.mortgageRecovery.toDouble)
       else 0.0
     val housingAfterFlows =
       HousingMarket.applyFlows(housingAfterOrig, mortgagePrincipal, mortgageDefaultAmount, mortgageInterestIncome)
 
     // BFG levy (#48)
     val bfgLevy =
-      if Config.BankFailureEnabled then
+      if p.flags.bankFailure then
         val (_, total) = Banking.computeBfgLevy(in.w.bankingSector.banks)
         total
       else 0.0
 
     // Investment net deposit flow
-    val currentInvestDomestic = in.s5.sumGrossInvestment * (1.0 - Config.PhysCapImportShare) +
-      in.s5.sumGreenInvestment * (1.0 - Config.GreenImportShare)
+    val currentInvestDomestic = in.s5.sumGrossInvestment * (1.0 - p.capital.importShare.toDouble) +
+      in.s5.sumGreenInvestment * (1.0 - p.climate.greenImportShare.toDouble)
     val investNetDepositFlow = in.s4.laggedInvestDemand - currentInvestDomestic
 
     val newBank = in.w.bank.copy(
-      totalLoans =
-        PLN(Math.max(0, in.w.bank.totalLoans.toDouble + in.s5.sumNewLoans - in.s5.nplNew * Config.LoanRecovery)),
+      totalLoans = PLN(
+        Math.max(0, in.w.bank.totalLoans.toDouble + in.s5.sumNewLoans - in.s5.nplNew * p.banking.loanRecovery.toDouble),
+      ),
       nplAmount = PLN(Math.max(0, in.w.bank.nplAmount.toDouble + in.s5.nplNew - in.w.bank.nplAmount.toDouble * 0.05)),
       capital = PLN(
         in.w.bank.capital.toDouble - in.s5.nplLoss - mortgageDefaultLoss - in.s6.consumerNplLoss
           - in.s8.corpBondBankDefaultLoss - bfgLevy
-          + in.s5.intIncome * Config.BankProfitRetention + in.s6.hhDebtService * Config.BankProfitRetention
-          + in.s8.bankBondIncome * Config.BankProfitRetention - in.s6.depositInterestPaid * Config.BankProfitRetention
-          + in.s8.totalReserveInterest * Config.BankProfitRetention + in.s8.totalStandingFacilityIncome * Config.BankProfitRetention
-          + in.s8.totalInterbankInterest * Config.BankProfitRetention
-          + mortgageInterestIncome * Config.BankProfitRetention
-          + in.s6.consumerDebtService * Config.BankProfitRetention
-          + in.s8.corpBondBankCoupon * Config.BankProfitRetention,
+          + in.s5.intIncome * p.banking.profitRetention.toDouble + in.s6.hhDebtService * p.banking.profitRetention.toDouble
+          + in.s8.bankBondIncome * p.banking.profitRetention.toDouble - in.s6.depositInterestPaid * p.banking.profitRetention.toDouble
+          + in.s8.totalReserveInterest * p.banking.profitRetention.toDouble + in.s8.totalStandingFacilityIncome * p.banking.profitRetention.toDouble
+          + in.s8.totalInterbankInterest * p.banking.profitRetention.toDouble
+          + mortgageInterestIncome * p.banking.profitRetention.toDouble
+          + in.s6.consumerDebtService * p.banking.profitRetention.toDouble
+          + in.s8.corpBondBankCoupon * p.banking.profitRetention.toDouble,
       ),
       deposits = PLN(
         in.w.bank.deposits.toDouble + (in.s3.totalIncome - in.s3.consumption) + investNetDepositFlow
@@ -207,14 +219,14 @@ object BankUpdateStep:
 
     // PPK bond purchases (capped at available bonds after QE)
     val availableBondsForPpk = newBank.govBondHoldings.toDouble +
-      (if Config.GovBondMarket then actualBondChange else 0.0) - in.s8.qePurchaseAmount
+      (if p.flags.govBondMarket then actualBondChange else 0.0) - in.s8.qePurchaseAmount
     val ppkBondPurchase = Math.min(in.s2.rawPpkBondPurchase, Math.max(0.0, availableBondsForPpk))
     val finalPpk = in.s2.newPpk.copy(bondHoldings = PLN(in.w.ppk.bondHoldings.toDouble + ppkBondPurchase))
 
     // Insurance gov bond purchases (capped at available bonds after QE + PPK)
     val insGovBondDelta = (in.s8.newInsurance.govBondHoldings - in.w.insurance.govBondHoldings).toDouble
     val availableBondsForIns = newBank.govBondHoldings.toDouble +
-      (if Config.GovBondMarket then actualBondChange else 0.0) - in.s8.qePurchaseAmount - ppkBondPurchase
+      (if p.flags.govBondMarket then actualBondChange else 0.0) - in.s8.qePurchaseAmount - ppkBondPurchase
     val insBondPurchase = Math.max(0.0, Math.min(Math.max(0.0, insGovBondDelta), Math.max(0.0, availableBondsForIns)))
     val finalInsurance =
       in.s8.newInsurance.copy(govBondHoldings = PLN(in.w.insurance.govBondHoldings.toDouble + insBondPurchase))
@@ -222,7 +234,7 @@ object BankUpdateStep:
     // TFI gov bond purchases (#42)
     val tfiGovBondDelta = (in.s8.newNbfi.tfiGovBondHoldings - in.w.nbfi.tfiGovBondHoldings).toDouble
     val availableBondsForTfi = newBank.govBondHoldings.toDouble +
-      (if Config.GovBondMarket then actualBondChange else 0.0) -
+      (if p.flags.govBondMarket then actualBondChange else 0.0) -
       in.s8.qePurchaseAmount - ppkBondPurchase - insBondPurchase
     val tfiBondPurchase = Math.max(0.0, Math.min(Math.max(0.0, tfiGovBondDelta), Math.max(0.0, availableBondsForTfi)))
     val finalNbfi =
@@ -238,7 +250,7 @@ object BankUpdateStep:
     val updatedBanks = bs.banks.map { b =>
       val bId = b.id.toInt
       val bankNplNew = in.s5.perBankNplDebt(bId)
-      val bankNplLoss = bankNplNew * (1.0 - Config.LoanRecovery)
+      val bankNplLoss = bankNplNew * (1.0 - p.banking.loanRecovery.toDouble)
       val bankIntIncome = in.s5.perBankIntIncome(bId)
       val (
         bankIncomeShare,
@@ -276,7 +288,7 @@ object BankUpdateStep:
       val bankSfInc = perBankStandingFac(bId)
       val bankIbInt = perBankInterbankInt(bId)
       val newLoansTotal =
-        Math.max(0.0, b.loans.toDouble + in.s5.perBankNewLoans(bId) - bankNplNew * Config.LoanRecovery)
+        Math.max(0.0, b.loans.toDouble + in.s5.perBankNewLoans(bId) - bankNplNew * p.banking.loanRecovery.toDouble)
       val ws = if totalWorkers > 0 then in.s5.perBankWorkers(bId) / totalWorkers else 0.0
       val bankDivInflow = in.s7.netDomesticDividends * ws
       val bankDivOutflow = in.s7.foreignDividendOutflow * ws
@@ -293,33 +305,33 @@ object BankUpdateStep:
       val bankDepShare = if totalWorkers > 0 then in.s5.perBankWorkers(bId) / totalWorkers else 0.0
       val bankMortgageIntIncome = mortgageInterestIncome * bankDepShare
       val bankMortgageNplLoss = mortgageDefaultLoss * bankDepShare
-      val bankCcNplLoss = bankCcDef * (1.0 - Config.CcNplRecovery)
+      val bankCcNplLoss = bankCcDef * (1.0 - p.household.ccNplRecovery.toDouble)
       val bankCcPrincipal = in.s3.perBankHhFlowsOpt match
         case Some(pbf) if pbf.consumerPrincipal.nonEmpty => pbf.consumerPrincipal(bId)
         case _                                           =>
-          if Config.CcAmortRate + (in.s1.lendingBaseRate + Config.CcSpread) / 12.0 > 0 then
-            bankCcDSvc * (Config.CcAmortRate / (Config.CcAmortRate + (in.s1.lendingBaseRate + Config.CcSpread) / 12.0))
+          if p.household.ccAmortRate.toDouble + (in.s1.lendingBaseRate + p.household.ccSpread.toDouble) / 12.0 > 0 then
+            bankCcDSvc * (p.household.ccAmortRate.toDouble / (p.household.ccAmortRate.toDouble + (in.s1.lendingBaseRate + p.household.ccSpread.toDouble) / 12.0))
           else 0.0
       val bankCorpBondCoupon = in.s8.corpBondBankCoupon * bankDepShare
       val bankCorpBondDefaultLoss = in.s8.corpBondBankDefaultLoss * bankDepShare
       val bankBfgLevy =
-        if Config.BankFailureEnabled && !b.failed then b.deposits.toDouble * Config.BfgLevyRate / 12.0
+        if p.flags.bankFailure && !b.failed then b.deposits.toDouble * p.banking.bfgLevyRate.toDouble / 12.0
         else 0.0
       b.copy(
         loans = PLN(newLoansTotal),
         nplAmount = PLN(Math.max(0.0, b.nplAmount.toDouble + bankNplNew - b.nplAmount.toDouble * 0.05)),
         capital = PLN(
           b.capital.toDouble - bankNplLoss - bankMortgageNplLoss - bankCcNplLoss
-            - bankCorpBondDefaultLoss - bankBfgLevy + bankIntIncome * Config.BankProfitRetention +
-            bankHhDebtService * Config.BankProfitRetention + bankBondInc * Config.BankProfitRetention - bankDepInterest * Config.BankProfitRetention
-            + bankResInt * Config.BankProfitRetention + bankSfInc * Config.BankProfitRetention + bankIbInt * Config.BankProfitRetention
-            + bankMortgageIntIncome * Config.BankProfitRetention
-            + bankCcDSvc * Config.BankProfitRetention
-            + bankCorpBondCoupon * Config.BankProfitRetention,
+            - bankCorpBondDefaultLoss - bankBfgLevy + bankIntIncome * p.banking.profitRetention.toDouble +
+            bankHhDebtService * p.banking.profitRetention.toDouble + bankBondInc * p.banking.profitRetention.toDouble - bankDepInterest * p.banking.profitRetention.toDouble
+            + bankResInt * p.banking.profitRetention.toDouble + bankSfInc * p.banking.profitRetention.toDouble + bankIbInt * p.banking.profitRetention.toDouble
+            + bankMortgageIntIncome * p.banking.profitRetention.toDouble
+            + bankCcDSvc * p.banking.profitRetention.toDouble
+            + bankCorpBondCoupon * p.banking.profitRetention.toDouble,
         ),
         deposits = PLN(newDep),
-        demandDeposits = PLN(newDep * (1.0 - Config.BankTermDepositFrac)),
-        termDeposits = PLN(newDep * Config.BankTermDepositFrac),
+        demandDeposits = PLN(newDep * (1.0 - p.banking.termDepositFrac.toDouble)),
+        termDeposits = PLN(newDep * p.banking.termDepositFrac.toDouble),
         loansShort = PLN(newLoansTotal * 0.20),
         loansMedium = PLN(newLoansTotal * 0.30),
         loansLong = PLN(newLoansTotal * 0.50),
@@ -331,13 +343,14 @@ object BankUpdateStep:
     val ibRate = Banking.interbankRate(updatedBanks, in.w.nbp.referenceRate.toDouble)
     val afterInterbank = Banking.clearInterbank(updatedBanks, bs.configs, ibRate)
     val afterBonds =
-      if Config.GovBondMarket then Banking.allocateBonds(afterInterbank, actualBondChange)
+      if p.flags.govBondMarket then Banking.allocateBonds(afterInterbank, actualBondChange)
       else afterInterbank
     val afterQe = Banking.allocateQePurchases(afterBonds, in.s8.qePurchaseAmount)
     val afterPpk = Banking.allocateQePurchases(afterQe, ppkBondPurchase)
     val afterIns = Banking.allocateQePurchases(afterPpk, insBondPurchase)
     val afterTfi = Banking.allocateQePurchases(afterIns, tfiBondPurchase)
-    val (afterFailCheck, anyFailed) = Banking.checkFailures(afterTfi, in.s1.m, ccyb = in.s7.newMacropru.ccyb.toDouble)
+    val (afterFailCheck, anyFailed) =
+      Banking.checkFailures(afterTfi, in.s1.m, p.flags.bankFailure, in.s7.newMacropru.ccyb.toDouble)
     val (afterBailIn, multiBailInLoss) =
       if anyFailed then Banking.applyBailIn(afterFailCheck) else (afterFailCheck, 0.0)
     val (afterResolve, rawAbsorberId) =
@@ -355,7 +368,7 @@ object BankUpdateStep:
           }
           .kahanSum
       else 0.0
-    val curve = if Config.InterbankTermStructure then Some(YieldCurve.compute(ibRate)) else None
+    val curve = if p.flags.interbankTermStructure then Some(YieldCurve.compute(ibRate)) else None
     val finalBankingSector = bs.copy(banks = afterResolve, interbankRate = Rate(ibRate), interbankCurve = curve)
     val reassignedFirms =
       if anyFailed then
@@ -376,7 +389,7 @@ object BankUpdateStep:
 
     val resolvedBank = finalBankingSector.aggregate
 
-    val monAgg = if Config.CreditDiagnostics then
+    val monAgg = if p.flags.creditDiagnostics then
       val totalReserves = finalBankingSector.banks.kahanSumBy(_.reservesAtNbp.toDouble)
       Some(MonetaryAggregates.compute(resolvedBank.deposits, PLN(totalReserves)))
     else None

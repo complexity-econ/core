@@ -2,18 +2,21 @@ package sfc.engine
 
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import sfc.config.Config
 import sfc.engine.markets.HousingMarket
 import sfc.types.*
 
 class HousingMarketSpec extends AnyFlatSpec with Matchers:
 
+  import sfc.config.SimParams
+  given SimParams = SimParams.defaults
+  private val p: SimParams = summon[SimParams]
+
   private val initState = HousingMarket.State(
     priceIndex = 100.0,
-    totalValue = PLN(3.0e12 * Config.FirmsCount / 10000.0),
-    mortgageStock = PLN(485e9 * Config.FirmsCount / 10000.0),
+    totalValue = PLN(3.0e12 * p.pop.firmsCount / 10000.0),
+    mortgageStock = PLN(485e9 * p.pop.firmsCount / 10000.0),
     avgMortgageRate = Rate(0.0575 + 0.025),
-    hhHousingWealth = PLN((3.0e12 - 485e9) * Config.FirmsCount / 10000.0),
+    hhHousingWealth = PLN((3.0e12 - 485e9) * p.pop.firmsCount / 10000.0),
     lastOrigination = PLN.Zero,
     lastRepayment = PLN.Zero,
     lastDefault = PLN.Zero,
@@ -39,7 +42,7 @@ class HousingMarketSpec extends AnyFlatSpec with Matchers:
   }
 
   "HousingMarket.step" should "return zero when RE_ENABLED=false" in {
-    // Config.ReEnabled is false by default
+    // p.flags.re is false by default
     val result = HousingMarket.step(initState, 0.0825, 0.025, 0.002, 90000, 0.0825)
     result shouldBe HousingMarket.zero
   }
@@ -122,13 +125,13 @@ class HousingMarketSpec extends AnyFlatSpec with Matchers:
   }
 
   "HousingMarket.initial" should "have calibrated Polish values" in {
-    // Config.ReEnabled is false but initial() always creates a calibrated state
+    // p.flags.re is false but initial() always creates a calibrated state
     val init = HousingMarket.initial
     init.priceIndex shouldBe 100.0
-    init.totalValue.toDouble shouldBe (Config.ReInitValue +- 1.0)
-    init.mortgageStock.toDouble shouldBe (Config.ReInitMortgage +- 1.0)
-    init.avgMortgageRate.toDouble shouldBe (Config.NbpInitialRate + Config.ReMortgageSpread +- 0.001)
-    init.hhHousingWealth.toDouble shouldBe (Config.ReInitValue - Config.ReInitMortgage +- 1.0)
+    init.totalValue.toDouble shouldBe (p.housing.initValue.toDouble +- 1.0)
+    init.mortgageStock.toDouble shouldBe (p.housing.initMortgage.toDouble +- 1.0)
+    init.avgMortgageRate.toDouble shouldBe (p.monetary.initialRate.toDouble + p.housing.mortgageSpread.toDouble +- 0.001)
+    init.hhHousingWealth.toDouble shouldBe (p.housing.initValue.toDouble - p.housing.initMortgage.toDouble +- 1.0)
   }
 
   it should "have no regions when RE_REGIONAL is false" in {

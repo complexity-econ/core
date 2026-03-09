@@ -1,7 +1,7 @@
 package sfc.init
 
+import sfc.config.SimParams
 import sfc.agents.*
-import sfc.config.Config
 import sfc.types.*
 import sfc.util.KahanSum.*
 
@@ -9,13 +9,13 @@ import sfc.util.KahanSum.*
 object BankInit:
 
   /** Initialize multi-bank sector (always 7 banks). Per-bank consumer loan override from actual HH sums. */
-  def create(firms: Vector[Firm.State], households: Vector[Household.State]): Banking.State =
+  def create(firms: Vector[Firm.State], households: Vector[Household.State])(using p: SimParams): Banking.State =
     val initConsumerLoans = households.kahanSumBy(_.consumerDebt.toDouble)
     val bs0 = Banking.initialize(
-      Config.InitBankDeposits,
-      Config.InitBankCapital,
-      Config.InitBankLoans,
-      Config.InitBankGovBonds,
+      p.banking.initDeposits.toDouble,
+      p.banking.initCapital.toDouble,
+      p.banking.initLoans.toDouble,
+      p.banking.initGovBonds.toDouble,
       initConsumerLoans,
       Banking.DefaultConfigs,
     )

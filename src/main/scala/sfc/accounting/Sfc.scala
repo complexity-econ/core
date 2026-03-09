@@ -1,8 +1,8 @@
 package sfc.accounting
 
 import sfc.agents.{Firm, Household}
-import sfc.config.Config
 import sfc.engine.World
+import sfc.config.SimParams
 import sfc.types.*
 import sfc.util.KahanSum.*
 
@@ -229,11 +229,11 @@ object Sfc:
     flows: MonthlyFlows, // all flows that occurred during the month
     tolerance: PLN = PLN(0.01), // max allowed |actual − expected| for most identities
     nfaTolerance: PLN = PLN(1.0), // wider tolerance for NFA (Identity 4) due to FP cancellation in BoP
-  ): SfcResult =
+  )(using p: SimParams): SfcResult =
     import SfcIdentity.*
 
     val identities: Vector[IdentitySpec] = Vector(
-      // 1. Bank capital: losses + profit retention (Config.BankProfitRetention)
+      // 1. Bank capital: losses + profit retention (p.banking.profitRetention.toDouble)
       IdentitySpec(
         BankCapital,
         "bank capital change (profit retention + losses)",
@@ -242,7 +242,7 @@ object Sfc:
           (flows.interestIncome + flows.hhDebtService + flows.bankBondIncome
             + flows.mortgageInterestIncome + flows.consumerDebtService + flows.corpBondCouponIncome
             - flows.depositInterestPaid
-            + flows.reserveInterest + flows.standingFacilityIncome + flows.interbankInterest) * Config.BankProfitRetention,
+            + flows.reserveInterest + flows.standingFacilityIncome + flows.interbankInterest) * p.banking.profitRetention.toDouble,
         actual = curr.bankCapital - prev.bankCapital,
         tolerance,
       ),

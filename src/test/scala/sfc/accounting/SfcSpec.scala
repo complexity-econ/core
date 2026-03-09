@@ -3,11 +3,13 @@ package sfc.accounting
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import sfc.agents.*
-import sfc.config.SectorDefs
+import sfc.config.{SectorDefs, SimParams}
 import sfc.engine.World
 import sfc.types.*
 
 class SfcSpec extends AnyFlatSpec with Matchers:
+
+  given SimParams = SimParams.defaults
 
   private def errorDelta(result: Either[Vector[Sfc.SfcIdentityError], Unit], id: Sfc.SfcIdentity): Double =
     result.swap.getOrElse(Vector.empty).find(_.identity == id).map(e => (e.actual - e.expected).toDouble).getOrElse(0.0)

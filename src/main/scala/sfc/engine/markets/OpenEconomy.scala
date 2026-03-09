@@ -2,7 +2,7 @@ package sfc.engine.markets
 
 import sfc.accounting.{BopState, ForexState}
 import sfc.agents.Nbp
-import sfc.config.{Config, RunConfig, SectorDefs}
+import sfc.config.{RunConfig, SectorDefs, SimParams}
 import sfc.types.PLN
 import sfc.util.KahanSum.*
 
@@ -16,18 +16,18 @@ object OpenEconomy:
     domesticRate: Double,
     gdp: Double,
     rc: RunConfig,
-  ): ForexState =
-    val techComp = 1.0 + autoRatio * Config.ExportAutoBoost
+  )(using p: SimParams): ForexState =
+    val techComp = 1.0 + autoRatio * p.forex.exportAutoBoost.toDouble
     val totalImp = importConsumption + techImports
     // PLN: floating exchange rate, BoP-driven adjustment
-    val exComp = prev.exchangeRate / Config.BaseExRate
-    val exports = Config.ExportBase * exComp * techComp
+    val exComp = prev.exchangeRate / p.forex.baseExRate
+    val exports = p.forex.exportBase.toDouble * exComp * techComp
     val tradeBal = exports - totalImp
-    val rateDiff = domesticRate - Config.ForeignRate
-    val capAcct = rateDiff * Config.IrpSensitivity * gdp
+    val rateDiff = domesticRate - p.forex.foreignRate.toDouble
+    val capAcct = rateDiff * p.forex.irpSensitivity * gdp
     val bop = tradeBal + capAcct
     val bopRatio = if gdp > 0 then bop / gdp else 0.0
-    val exRateChg = -Config.ExRateAdjSpeed * bopRatio
+    val exRateChg = -p.forex.exRateAdjSpeed.toDouble * bopRatio
     val newRate = Math.max(3.0, Math.min(8.0, prev.exchangeRate * (1.0 + exRateChg)))
     ForexState(newRate, PLN(totalImp), PLN(exports), PLN(tradeBal), PLN(techImports))
 
@@ -59,7 +59,7 @@ object OpenEconomy:
     diasporaInflow: Double = 0.0,
     tourismExport: Double = 0.0,
     tourismImport: Double = 0.0,
-  ): Result =
+  )(using p: SimParams): Result =
 
     val nSectors = SectorDefs.length
 
@@ -68,16 +68,16 @@ object OpenEconomy:
     // When PL rises but ER depreciates proportionally, real price unchanged.
     // This replaces the separate priceCompetitiveness × erCompetitiveness terms
     // which double-counted and let PL crush exports even when ER compensated.
-    val foreignGdpFactor = Math.pow(1.0 + Config.OeForeignGdpGrowth / 12.0, month.toDouble)
-    val ulcEffect = 1.0 + autoRatio * Config.OeUlcExportBoost
+    val foreignGdpFactor = Math.pow(1.0 + p.openEcon.foreignGdpGrowth.toDouble / 12.0, month.toDouble)
+    val ulcEffect = 1.0 + autoRatio * p.openEcon.ulcExportBoost
     val realExRate =
-      val nominalER = prevForex.exchangeRate / Config.BaseExRate // >1 when PLN weaker
+      val nominalER = prevForex.exchangeRate / p.forex.baseExRate // >1 when PLN weaker
       val realPrice =
         if priceLevel > 0 && nominalER > 0 then priceLevel / nominalER
         else 1.0
-      Math.pow(1.0 / Math.max(0.1, realPrice), Config.OeExportPriceElasticity)
+      Math.pow(1.0 / Math.max(0.1, realPrice), p.openEcon.exportPriceElasticity)
     val exports = gvcExports.getOrElse {
-      Config.OeExportBase * foreignGdpFactor * realExRate * ulcEffect
+      p.openEcon.exportBase.toDouble * foreignGdpFactor * realExRate * ulcEffect
     }
     val totalExportsIncTourism = exports + tourismExport
 
@@ -87,13 +87,13 @@ object OpenEconomy:
     // PLN import bill: quantity × foreign price × ER. With demand elasticity ε:
     //   bill ∝ realOutput × (ER/baseER)^(1-ε).  For ε<1 bill rises with depreciation.
     val erNetEffect =
-      Math.pow(prevForex.exchangeRate / Config.BaseExRate, 1.0 - Config.OeErElasticity)
+      Math.pow(prevForex.exchangeRate / p.forex.baseExRate, 1.0 - p.openEcon.erElasticity)
     val importedInterm = gvcIntermImports.getOrElse {
       (0 until nSectors).map { s =>
         val realOutput =
           if priceLevel > 0 then sectorOutputs(s) / priceLevel
           else sectorOutputs(s)
-        realOutput * Config.OeImportContent(s) * erNetEffect
+        realOutput * p.openEcon.importContent.map(_.toDouble)(s) * erNetEffect
       }.toVector
     }
     val totalImportedInterm = importedInterm.kahanSum
@@ -105,30 +105,30 @@ object OpenEconomy:
     val tradeBalance = totalExportsIncTourism - totalImports
 
     // E. Current account
-    val primaryIncome = prevBop.nfa.toDouble * Config.OeNfaReturnRate / 12.0
+    val primaryIncome = prevBop.nfa.toDouble * p.openEcon.nfaReturnRate.toDouble / 12.0
     val secondaryIncome = euFundsMonthly - remittanceOutflow + diasporaInflow
     val currentAccount = tradeBalance + primaryIncome + secondaryIncome
 
     // F. Capital account
     val nfaGdpRatio = if gdp > 0 then prevBop.nfa.toDouble / (gdp * 12.0) else 0.0
-    val fdi = Config.OeFdiBase * (1.0 + autoRatio * 0.3) * (1.0 - Math.max(0.0, -nfaGdpRatio) * 0.5)
+    val fdi = p.openEcon.fdiBase.toDouble * (1.0 + autoRatio * 0.3) * (1.0 - Math.max(0.0, -nfaGdpRatio) * 0.5)
     val portfolioFlows =
-      val rateDiff = domesticRate - Config.ForeignRate
-      val riskPremium = -Config.OeRiskPremiumSensitivity * nfaGdpRatio
+      val rateDiff = domesticRate - p.forex.foreignRate.toDouble
+      val riskPremium = -p.openEcon.riskPremiumSensitivity * nfaGdpRatio
       val monthlyGdp = if gdp > 0 then gdp else 1.0
-      (rateDiff + riskPremium) * Config.OePortfolioSensitivity * monthlyGdp
+      (rateDiff + riskPremium) * p.openEcon.portfolioSensitivity * monthlyGdp
     val capitalAccount = fdi + portfolioFlows
 
     // G. BoP identity: CA + KA + ΔReserves = 0
     val deltaReserves = -(currentAccount + capitalAccount)
 
     // H. Exchange rate + FX intervention
-    val fxResult = Nbp.fxIntervention(prevForex.exchangeRate, nbpFxReserves, gdp)
+    val fxResult = Nbp.fxIntervention(prevForex.exchangeRate, nbpFxReserves, gdp, p.flags.nbpFxIntervention)
     val newExRate =
       val bopGdpRatio = if gdp > 0 then (currentAccount + capitalAccount) / gdp else 0.0
-      val nfaRisk = Config.OeRiskPremiumSensitivity * Math.min(0.0, nfaGdpRatio)
-      val erChange = Config.ExRateAdjSpeed * (-bopGdpRatio + nfaRisk) + fxResult.erEffect
-      Math.max(Config.OeErFloor, Math.min(Config.OeErCeiling, prevForex.exchangeRate * (1.0 + erChange)))
+      val nfaRisk = p.openEcon.riskPremiumSensitivity * Math.min(0.0, nfaGdpRatio)
+      val erChange = p.forex.exRateAdjSpeed.toDouble * (-bopGdpRatio + nfaRisk) + fxResult.erEffect
+      Math.max(p.openEcon.erFloor, Math.min(p.openEcon.erCeiling, prevForex.exchangeRate * (1.0 + erChange)))
 
     // I. NFA update
     val valuationEffect =

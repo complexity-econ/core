@@ -1,5 +1,6 @@
 package sfc.agents
 
+import sfc.config.SimParams
 import sfc.engine.*
 import sfc.engine.mechanisms.{Macroprudential, YieldCurve}
 import sfc.types.*
@@ -51,10 +52,10 @@ object Banking:
     def hqla: Double = (reservesAtNbp + govBondHoldings).toDouble
 
     /** Net cash outflows (30-day): demand deposits × runoff rate. */
-    def netCashOutflows: Double = (demandDeposits * sfc.config.Config.BankDemandDepositRunoff).toDouble
+    def netCashOutflows(using p: SimParams): Double = (demandDeposits * p.banking.demandDepositRunoff.toDouble).toDouble
 
     /** LCR = HQLA / net cash outflows over 30 days. */
-    def lcr: Double = if netCashOutflows > 1.0 then hqla / netCashOutflows else 10.0
+    def lcr(using p: SimParams): Double = if netCashOutflows > 1.0 then hqla / netCashOutflows else 10.0
 
     /** Available Stable Funding: capital + term deposits × 0.95 + demand deposits × 0.90. */
     def asf: Double = (capital + termDeposits * 0.95 + demandDeposits * 0.90).toDouble
@@ -104,7 +105,7 @@ object Banking:
     totalGovBonds: Double = 0.0,
     totalConsumerLoans: Double = 0.0,
     configs: Vector[Config],
-  ): State =
+  )(using p: SimParams): State =
     val banks = configs.map { cfg =>
       BankState(
         id = cfg.id,
@@ -139,22 +140,22 @@ object Banking:
       BankId(weights.length - 1)
 
   /** HH deposit rate (annual). Polish banks: NBP rate - spread. */
-  def hhDepositRate(refRate: Double): Double =
-    Math.max(0.0, refRate - sfc.config.Config.HhDepositSpread)
+  def hhDepositRate(refRate: Double)(using p: SimParams): Double =
+    Math.max(0.0, refRate - p.household.depositSpread.toDouble)
 
   /** Compute lending rate for a specific bank. */
-  def lendingRate(bank: BankState, cfg: Config, refRate: Double): Double =
+  def lendingRate(bank: BankState, cfg: Config, refRate: Double)(using p: SimParams): Double =
     if bank.failed then refRate + 0.50
     else
-      val nplSpread = Math.min(0.15, bank.nplRatio * sfc.config.Config.NplSpreadFactor)
+      val nplSpread = Math.min(0.15, bank.nplRatio * p.banking.nplSpreadFactor)
       val carPenalty =
-        if bank.car < sfc.config.Config.MinCar * 1.5 then
-          Math.max(0.0, (sfc.config.Config.MinCar * 1.5 - bank.car) * 2.0)
+        if bank.car < p.banking.minCar.toDouble * 1.5 then
+          Math.max(0.0, (p.banking.minCar.toDouble * 1.5 - bank.car) * 2.0)
         else 0.0
-      refRate + sfc.config.Config.BaseSpread + cfg.lendingSpread.toDouble + nplSpread + carPenalty
+      refRate + p.banking.baseSpread.toDouble + cfg.lendingSpread.toDouble + nplSpread + carPenalty
 
   /** Check if a bank can lend a given amount. */
-  def canLend(bank: BankState, amount: Double, rng: Random, ccyb: Double = 0.0): Boolean =
+  def canLend(bank: BankState, amount: Double, rng: Random, ccyb: Double = 0.0)(using p: SimParams): Boolean =
     if bank.failed then false
     else
       val projectedCar =
@@ -162,26 +163,28 @@ object Banking:
       val approvalP = Math.max(0.1, 1.0 - bank.nplRatio * 3.0)
       val minCar = Macroprudential.effectiveMinCar(bank.id.toInt, ccyb)
       val carOk = projectedCar >= minCar
-      val lcrOk = if sfc.config.Config.BankLcrEnabled then bank.lcr >= sfc.config.Config.BankLcrMin else true
-      val nsfrOk = if sfc.config.Config.BankLcrEnabled then bank.nsfr >= sfc.config.Config.BankNsfrMin else true
+      val lcrOk = if p.flags.bankLcr then bank.lcr >= p.banking.lcrMin else true
+      val nsfrOk = if p.flags.bankLcr then bank.nsfr >= p.banking.nsfrMin else true
       carOk && lcrOk && nsfrOk && rng.nextDouble() < approvalP
 
   /** Compute interbank rate (WIBOR proxy). stress = 0 → deposit rate; stress = 1 → lombard rate.
     */
-  def interbankRate(banks: Vector[BankState], refRate: Double): Double =
+  def interbankRate(banks: Vector[BankState], refRate: Double)(using p: SimParams): Double =
     val aggNpl = banks.filterNot(_.failed).kahanSumBy(_.nplAmount.toDouble)
     val aggLoans = banks.filterNot(_.failed).kahanSumBy(_.loans.toDouble)
     val aggNplRate = if aggLoans > 1.0 then aggNpl / aggLoans else 0.0
-    val stress = Math.max(0.0, Math.min(1.0, aggNplRate / sfc.config.Config.BankStressThreshold))
+    val stress = Math.max(0.0, Math.min(1.0, aggNplRate / p.banking.stressThreshold.toDouble))
     val depositRate = Math.max(0.0, refRate - 0.01)
     val lombardRate = refRate + 0.01
     depositRate + stress * (lombardRate - depositRate)
 
   /** Clear the interbank market: excess reserves → lender/borrower netting. */
-  def clearInterbank(banks: Vector[BankState], configs: Vector[Config], rate: Double): Vector[BankState] =
+  def clearInterbank(banks: Vector[BankState], configs: Vector[Config], rate: Double)(using
+    p: SimParams,
+  ): Vector[BankState] =
     val excess = banks.zip(configs).map { (b, _) =>
       if b.failed then 0.0
-      else (b.deposits * (1.0 - sfc.config.Config.BankReserveReq) - b.loans - b.govBondHoldings).toDouble
+      else (b.deposits * (1.0 - p.banking.reserveReq.toDouble) - b.loans - b.govBondHoldings).toDouble
     }
     val totalLending = excess.filter(_ > 0).kahanSum
     val totalBorrowing = -excess.filter(_ < 0).kahanSum
@@ -205,9 +208,9 @@ object Banking:
   def checkFailures(
     banks: Vector[BankState],
     month: Int,
-    enabled: Boolean = sfc.config.Config.BankFailureEnabled,
+    enabled: Boolean,
     ccyb: Double = 0.0,
-  ): (Vector[BankState], Boolean) =
+  )(using p: SimParams): (Vector[BankState], Boolean) =
     if !enabled then (banks.map(b => b.copy(consecutiveLowCar = 0)), false)
     else
       var anyFailed = false
@@ -216,7 +219,7 @@ object Banking:
         else
           val minCar = Macroprudential.effectiveMinCar(b.id.toInt, ccyb)
           val lowCar = b.car < minCar
-          val lcrBreach = sfc.config.Config.BankLcrEnabled && b.lcr < sfc.config.Config.BankLcrMin * 0.5
+          val lcrBreach = p.flags.bankLcr && b.lcr < p.banking.lcrMin * 0.5
           val newConsec = if lowCar then b.consecutiveLowCar + 1 else 0
           if newConsec >= 3 || lcrBreach then
             anyFailed = true
@@ -226,24 +229,24 @@ object Banking:
       (updated, anyFailed)
 
   /** Compute monthly BFG levy for all banks. Returns per-bank vector + total. */
-  def computeBfgLevy(banks: Vector[BankState]): (Vector[Double], Double) =
+  def computeBfgLevy(banks: Vector[BankState])(using p: SimParams): (Vector[Double], Double) =
     val perBank = banks.map { b =>
       if b.failed then 0.0
-      else (b.deposits * sfc.config.Config.BfgLevyRate / 12.0).toDouble
+      else (b.deposits * p.banking.bfgLevyRate.toDouble / 12.0).toDouble
     }
     (perBank, perBank.kahanSum)
 
   /** Apply bail-in: haircut uninsured deposits on newly failed banks. Returns (updated banks, total bail-in loss).
     */
-  def applyBailIn(banks: Vector[BankState]): (Vector[BankState], Double) =
-    if !sfc.config.Config.BailInEnabled then (banks, 0.0)
+  def applyBailIn(banks: Vector[BankState])(using p: SimParams): (Vector[BankState], Double) =
+    if !p.flags.bailIn then (banks, 0.0)
     else
       var totalBailIn = 0.0
       val updated = banks.map { b =>
         if b.failed && b.deposits > PLN.Zero then
-          val guaranteed = b.deposits.min(PLN(sfc.config.Config.BfgDepositGuarantee))
+          val guaranteed = b.deposits.min(PLN(p.banking.bfgDepositGuarantee.toDouble))
           val uninsured = b.deposits - guaranteed
-          val haircut = uninsured * sfc.config.Config.BailInDepositHaircut
+          val haircut = uninsured * p.banking.bailInDepositHaircut.toDouble
           totalBailIn += haircut.toDouble
           b.copy(deposits = b.deposits - haircut)
         else b
@@ -321,21 +324,23 @@ object Banking:
     }
 
   /** Compute reserve interest for a single bank (monthly). */
-  def reserveInterest(bank: BankState, refRate: Double): Double =
+  def reserveInterest(bank: BankState, refRate: Double)(using p: SimParams): Double =
     if bank.failed || bank.reservesAtNbp <= PLN.Zero then 0.0
-    else (bank.reservesAtNbp * refRate * sfc.config.Config.NbpReserveRateMult / 12.0).toDouble
+    else (bank.reservesAtNbp * refRate * p.monetary.reserveRateMult.toDouble / 12.0).toDouble
 
   /** Compute reserve interest for all banks. Returns per-bank vector + total. */
-  def computeReserveInterest(banks: Vector[BankState], refRate: Double): (Vector[Double], Double) =
+  def computeReserveInterest(banks: Vector[BankState], refRate: Double)(using SimParams): (Vector[Double], Double) =
     val perBank = banks.map(b => reserveInterest(b, refRate))
     (perBank, perBank.kahanSum)
 
   /** Compute standing facility flows for all banks (monthly). */
-  def computeStandingFacilities(banks: Vector[BankState], refRate: Double): (Vector[Double], Double) =
-    if !sfc.config.Config.NbpStandingFacilities then (banks.map(_ => 0.0), 0.0)
+  def computeStandingFacilities(banks: Vector[BankState], refRate: Double)(using
+    p: SimParams,
+  ): (Vector[Double], Double) =
+    if !p.flags.nbpStandingFacilities then (banks.map(_ => 0.0), 0.0)
     else
-      val depositRate = Math.max(0.0, refRate - sfc.config.Config.NbpDepositFacilitySpread)
-      val lombardRate = refRate + sfc.config.Config.NbpLombardSpread
+      val depositRate = Math.max(0.0, refRate - p.monetary.depositFacilitySpread.toDouble)
+      val lombardRate = refRate + p.monetary.lombardSpread.toDouble
       val perBank = banks.map { b =>
         if b.failed then 0.0
         else if b.reservesAtNbp > PLN.Zero then (b.reservesAtNbp * depositRate / 12.0).toDouble

@@ -3,6 +3,7 @@ package sfc.agents
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import sfc.accounting.GovState
+import sfc.config.SimParams
 import sfc.types.*
 
 import scala.util.Random
@@ -10,8 +11,7 @@ import scala.util.Random
 /** Social transfers (800+ child benefit) unit tests. */
 class SocialTransferSpec extends AnyFlatSpec with Matchers:
 
-  // Note: Config.Social800Enabled is false by default, so computeSocialTransfer returns 0.
-  // Tests verify formula logic directly.
+  given SimParams = SimParams.defaults
 
   "computeSocialTransfer" should "return 0 when disabled (default)" in {
     Household.computeSocialTransfer(2) shouldBe 0.0
@@ -25,7 +25,7 @@ class SocialTransferSpec extends AnyFlatSpec with Matchers:
     Household.computeSocialTransfer(-1) shouldBe 0.0
   }
 
-  // --- Formula verification (independent of Config.Social800Enabled) ---
+  // --- Formula verification (independent of p.flags.social800) ---
 
   "Social transfer formula" should "compute rate * children" in {
     // 2 children × 800 PLN = 1600 PLN/month

@@ -1,7 +1,7 @@
 package sfc
 
 import sfc.agents.*
-import sfc.config.{Config, SectorDefs}
+import sfc.config.{SectorDefs, SimParams}
 import sfc.engine.*
 import sfc.engine.mechanisms.Macroprudential
 import sfc.types.*
@@ -97,7 +97,9 @@ object SimOutput:
     val living: Vector[Firm.State],
     val nLiving: Double,
     val aliveBanks: Vector[Banking.BankState],
+    val p: SimParams,
   ):
+    given SimParams = p
     lazy val sectorAuto: IndexedSeq[Double] = SectorDefs.indices.map { s =>
       val secFirms = living.filter(_.sector.toInt == s)
       if secFirms.isEmpty then 0.0
@@ -107,7 +109,7 @@ object SimOutput:
           .toDouble / secFirms.length
     }
 
-    inline def unemployPct: Double = world.hh.unemploymentRate
+    inline def unemployPct: Double = world.hh.unemploymentRate(world.totalPopulation)
 
   /** The schema: ordered sequence of (name, computation) pairs. SINGLE SOURCE OF TRUTH. */
   private val schema: IndexedSeq[ColumnDef] = IndexedSeq(
@@ -153,7 +155,7 @@ object SimOutput:
     ColumnDef("ImportedInterm", ctx => ctx.world.bop.importedIntermediates.toDouble),
     ColumnDef("FDI", ctx => ctx.world.bop.fdi.toDouble),
     ColumnDef("UnempBenefitSpend", ctx => ctx.world.gov.unempBenefitSpend.toDouble),
-    ColumnDef("OutputGap", ctx => (ctx.unemployPct - Config.NbpNairu) / Config.NbpNairu),
+    ColumnDef("OutputGap", ctx => (ctx.unemployPct - ctx.p.monetary.nairu.toDouble) / ctx.p.monetary.nairu.toDouble),
     // Bond market
     ColumnDef("BondYield", ctx => ctx.world.gov.bondYield.toDouble),
     ColumnDef("BondsOutstanding", ctx => ctx.world.gov.bondsOutstanding.toDouble),
@@ -165,7 +167,7 @@ object SimOutput:
     // FX
     ColumnDef("FxReserves", ctx => ctx.world.nbp.fxReserves.toDouble),
     ColumnDef("FxInterventionAmt", ctx => ctx.world.nbp.lastFxTraded.toDouble),
-    ColumnDef("FxInterventionActive", ctx => if Config.NbpFxIntervention then 1.0 else 0.0),
+    ColumnDef("FxInterventionActive", ctx => if ctx.p.flags.nbpFxIntervention then 1.0 else 0.0),
     // Interbank
     ColumnDef("InterbankRate", ctx => ctx.world.bankingSector.interbankRate.toDouble),
     ColumnDef("MinBankCAR", ctx => if ctx.aliveBanks.isEmpty then 0.0 else ctx.aliveBanks.map(_.car).min),
@@ -187,7 +189,10 @@ object SimOutput:
     ColumnDef("JstDeposits", ctx => ctx.world.jst.deposits.toDouble),
     ColumnDef("JstDeficit", ctx => ctx.world.jst.deficit.toDouble),
     // LCR/NSFR
-    ColumnDef("MinBankLCR", ctx => if ctx.aliveBanks.isEmpty then 0.0 else ctx.aliveBanks.map(_.lcr).min),
+    ColumnDef(
+      "MinBankLCR",
+      ctx => { given SimParams = ctx.p; if ctx.aliveBanks.isEmpty then 0.0 else ctx.aliveBanks.map(_.lcr).min },
+    ),
     ColumnDef("MinBankNSFR", ctx => if ctx.aliveBanks.isEmpty then 0.0 else ctx.aliveBanks.map(_.nsfr).min),
     ColumnDef(
       "AvgTermDepositFrac",
@@ -219,7 +224,10 @@ object SimOutput:
       "EffectiveMinCar",
       ctx =>
         if ctx.aliveBanks.isEmpty then 0.0
-        else ctx.aliveBanks.map(b => Macroprudential.effectiveMinCar(b.id.toInt, ctx.world.macropru.ccyb.toDouble)).max,
+        else {
+          given SimParams = ctx.p;
+          ctx.aliveBanks.map(b => Macroprudential.effectiveMinCar(b.id.toInt, ctx.world.macropru.ccyb.toDouble)).max
+        },
     ),
     // GPW Equity Market
     ColumnDef("GpwIndex", ctx => ctx.world.equity.index),
@@ -334,8 +342,10 @@ object SimOutput:
     ColumnDef(
       "CapitalDepreciation",
       ctx =>
-        if Config.PhysCapEnabled then
-          ctx.living.kahanSumBy(f => (f.capitalStock * Config.PhysCapDepRates(f.sector.toInt) / 12.0).toDouble)
+        if ctx.p.flags.physCap then
+          ctx.living.kahanSumBy(f =>
+            (f.capitalStock * ctx.p.capital.depRates.map(_.toDouble)(f.sector.toInt) / 12.0).toDouble,
+          )
         else 0.0,
     ),
     // Excise & Customs
@@ -439,10 +449,10 @@ object SimOutput:
     world: World,
     firms: Vector[Firm.State],
     households: Vector[Household.State],
-  ): Array[Double] =
+  )(using p: SimParams): Array[Double] =
     val living = firms.filter(Firm.isAlive)
     val aliveBanks = world.bankingSector.banks.filterNot(_.failed).toVector
-    val ctx = Ctx(t, world, firms, households, living, living.length.toDouble, aliveBanks)
+    val ctx = Ctx(t, world, firms, households, living, living.length.toDouble, aliveBanks, p)
     val result = new Array[Double](schema.length)
     var i = 0
     while i < schema.length do

@@ -8,6 +8,9 @@ import scala.util.Random
 
 class NetworkPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks:
 
+  import sfc.config.SimParams
+  given SimParams = SimParams.defaults
+
   implicit override val generatorDrivenConfig: PropertyCheckConfiguration =
     PropertyCheckConfiguration(minSuccessful = 50)
 

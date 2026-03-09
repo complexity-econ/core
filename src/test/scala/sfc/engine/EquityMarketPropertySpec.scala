@@ -10,6 +10,9 @@ import sfc.types.*
 
 class EquityMarketPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks:
 
+  import sfc.config.SimParams
+  given SimParams = SimParams.defaults
+
   implicit override val generatorDrivenConfig: PropertyCheckConfiguration =
     PropertyCheckConfiguration(minSuccessful = 200)
 

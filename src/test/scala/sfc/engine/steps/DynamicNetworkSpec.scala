@@ -9,6 +9,9 @@ import scala.util.Random
 
 class DynamicNetworkSpec extends AnyFlatSpec with Matchers:
 
+  import sfc.config.SimParams
+  given SimParams = SimParams.defaults
+
   "PriceEquityStep.rewireFirms" should "return unchanged firms when rho=0" in {
     Random.setSeed(42)
     val firms = mkFirms(20)

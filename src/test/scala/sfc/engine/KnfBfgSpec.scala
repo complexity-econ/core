@@ -4,39 +4,42 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import sfc.accounting.{BankingAggregate, ForexState, GovState}
 import sfc.agents.Banking
-import sfc.config.Config
 import sfc.engine.mechanisms.Macroprudential
 import sfc.types.*
 
 class KnfBfgSpec extends AnyFlatSpec with Matchers:
+
+  import sfc.config.SimParams
+  given SimParams = SimParams.defaults
+  private val p: SimParams = summon[SimParams]
 
   // ==========================================================================
   // Config defaults (5 tests)
   // ==========================================================================
 
   "P2rAddons" should "default to 7 values" in {
-    Config.P2rAddons.length shouldBe 7
+    p.banking.p2rAddons.map(_.toDouble).length shouldBe 7
   }
 
   it should "have PKO BP = 1.5%, mBank = 3.0%" in {
-    Config.P2rAddons(0) shouldBe 0.015 // PKO BP
-    Config.P2rAddons(2) shouldBe 0.030 // mBank
+    p.banking.p2rAddons.map(_.toDouble)(0) shouldBe 0.015 // PKO BP
+    p.banking.p2rAddons.map(_.toDouble)(2) shouldBe 0.030 // mBank
   }
 
   "BfgLevyRate" should "default to 0.0024" in {
-    Config.BfgLevyRate shouldBe 0.0024
+    p.banking.bfgLevyRate.toDouble shouldBe 0.0024
   }
 
   "BailInEnabled" should "default to false" in {
-    Config.BailInEnabled shouldBe false
+    p.flags.bailIn shouldBe false
   }
 
   "BailInDepositHaircut" should "default to 0.08" in {
-    Config.BailInDepositHaircut shouldBe 0.08
+    p.banking.bailInDepositHaircut.toDouble shouldBe 0.08
   }
 
   "BfgDepositGuarantee" should "default to 400000" in {
-    Config.BfgDepositGuarantee shouldBe 400000.0
+    p.banking.bfgDepositGuarantee.toDouble shouldBe 400000.0
   }
 
   // ==========================================================================
@@ -54,14 +57,15 @@ class KnfBfgSpec extends AnyFlatSpec with Matchers:
   }
 
   it should "fall back to last value for out-of-range bankId" in {
-    Macroprudential.p2rAddon(7) shouldBe Config.P2rAddons.last
-    Macroprudential.p2rAddon(99) shouldBe Config.P2rAddons.last
+    Macroprudential.p2rAddon(7) shouldBe p.banking.p2rAddons.map(_.toDouble).last
+    Macroprudential.p2rAddon(99) shouldBe p.banking.p2rAddons.map(_.toDouble).last
   }
 
   "effectiveMinCarInternal" should "include P2R in total" in {
     val ccyb = 0.01
     val bankId = 0 // PKO BP: OSII=1%, P2R=1.5%
-    val expected = Config.MinCar + ccyb + Config.OsiiPkoBp + Config.P2rAddons(0)
+    val expected =
+      p.banking.minCar.toDouble + ccyb + p.banking.osiiPkoBp.toDouble + p.banking.p2rAddons.map(_.toDouble)(0)
     Macroprudential.effectiveMinCarInternal(bankId, ccyb) shouldBe expected +- 1e-10
   }
 
@@ -72,8 +76,8 @@ class KnfBfgSpec extends AnyFlatSpec with Matchers:
     // PKO BP (id=0): OSII=1%, P2R=1.5%
     val pkoCar = Macroprudential.effectiveMinCarInternal(0, ccyb)
     // mBank P2R (3%) > PKO OSII+P2R (1%+1.5%)
-    mBankCar shouldBe Config.MinCar + 0.030
-    pkoCar shouldBe Config.MinCar + 0.010 + 0.015
+    mBankCar shouldBe p.banking.minCar.toDouble + 0.030
+    pkoCar shouldBe p.banking.minCar.toDouble + 0.010 + 0.015
   }
 
   // ==========================================================================
@@ -97,7 +101,7 @@ class KnfBfgSpec extends AnyFlatSpec with Matchers:
       ),
     )
     val (perBank, total) = Banking.computeBfgLevy(banks)
-    val expected = 1200000.0 * Config.BfgLevyRate / 12.0
+    val expected = 1200000.0 * p.banking.bfgLevyRate.toDouble / 12.0
     perBank(0) shouldBe expected +- 0.01
     total shouldBe expected +- 0.01
   }
@@ -166,7 +170,7 @@ class KnfBfgSpec extends AnyFlatSpec with Matchers:
       ),
     )
     val (perBank, total) = Banking.computeBfgLevy(banks)
-    val expected = (1000000.0 + 2000000.0) * Config.BfgLevyRate / 12.0
+    val expected = (1000000.0 + 2000000.0) * p.banking.bfgLevyRate.toDouble / 12.0
     total shouldBe expected +- 0.01
     perBank(2) shouldBe 0.0
   }
@@ -416,7 +420,7 @@ class KnfBfgSpec extends AnyFlatSpec with Matchers:
 
   "P2R" should "raise effectiveMinCar above base MinCar" in {
     val carWithP2r = Macroprudential.effectiveMinCarInternal(0, 0.0)
-    carWithP2r should be > Config.MinCar
+    carWithP2r should be > p.banking.minCar.toDouble
   }
 
   it should "vary across banks" in {
@@ -437,7 +441,7 @@ class KnfBfgSpec extends AnyFlatSpec with Matchers:
   "BFG levy" should "reduce bank capital" in {
     // A bank with positive deposits should have lower capital after BFG levy
     val deposits = 1000000.0
-    val levy = deposits * Config.BfgLevyRate / 12.0
+    val levy = deposits * p.banking.bfgLevyRate.toDouble / 12.0
     levy should be > 0.0
     // Capital reduction equals levy
     val originalCapital = 100000.0

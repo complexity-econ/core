@@ -11,6 +11,9 @@ import sfc.types.*
 
 /** Monetary plumbing property-based tests. */
 class MonetaryPlumbingPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks:
+
+  import sfc.config.SimParams
+  given SimParams = SimParams.defaults
   override implicit val generatorDrivenConfig: PropertyCheckConfiguration =
     PropertyCheckConfiguration(minSuccessful = 200)
 

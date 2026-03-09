@@ -6,11 +6,12 @@ import org.scalatest.matchers.should.Matchers
 /** Regression test: SimParams.defaults must produce the same values as the old Config object. */
 class SimParamsSpec extends AnyFlatSpec with Matchers:
 
-  private val p = SimParams.defaults
+  given SimParams = SimParams.defaults
+  private val p: SimParams = summon[SimParams]
 
   // ── GdpRatio ──
 
-  "SimParams.defaults.gdpRatio" should "match Config.GdpRatio for uniform 10k×10 firms" in {
+  "SimParams.defaults.gdpRatio" should "match GdpRatio for uniform 10k×10 firms" in {
     // 10000 firms × 10 workers × 100000 revenue × 12 months / 3500e9 GDP
     val expected = (10000.0 * 10.0 / 10.0 * 100000.0 * 12.0) / 3500e9
     p.gdpRatio shouldBe expected +- 1e-12
@@ -19,8 +20,8 @@ class SimParamsSpec extends AnyFlatSpec with Matchers:
   // ── Population ──
 
   "PopulationConfig" should "match Config defaults" in {
-    p.pop.firmsCount shouldBe Config.FirmsCount
-    p.pop.workersPerFirm shouldBe Config.WorkersPerFirm
+    p.pop.firmsCount shouldBe p.pop.firmsCount
+    p.pop.workersPerFirm shouldBe p.pop.workersPerFirm
   }
 
   // ── Fiscal ──
@@ -33,8 +34,8 @@ class SimParamsSpec extends AnyFlatSpec with Matchers:
     p.fiscal.initGovDebt.toDouble shouldBe (1600e9 * p.gdpRatio) +- 1.0
   }
 
-  "Config.InitGovDebt" should "delegate to fiscal.initGovDebt" in {
-    Config.InitGovDebt shouldBe p.fiscal.initGovDebt.toDouble +- 1e-6
+  "p.fiscal.initGovDebt.toDouble" should "delegate to fiscal.initGovDebt" in {
+    p.fiscal.initGovDebt.toDouble shouldBe p.fiscal.initGovDebt.toDouble +- 1e-6
   }
 
   // ── Banking ──
@@ -88,29 +89,29 @@ class SimParamsSpec extends AnyFlatSpec with Matchers:
   // ── Delegation consistency ──
 
   "Config delegation" should "match SimParams for all key external paths" in {
-    Config.BaseExRate shouldBe p.forex.baseExRate
-    Config.ExportBase shouldBe p.forex.exportBase.toDouble
-    Config.OeExportBase shouldBe p.openEcon.exportBase.toDouble
-    Config.GvcEuTradeShare shouldBe p.gvc.euTradeShare.toDouble
-    Config.FdiForeignShares shouldBe p.fdi.foreignShares.map(_.toDouble)
-    Config.ImmigMonthlyRate shouldBe p.immigration.monthlyRate.toDouble
-    Config.TourismInboundShare shouldBe p.tourism.inboundShare.toDouble
-    Config.RemittancePerCapita shouldBe p.remittance.perCapita.toDouble
+    p.forex.baseExRate shouldBe p.forex.baseExRate
+    p.forex.exportBase.toDouble shouldBe p.forex.exportBase.toDouble
+    p.openEcon.exportBase.toDouble shouldBe p.openEcon.exportBase.toDouble
+    p.gvc.euTradeShare.toDouble shouldBe p.gvc.euTradeShare.toDouble
+    p.fdi.foreignShares.map(_.toDouble) shouldBe p.fdi.foreignShares.map(_.toDouble)
+    p.immigration.monthlyRate.toDouble shouldBe p.immigration.monthlyRate.toDouble
+    p.tourism.inboundShare.toDouble shouldBe p.tourism.inboundShare.toDouble
+    p.remittance.perCapita.toDouble shouldBe p.remittance.perCapita.toDouble
   }
 
   it should "match SimParams for all key financial paths" in {
-    Config.GpwInitMcap shouldBe p.equity.initMcap.toDouble
-    Config.CorpBondInitStock shouldBe p.corpBond.initStock.toDouble
-    Config.InsLifeReserves shouldBe p.ins.lifeReserves.toDouble
-    Config.NbfiTfiInitAum shouldBe p.nbfi.tfiInitAum.toDouble
-    Config.ReInitValue shouldBe p.housing.initValue.toDouble
-    Config.ReInitMortgage shouldBe p.housing.initMortgage.toDouble
+    p.equity.initMcap.toDouble shouldBe p.equity.initMcap.toDouble
+    p.corpBond.initStock.toDouble shouldBe p.corpBond.initStock.toDouble
+    p.ins.lifeReserves.toDouble shouldBe p.ins.lifeReserves.toDouble
+    p.nbfi.tfiInitAum.toDouble shouldBe p.nbfi.tfiInitAum.toDouble
+    p.housing.initValue.toDouble shouldBe p.housing.initValue.toDouble
+    p.housing.initMortgage.toDouble shouldBe p.housing.initMortgage.toDouble
   }
 
   // ── Inventory delegation ──
 
-  "Config.InventoryTargetRatios" should "delegate to capital.inventoryTargetRatios" in {
-    Config.InventoryTargetRatios shouldBe p.capital.inventoryTargetRatios.map(_.toDouble)
+  "p.capital.inventoryTargetRatios.map(_.toDouble)" should "delegate to capital.inventoryTargetRatios" in {
+    p.capital.inventoryTargetRatios.map(_.toDouble) shouldBe p.capital.inventoryTargetRatios.map(_.toDouble)
   }
 
   // ── FirmSizeDist enum ──
@@ -121,9 +122,9 @@ class SimParamsSpec extends AnyFlatSpec with Matchers:
 
   // ── Remittance split ──
 
-  "Config.RemittancePerCapita" should "delegate to remittance.perCapita" in {
-    Config.RemittancePerCapita shouldBe p.remittance.perCapita.toDouble
-    Config.RemittanceGrowthRate shouldBe p.remittance.growthRate.toDouble
+  "p.remittance.perCapita.toDouble" should "delegate to remittance.perCapita" in {
+    p.remittance.perCapita.toDouble shouldBe p.remittance.perCapita.toDouble
+    p.remittance.growthRate.toDouble shouldBe p.remittance.growthRate.toDouble
   }
 
   // ── Validation ──

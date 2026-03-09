@@ -1,6 +1,6 @@
 package sfc.engine.mechanisms
 
-import sfc.config.Config
+import sfc.config.SimParams
 import sfc.types.*
 
 object Macroprudential:
@@ -18,29 +18,30 @@ object Macroprudential:
   /** OSII buffer for a specific bank (based on bank ID). Systemically important banks get higher buffers. PKO BP
     * (id=0): 1.0%, Pekao (id=1): 0.5%, others: 0%.
     */
-  def osiiBuffer(bankId: Int): Double =
-    if !Config.MacropruEnabled then 0.0
+  def osiiBuffer(bankId: Int)(using p: SimParams): Double =
+    if !p.flags.macropru then 0.0
     else osiiBufferInternal(bankId)
 
   /** Internal OSII buffer (always computes, for testing). */
-  private[engine] def osiiBufferInternal(bankId: Int): Double = bankId match
-    case 0 => Config.OsiiPkoBp // PKO BP
-    case 1 => Config.OsiiPekao // Pekao
+  private[engine] def osiiBufferInternal(bankId: Int)(using p: SimParams): Double = bankId match
+    case 0 => p.banking.osiiPkoBp.toDouble // PKO BP
+    case 1 => p.banking.osiiPekao.toDouble // Pekao
     case _ => 0.0
 
   /** Effective minimum CAR for a specific bank: base MinCar + CCyB + OSII + P2R. */
-  def effectiveMinCar(bankId: Int, ccyb: Double): Double =
-    if !Config.MacropruEnabled then Config.MinCar
-    else Config.MinCar + ccyb + osiiBufferInternal(bankId) + p2rAddon(bankId)
+  def effectiveMinCar(bankId: Int, ccyb: Double)(using p: SimParams): Double =
+    if !p.flags.macropru then p.banking.minCar.toDouble
+    else p.banking.minCar.toDouble + ccyb + osiiBufferInternal(bankId) + p2rAddon(bankId)
 
   /** Internal effectiveMinCar (always computes, for testing). */
-  private[engine] def effectiveMinCarInternal(bankId: Int, ccyb: Double): Double =
-    Config.MinCar + ccyb + osiiBufferInternal(bankId) + p2rAddon(bankId)
+  private[engine] def effectiveMinCarInternal(bankId: Int, ccyb: Double)(using p: SimParams): Double =
+    p.banking.minCar.toDouble + ccyb + osiiBufferInternal(bankId) + p2rAddon(bankId)
 
   /** Pillar 2 Requirement (P2R) for a specific bank (KNF BION/SREP). */
-  private[engine] def p2rAddon(bankId: Int): Double =
-    if bankId >= 0 && bankId < Config.P2rAddons.length then Config.P2rAddons(bankId)
-    else Config.P2rAddons.last
+  private[engine] def p2rAddon(bankId: Int)(using p: SimParams): Double =
+    if bankId >= 0 && bankId < p.banking.p2rAddons.map(_.toDouble).length then
+      p.banking.p2rAddons.map(_.toDouble)(bankId)
+    else p.banking.p2rAddons.map(_.toDouble).last
 
   /** Update macroprudential state. Computes credit-to-GDP gap and CCyB.
     *
@@ -49,12 +50,12 @@ object Macroprudential:
     *
     * HP filter approximated by exponential smoothing (λ=0.05 monthly ≈ quarterly HP 1600).
     */
-  def step(prev: State, totalLoans: Double, gdp: Double): State =
-    if !Config.MacropruEnabled then prev
+  def step(prev: State, totalLoans: Double, gdp: Double)(using p: SimParams): State =
+    if !p.flags.macropru then prev
     else stepInternal(prev, totalLoans, gdp)
 
   /** Internal step (always computes, for testing). */
-  private[engine] def stepInternal(prev: State, totalLoans: Double, gdp: Double): State =
+  private[engine] def stepInternal(prev: State, totalLoans: Double, gdp: Double)(using p: SimParams): State =
     // Credit-to-GDP ratio (annualized GDP)
     val annualGdp = Math.max(1.0, gdp * 12.0)
     val creditToGdp = totalLoans / annualGdp
@@ -72,18 +73,20 @@ object Macroprudential:
     // - gap > activation threshold → build CCyB (gradual, up to max)
     // - gap < release threshold → release immediately (countercyclical)
     val newCcyb =
-      if gap > Config.CcybActivationGap then
+      if gap > p.banking.ccybActivationGap.toDouble then
         // Build gradually: add 0.25pp per quarter of exceedance
-        Rate(Math.min(Config.CcybMax, prev.ccyb.toDouble + 0.0025 / 3.0)) // ~0.25pp/quarter ÷ 3 months
-      else if gap < Config.CcybReleaseGap then Rate.Zero // Immediate release
+        Rate(Math.min(p.banking.ccybMax.toDouble, prev.ccyb.toDouble + 0.0025 / 3.0)) // ~0.25pp/quarter ÷ 3 months
+      else if gap < p.banking.ccybReleaseGap then Rate.Zero // Immediate release
       else prev.ccyb // Maintain current buffer
 
     State(newCcyb, gap, newTrend)
 
   /** Check concentration limit: bank's loan share should not exceed limit × capital. Returns true if within limit.
     */
-  def withinConcentrationLimit(bankLoans: Double, bankCapital: Double, totalSystemLoans: Double): Boolean =
-    if !Config.MacropruEnabled || totalSystemLoans <= 0 then true
+  def withinConcentrationLimit(bankLoans: Double, bankCapital: Double, totalSystemLoans: Double)(using
+    p: SimParams,
+  ): Boolean =
+    if !p.flags.macropru || totalSystemLoans <= 0 then true
     else withinConcentrationLimitInternal(bankLoans, bankCapital, totalSystemLoans)
 
   /** Internal concentration limit check (always computes, for testing). */
@@ -91,8 +94,8 @@ object Macroprudential:
     bankLoans: Double,
     bankCapital: Double,
     totalSystemLoans: Double,
-  ): Boolean =
+  )(using p: SimParams): Boolean =
     if totalSystemLoans <= 0 then true
     else
       val loanShare = bankLoans / totalSystemLoans
-      loanShare <= Config.ConcentrationLimit
+      loanShare <= p.banking.concentrationLimit.toDouble

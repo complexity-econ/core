@@ -5,25 +5,44 @@ import org.scalatest.matchers.should.Matchers
 import sfc.accounting
 import sfc.accounting.GovState
 import sfc.agents.Nbp
-import sfc.config.{Config, RunConfig}
+import sfc.config.{RunConfig, SimParams}
 import sfc.engine.markets.{FiscalBudget, LaborMarket, PriceLevel}
 import sfc.types.*
 
 class SimulationSpec extends AnyFlatSpec with Matchers:
 
+  given SimParams = SimParams.defaults
+  private val p: SimParams = summon[SimParams]
+  private val totalPop = p.pop.firmsCount * p.pop.workersPerFirm
+
   // --- updateLaborMarket ---
 
   "LaborMarket.updateLaborMarket" should "increase wage when demand exceeds supply" in {
-    val (wage1, _) = LaborMarket.updateLaborMarket(Config.BaseWage, Config.BaseReservationWage, Config.TotalPopulation)
+    val (wage1, _) = LaborMarket.updateLaborMarket(
+      p.household.baseWage.toDouble,
+      p.household.baseReservationWage.toDouble,
+      totalPop,
+      totalPop,
+    )
     val (wage2, _) =
-      LaborMarket.updateLaborMarket(Config.BaseWage, Config.BaseReservationWage, Config.TotalPopulation * 2)
+      LaborMarket.updateLaborMarket(
+        p.household.baseWage.toDouble,
+        p.household.baseReservationWage.toDouble,
+        totalPop * 2,
+        totalPop,
+      )
     wage2 should be > wage1
   }
 
   it should "keep wage at or above reservation wage" in {
     // Very low demand → wage should still be >= reservation
-    val (wage, _) = LaborMarket.updateLaborMarket(Config.BaseWage, Config.BaseReservationWage, 0)
-    wage should be >= Config.BaseReservationWage
+    val (wage, _) = LaborMarket.updateLaborMarket(
+      p.household.baseWage.toDouble,
+      p.household.baseReservationWage.toDouble,
+      0,
+      totalPop,
+    )
+    wage should be >= p.household.baseReservationWage.toDouble
   }
 
   // --- updateInflation ---
@@ -61,18 +80,18 @@ class SimulationSpec extends AnyFlatSpec with Matchers:
 
   "Nbp.updateRate" should "increase rate when inflation rises (PLN)" in {
     val rc = RunConfig(1, "test")
-    val rate1 = Nbp.updateRate(0.0575, 0.03, 0.0, Config.TotalPopulation * 95 / 100, rc)
-    val rate2 = Nbp.updateRate(0.0575, 0.10, 0.0, Config.TotalPopulation * 95 / 100, rc)
+    val rate1 = Nbp.updateRate(0.0575, 0.03, 0.0, totalPop * 95 / 100, totalPop, rc)
+    val rate2 = Nbp.updateRate(0.0575, 0.10, 0.0, totalPop * 95 / 100, totalPop, rc)
     rate2 should be > rate1
   }
 
   it should "bound rate between floor and ceiling" in {
     val rc = RunConfig(1, "test")
-    val rateLow = Nbp.updateRate(0.005, -0.50, 0.0, Config.TotalPopulation * 95 / 100, rc)
-    rateLow should be >= Config.RateFloor
+    val rateLow = Nbp.updateRate(0.005, -0.50, 0.0, totalPop * 95 / 100, totalPop, rc)
+    rateLow should be >= p.monetary.rateFloor.toDouble
 
-    val rateHigh = Nbp.updateRate(0.25, 1.0, 0.5, Config.TotalPopulation * 95 / 100, rc)
-    rateHigh should be <= Config.RateCeiling
+    val rateHigh = Nbp.updateRate(0.25, 1.0, 0.5, totalPop * 95 / 100, totalPop, rc)
+    rateHigh should be <= p.monetary.rateCeiling.toDouble
   }
 
   // --- updateGov ---
@@ -86,7 +105,7 @@ class SimulationSpec extends AnyFlatSpec with Matchers:
       priceLevel = 1.0,
       unempBenefitSpend = 0,
     )
-    result.deficit.toDouble shouldBe (Config.GovBaseSpending - 300000) +- 1.0
+    result.deficit.toDouble shouldBe (p.fiscal.govBaseSpending.toDouble - 300000) +- 1.0
   }
 
   it should "accumulate debt" in {

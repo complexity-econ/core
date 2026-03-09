@@ -5,6 +5,9 @@ import org.scalatest.matchers.should.Matchers
 
 class SigmaDynamicsSpec extends AnyFlatSpec with Matchers:
 
+  import sfc.config.SimParams
+  given SimParams = SimParams.defaults
+
   "PriceEquityStep.evolveSigmas" should "return unchanged sigmas when lambda=0" in {
     val current = Vector(50.0, 10.0, 5.0, 2.0, 1.0, 3.0)
     val adoption = Vector(0.5, 0.3, 0.2, 0.1, 0.0, 0.1)

@@ -2,15 +2,18 @@ package sfc.engine
 
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import sfc.config.Config
 import sfc.engine.markets.EquityMarket
 import sfc.types.*
 
 class EquityMarketSpec extends AnyFlatSpec with Matchers:
 
+  import sfc.config.SimParams
+  given SimParams = SimParams.defaults
+  private val p: SimParams = summon[SimParams]
+
   private val initState = EquityMarket.State(
     index = 2400.0,
-    marketCap = PLN(1.4e12 * Config.FirmsCount / 10000.0),
+    marketCap = PLN(1.4e12 * p.pop.firmsCount / 10000.0),
     earningsYield = Rate(0.10),
     dividendYield = Rate(0.057),
     foreignOwnership = Ratio(0.67),
@@ -32,13 +35,13 @@ class EquityMarketSpec extends AnyFlatSpec with Matchers:
   }
 
   "EquityMarket.step" should "return zero when GPW_ENABLED=false" in {
-    // Config.GpwEnabled is false by default, so step should return zero
+    // p.flags.gpw is false by default, so step should return zero
     val result = EquityMarket.step(initState, 0.0575, 0.025, 0.002, 1e8)
     result shouldBe EquityMarket.zero
   }
 
   "EquityMarket.step" should "keep index positive for reasonable inputs" in {
-    // Direct call testing the pure function (bypasses Config.GpwEnabled check)
+    // Direct call testing the pure function (bypasses p.flags.gpw check)
     // We test the Gordon model logic by verifying invariants
     val state = initState
     // With refRate=5.75%, ERP=5%, discount=10.75%, growth=2.4%
@@ -91,7 +94,7 @@ class EquityMarketSpec extends AnyFlatSpec with Matchers:
     val expectedTotal = divYield * mcap / 12.0
     val expectedForeign = expectedTotal * foreignShare
     val expectedDomGross = expectedTotal - expectedForeign
-    val expectedTax = expectedDomGross * Config.GpwDivTax
+    val expectedTax = expectedDomGross * p.equity.divTax.toDouble
     val expectedNetDom = expectedDomGross - expectedTax
     foreign shouldBe (expectedForeign +- 1.0)
     tax shouldBe (expectedTax +- 1.0)
@@ -105,7 +108,7 @@ class EquityMarketSpec extends AnyFlatSpec with Matchers:
     foreign shouldBe 0.0
     // All dividends are domestic (minus tax)
     val total = 0.057 * 1e12 / 12.0
-    val expectedTax = total * Config.GpwDivTax
+    val expectedTax = total * p.equity.divTax.toDouble
     netDom shouldBe (total - expectedTax +- 1.0)
     tax shouldBe (expectedTax +- 1.0)
   }

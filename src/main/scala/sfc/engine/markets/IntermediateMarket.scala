@@ -1,6 +1,7 @@
 package sfc.engine.markets
 
 import sfc.agents.{Firm, TechState}
+import sfc.config.SimParams
 import sfc.types.*
 import sfc.util.KahanSum.*
 
@@ -15,7 +16,7 @@ object IntermediateMarket:
     ioMatrix: Vector[Vector[Double]],
     columnSums: Vector[Double],
     scale: Double = 1.0,
-  ): Result =
+  )(using SimParams): Result =
     val nSectors = 6
     val arr = firms.toArray
 

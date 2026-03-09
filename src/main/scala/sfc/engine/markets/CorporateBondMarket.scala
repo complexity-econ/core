@@ -1,6 +1,6 @@
 package sfc.engine.markets
 
-import sfc.config.Config
+import sfc.config.SimParams
 import sfc.types.*
 
 object CorporateBondMarket:
@@ -22,22 +22,22 @@ object CorporateBondMarket:
   )
   def zero: State = State(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, Rate.Zero)
 
-  def initial: State =
-    val stock = PLN(Config.CorpBondInitStock)
+  def initial(using p: SimParams): State =
+    val stock = PLN(p.corpBond.initStock.toDouble)
     State(
       outstanding = stock,
-      bankHoldings = stock * Config.CorpBondBankShare,
-      ppkHoldings = stock * Config.CorpBondPpkShare,
-      otherHoldings = stock * (1.0 - Config.CorpBondBankShare - Config.CorpBondPpkShare),
-      corpBondYield = Rate(0.06 + Config.CorpBondSpread),
-      creditSpread = Rate(Config.CorpBondSpread),
+      bankHoldings = stock * p.corpBond.bankShare.toDouble,
+      ppkHoldings = stock * p.corpBond.ppkShare.toDouble,
+      otherHoldings = stock * (1.0 - p.corpBond.bankShare.toDouble - p.corpBond.ppkShare.toDouble),
+      corpBondYield = Rate(0.06 + p.corpBond.spread.toDouble),
+      creditSpread = Rate(p.corpBond.spread.toDouble),
     )
 
   /** Compute current corporate bond yield = gov bond yield + credit spread. Spread widens with system NPL (credit risk
     * channel).
     */
-  def computeYield(govBondYield: Double, nplRatio: Double): Double =
-    val cyclicalSpread = Config.CorpBondSpread * (1.0 + nplRatio * 5.0)
+  def computeYield(govBondYield: Double, nplRatio: Double)(using p: SimParams): Double =
+    val cyclicalSpread = p.corpBond.spread.toDouble * (1.0 + nplRatio * 5.0)
     val spread = Math.min(0.10, cyclicalSpread)
     Math.max(0.01, govBondYield + spread)
 
@@ -51,27 +51,29 @@ object CorporateBondMarket:
 
   /** Process defaults from bankrupt firms' bond debt. Returns (grossDefault, lossAfterRecovery, bankLoss, ppkLoss).
     */
-  def processDefaults(state: State, totalBondDefault: Double): (Double, Double, Double, Double) =
+  def processDefaults(state: State, totalBondDefault: Double)(using p: SimParams): (Double, Double, Double, Double) =
     if totalBondDefault <= 0 || state.outstanding <= PLN.Zero then return (0.0, 0.0, 0.0, 0.0)
     val defaultFrac = Math.min(1.0, totalBondDefault / state.outstanding.toDouble)
     val bankDefault = state.bankHoldings.toDouble * defaultFrac
     val ppkDefault = state.ppkHoldings.toDouble * defaultFrac
-    val lossAfterRecovery = totalBondDefault * (1.0 - Config.CorpBondRecovery)
-    val bankLoss = bankDefault * (1.0 - Config.CorpBondRecovery)
-    val ppkLoss = ppkDefault * (1.0 - Config.CorpBondRecovery)
+    val lossAfterRecovery = totalBondDefault * (1.0 - p.corpBond.recovery.toDouble)
+    val bankLoss = bankDefault * (1.0 - p.corpBond.recovery.toDouble)
+    val ppkLoss = ppkDefault * (1.0 - p.corpBond.recovery.toDouble)
     (totalBondDefault, lossAfterRecovery, bankLoss, ppkLoss)
 
   /** Monthly amortization: outstanding / maturity. */
-  def amortization(state: State): Double =
-    state.outstanding.toDouble / Math.max(1.0, Config.CorpBondMaturity)
+  def amortization(state: State)(using p: SimParams): Double =
+    state.outstanding.toDouble / Math.max(1.0, p.corpBond.maturity)
 
   /** Compute market absorption rate for new bond issuance. Gate 1: spread-based investor appetite (cyclical). Gate 2:
     * bank CAR headroom (banks hold CorpBondBankShare at 50% RW). Returns absorption rate in [0.3, 1.0].
     */
-  def computeAbsorption(state: State, tentativeIssuance: Double, aggBankCar: Double, minCar: Double): Double =
+  def computeAbsorption(state: State, tentativeIssuance: Double, aggBankCar: Double, minCar: Double)(using
+    p: SimParams,
+  ): Double =
     if tentativeIssuance <= 0 then return 1.0
     // Gate 1: spread-based appetite
-    val excessSpread = Math.max(0.0, state.creditSpread.toDouble - Config.CorpBondSpread)
+    val excessSpread = Math.max(0.0, state.creditSpread.toDouble - p.corpBond.spread.toDouble)
     val spreadAbsorption = Math.max(0.3, 1.0 - excessSpread / 0.10)
     // Gate 2: bank CAR headroom (linear ramp in 200 bps buffer zone)
     val carAbsorption =
@@ -81,15 +83,15 @@ object CorporateBondMarket:
     Math.max(0.3, Math.min(1.0, spreadAbsorption * carAbsorption))
 
   /** Process new issuance: allocate to holders proportionally. */
-  def processIssuance(state: State, issuance: Double): State =
+  def processIssuance(state: State, issuance: Double)(using p: SimParams): State =
     if issuance <= 0 then return state.copy(lastIssuance = PLN.Zero)
     state.copy(
       outstanding = state.outstanding + PLN(issuance),
-      bankHoldings = state.bankHoldings + PLN(issuance * Config.CorpBondBankShare),
-      ppkHoldings = state.ppkHoldings + PLN(issuance * Config.CorpBondPpkShare),
+      bankHoldings = state.bankHoldings + PLN(issuance * p.corpBond.bankShare.toDouble),
+      ppkHoldings = state.ppkHoldings + PLN(issuance * p.corpBond.ppkShare.toDouble),
       otherHoldings = state.otherHoldings + PLN(
         issuance *
-          (1.0 - Config.CorpBondBankShare - Config.CorpBondPpkShare),
+          (1.0 - p.corpBond.bankShare.toDouble - p.corpBond.ppkShare.toDouble),
       ),
       lastIssuance = PLN(issuance),
     )
@@ -101,7 +103,7 @@ object CorporateBondMarket:
     nplRatio: Double,
     totalBondDefault: Double,
     totalBondIssuance: Double,
-  ): State =
+  )(using p: SimParams): State =
     val newYield = computeYield(govBondYield, nplRatio)
     val (_, bankCoupon, ppkCoupon) = computeCoupon(prev)
     val amort = amortization(prev)
@@ -119,7 +121,7 @@ object CorporateBondMarket:
       creditSpread = Rate(Math.max(0.0, newYield - govBondYield)),
       lastAmortization = PLN(amort),
       lastDefaultAmount = PLN(grossDefault),
-      lastDefaultLoss = PLN(grossDefault * (1.0 - Config.CorpBondRecovery)),
+      lastDefaultLoss = PLN(grossDefault * (1.0 - p.corpBond.recovery.toDouble)),
       lastCouponIncome = PLN(bankCoupon + ppkCoupon),
     )
     // Add new issuance

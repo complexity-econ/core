@@ -3,15 +3,18 @@ package sfc.engine
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import sfc.agents.Household
-import sfc.config.Config
 import sfc.types.*
 
 class MinWageSpec extends AnyFlatSpec with Matchers:
 
+  import sfc.config.SimParams
+  given SimParams = SimParams.defaults
+  private val p: SimParams = summon[SimParams]
+
   "MinWageEnabled=false" should "use BaseReservationWage" in {
-    // When disabled, baseMinWage = Config.BaseReservationWage = 4666.0
-    Config.MinWageEnabled shouldBe false
-    Config.BaseReservationWage shouldBe 4666.0
+    // When disabled, baseMinWage = p.household.baseReservationWage.toDouble = 4666.0
+    p.flags.minWage shouldBe false
+    p.household.baseReservationWage.toDouble shouldBe 4666.0
   }
 
   "Household.SectorState defaults" should "have minWageLevel=4666 and minWagePriceLevel=1.0" in {
@@ -73,7 +76,7 @@ class MinWageSpec extends AnyFlatSpec with Matchers:
   }
 
   "Default adjustment frequency" should "be 12 months" in {
-    Config.MinWageAdjustMonths shouldBe 12
+    p.fiscal.minWageAdjustMonths shouldBe 12
   }
 
   "Ratchet" should "never allow min wage to decrease" in {

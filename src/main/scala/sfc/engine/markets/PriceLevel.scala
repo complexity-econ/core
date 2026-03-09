@@ -1,6 +1,6 @@
 package sfc.engine.markets
 
-import sfc.config.{Config, RunConfig}
+import sfc.config.{RunConfig, SimParams}
 
 object PriceLevel:
 
@@ -13,12 +13,12 @@ object PriceLevel:
     autoRatio: Double,
     hybridRatio: Double,
     rc: RunConfig,
-  ): (Double, Double) =
+  )(using p: SimParams): (Double, Double) =
     val demandPull = (demandMult - 1.0) * 0.15
     val costPush = wageGrowth * 0.25
-    val rawImportPush = Math.max(0.0, exRateDeviation) * Config.ImportPropensity * 0.25
+    val rawImportPush = Math.max(0.0, exRateDeviation) * p.forex.importPropensity.toDouble * 0.25
     val importPush =
-      if Config.OeEnabled then Math.min(rawImportPush, Config.OeImportPushCap)
+      if p.flags.openEcon then Math.min(rawImportPush, p.openEcon.importPushCap.toDouble)
       else rawImportPush
     val techDeflation = autoRatio * 0.060 + hybridRatio * 0.018
     // Soft floor: beyond -1.5%/month, deflation passes through at 30% rate

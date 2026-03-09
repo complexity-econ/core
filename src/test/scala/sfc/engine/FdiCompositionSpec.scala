@@ -4,42 +4,45 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import sfc.accounting.{BankingAggregate, ForexState, GovState}
 import sfc.agents.*
-import sfc.config.{Config, RunConfig, SectorDefs}
+import sfc.config.{RunConfig, SectorDefs, SimParams}
 import sfc.types.*
 
 class FdiCompositionSpec extends AnyFlatSpec with Matchers:
 
+  given SimParams = SimParams.defaults
+  private val p: SimParams = summon[SimParams]
+
   // --- Config defaults ---
 
   "FdiEnabled" should "default to false" in {
-    Config.FdiEnabled shouldBe false
+    p.flags.fdi shouldBe false
   }
 
   "FdiForeignShares" should "have 6 values" in {
-    Config.FdiForeignShares.length shouldBe 6
+    p.fdi.foreignShares.map(_.toDouble).length shouldBe 6
   }
 
   it should "have all values in [0, 1]" in {
-    Config.FdiForeignShares.foreach { s =>
+    p.fdi.foreignShares.map(_.toDouble).foreach { s =>
       s should be >= 0.0
       s should be <= 1.0
     }
   }
 
   "FdiProfitShiftRate" should "default to 0.15" in {
-    Config.FdiProfitShiftRate shouldBe 0.15
+    p.fdi.profitShiftRate.toDouble shouldBe 0.15
   }
 
   "FdiRepatriationRate" should "default to 0.70" in {
-    Config.FdiRepatriationRate shouldBe 0.70
+    p.fdi.repatriationRate.toDouble shouldBe 0.70
   }
 
   "FdiMaProb" should "default to 0.001" in {
-    Config.FdiMaProb shouldBe 0.001
+    p.fdi.maProb.toDouble shouldBe 0.001
   }
 
   "FdiMaSizeMin" should "default to 50" in {
-    Config.FdiMaSizeMin shouldBe 50
+    p.fdi.maSizeMin shouldBe 50
   }
 
   // --- Firm.foreignOwned ---
@@ -156,16 +159,16 @@ class FdiCompositionSpec extends AnyFlatSpec with Matchers:
   // --- FDI foreign shares calibration ---
 
   "FDI foreign shares" should "have Manufacturing as highest share" in {
-    Config.FdiForeignShares(1) should be >= Config.FdiForeignShares(0) // Mfg >= BPO
-    Config.FdiForeignShares(1) should be >= Config.FdiForeignShares(2) // Mfg >= Retail
+    p.fdi.foreignShares.map(_.toDouble)(1) should be >= p.fdi.foreignShares.map(_.toDouble)(0) // Mfg >= BPO
+    p.fdi.foreignShares.map(_.toDouble)(1) should be >= p.fdi.foreignShares.map(_.toDouble)(2) // Mfg >= Retail
   }
 
   it should "have Public sector at 0%" in {
-    Config.FdiForeignShares(4) shouldBe 0.0
+    p.fdi.foreignShares.map(_.toDouble)(4) shouldBe 0.0
   }
 
   it should "have Healthcare low (3%)" in {
-    Config.FdiForeignShares(3) shouldBe 0.03
+    p.fdi.foreignShares.map(_.toDouble)(3) shouldBe 0.03
   }
 
   // --- helpers ---
@@ -195,8 +198,8 @@ class FdiCompositionSpec extends AnyFlatSpec with Matchers:
       forex = ForexState(4.33, PLN.Zero, PLN(190000000), PLN.Zero, PLN.Zero),
       hh = Household.SectorState(
         100000,
-        PLN(Config.BaseWage),
-        PLN(Config.BaseReservationWage),
+        PLN(p.household.baseWage.toDouble),
+        PLN(p.household.baseReservationWage.toDouble),
         PLN.Zero,
         PLN.Zero,
         PLN.Zero,

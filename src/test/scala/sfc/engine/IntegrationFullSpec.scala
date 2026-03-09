@@ -4,16 +4,19 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import sfc.SimOutput
 import sfc.SimOutput.Col
-import sfc.config.{Config, RunConfig}
+import sfc.config.{RunConfig, SimParams}
 import sfc.McRunner.runSingle
 
 class IntegrationFullSpec extends AnyFlatSpec with Matchers:
 
+  given SimParams = SimParams.defaults
+  private val p: SimParams = summon[SimParams]
+
   private def requireAllMechanisms(): Unit =
-    assume(Config.OeEnabled, "OPEN_ECON=true required")
-    assume(Config.NbpQe, "NBP_QE=true required")
-    assume(Config.NbpFxIntervention, "NBP_FX_INTERVENTION=true required")
-    assume(Config.IoEnabled, "IO_MODE=enabled required")
+    assume(p.flags.openEcon, "OPEN_ECON=true required")
+    assume(p.flags.nbpQe, "NBP_QE=true required")
+    assume(p.flags.nbpFxIntervention, "NBP_FX_INTERVENTION=true required")
+    assume(p.flags.io, "IO_MODE=enabled required")
 
   private lazy val rc = RunConfig(1, "test")
 
@@ -39,7 +42,7 @@ class IntegrationFullSpec extends AnyFlatSpec with Matchers:
 
   it should "produce 120 rows x 197 columns" in {
     requireAllMechanisms()
-    ts.length shouldBe Config.Duration
+    ts.length shouldBe p.timeline.duration
     for row <- ts do row.length shouldBe SimOutput.nCols
   }
 
@@ -55,7 +58,7 @@ class IntegrationFullSpec extends AnyFlatSpec with Matchers:
   it should "be reproducible with the same seed" in {
     requireAllMechanisms()
     val r2 = runSingle(42, rc)
-    for t <- 0 until Config.Duration; c <- 0 until SimOutput.nCols do
+    for t <- 0 until p.timeline.duration; c <- 0 until SimOutput.nCols do
       withClue(s"Month ${t + 1}, col $c: ") {
         ts(t)(c) shouldBe r2.timeSeries(t)(c)
       }
@@ -109,7 +112,7 @@ class IntegrationFullSpec extends AnyFlatSpec with Matchers:
     requireAllMechanisms()
     val agg = result.terminalState.world.hhAgg.get
     val total = agg.employed + agg.unemployed + agg.retraining + agg.bankrupt
-    total shouldBe Config.HhCount
+    total shouldBe p.household.count
   }
 
   it should "have Gini coefficients in [0, 1]" in {
@@ -139,7 +142,7 @@ class IntegrationFullSpec extends AnyFlatSpec with Matchers:
 
   it should "have exchange rate varying from base" in {
     requireAllMechanisms()
-    val baseRate = Config.BaseExRate
+    val baseRate = p.forex.baseExRate
     val exRates = ts.map(_(Col.ExRate.ordinal))
     exRates.exists(r => Math.abs(r - baseRate) > 1e-4) shouldBe true
   }

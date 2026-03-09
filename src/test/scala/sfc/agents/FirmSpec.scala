@@ -3,13 +3,16 @@ package sfc.agents
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import sfc.accounting.{BankingAggregate, ForexState, GovState}
-import sfc.config.{Config, RunConfig, SectorDefs}
+import sfc.config.{RunConfig, SectorDefs, SimParams}
 import sfc.engine.World
 import sfc.types.*
 
 import scala.util.Random
 
 class FirmSpec extends AnyFlatSpec with Matchers:
+
+  given SimParams = SimParams.defaults
+  private val p: SimParams = summon[SimParams]
 
   // --- Firm.isAlive ---
 
@@ -186,8 +189,8 @@ class FirmSpec extends AnyFlatSpec with Matchers:
       forex = ForexState(4.33, PLN.Zero, PLN(190000000), PLN.Zero, PLN.Zero),
       hh = Household.SectorState(
         100000,
-        PLN(Config.BaseWage),
-        PLN(Config.BaseReservationWage),
+        PLN(p.household.baseWage.toDouble),
+        PLN(p.household.baseReservationWage.toDouble),
         PLN.Zero,
         PLN.Zero,
         PLN.Zero,

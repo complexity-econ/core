@@ -5,11 +5,14 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import sfc.Generators.*
+import sfc.config.SimParams
 import sfc.types.*
 
 import scala.util.Random
 
 class BankingSectorPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks:
+
+  given SimParams = SimParams.defaults
 
   implicit override val generatorDrivenConfig: PropertyCheckConfiguration =
     PropertyCheckConfiguration(minSuccessful = 100)

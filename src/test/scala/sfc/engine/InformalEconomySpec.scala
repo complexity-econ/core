@@ -5,64 +5,67 @@ import org.scalatest.matchers.should.Matchers
 import sfc.accounting
 import sfc.accounting.{BankingAggregate, ForexState, GovState}
 import sfc.agents.{Banking, Firm, TechState}
-import sfc.config.Config
 import sfc.types.*
 
 class InformalEconomySpec extends AnyFlatSpec with Matchers:
+
+  import sfc.config.SimParams
+  given SimParams = SimParams.defaults
+  private val p: SimParams = summon[SimParams]
 
   // ==========================================================================
   // Config defaults
   // ==========================================================================
 
   "InformalEnabled" should "default to false" in {
-    Config.InformalEnabled shouldBe false
+    p.flags.informal shouldBe false
   }
 
   "InformalSectorShares" should "have 6 elements" in {
-    Config.InformalSectorShares.length shouldBe 6
+    p.informal.sectorShares.map(_.toDouble).length shouldBe 6
   }
 
   it should "have all values in [0,1]" in {
-    Config.InformalSectorShares.foreach { s =>
+    p.informal.sectorShares.map(_.toDouble).foreach { s =>
       s should be >= 0.0
       s should be <= 1.0
     }
   }
 
   it should "have Agri highest" in {
-    Config.InformalSectorShares(5) shouldBe Config.InformalSectorShares.max
+    p.informal.sectorShares.map(_.toDouble)(5) shouldBe p.informal.sectorShares.map(_.toDouble).max
   }
 
   it should "have Public lowest" in {
-    Config.InformalSectorShares(4) shouldBe Config.InformalSectorShares.min
+    p.informal.sectorShares.map(_.toDouble)(4) shouldBe p.informal.sectorShares.map(_.toDouble).min
   }
 
   it should "match expected defaults" in {
-    Config.InformalSectorShares shouldBe Vector(0.05, 0.15, 0.30, 0.20, 0.02, 0.35)
+    p.informal.sectorShares.map(_.toDouble) shouldBe Vector(0.05, 0.15, 0.30, 0.20, 0.02, 0.35)
   }
 
   "InformalCitEvasion" should "default to 0.80" in {
-    Config.InformalCitEvasion shouldBe 0.80
+    p.informal.citEvasion.toDouble shouldBe 0.80
   }
 
   "InformalVatEvasion" should "default to 0.90" in {
-    Config.InformalVatEvasion shouldBe 0.90
+    p.informal.vatEvasion.toDouble shouldBe 0.90
   }
 
   "InformalPitEvasion" should "default to 0.85" in {
-    Config.InformalPitEvasion shouldBe 0.85
+    p.informal.pitEvasion.toDouble shouldBe 0.85
   }
 
   "InformalExciseEvasion" should "default to 0.70" in {
-    Config.InformalExciseEvasion shouldBe 0.70
+    p.informal.exciseEvasion.toDouble shouldBe 0.70
   }
 
   "InformalUnempThreshold" should "default to 0.05" in {
-    Config.InformalUnempThreshold shouldBe 0.05
+    p.informal.unempThreshold.toDouble shouldBe 0.05
   }
 
   "InformalCyclicalSens" should "default to 0.50" in {
-    Config.InformalCyclicalSens shouldBe 0.50
+    p.informal.cyclicalSens.toDouble shouldBe 0.50
   }
 
   // ==========================================================================
@@ -152,7 +155,7 @@ class InformalEconomySpec extends AnyFlatSpec with Matchers:
 
   "CIT evasion (disabled)" should "not reduce taxPaid when InformalEnabled=false" in {
     // InformalEnabled defaults to false
-    Config.InformalEnabled shouldBe false
+    p.flags.informal shouldBe false
     val f = Firm.State(
       FirmId(0),
       PLN(50000.0),
@@ -211,20 +214,20 @@ class InformalEconomySpec extends AnyFlatSpec with Matchers:
 
   "Counter-cyclical adjustment" should "be 0 when unemployment <= threshold" in {
     // unemp = 0.04 < threshold 0.05
-    val adj = Math.max(0.0, 0.04 - Config.InformalUnempThreshold) * Config.InformalCyclicalSens
+    val adj = Math.max(0.0, 0.04 - p.informal.unempThreshold.toDouble) * p.informal.cyclicalSens.toDouble
     adj shouldBe 0.0
   }
 
   it should "be positive when unemployment > threshold" in {
     // unemp = 0.10 > threshold 0.05
-    val adj = Math.max(0.0, 0.10 - Config.InformalUnempThreshold) * Config.InformalCyclicalSens
+    val adj = Math.max(0.0, 0.10 - p.informal.unempThreshold.toDouble) * p.informal.cyclicalSens.toDouble
     adj should be > 0.0
     adj shouldBe (0.05 * 0.50 +- 1e-10)
   }
 
   it should "increase with unemployment" in {
-    val adj1 = Math.max(0.0, 0.08 - Config.InformalUnempThreshold) * Config.InformalCyclicalSens
-    val adj2 = Math.max(0.0, 0.15 - Config.InformalUnempThreshold) * Config.InformalCyclicalSens
+    val adj1 = Math.max(0.0, 0.08 - p.informal.unempThreshold.toDouble) * p.informal.cyclicalSens.toDouble
+    val adj2 = Math.max(0.0, 0.15 - p.informal.unempThreshold.toDouble) * p.informal.cyclicalSens.toDouble
     adj2 should be > adj1
   }
 
@@ -235,7 +238,11 @@ class InformalEconomySpec extends AnyFlatSpec with Matchers:
   "Effective shadow share" should "be weighted by FofConsWeights" in {
     val cyclicalAdj = 0.0
     val ess =
-      Config.FofConsWeights.zip(Config.InformalSectorShares).map((cw, ss) => cw * Math.min(1.0, ss + cyclicalAdj)).sum
+      p.fiscal.fofConsWeights
+        .map(_.toDouble)
+        .zip(p.informal.sectorShares.map(_.toDouble))
+        .map((cw, ss) => cw * Math.min(1.0, ss + cyclicalAdj))
+        .sum
     // Weighted average of sector shares: should be between min and max
     ess should be > 0.0
     ess should be < 1.0
@@ -246,7 +253,7 @@ class InformalEconomySpec extends AnyFlatSpec with Matchers:
 
   it should "be capped at 1.0 per sector" in {
     val cyclicalAdj = 2.0 // very high
-    val shares = Config.InformalSectorShares.map(ss => Math.min(1.0, ss + cyclicalAdj))
+    val shares = p.informal.sectorShares.map(_.toDouble).map(ss => Math.min(1.0, ss + cyclicalAdj))
     shares.foreach(_ shouldBe 1.0)
   }
 
@@ -257,7 +264,7 @@ class InformalEconomySpec extends AnyFlatSpec with Matchers:
   "VAT evasion" should "reduce VAT proportionally" in {
     val vat = 1000.0
     val ess = 0.20
-    val vatAfter = vat * (1.0 - ess * Config.InformalVatEvasion)
+    val vatAfter = vat * (1.0 - ess * p.informal.vatEvasion.toDouble)
     vatAfter should be < vat
     vatAfter should be > 0.0
   }
@@ -269,7 +276,7 @@ class InformalEconomySpec extends AnyFlatSpec with Matchers:
   "PIT evasion" should "reduce PIT proportionally" in {
     val pit = 500.0
     val ess = 0.20
-    val pitAfter = pit * (1.0 - ess * Config.InformalPitEvasion)
+    val pitAfter = pit * (1.0 - ess * p.informal.pitEvasion.toDouble)
     pitAfter should be < pit
     pitAfter should be > 0.0
   }
@@ -281,7 +288,7 @@ class InformalEconomySpec extends AnyFlatSpec with Matchers:
   "Excise evasion" should "reduce excise proportionally" in {
     val excise = 300.0
     val ess = 0.20
-    val exciseAfter = excise * (1.0 - ess * Config.InformalExciseEvasion)
+    val exciseAfter = excise * (1.0 - ess * p.informal.exciseEvasion.toDouble)
     exciseAfter should be < excise
     exciseAfter should be > 0.0
   }

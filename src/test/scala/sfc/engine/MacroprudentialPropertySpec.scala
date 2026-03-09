@@ -9,6 +9,10 @@ import sfc.types.*
 
 /** Property-based tests for macroprudential instruments. */
 class MacroprudentialPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks:
+
+  import sfc.config.SimParams
+  given SimParams = SimParams.defaults
+  private val p: SimParams = summon[SimParams]
   override implicit val generatorDrivenConfig: PropertyCheckConfiguration =
     PropertyCheckConfiguration(minSuccessful = 200)
 
@@ -23,14 +27,14 @@ class MacroprudentialPropertySpec extends AnyFlatSpec with Matchers with ScalaCh
       val prev = Macroprudential.State(Rate(prevCcyb), prevGap, prevTrend)
       val result = Macroprudential.stepInternal(prev, totalLoans, gdp)
       result.ccyb.toDouble should be >= 0.0
-      result.ccyb.toDouble should be <= sfc.config.Config.CcybMax
+      result.ccyb.toDouble should be <= p.banking.ccybMax.toDouble
     }
   }
 
   "effectiveMinCarInternal" should "be >= base MinCar for all banks" in {
     forAll(Gen.choose(0, 6), Gen.choose(0.0, 0.025)) { (bankId, ccyb) =>
       val eff = Macroprudential.effectiveMinCarInternal(bankId, ccyb)
-      eff should be >= sfc.config.Config.MinCar
+      eff should be >= p.banking.minCar.toDouble
     }
   }
 
