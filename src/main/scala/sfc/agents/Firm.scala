@@ -265,7 +265,7 @@ object Firm:
       lendRate: Rate,
       bankCanLend: PLN => Boolean,
       allFirms: Vector[State],
-      wkrs: Int,
+      workers: Int,
   )(using p: SimParams): Decision =
     val pnl = computePnL(firm, w.hh.marketWage, w.flows.sectorDemandMult(firm.sector.toInt), w.priceLevel, lendRate, w.month)
 
@@ -289,7 +289,7 @@ object Firm:
     val hCapex: PLN      = computeHybridCapex(firm)
     val hLoan: PLN       = hCapex * 0.80
     val hDown: PLN       = hCapex * 0.20
-    val hWkrs            = Math.max(3, (wkrs * SectorDefs(firm.sector.toInt).hybridRetainFrac.toDouble).toInt)
+    val hWkrs            = Math.max(3, (workers * SectorDefs(firm.sector.toInt).hybridRetainFrac.toDouble).toInt)
     val hOpexSizeFactor  = Math.pow(firm.initialSize.toDouble / p.pop.workersPerFirm, 0.5)
     val hOtherSizeFactor = firm.initialSize.toDouble / p.pop.workersPerFirm
     val hCost: PLN       =
@@ -304,11 +304,11 @@ object Firm:
 
     // Network-aware mimetic pressure: blend local + global with moderate weights
     val localAuto   = computeLocalAutoRatio(firm, allFirms)
-    val globalPanic = (w.real.automationRatio.toDouble + w.real.hybridRatio.toDouble * 0.5) * 0.5
+    val globalPanic = (w.real.automationRatio + w.real.hybridRatio * 0.5).toDouble * 0.5
     val panic       = localAuto * 0.4 + globalPanic * 0.4 // Balanced local/global
     val desper      = if pnl.netAfterTax < PLN.Zero then 0.2 else 0.0
     val strat       =
-      if !fProf && fPay && fReady && fBank then firm.riskProfile.toDouble * 0.005 * firm.digitalReadiness.toDouble
+      if !fProf && fPay && fReady && fBank then (firm.riskProfile * firm.digitalReadiness).toDouble * 0.005
       else 0.0
 
     // Uncertainty discount with network demonstration effect
@@ -328,7 +328,7 @@ object Firm:
       (if hProf && hPay && hReady && hBank then (firm.riskProfile.toDouble * 0.04 + panic * 0.5 + desper * 0.5) * firm.digitalReadiness.toDouble
        else 0.0)
 
-    val canReduce = wkrs > 3 && pnl.netAfterTax < PLN.Zero
+    val canReduce = workers > 3 && pnl.netAfterTax < PLN.Zero
     val roll      = Random.nextDouble()
 
     if roll < pFull then
@@ -349,17 +349,17 @@ object Firm:
           (0.5 + firm.digitalReadiness.toDouble * 0.5)
         Decision.Upgrade(pnl, TechState.Hybrid(hWkrs, goodEff), hCapex, hLoan, hDown)
     else if canReduce && Random.nextDouble() < 0.10 then
-      val reductionAmt = Math.max(1, (wkrs * 0.05).toInt)
-      val newWkrs      = Math.max(3, wkrs - reductionAmt)
+      val reductionAmt = Math.max(1, (workers * 0.05).toInt)
+      val newWkrs      = Math.max(3, workers - reductionAmt)
       Decision.Downsize(pnl, newWkrs, firm.cash + pnl.netAfterTax, TechState.Traditional(newWkrs))
     else
       // Digital investment attempt
       val digiCost: PLN = computeDigiInvestCost(firm)
       val nc            = firm.cash + pnl.netAfterTax
       val canAfford     = nc > digiCost * 2.0
-      val competitive   = w.real.automationRatio.toDouble + w.real.hybridRatio.toDouble * 0.5
-      val diminishing   = 1.0 - firm.digitalReadiness.toDouble
-      val digiProb      = p.firm.digiInvestBaseProb.toDouble * firm.riskProfile.toDouble *
+      val competitive   = (w.real.automationRatio + w.real.hybridRatio * 0.5).toDouble
+      val diminishing   = (Ratio.One - firm.digitalReadiness).toDouble
+      val digiProb      = (p.firm.digiInvestBaseProb * firm.riskProfile).toDouble *
         diminishing * (0.5 + competitive)
       if canAfford && Random.nextDouble() < digiProb then
         val boost = p.firm.digiInvestBoost.toDouble * diminishing
@@ -367,13 +367,13 @@ object Firm:
         Decision.DigiInvest(pnl, digiCost, newDR)
       else if nc < PLN.Zero then
         // Forced downsizing before bankruptcy
-        if wkrs > 3 then
+        if workers > 3 then
           val laborPerWorker: PLN = w.hh.marketWage * effectiveWageMult(firm.sector)
           // Max 30% cut per month, minimum 3 workers retained
-          val maxCut              = Math.max(1, (wkrs * 0.30).toInt)
-          val newWkrs             = Math.max(3, wkrs - maxCut)
-          val laborSaved          = laborPerWorker * (wkrs - newWkrs).toDouble
-          val revRatio            = Math.sqrt(newWkrs.toDouble / wkrs.toDouble)
+          val maxCut              = Math.max(1, (workers * 0.30).toInt)
+          val newWkrs             = Math.max(3, workers - maxCut)
+          val laborSaved          = laborPerWorker * (workers - newWkrs).toDouble
+          val revRatio            = Math.sqrt(newWkrs.toDouble / workers.toDouble)
           val revLost             = pnl.revenue * (1.0 - revRatio)
           val adjustedNc          = nc + laborSaved - revLost
           if adjustedNc >= PLN.Zero then Decision.Downsize(pnl, newWkrs, adjustedNc, TechState.Traditional(newWkrs))
@@ -486,7 +486,7 @@ object Firm:
       if p.flags.physCap then firm.capitalStock * (p.capital.depRates(firm.sector.toInt) / 12.0)
       else PLN.Zero
     val otherAfterCap        = if p.flags.physCap then rawOther * (Ratio.One - p.capital.costReplace) else rawOther
-    // Reduce other costs when energy is explicit (was implicit in OtherCosts)
+    // Reduce other costs when energy is explicit
     val other                = if p.flags.energy then otherAfterCap * (Ratio.One - p.climate.energyCostReplace) else otherAfterCap
     // AI/hybrid opex is partially imported (40%) -- not fully domestic price-sensitive
     // OPEX scales sublinearly with firm size (exponent 0.5)
@@ -496,10 +496,10 @@ object Firm:
       case _: TechState.Hybrid    => p.firm.hybridOpex * ((0.60 + 0.40 * price) * opexSizeFactor)
       case _                      => PLN.Zero
     val interest: PLN        = (firm.debt + firm.bondDebt) * (lendRate / 12.0)
-    // Inventory carrying cost: storage, insurance, obsolescence (previously implicit in OtherCosts)
+    // Inventory carrying cost: storage, insurance, obsolescence
     val inventoryCost: PLN   =
       if p.flags.inventory then firm.inventory * (p.capital.inventoryCarryingCost / 12.0) else PLN.Zero
-    // Reduce other costs when inventory is explicit (was implicit in OtherCosts)
+    // Reduce other costs when inventory is explicit
     val otherAfterInv        = if p.flags.inventory then other * (Ratio.One - p.capital.inventoryCostReplace) else other
     // Energy cost + EU ETS carbon surcharge
     val energyCost: PLN      = if p.flags.energy then
