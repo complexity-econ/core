@@ -182,17 +182,14 @@ object Firm:
       allFirms: Vector[State],
       rc: RunConfig,
   )(using p: SimParams): Result =
-
-    val decision  = decide(firm, w, lendRate, bankCanLend, allFirms)
-    val rawResult = execute(firm, decision)
-
-    val sectorDemandMult = w.flows.sectorDemandMult(firm.sector.toInt)
-    applyInformalCitEvasion(
-      applyFdiFlows(
-        applyInventory(applyDigitalDrift(applyInvestment(applyGreenInvestment(rawResult))), sectorDemandMult),
-      ),
-      w.mechanisms.informalCyclicalAdj,
-    )
+    val decision = decide(firm, w, lendRate, bankCanLend, allFirms)
+    val r0       = execute(firm, decision)
+    val r1       = applyGreenInvestment(r0)
+    val r2       = applyInvestment(r1)
+    val r3       = applyDigitalDrift(r2)
+    val r4       = applyInventory(r3, sectorDemandMult = w.flows.sectorDemandMult(firm.sector.toInt))
+    val r5       = applyFdiFlows(r4)
+    applyInformalCitEvasion(r5, w.mechanisms.informalCyclicalAdj)
 
   // ---- Decide (all match logic + Random rolls) ----
 
