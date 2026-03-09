@@ -112,14 +112,9 @@ object Firm:
     val sec       = SectorDefs(f.sector.toInt)
     val sizeScale = f.initialSize.toDouble / p.pop.workersPerFirm
     val base: PLN = f.tech match
-      case TechState.Traditional(w) =>
-        p.firm.baseRevenue * (sizeScale * sec.revenueMultiplier *
-          Math.sqrt(w.toDouble / f.initialSize))
-      case TechState.Hybrid(w, eff) =>
-        p.firm.baseRevenue * (sizeScale * sec.revenueMultiplier *
-          (0.4 * Math.sqrt(w.toDouble / f.initialSize) + 0.6 * eff))
-      case TechState.Automated(eff) =>
-        p.firm.baseRevenue * (sizeScale * sec.revenueMultiplier * eff)
+      case TechState.Traditional(w) => p.firm.baseRevenue * (sizeScale * sec.revenueMultiplier * Math.sqrt(w.toDouble / f.initialSize))
+      case TechState.Hybrid(w, eff) => p.firm.baseRevenue * (sizeScale * sec.revenueMultiplier * (0.4 * Math.sqrt(w.toDouble / f.initialSize) + 0.6 * eff))
+      case TechState.Automated(eff) => p.firm.baseRevenue * (sizeScale * sec.revenueMultiplier * eff)
       case _: TechState.Bankrupt    => PLN.Zero
     if p.flags.physCap && f.capitalStock > PLN.Zero && base > PLN.Zero then
       val targetK       = workerCount(f).toDouble * p.capital.klRatios.map(_.toDouble)(f.sector.toInt)
@@ -218,7 +213,7 @@ object Firm:
       w: World,
       lendRate: Rate,
       bankCanLend: PLN => Boolean,
-      wkrs: Int,
+      workers: Int,
       aiEff: Double,
   )(using p: SimParams): Decision =
     val pnl    = computePnL(firm, w.hh.marketWage, w.flows.sectorDemandMult(firm.sector.toInt), w.priceLevel, lendRate, w.month)
@@ -251,12 +246,12 @@ object Firm:
       val nc = firm.cash + pnl.netAfterTax
       if nc < PLN.Zero then
         // Forced downsizing for hybrid firms
-        if wkrs > 3 then
+        if workers > 3 then
           val laborPerWorker: PLN = w.hh.marketWage * effectiveWageMult(firm.sector)
-          val maxCut              = Math.max(1, (wkrs * 0.30).toInt)
-          val newWkrs             = Math.max(3, wkrs - maxCut)
-          val laborSaved          = laborPerWorker * (wkrs - newWkrs).toDouble
-          val revRatio            = Math.sqrt(newWkrs.toDouble / wkrs.toDouble)
+          val maxCut              = Math.max(1, (workers * 0.30).toInt)
+          val newWkrs             = Math.max(3, workers - maxCut)
+          val laborSaved          = laborPerWorker * (workers - newWkrs).toDouble
+          val revRatio            = Math.sqrt(newWkrs.toDouble / workers.toDouble)
           val revLost             = pnl.revenue * (1.0 - revRatio)
           val adjustedNc          = nc + laborSaved - revLost
           if adjustedNc >= PLN.Zero then Decision.Downsize(pnl, newWkrs, adjustedNc, TechState.Hybrid(newWkrs, aiEff), drUpdate = Some(ready2))
@@ -609,9 +604,9 @@ object Firm:
   private def applyFdiFlows(r: Result)(using p: SimParams): Result =
     if !p.flags.fdi || !r.firm.foreignOwned || !isAlive(r.firm) then return r
     val afterTaxProfit: PLN =
-      if p.fiscal.citRate.toDouble > 0 && r.taxPaid > PLN.Zero then r.taxPaid * ((1.0 - p.fiscal.citRate.toDouble) / p.fiscal.citRate.toDouble)
+      if p.fiscal.citRate > Rate.Zero && r.taxPaid > PLN.Zero then r.taxPaid * ((1.0 - p.fiscal.citRate.toDouble) / p.fiscal.citRate.toDouble)
       else PLN.Zero
     val repatriation: PLN   =
-      (afterTaxProfit.max(PLN.Zero) * p.fdi.repatriationRate.toDouble).min(r.firm.cash.max(PLN.Zero))
+      (afterTaxProfit.max(PLN.Zero) * p.fdi.repatriationRate).min(r.firm.cash.max(PLN.Zero))
     if repatriation <= PLN.Zero then return r
     r.copy(firm = r.firm.copy(cash = r.firm.cash - repatriation), fdiRepatriation = repatriation)
