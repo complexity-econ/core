@@ -535,13 +535,13 @@ object Firm:
     if !p.flags.energy then return r
     val f           = r.firm
     if !isAlive(f) then return r.copy(firm = f.copy(greenCapital = PLN.Zero))
-    val depRate     = p.climate.greenDepRate.toDouble / 12.0
+    val depRate     = p.climate.greenDepRate / 12.0
     val depn: PLN   = f.greenCapital * depRate
     val postDepGK   = f.greenCapital - depn
-    val targetGK    = PLN(workerCount(f).toDouble * p.climate.greenKLRatios.map(_.toDouble)(f.sector.toInt))
+    val targetGK    = p.climate.greenKLRatios(f.sector.toInt) * workerCount(f).toDouble
     val gap         = (targetGK - postDepGK).max(PLN.Zero)
-    val desiredInv  = depn + gap * p.climate.greenAdjustSpeed.toDouble
-    val greenBudget = f.cash.max(PLN.Zero) * p.climate.greenBudgetShare.toDouble
+    val desiredInv  = depn + gap * p.climate.greenAdjustSpeed
+    val greenBudget = f.cash.max(PLN.Zero) * p.climate.greenBudgetShare
     val actualInv   = desiredInv.min(greenBudget)
     val newGK       = postDepGK + actualInv
     r.copy(firm = f.copy(cash = f.cash - actualInv, greenCapital = newGK), greenInvestment = actualInv)
