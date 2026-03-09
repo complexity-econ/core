@@ -1,4 +1,4 @@
-# sfc.engine — Simulation Engine
+# Simulation Engine
 
 The engine package orchestrates the monthly simulation loop. It owns the
 `World` state, the 10-step pipeline, and delegates domain logic to two
