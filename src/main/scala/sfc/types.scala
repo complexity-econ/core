@@ -45,6 +45,8 @@ object types:
       inline def /(other: PLN): Double   = p / other
       @targetName("plnDivScalar")
       inline def /(scalar: Double): PLN  = p / scalar
+      @targetName("plnDivRatio")
+      inline def /(r: Ratio): PLN        = p / r
       inline def unary_- : PLN           = -p
       inline def abs: PLN                = math.abs(p)
       inline def max(other: PLN): PLN    = math.max(p, other)

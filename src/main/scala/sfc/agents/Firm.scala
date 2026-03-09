@@ -551,31 +551,31 @@ object Firm:
     if !p.flags.inventory then return r
     val f                     = r.firm
     if !isAlive(f) then return r.copy(firm = f.copy(inventory = PLN.Zero))
-    val cap                   = computeCapacity(f).toDouble
-    val productionValue       = cap * p.capital.inventoryCostFraction.toDouble
+    val cap                   = computeCapacity(f)
+    val productionValue       = cap * p.capital.inventoryCostFraction
     val salesValue            = productionValue * Math.min(1.0, sectorDemandMult)
-    val unsoldValue           = Math.max(0.0, productionValue - salesValue)
+    val unsoldValue           = (productionValue - salesValue).max(PLN.Zero)
     // Spoilage
-    val spoilRate             = p.capital.inventorySpoilageRates.map(_.toDouble)(f.sector.toInt) / 12.0
-    val postSpoilage          = (f.inventory * (1.0 - spoilRate)).toDouble
+    val spoilRate             = p.capital.inventorySpoilageRates(f.sector.toInt) / 12.0
+    val postSpoilage          = f.inventory - f.inventory * spoilRate
     // Target-based adjustment
     val revenue               = cap * sectorDemandMult
-    val targetInv             = revenue * p.capital.inventoryTargetRatios.map(_.toDouble)(f.sector.toInt)
-    val desired               = (targetInv - postSpoilage) * p.capital.inventoryAdjustSpeed.toDouble
+    val targetInv             = revenue * p.capital.inventoryTargetRatios(f.sector.toInt)
+    val desired               = (targetInv - postSpoilage) * p.capital.inventoryAdjustSpeed
     // Accumulate unsold + adjust toward target
     val rawChange             = unsoldValue + desired
     // Can't draw down more than available
-    val invChange             = Math.max(-postSpoilage, rawChange)
-    val newInv                = Math.max(0.0, postSpoilage + invChange)
+    val invChange             = rawChange.max(-postSpoilage)
+    val newInv                = (postSpoilage + invChange).max(PLN.Zero)
     // Stress liquidation: if cash < 0, sell inventory at discount
-    val (finalInv, cashBoost) = if f.cash < PLN.Zero && newInv > 0.0 then
-      val liquidate = Math.min(newInv, f.cash.abs.toDouble / p.capital.inventoryLiquidationDisc.toDouble)
-      (newInv - liquidate, liquidate * p.capital.inventoryLiquidationDisc.toDouble)
-    else (newInv, 0.0)
-    val actualChange          = finalInv - f.inventory.toDouble
+    val (finalInv, cashBoost) = if f.cash < PLN.Zero && newInv > PLN.Zero then
+      val liquidate = newInv.min(f.cash.abs / p.capital.inventoryLiquidationDisc)
+      (newInv - liquidate, liquidate * p.capital.inventoryLiquidationDisc)
+    else (newInv, PLN.Zero)
+    val actualChange          = finalInv - f.inventory
     r.copy(
-      firm = f.copy(inventory = PLN(finalInv), cash = f.cash + PLN(cashBoost)),
-      inventoryChange = PLN(actualChange),
+      firm = f.copy(inventory = finalInv, cash = f.cash + cashBoost),
+      inventoryChange = actualChange,
     )
 
   /** Effective shadow share for a sector — base share + cyclical adjustment,
