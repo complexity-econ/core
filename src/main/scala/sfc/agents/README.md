@@ -1,4 +1,4 @@
-# sfc.agents — Autonomous Economic Agents
+# Autonomous Economic Agents
 
 The agents package contains every autonomous agent in the SFC-ABM model.
 Each agent is an `object` with a nested `case class State` (OCaml module
@@ -7,19 +7,6 @@ state transitions produce new immutable instances.
 
 All agents that modify monetary stocks participate in the 14-identity
 SFC accounting check (see `sfc.accounting.Sfc`).
-
-```
-agents/
-├── Banking.scala         # Commercial banking sector (7 banks)
-├── Firm.scala            # Production, technology adoption, investment
-├── Household.scala       # Consumption, savings, labor supply
-├── Immigration.scala     # Immigrant flows, remittances, spawning
-├── Insurance.scala       # Life + non-life reserves, asset allocation
-├── Jst.scala             # Local government (samorządy)
-├── Nbfi.scala            # Shadow banking: TFI funds + NBFI credit
-├── Nbp.scala             # Central bank: Taylor rule, QE, FX intervention
-└── SocialSecurity.scala  # ZUS/FUS, PPK, demographics
-```
 
 ## Agents
 
@@ -34,15 +21,6 @@ agents/
 | `Nbfi.scala` | TFI funds + NBFI credit | AUM, bond/equity holdings, loan stock | Identity 2 (deposit drain), 5 (TFI bonds), 13 (NBFI credit) |
 | `Nbp.scala` | National Bank of Poland | Reference rate, gov bond holdings, QE, FX reserves | Identity 1 (reserve interest), 4 (FX intervention → NFA), 5 (QE bonds) |
 | `SocialSecurity.scala` | ZUS, PPK, demographics | FUS balance, PPK bond holdings, retirees, working-age pop | Identity 5 (PPK bonds), 8 (FUS balance) |
-
-## Config access
-
-Agents receive configuration via Scala 3 `using SimParams` context
-parameters. Entry-point methods (`process`, `step`, `initial`) declare
-`(using p: SimParams)` and access config as `p.fiscal.citRate.toDouble`,
-`p.flags.gpw`, etc. Leaf methods that read config directly also carry
-`(using SimParams)`. Methods without config dependency (e.g., `isAlive`,
-`localAutoRatio`) have no `using` clause.
 
 ## How to extend
 
