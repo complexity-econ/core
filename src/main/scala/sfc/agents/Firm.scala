@@ -104,10 +104,10 @@ object Firm:
   def skeletonCrew(f: State)(using p: SimParams): Int =
     Math.max(p.firm.autoSkeletonCrew, (f.initialSize * 0.02).toInt)
 
-  /** Effective wage multiplier including union wage premium (#44). */
-  def effectiveWageMult(sectorIdx: SectorIdx)(using p: SimParams): Double =
-    val base = SectorDefs(sectorIdx.toInt).wageMultiplier
-    if p.flags.unions then base * (1.0 + p.labor.unionWagePremium.toDouble * p.labor.unionDensity.map(_.toDouble)(sectorIdx.toInt))
+  /** Effective wage multiplier including union wage premium. */
+  def effectiveWageMult(sectorIdx: SectorIdx)(using p: SimParams): Ratio =
+    val base = Ratio(SectorDefs(sectorIdx.toInt).wageMultiplier)
+    if p.flags.unions then base + base * (p.labor.unionWagePremium * p.labor.unionDensity(sectorIdx.toInt))
     else base
 
   def computeCapacity(f: State)(using p: SimParams): Double =
@@ -238,7 +238,7 @@ object Firm:
     val upOtherSizeFactor = firm.initialSize.toDouble / p.pop.workersPerFirm
     val upCost: PLN       = p.firm.aiOpex * ((0.60 + 0.40 * w.priceLevel) * upOpexSizeFactor) +
       (firm.debt + upLoan) * (lendRate / 12.0) +
-      w.hh.marketWage * (skeletonCrew(firm).toDouble * wMult) +
+      w.hh.marketWage * (wMult * skeletonCrew(firm).toDouble) +
       p.firm.otherCosts * (w.priceLevel * upOtherSizeFactor)
     val profitable        = pnl.costs > upCost * 1.1
     val canPay            = firm.cash > upDown
@@ -258,14 +258,14 @@ object Firm:
       if nc < PLN.Zero then
         // Forced downsizing for hybrid firms
         if wkrs > 3 then
-          val laborPerWorker = w.hh.marketWage.toDouble * effectiveWageMult(firm.sector)
-          val maxCut         = Math.max(1, (wkrs * 0.30).toInt)
-          val newWkrs        = Math.max(3, wkrs - maxCut)
-          val laborSaved     = (wkrs - newWkrs) * laborPerWorker
-          val revRatio       = Math.sqrt(newWkrs.toDouble / wkrs.toDouble)
-          val revLost        = pnl.revenue.toDouble * (1.0 - revRatio)
-          val adjustedNc     = nc.toDouble + laborSaved - revLost
-          if adjustedNc >= 0 then Decision.Downsize(pnl, newWkrs, PLN(adjustedNc), TechState.Hybrid(newWkrs, aiEff), drUpdate = Some(ready2))
+          val laborPerWorker: PLN = w.hh.marketWage * effectiveWageMult(firm.sector)
+          val maxCut              = Math.max(1, (wkrs * 0.30).toInt)
+          val newWkrs             = Math.max(3, wkrs - maxCut)
+          val laborSaved          = laborPerWorker * (wkrs - newWkrs).toDouble
+          val revRatio            = Math.sqrt(newWkrs.toDouble / wkrs.toDouble)
+          val revLost             = pnl.revenue * (1.0 - revRatio)
+          val adjustedNc          = nc + laborSaved - revLost
+          if adjustedNc >= PLN.Zero then Decision.Downsize(pnl, newWkrs, adjustedNc, TechState.Hybrid(newWkrs, aiEff), drUpdate = Some(ready2))
           else Decision.GoBankrupt(pnl, nc, BankruptReason.HybridInsolvency)
         else Decision.GoBankrupt(pnl, nc, BankruptReason.HybridInsolvency)
       else Decision.Survive(pnl, nc, drUpdate = Some(ready2))
@@ -289,7 +289,7 @@ object Firm:
     val fOtherSizeFactor = firm.initialSize.toDouble / p.pop.workersPerFirm
     val fCost: PLN       = p.firm.aiOpex * ((0.60 + 0.40 * w.priceLevel) * fOpexSizeFactor) +
       (firm.debt + fLoan) * (lendRate / 12.0) +
-      w.hh.marketWage * (skeletonCrew(firm).toDouble * sWm) +
+      w.hh.marketWage * (sWm * skeletonCrew(firm).toDouble) +
       p.firm.otherCosts * (w.priceLevel * fOtherSizeFactor)
     val fProf            = pnl.costs > fCost * (1.1 / sigmaThreshold(w.currentSigmas(firm.sector.toInt)))
     val fPay             = firm.cash > fDown
@@ -304,7 +304,7 @@ object Firm:
     val hOpexSizeFactor  = Math.pow(firm.initialSize.toDouble / p.pop.workersPerFirm, 0.5)
     val hOtherSizeFactor = firm.initialSize.toDouble / p.pop.workersPerFirm
     val hCost: PLN       =
-      w.hh.marketWage * (hWkrs.toDouble * sWm) +
+      w.hh.marketWage * (sWm * hWkrs.toDouble) +
         p.firm.hybridOpex * ((0.60 + 0.40 * w.priceLevel) * hOpexSizeFactor) +
         (firm.debt + hLoan) * (lendRate / 12.0) +
         p.firm.otherCosts * (w.priceLevel * hOtherSizeFactor)
@@ -379,15 +379,15 @@ object Firm:
       else if nc < PLN.Zero then
         // Forced downsizing before bankruptcy
         if wkrs > 3 then
-          val laborPerWorker = w.hh.marketWage.toDouble * effectiveWageMult(firm.sector)
+          val laborPerWorker: PLN = w.hh.marketWage * effectiveWageMult(firm.sector)
           // Max 30% cut per month, minimum 3 workers retained
-          val maxCut         = Math.max(1, (wkrs * 0.30).toInt)
-          val newWkrs        = Math.max(3, wkrs - maxCut)
-          val laborSaved     = (wkrs - newWkrs) * laborPerWorker
-          val revRatio       = Math.sqrt(newWkrs.toDouble / wkrs.toDouble)
-          val revLost        = pnl.revenue.toDouble * (1.0 - revRatio)
-          val adjustedNc     = nc.toDouble + laborSaved - revLost
-          if adjustedNc >= 0 then Decision.Downsize(pnl, newWkrs, PLN(adjustedNc), TechState.Traditional(newWkrs))
+          val maxCut              = Math.max(1, (wkrs * 0.30).toInt)
+          val newWkrs             = Math.max(3, wkrs - maxCut)
+          val laborSaved          = laborPerWorker * (wkrs - newWkrs).toDouble
+          val revRatio            = Math.sqrt(newWkrs.toDouble / wkrs.toDouble)
+          val revLost             = pnl.revenue * (1.0 - revRatio)
+          val adjustedNc          = nc + laborSaved - revLost
+          if adjustedNc >= PLN.Zero then Decision.Downsize(pnl, newWkrs, adjustedNc, TechState.Traditional(newWkrs))
           else Decision.GoBankrupt(pnl, nc, BankruptReason.LaborCostInsolvency)
         else Decision.GoBankrupt(pnl, nc, BankruptReason.LaborCostInsolvency)
       else Decision.Survive(pnl, nc)
@@ -490,7 +490,7 @@ object Firm:
       month: Int,
   )(using p: SimParams): PnL =
     val revenue: PLN         = PLN(computeCapacity(firm) * sectorDemandMult * price)
-    val labor: PLN           = PLN(workerCount(firm).toDouble * wage * effectiveWageMult(firm.sector))
+    val labor: PLN           = PLN(workerCount(firm).toDouble * wage) * effectiveWageMult(firm.sector)
     val sizeFactor           = firm.initialSize.toDouble / p.pop.workersPerFirm
     val rawOther: PLN        = p.firm.otherCosts * (price * sizeFactor)
     val depnCost: PLN        =
