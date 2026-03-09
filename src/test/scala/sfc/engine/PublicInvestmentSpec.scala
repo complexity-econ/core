@@ -3,11 +3,14 @@ package sfc.engine
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import sfc.accounting.GovState
-import sfc.config.Config
 import sfc.engine.markets.FiscalBudget
 import sfc.types.*
 
 class PublicInvestmentSpec extends AnyFlatSpec with Matchers:
+
+  import sfc.config.SimParams
+  given SimParams = SimParams.defaults
+  private val p: SimParams = summon[SimParams]
 
   val prev = GovState(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
 
@@ -21,7 +24,7 @@ class PublicInvestmentSpec extends AnyFlatSpec with Matchers:
       priceLevel = 1.0,
       unempBenefitSpend = 0,
     )
-    result.deficit.toDouble shouldBe (Config.GovBaseSpending - 300000.0) +- 1.0
+    result.deficit.toDouble shouldBe (p.fiscal.govBaseSpending.toDouble - 300000.0) +- 1.0
   }
 
   it should "have zero govCapitalSpend when disabled" in {
@@ -57,11 +60,11 @@ class PublicInvestmentSpec extends AnyFlatSpec with Matchers:
         priceLevel = 1.0,
         unempBenefitSpend = 0,
       )
-    result.govCurrentSpend.toDouble shouldBe Config.GovBaseSpending * 1.0
+    result.govCurrentSpend.toDouble shouldBe p.fiscal.govBaseSpending.toDouble * 1.0
   }
 
   // --- Enabled: split verification ---
-  // Since Config.GovInvestEnabled is false by default and env vars are JVM-global,
+  // Since p.flags.govInvest is false by default and env vars are JVM-global,
   // we verify the math by checking that the split preserves total spending.
 
   "GovState" should "have new fields default to 0" in {
@@ -71,7 +74,7 @@ class PublicInvestmentSpec extends AnyFlatSpec with Matchers:
     g.govCapitalSpend shouldBe PLN.Zero
   }
 
-  // --- Formula verification (independent of Config.GovInvestEnabled) ---
+  // --- Formula verification (independent of p.flags.govInvest) ---
 
   "spending split formula" should "sum to total when share=0.20" in {
     val base = 100000000.0

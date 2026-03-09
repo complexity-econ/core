@@ -1,7 +1,7 @@
 package sfc.engine.markets
 
 import sfc.agents.*
-import sfc.config.{Config, SectorDefs}
+import sfc.config.{SectorDefs, SimParams}
 import sfc.types.*
 import sfc.util.KahanSum.*
 
@@ -9,16 +9,18 @@ import scala.util.Random
 
 object LaborMarket:
 
-  private def laborSupplyRatio(wage: Double, resWage: Double): Double =
-    val x = Config.LaborSupplySteepness * (wage / resWage - 1.0)
+  private def laborSupplyRatio(wage: Double, resWage: Double)(using p: SimParams): Double =
+    val x = p.household.laborSupplySteepness * (wage / resWage - 1.0)
     1.0 / (1.0 + Math.exp(-x))
 
-  def updateLaborMarket(prevWage: Double, resWage: Double, laborDemand: Int): (Double, Int) =
-    val supplyAtPrev = (Config.TotalPopulation * laborSupplyRatio(prevWage, resWage)).toInt
-    val excessDemand = (laborDemand - supplyAtPrev).toDouble / Config.TotalPopulation
-    val wageGrowth = excessDemand * Config.WageAdjSpeed
+  def updateLaborMarket(prevWage: Double, resWage: Double, laborDemand: Int, totalPopulation: Int)(using
+    p: SimParams,
+  ): (Double, Int) =
+    val supplyAtPrev = (totalPopulation * laborSupplyRatio(prevWage, resWage)).toInt
+    val excessDemand = (laborDemand - supplyAtPrev).toDouble / totalPopulation
+    val wageGrowth = excessDemand * p.household.wageAdjSpeed.toDouble
     val newWage = Math.max(resWage, prevWage * (1.0 + wageGrowth))
-    val newSupply = (Config.TotalPopulation * laborSupplyRatio(newWage, resWage)).toInt
+    val newSupply = (totalPopulation * laborSupplyRatio(newWage, resWage)).toInt
     val employed = Math.min(laborDemand, newSupply)
     (newWage, employed)
 
@@ -29,7 +31,7 @@ object LaborMarket:
     households: Vector[Household.State],
     prevFirms: Vector[Firm.State],
     newFirms: Vector[Firm.State],
-  ): Vector[Household.State] =
+  )(using SimParams): Vector[Household.State] =
     // Build set of firm IDs that lost workers this step
     val firmLostWorkers = (0 until newFirms.length).filter { i =>
       val prevAlive = Firm.isAlive(prevFirms(i))
@@ -86,7 +88,7 @@ object LaborMarket:
     firms: Vector[Firm.State],
     marketWage: Double,
     rng: Random,
-  ): (Vector[Household.State], Int) =
+  )(using p: SimParams): (Vector[Household.State], Int) =
     // Compute vacancies per firm: living firms that need workers
     // O(N_hh) map build instead of O(N_firms × N_hh) nested scan
     val workerCounts = scala.collection.mutable.Map[Int, Int]().withDefaultValue(0)
@@ -141,12 +143,12 @@ object LaborMarket:
           val isCrossSector = f.sector.toInt != prevSector
           // Cross-sector wage penalty when sectoral mobility is enabled
           val penalty =
-            if Config.LmSectoralMobility && isCrossSector then
-              SectoralMobility.crossSectorWagePenalty(Config.LmFrictionMatrix(prevSector)(f.sector.toInt))
+            if p.flags.sectoralMobility && isCrossSector then
+              SectoralMobility.crossSectorWagePenalty(p.labor.frictionMatrix(prevSector)(f.sector.toInt))
             else 1.0
           val individualWage =
             marketWage * sectorMult * hh.skill.toDouble * (1.0 - hh.healthPenalty.toDouble) * penalty *
-              Config.eduWagePremium(hh.education)
+              p.social.eduWagePremium(hh.education)
           if isCrossSector then crossSectorHires += 1
           result(idx) = hh.copy(
             status = HhStatus.Employed(FirmId(fid), f.sector, PLN(individualWage)),
@@ -162,18 +164,20 @@ object LaborMarket:
   /** Update wages for all employed households based on current market wage. Individual wages are heterogeneous (sector
     * × skill × health × immigrant discount) but normalized so the mean employed wage = marketWage (macro consistency).
     */
-  def updateWages(households: Vector[Household.State], marketWage: Double): Vector[Household.State] =
+  def updateWages(households: Vector[Household.State], marketWage: Double)(using
+    p: SimParams,
+  ): Vector[Household.State] =
     // Compute raw relative wages for employed
     val rawWages = households.map { hh =>
       hh.status match
         case HhStatus.Employed(_, sectorIdx, _) =>
           val immigrantDiscount =
-            if hh.isImmigrant && Config.ImmigEnabled then 1.0 - Config.ImmigWageDiscount
+            if hh.isImmigrant && p.flags.immigration then 1.0 - p.immigration.wageDiscount.toDouble
             else 1.0
           Firm.effectiveWageMult(
             sectorIdx,
           ) * hh.skill.toDouble * (1.0 - hh.healthPenalty.toDouble) * immigrantDiscount *
-            Config.eduWagePremium(hh.education)
+            p.social.eduWagePremium(hh.education)
         case _ => 0.0
     }
     val employed = households.indices.filter(i => households(i).status.isInstanceOf[HhStatus.Employed])

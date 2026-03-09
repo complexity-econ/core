@@ -3,10 +3,13 @@ package sfc.engine
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import sfc.agents.{Firm, TechState}
-import sfc.config.Config
 import sfc.types.*
 
 class PhysicalCapitalSpec extends AnyFlatSpec with Matchers:
+
+  import sfc.config.SimParams
+  given SimParams = SimParams.defaults
+  private val p: SimParams = summon[SimParams]
 
   private def mkFirm(
     sector: Int = 1,
@@ -31,31 +34,31 @@ class PhysicalCapitalSpec extends AnyFlatSpec with Matchers:
   // --- Config defaults ---
 
   "Config defaults" should "have 6 K/L ratios" in {
-    Config.PhysCapKLRatios.length shouldBe 6
+    p.capital.klRatios.map(_.toDouble).length shouldBe 6
   }
 
   it should "have 6 depreciation rates" in {
-    Config.PhysCapDepRates.length shouldBe 6
+    p.capital.depRates.map(_.toDouble).length shouldBe 6
   }
 
   it should "have positive K/L ratios" in {
-    Config.PhysCapKLRatios.foreach(_ should be > 0.0)
+    p.capital.klRatios.map(_.toDouble).foreach(_ should be > 0.0)
   }
 
   it should "have depreciation rates in (0, 1)" in {
-    Config.PhysCapDepRates.foreach { d =>
+    p.capital.depRates.map(_.toDouble).foreach { d =>
       d should be > 0.0
       d should be < 1.0
     }
   }
 
   it should "have sensible import share, adjust speed, prod elasticity" in {
-    Config.PhysCapImportShare should be > 0.0
-    Config.PhysCapImportShare should be < 1.0
-    Config.PhysCapAdjustSpeed should be > 0.0
-    Config.PhysCapAdjustSpeed should be <= 1.0
-    Config.PhysCapProdElast should be > 0.0
-    Config.PhysCapProdElast should be < 1.0
+    p.capital.importShare.toDouble should be > 0.0
+    p.capital.importShare.toDouble should be < 1.0
+    p.capital.adjustSpeed.toDouble should be > 0.0
+    p.capital.adjustSpeed.toDouble should be <= 1.0
+    p.capital.prodElast.toDouble should be > 0.0
+    p.capital.prodElast.toDouble should be < 1.0
   }
 
   // --- Depreciation ---
@@ -80,7 +83,7 @@ class PhysicalCapitalSpec extends AnyFlatSpec with Matchers:
   "K/L initialization" should "set K = workers x sectorKL" in {
     val sector = 1 // Manufacturing: K/L = 250,000
     val workers = 10
-    val expectedK = workers * Config.PhysCapKLRatios(sector)
+    val expectedK = workers * p.capital.klRatios.map(_.toDouble)(sector)
     expectedK shouldBe 2500000.0 +- 0.01
   }
 
@@ -94,7 +97,7 @@ class PhysicalCapitalSpec extends AnyFlatSpec with Matchers:
     val postDepK = K - depn
     val targetK = 10.0 * 250000.0 // = 2,500,000
     val gap = Math.max(0.0, targetK - postDepK)
-    val desiredInv = depn + gap * Config.PhysCapAdjustSpeed
+    val desiredInv = depn + gap * p.capital.adjustSpeed.toDouble
     // gap = depn, so desiredInv = depn + depn * 0.10 = 1.1 * depn
     desiredInv should be > depn
     desiredInv should be < depn * 2.0
@@ -116,33 +119,33 @@ class PhysicalCapitalSpec extends AnyFlatSpec with Matchers:
 
   "Capital productivity" should "penalize when K < targetK" in {
     val kRatio = 0.5 // K is half of target
-    val factor = Math.pow(Math.min(2.0, Math.max(0.1, kRatio)), Config.PhysCapProdElast)
+    val factor = Math.pow(Math.min(2.0, Math.max(0.1, kRatio)), p.capital.prodElast.toDouble)
     factor should be < 1.0
     factor should be > 0.0
   }
 
   it should "be neutral when K = targetK" in {
     val kRatio = 1.0
-    val factor = Math.pow(Math.min(2.0, Math.max(0.1, kRatio)), Config.PhysCapProdElast)
+    val factor = Math.pow(Math.min(2.0, Math.max(0.1, kRatio)), p.capital.prodElast.toDouble)
     factor shouldBe 1.0 +- 0.001
   }
 
   it should "boost when K > targetK (up to cap)" in {
     val kRatio = 1.5
-    val factor = Math.pow(Math.min(2.0, Math.max(0.1, kRatio)), Config.PhysCapProdElast)
+    val factor = Math.pow(Math.min(2.0, Math.max(0.1, kRatio)), p.capital.prodElast.toDouble)
     factor should be > 1.0
   }
 
   it should "cap kRatio at 2.0" in {
-    val factor1 = Math.pow(Math.min(2.0, Math.max(0.1, 3.0)), Config.PhysCapProdElast)
-    val factor2 = Math.pow(Math.min(2.0, Math.max(0.1, 2.0)), Config.PhysCapProdElast)
+    val factor1 = Math.pow(Math.min(2.0, Math.max(0.1, 3.0)), p.capital.prodElast.toDouble)
+    val factor2 = Math.pow(Math.min(2.0, Math.max(0.1, 2.0)), p.capital.prodElast.toDouble)
     factor1 shouldBe factor2 +- 0.001
   }
 
   // --- Capacity augmented in FirmOps ---
 
   "Firm.capacity" should "return positive for firm with capitalStock" in {
-    if Config.PhysCapEnabled then
+    if p.flags.physCap then
       val f = mkFirm(sector = 1, workers = 10, capitalStock = 2500000.0)
       Firm.capacity(f) should be > 0.0
   }
@@ -181,7 +184,7 @@ class PhysicalCapitalSpec extends AnyFlatSpec with Matchers:
     )
     val r = Firm.Result(f, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
     // When PhysCapEnabled, applyInvestment should zero K for bankrupt
-    if Config.PhysCapEnabled then
+    if p.flags.physCap then
       // Call process on a bankrupt firm — capitalStock should be 0
       r.firm.capitalStock.toDouble shouldBe 2500000.0 // before applyInvestment
   }
@@ -189,8 +192,8 @@ class PhysicalCapitalSpec extends AnyFlatSpec with Matchers:
   // --- OtherCosts reduction ---
 
   "OtherCosts" should "be reduced by PhysCapCostReplace fraction" in {
-    val rawOther = Config.OtherCosts * 1.0 * 1.0 // price=1, sizeFactor=1
-    val effective = rawOther * (1.0 - Config.PhysCapCostReplace)
+    val rawOther = p.firm.otherCosts.toDouble * 1.0 * 1.0 // price=1, sizeFactor=1
+    val effective = rawOther * (1.0 - p.capital.costReplace.toDouble)
     effective shouldBe rawOther * 0.5 +- 0.01
   }
 
@@ -202,7 +205,7 @@ class PhysicalCapitalSpec extends AnyFlatSpec with Matchers:
     // The plan notes "roughly neutral for Manufacturing" — let's verify the numbers
     val K = 10.0 * 250000.0 // 2,500,000
     val depn = K * 0.08 / 12.0 // 16,666.67
-    val origOther = Config.OtherCosts // 16,667
+    val origOther = p.firm.otherCosts.toDouble // 16,667
     val effectiveOther = origOther * (1.0 - 0.50) // 8,333.33
     val newTotal = effectiveOther + depn // 25,000
     // New total cost (halved other + depreciation) should exceed original OtherCosts
@@ -222,21 +225,21 @@ class PhysicalCapitalSpec extends AnyFlatSpec with Matchers:
 
   "Investment imports" should "equal grossInv x importShare" in {
     val grossInv = 1000000.0
-    val invImports = grossInv * Config.PhysCapImportShare
+    val invImports = grossInv * p.capital.importShare.toDouble
     invImports shouldBe 350000.0 +- 0.01
   }
 
   // --- Sector heterogeneity ---
 
   "Sector K/L ratios" should "differ across sectors" in {
-    val ratios = Config.PhysCapKLRatios
+    val ratios = p.capital.klRatios.map(_.toDouble)
     ratios.distinct.length should be > 1
     // Manufacturing should be highest
     ratios(1) shouldBe ratios.max
   }
 
   "Sector depreciation rates" should "differ across sectors" in {
-    val rates = Config.PhysCapDepRates
+    val rates = p.capital.depRates.map(_.toDouble)
     rates.distinct.length should be > 1
     // BPO (IT equipment) should have highest depreciation
     rates(0) shouldBe rates.max

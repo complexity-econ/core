@@ -10,6 +10,9 @@ import scala.util.Random
 
 class LaborMarketSpec extends AnyFlatSpec with Matchers:
 
+  import sfc.config.SimParams
+  given SimParams = SimParams.defaults
+
   // --- separations ---
 
   "LaborMarket.separations" should "not change households when no firms changed" in {

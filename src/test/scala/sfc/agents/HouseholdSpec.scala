@@ -3,13 +3,16 @@ package sfc.agents
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import sfc.accounting.{BankingAggregate, ForexState, GovState}
-import sfc.config.{Config, SectorDefs}
+import sfc.config.{SectorDefs, SimParams}
 import sfc.engine.World
 import sfc.types.*
 
 import scala.util.Random
 
 class HouseholdSpec extends AnyFlatSpec with Matchers:
+
+  given SimParams = SimParams.defaults
+  private val p: SimParams = summon[SimParams]
 
   // --- HouseholdInit ---
 
@@ -66,7 +69,7 @@ class HouseholdSpec extends AnyFlatSpec with Matchers:
     val firms = mkFirms(50)
     val network = Array.fill(500)(Array.empty[Int])
     val hhs = Household.Init.initialize(500, 50, firms, network, rng)
-    hhs.foreach(_.monthlyRent.toDouble should be >= Config.HhRentFloor)
+    hhs.foreach(_.monthlyRent.toDouble should be >= p.household.rentFloor.toDouble)
   }
 
   // --- Household.step ---
@@ -159,8 +162,8 @@ class HouseholdSpec extends AnyFlatSpec with Matchers:
       Household.step(hhs, mkWorld(), 8000.0, 4666.0, 0.4, rng, nBanks = 2, bankRates = Some(br))
     val pbf = maybePbf.get
     // Expected debt service: debt * (HhBaseAmortRate + lendingRate/12)
-    val expectedDs0 = debt.toDouble * (Config.HhBaseAmortRate + 0.06 / 12.0)
-    val expectedDs1 = debt.toDouble * (Config.HhBaseAmortRate + 0.10 / 12.0)
+    val expectedDs0 = debt.toDouble * (p.household.baseAmortRate.toDouble + 0.06 / 12.0)
+    val expectedDs1 = debt.toDouble * (p.household.baseAmortRate.toDouble + 0.10 / 12.0)
     pbf.debtService(0) shouldBe expectedDs0 +- 0.01
     pbf.debtService(1) shouldBe expectedDs1 +- 0.01
     // Bank 1's higher rate should mean higher debt service
@@ -396,8 +399,8 @@ class HouseholdSpec extends AnyFlatSpec with Matchers:
       forex = ForexState(4.33, PLN(0.0), PLN(190000000), PLN(0.0), PLN(0.0)),
       hh = Household.SectorState(
         100000,
-        PLN(Config.BaseWage),
-        PLN(Config.BaseReservationWage),
+        PLN(p.household.baseWage.toDouble),
+        PLN(p.household.baseReservationWage.toDouble),
         PLN(0.0),
         PLN(0.0),
         PLN(0.0),

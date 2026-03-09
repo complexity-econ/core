@@ -3,13 +3,16 @@ package sfc.engine
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import sfc.agents.*
-import sfc.config.Config
 import sfc.engine.markets.SectoralMobility
 import sfc.types.*
 
 import scala.util.Random
 
 class SectoralMobilitySpec extends AnyFlatSpec with Matchers:
+
+  import sfc.config.SimParams
+  given SimParams = SimParams.defaults
+  private val p: SimParams = summon[SimParams]
 
   // --- Default friction matrix ---
 
@@ -112,8 +115,8 @@ class SectoralMobilitySpec extends AnyFlatSpec with Matchers:
 
   it should "return base values at zero friction" in {
     val (dur, cost) = SectoralMobility.frictionAdjustedParams(0.0, 1.0, 0.5)
-    dur shouldBe Config.HhRetrainingDuration
-    cost shouldBe Config.HhRetrainingCost +- 0.01
+    dur shouldBe p.household.retrainingDuration
+    cost shouldBe p.household.retrainingCost.toDouble +- 0.01
   }
 
   // --- crossSectorWagePenalty ---

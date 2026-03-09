@@ -8,6 +8,9 @@ import sfc.types.*
 
 /** Property-based tests for public sector. */
 class PublicSectorPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks:
+
+  import sfc.config.SimParams
+  given SimParams = SimParams.defaults
   override implicit val generatorDrivenConfig: PropertyCheckConfiguration =
     PropertyCheckConfiguration(minSuccessful = 200)
 

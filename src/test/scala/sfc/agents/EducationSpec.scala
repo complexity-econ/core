@@ -10,12 +10,16 @@ import scala.util.Random
 
 class EducationSpec extends AnyFlatSpec with Matchers:
 
+  import sfc.config.SimParams
+  given SimParams = SimParams.defaults
+  private val p: SimParams = summon[SimParams]
+
   // ---- Config helpers ----
 
-  "Config.drawEducation" should "return values in [0, 3]" in {
+  "p.social.drawEducation" should "return values in [0, 3]" in {
     val rng = new Random(42)
     for _ <- 0 until 200 do
-      val edu = sfc.config.Config.drawEducation(0, rng)
+      val edu = p.social.drawEducation(0, rng)
       edu should be >= 0
       edu should be <= 3
   }
@@ -24,62 +28,62 @@ class EducationSpec extends AnyFlatSpec with Matchers:
     val rng = new Random(42)
     for s <- 0 until 6 do
       for _ <- 0 until 50 do
-        val edu = sfc.config.Config.drawEducation(s, rng)
+        val edu = p.social.drawEducation(s, rng)
         edu should be >= 0
         edu should be <= 3
   }
 
-  "Config.drawImmigrantEducation" should "return values in [0, 3]" in {
+  "p.social.drawImmigrantEducation" should "return values in [0, 3]" in {
     val rng = new Random(42)
     for _ <- 0 until 200 do
-      val edu = sfc.config.Config.drawImmigrantEducation(rng)
+      val edu = p.social.drawImmigrantEducation(rng)
       edu should be >= 0
       edu should be <= 3
   }
 
   // ---- Wage premia ----
 
-  "Config.eduWagePremium" should "be monotonically increasing" in {
-    val premia = (0 to 3).map(sfc.config.Config.eduWagePremium)
+  "p.social.eduWagePremium" should "be monotonically increasing" in {
+    val premia = (0 to 3).map(p.social.eduWagePremium)
     for i <- 0 until 3 do premia(i) should be < premia(i + 1)
   }
 
   it should "have Secondary = 1.0 (normalization)" in {
-    sfc.config.Config.eduWagePremium(2) shouldBe 1.0
+    p.social.eduWagePremium(2) shouldBe 1.0
   }
 
   it should "clamp out-of-range education to valid bounds" in {
-    sfc.config.Config.eduWagePremium(-1) shouldBe sfc.config.Config.eduWagePremium(0)
-    sfc.config.Config.eduWagePremium(5) shouldBe sfc.config.Config.eduWagePremium(3)
+    p.social.eduWagePremium(-1) shouldBe p.social.eduWagePremium(0)
+    p.social.eduWagePremium(5) shouldBe p.social.eduWagePremium(3)
   }
 
   // ---- Skill ranges ----
 
-  "Config.eduSkillRange" should "have floors <= ceilings for all levels" in {
+  "p.social.eduSkillRange" should "have floors <= ceilings for all levels" in {
     for edu <- 0 to 3 do
-      val (floor, ceil) = sfc.config.Config.eduSkillRange(edu)
+      val (floor, ceil) = p.social.eduSkillRange(edu)
       floor should be <= ceil
   }
 
   it should "have increasing floors" in {
-    val floors = (0 to 3).map(e => sfc.config.Config.eduSkillRange(e)._1)
+    val floors = (0 to 3).map(e => p.social.eduSkillRange(e)._1)
     for i <- 0 until 3 do floors(i) should be <= floors(i + 1)
   }
 
   it should "have increasing ceilings" in {
-    val ceilings = (0 to 3).map(e => sfc.config.Config.eduSkillRange(e)._2)
+    val ceilings = (0 to 3).map(e => p.social.eduSkillRange(e)._2)
     for i <- 0 until 3 do ceilings(i) should be <= ceilings(i + 1)
   }
 
   // ---- Retraining multipliers ----
 
-  "Config.eduRetrainMultiplier" should "be monotonically increasing" in {
-    val mults = (0 to 3).map(sfc.config.Config.eduRetrainMultiplier)
+  "p.social.eduRetrainMultiplier" should "be monotonically increasing" in {
+    val mults = (0 to 3).map(p.social.eduRetrainMultiplier)
     for i <- 0 until 3 do mults(i) should be < mults(i + 1)
   }
 
   it should "have Secondary = 1.0 (normalization)" in {
-    sfc.config.Config.eduRetrainMultiplier(2) shouldBe 1.0
+    p.social.eduRetrainMultiplier(2) shouldBe 1.0
   }
 
   // ---- Household field ----
@@ -281,7 +285,7 @@ class EducationSpec extends AnyFlatSpec with Matchers:
     val rng = new Random(42)
     val immigrants = Immigration.spawnImmigrants(200, 0, rng)
     immigrants.foreach { h =>
-      val (floor, ceil) = sfc.config.Config.eduSkillRange(h.education)
+      val (floor, ceil) = p.social.eduSkillRange(h.education)
       h.skill.toDouble should be >= floor
       h.skill.toDouble should be <= ceil
     }
@@ -341,7 +345,7 @@ class EducationSpec extends AnyFlatSpec with Matchers:
     val socialNet = Array.fill(10)(Array.empty[Int])
     val hhs = Household.Init.initialize(10, 1, firms, socialNet, rng)
     hhs.foreach { h =>
-      val (floor, ceil) = sfc.config.Config.eduSkillRange(h.education)
+      val (floor, ceil) = p.social.eduSkillRange(h.education)
       h.skill.toDouble should be >= floor
       h.skill.toDouble should be <= ceil
     }

@@ -7,6 +7,9 @@ import sfc.types.*
 /** Public sector unit tests — ZUS, PPK, Demographics. */
 class PublicSectorSpec extends AnyFlatSpec with Matchers:
 
+  import sfc.config.SimParams
+  given SimParams = SimParams.defaults
+
   // =========================================================================
   // ZUS
   // =========================================================================
@@ -20,7 +23,7 @@ class PublicSectorSpec extends AnyFlatSpec with Matchers:
   }
 
   it should "compute contributions from employed × wage × rate" in {
-    // Need ZUS enabled to test — but Config.ZusEnabled is false by default.
+    // Need ZUS enabled to test — but p.flags.zus is false by default.
     // Test the formula directly instead.
     val employed = 100000
     val wage = 8266.0

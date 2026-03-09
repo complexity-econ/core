@@ -2,10 +2,13 @@ package sfc.agents
 
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import sfc.config.Config
 import sfc.types.*
 
 class ShadowBankingSpec extends AnyFlatSpec with Matchers:
+
+  import sfc.config.SimParams
+  given SimParams = SimParams.defaults
+  private val p: SimParams = summon[SimParams]
 
   // ---- zero / initial ----
 
@@ -27,34 +30,34 @@ class ShadowBankingSpec extends AnyFlatSpec with Matchers:
 
   "Nbfi.initial" should "have correct AUM" in {
     val init = Nbfi.initial
-    init.tfiAum.toDouble shouldBe Config.NbfiTfiInitAum +- 1.0
+    init.tfiAum.toDouble shouldBe p.nbfi.tfiInitAum.toDouble +- 1.0
   }
 
   it should "allocate gov bonds at target share" in {
     val init = Nbfi.initial
-    init.tfiGovBondHoldings.toDouble shouldBe (Config.NbfiTfiInitAum * Config.NbfiTfiGovBondShare) +- 1.0
+    init.tfiGovBondHoldings.toDouble shouldBe (p.nbfi.tfiInitAum.toDouble * p.nbfi.tfiGovBondShare.toDouble) +- 1.0
   }
 
   it should "allocate corp bonds at target share" in {
     val init = Nbfi.initial
-    init.tfiCorpBondHoldings.toDouble shouldBe (Config.NbfiTfiInitAum * Config.NbfiTfiCorpBondShare) +- 1.0
+    init.tfiCorpBondHoldings.toDouble shouldBe (p.nbfi.tfiInitAum.toDouble * p.nbfi.tfiCorpBondShare.toDouble) +- 1.0
   }
 
   it should "allocate equities at target share" in {
     val init = Nbfi.initial
-    init.tfiEquityHoldings.toDouble shouldBe (Config.NbfiTfiInitAum * Config.NbfiTfiEquityShare) +- 1.0
+    init.tfiEquityHoldings.toDouble shouldBe (p.nbfi.tfiInitAum.toDouble * p.nbfi.tfiEquityShare.toDouble) +- 1.0
   }
 
   it should "allocate residual to cash" in {
     val init = Nbfi.initial
-    val expectedCash = Config.NbfiTfiInitAum *
-      (1.0 - Config.NbfiTfiGovBondShare - Config.NbfiTfiCorpBondShare - Config.NbfiTfiEquityShare)
+    val expectedCash = p.nbfi.tfiInitAum.toDouble *
+      (1.0 - p.nbfi.tfiGovBondShare.toDouble - p.nbfi.tfiCorpBondShare.toDouble - p.nbfi.tfiEquityShare.toDouble)
     init.tfiCashHoldings.toDouble shouldBe expectedCash +- 1.0
   }
 
   it should "have correct initial loan stock" in {
     val init = Nbfi.initial
-    init.nbfiLoanStock.toDouble shouldBe Config.NbfiCreditInitStock +- 1.0
+    init.nbfiLoanStock.toDouble shouldBe p.nbfi.creditInitStock.toDouble +- 1.0
   }
 
   // ---- bankTightness ----
@@ -112,13 +115,13 @@ class ShadowBankingSpec extends AnyFlatSpec with Matchers:
 
   it should "equal base at zero tightness" in {
     val base = Nbfi.nbfiOrigination(1000000.0, 0.03) // NPL 3% → tightness 0
-    base shouldBe (1000000.0 * Config.NbfiCreditBaseRate) +- 1.0
+    base shouldBe (1000000.0 * p.nbfi.creditBaseRate.toDouble) +- 1.0
   }
 
   // ---- nbfiRepayment ----
 
   "Nbfi.nbfiRepayment" should "equal stock / maturity" in {
-    Nbfi.nbfiRepayment(360000.0) shouldBe (360000.0 / Config.NbfiCreditMaturity) +- 0.01
+    Nbfi.nbfiRepayment(360000.0) shouldBe (360000.0 / p.nbfi.creditMaturity) +- 0.01
   }
 
   it should "be zero for zero stock" in {
@@ -129,7 +132,7 @@ class ShadowBankingSpec extends AnyFlatSpec with Matchers:
 
   "Nbfi.nbfiDefaults" should "use base rate at 5% unemployment" in {
     val d = Nbfi.nbfiDefaults(100000.0, 0.05)
-    d shouldBe (100000.0 * Config.NbfiDefaultBase) +- 0.01
+    d shouldBe (100000.0 * p.nbfi.defaultBase.toDouble) +- 0.01
   }
 
   it should "increase with unemployment above 5%" in {
@@ -203,11 +206,11 @@ class ShadowBankingSpec extends AnyFlatSpec with Matchers:
   // ---- Config defaults ----
 
   "Config" should "have NbfiEnabled=false by default" in {
-    Config.NbfiEnabled shouldBe false
+    p.flags.nbfi shouldBe false
   }
 
   it should "have correct TFI allocation shares" in {
-    Config.NbfiTfiGovBondShare shouldBe 0.40
-    Config.NbfiTfiCorpBondShare shouldBe 0.10
-    Config.NbfiTfiEquityShare shouldBe 0.10
+    p.nbfi.tfiGovBondShare.toDouble shouldBe 0.40
+    p.nbfi.tfiCorpBondShare.toDouble shouldBe 0.10
+    p.nbfi.tfiEquityShare.toDouble shouldBe 0.10
   }

@@ -6,6 +6,7 @@ import sfc.config.*
   nSeedsStr: String,
   outputPrefix: String,
 ): Unit =
+  given SimParams = SimParams.defaults
   val nSeeds = nSeedsStr.toInt
   val rc = RunConfig(nSeeds, outputPrefix)
   McRunner.run(rc)

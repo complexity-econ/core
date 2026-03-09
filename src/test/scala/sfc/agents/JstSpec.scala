@@ -7,6 +7,9 @@ import sfc.types.*
 /** JST (local government) unit tests. */
 class JstSpec extends AnyFlatSpec with Matchers:
 
+  import sfc.config.SimParams
+  given SimParams = SimParams.defaults
+
   "Jst.step" should "return zero deposit change when disabled" in {
     // JST_ENABLED is false by default
     val (jst, depChange) = Jst.step(Jst.State.zero, 1e8, 1e9, 1e10, 5000)

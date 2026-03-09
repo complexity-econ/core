@@ -2,12 +2,14 @@ package sfc.agents
 
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import sfc.accounting.BankingAggregate
+import sfc.config.SimParams
 import sfc.types.*
 
 import scala.util.Random
 
 class BankingSectorSpec extends AnyFlatSpec with Matchers:
+
+  given SimParams = SimParams.defaults
 
   private val configs = Banking.DefaultConfigs
 

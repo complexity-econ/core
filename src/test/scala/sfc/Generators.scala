@@ -3,11 +3,14 @@ package sfc
 import org.scalacheck.Gen
 import sfc.accounting.*
 import sfc.agents.*
-import sfc.config.{Config, RunConfig, SectorDefs}
+import sfc.config.{RunConfig, SectorDefs, SimParams}
 import sfc.engine.World
 import sfc.types.*
 
 object Generators:
+
+  given SimParams = SimParams.defaults
+  private val p: SimParams = summon[SimParams]
 
   // --- Primitive generators ---
 
@@ -245,7 +248,7 @@ object Generators:
     rate <- genRate
     bank <- genBankingAggregate
     forex <- genForexState
-    employed <- Gen.choose(0, Config.TotalPopulation)
+    employed <- Gen.choose(0, p.pop.firmsCount * p.pop.workersPerFirm)
     wage <- genWage
     resWage <- Gen.choose(4666.0, 10000.0)
     autoR <- genFraction

@@ -1,6 +1,6 @@
 package sfc.engine.markets
 
-import sfc.config.Config
+import sfc.config.SimParams
 import sfc.types.*
 
 object EquityMarket:
@@ -35,12 +35,12 @@ object EquityMarket:
     Rate.Zero,
   )
 
-  def initial: State = State(
-    index = Config.GpwInitIndex,
-    marketCap = PLN(Config.GpwInitMcap),
-    earningsYield = Rate(1.0 / Config.GpwPeMean),
-    dividendYield = Rate(Config.GpwDivYield),
-    foreignOwnership = Ratio(Config.GpwForeignShare),
+  def initial(using p: SimParams): State = State(
+    index = p.equity.initIndex,
+    marketCap = PLN(p.equity.initMcap.toDouble),
+    earningsYield = Rate(1.0 / p.equity.peMean),
+    dividendYield = Rate(p.equity.divYield.toDouble),
+    foreignOwnership = Ratio(p.equity.foreignShare.toDouble),
   )
 
   /** Monthly equity market step using Gordon growth model for equilibrium price. P = D / (r - g), where: D = dividend
@@ -60,8 +60,10 @@ object EquityMarket:
     * @return
     *   updated equity market state
     */
-  def step(prev: State, refRate: Double, inflation: Double, gdpGrowth: Double, firmProfits: Double): State =
-    if !Config.GpwEnabled then return zero
+  def step(prev: State, refRate: Double, inflation: Double, gdpGrowth: Double, firmProfits: Double)(using
+    p: SimParams,
+  ): State =
+    if !p.flags.gpw then return zero
 
     // Equity risk premium: mean-reverting around 5% (GPW historical)
     val equityRiskPremium = 0.05
@@ -98,7 +100,7 @@ object EquityMarket:
     val newDivYield = Rate(prev.dividendYield.toDouble * 0.9 + impliedDivYield * 0.1)
 
     // Foreign ownership: slow-moving, mean-reverting to calibrated share
-    val newForeignOwnership = Ratio(prev.foreignOwnership.toDouble * 0.99 + Config.GpwForeignShare * 0.01)
+    val newForeignOwnership = Ratio(prev.foreignOwnership.toDouble * 0.99 + p.equity.foreignShare.toDouble * 0.01)
 
     // Monthly return for HH revaluation (used next month)
     val mReturn = if prev.index > 0 then newIndex / prev.index - 1.0 else 0.0
@@ -132,13 +134,13 @@ object EquityMarket:
     divYield: Double,
     marketCap: Double,
     foreignShare: Double,
-  ): (Double, Double, Double) =
+  )(using p: SimParams): (Double, Double, Double) =
     if marketCap <= 0 then return (0.0, 0.0, 0.0)
     // Total monthly dividends: divYield is annual, so /12
     val totalDividends = divYield * marketCap / 12.0
     val foreignDividends = totalDividends * foreignShare
     val domesticDividends = totalDividends - foreignDividends
     // Belka tax on domestic dividends (19%)
-    val dividendTax = domesticDividends * Config.GpwDivTax
+    val dividendTax = domesticDividends * p.equity.divTax.toDouble
     val netDomesticDividends = domesticDividends - dividendTax
     (netDomesticDividends, foreignDividends, dividendTax)

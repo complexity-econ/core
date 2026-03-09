@@ -2,16 +2,19 @@ package sfc.agents
 
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import sfc.config.Config
 import sfc.types.*
 
 class CentralBankSpec extends AnyFlatSpec with Matchers:
+
+  import sfc.config.SimParams
+  given SimParams = SimParams.defaults
+  private val p: SimParams = summon[SimParams]
 
   // --- bondYield ---
 
   "Nbp.bondYield" should "include capped fiscal risk premium" in {
     // When bond market off, yield = refRate (no risk premium, no QE)
-    // This test depends on Config.GovBondMarket which is true by default.
+    // This test depends on p.flags.govBondMarket which is true by default.
     // We test the positive path instead.
     val y = Nbp.bondYield(0.05, 0.50, 0.0, 0.0)
     // debtToGdp=0.50 > 0.40 → raw fiscalRisk = 2.0 * 0.10 = 0.20, capped at 0.10
@@ -53,18 +56,18 @@ class CentralBankSpec extends AnyFlatSpec with Matchers:
   // --- shouldActivateQe ---
 
   "Nbp.shouldActivateQe" should "be true at ZLB with deflation" in {
-    // Config.NbpQe defaults to true (NBP March 2020 precedent)
-    Nbp.shouldActivateQe(Config.RateFloor, -0.05) shouldBe true
+    // p.flags.nbpQe defaults to true (NBP March 2020 precedent)
+    Nbp.shouldActivateQe(p.monetary.rateFloor.toDouble, -0.05) shouldBe true
   }
 
   // --- shouldTaperQe ---
 
   "Nbp.shouldTaperQe" should "be true when inflation exceeds target" in {
-    Nbp.shouldTaperQe(Config.NbpTargetInfl + 0.01) shouldBe true
+    Nbp.shouldTaperQe(p.monetary.targetInfl.toDouble + 0.01) shouldBe true
   }
 
   it should "be false when inflation below target" in {
-    Nbp.shouldTaperQe(Config.NbpTargetInfl - 0.01) shouldBe false
+    Nbp.shouldTaperQe(p.monetary.targetInfl.toDouble - 0.01) shouldBe false
   }
 
   // --- executeQe ---
@@ -86,7 +89,7 @@ class CentralBankSpec extends AnyFlatSpec with Matchers:
   it should "not exceed max GDP share" in {
     val nbp = Nbp.State(Rate(0.05), PLN.Zero, qeActive = true)
     val annualGdp = 1000.0
-    val maxByGdp = Config.NbpQeMaxGdpShare * annualGdp
+    val maxByGdp = p.monetary.qeMaxGdpShare.toDouble * annualGdp
     val (_, purchase) = Nbp.executeQe(nbp, 1e12, annualGdp)
     purchase should be <= maxByGdp
   }

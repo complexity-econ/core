@@ -5,10 +5,13 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import sfc.Generators.*
-import sfc.config.Config
 import sfc.types.*
 
 class CentralBankPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks:
+
+  import sfc.config.SimParams
+  given SimParams = SimParams.defaults
+  private val p: SimParams = summon[SimParams]
 
   implicit override val generatorDrivenConfig: PropertyCheckConfiguration =
     PropertyCheckConfiguration(minSuccessful = 200)
@@ -28,7 +31,7 @@ class CentralBankPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckP
       (refRate: Double, debtToGdp: Double, nbpBondGdpShare: Double, nfa: Double) =>
         val y = Nbp.bondYield(refRate, debtToGdp, nbpBondGdpShare, nfa)
         // Fiscal risk ≤ 0.10, so yield ≤ refRate + termPremium + 0.10
-        y should be <= (refRate + Config.GovTermPremium + 0.10 + 0.001)
+        y should be <= (refRate + p.fiscal.govTermPremium.toDouble + 0.10 + 0.001)
     }
   }
 
@@ -73,7 +76,7 @@ class CentralBankPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckP
       (rate: Double, bankBonds: Double, gdp: Double) =>
         val nbp = Nbp.State(Rate(rate), PLN.Zero, qeActive = true, PLN.Zero)
         val (newNbp, _) = Nbp.executeQe(nbp, bankBonds, gdp)
-        newNbp.govBondHoldings.toDouble should be <= (Config.NbpQeMaxGdpShare * gdp + 1e-6)
+        newNbp.govBondHoldings.toDouble should be <= (p.monetary.qeMaxGdpShare.toDouble * gdp + 1e-6)
     }
   }
 
@@ -91,7 +94,7 @@ class CentralBankPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckP
 
   "Nbp.shouldActivateQe" should "imply rate near floor when true" in {
     forAll(genRate, genInflation) { (refRate: Double, inflation: Double) =>
-      if Nbp.shouldActivateQe(refRate, inflation) then refRate should be <= (Config.RateFloor + 0.0025)
+      if Nbp.shouldActivateQe(refRate, inflation) then refRate should be <= (p.monetary.rateFloor.toDouble + 0.0025)
     }
   }
 
@@ -100,6 +103,6 @@ class CentralBankPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckP
   "Nbp.shouldTaperQe" should "be consistent with inflation vs target" in {
     forAll(genInflation) { (inflation: Double) =>
       val shouldTaper = Nbp.shouldTaperQe(inflation)
-      if shouldTaper then inflation should be > Config.NbpTargetInfl
+      if shouldTaper then inflation should be > p.monetary.targetInfl.toDouble
     }
   }

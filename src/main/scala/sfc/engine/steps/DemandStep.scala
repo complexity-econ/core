@@ -1,7 +1,7 @@
 package sfc.engine.steps
 
 import sfc.agents.*
-import sfc.config.{Config, SectorDefs}
+import sfc.config.{SectorDefs, SimParams}
 import sfc.engine.World
 import sfc.types.*
 import sfc.util.KahanSum.*
@@ -22,15 +22,15 @@ object DemandStep:
     laggedInvestDemand: Double,
   )
 
-  def run(in: Input): Output =
+  def run(in: Input)(using p: SimParams): Output =
     val zusNetSurplus =
-      if Config.ZusEnabled then Math.max(0.0, in.w.zus.contributions.toDouble - in.w.zus.pensionPayments.toDouble)
+      if p.flags.zus then Math.max(0.0, in.w.zus.contributions.toDouble - in.w.zus.pensionPayments.toDouble)
       else 0.0
-    val unempRateForFiscal = 1.0 - in.s2.employed.toDouble / Config.TotalPopulation
-    val unempGap = Math.max(0.0, unempRateForFiscal - Config.NbpNairu)
-    val fiscalStimulus = Config.GovBaseSpending * unempGap * Config.GovAutoStabMult
-    val targetGovPurchases = Config.GovBaseSpending * Math.max(1.0, in.w.priceLevel) +
-      Config.GovFiscalRecyclingRate * (in.w.gov.taxRevenue.toDouble + zusNetSurplus) + fiscalStimulus
+    val unempRateForFiscal = 1.0 - in.s2.employed.toDouble / in.w.totalPopulation
+    val unempGap = Math.max(0.0, unempRateForFiscal - p.monetary.nairu.toDouble)
+    val fiscalStimulus = p.fiscal.govBaseSpending.toDouble * unempGap * p.fiscal.govAutoStabMult
+    val targetGovPurchases = p.fiscal.govBaseSpending.toDouble * Math.max(1.0, in.w.priceLevel) +
+      p.fiscal.govFiscalRecyclingRate.toDouble * (in.w.gov.taxRevenue.toDouble + zusNetSurplus) + fiscalStimulus
     val prevGovSpend = in.w.gov.govCurrentSpend.toDouble + in.w.gov.govCapitalSpend.toDouble
     val govPurchases =
       if prevGovSpend > 0 then Math.max(targetGovPurchases, prevGovSpend * 0.98)
@@ -40,14 +40,14 @@ object DemandStep:
       in.s2.living.filter(_.sector.toInt == s).kahanSumBy(f => Firm.capacity(f).toDouble)
     }.toVector
     val sectorExports =
-      if Config.GvcEnabled && Config.OeEnabled then in.w.gvc.sectorExports.map(_.toDouble)
-      else Config.FofExportShares.map(_ * laggedExports)
-    val laggedInvestDemand = in.w.grossInvestment.toDouble * (1.0 - Config.PhysCapImportShare) +
-      in.w.aggGreenInvestment.toDouble * (1.0 - Config.GreenImportShare)
+      if p.flags.gvc && p.flags.openEcon then in.w.gvc.sectorExports.map(_.toDouble)
+      else p.fiscal.fofExportShares.map(_.toDouble).map(_ * laggedExports)
+    val laggedInvestDemand = in.w.grossInvestment.toDouble * (1.0 - p.capital.importShare.toDouble) +
+      in.w.aggGreenInvestment.toDouble * (1.0 - p.climate.greenImportShare.toDouble)
     val sectorDemand = (0 until SectorDefs.length).map { s =>
-      Config.FofConsWeights(s) * in.s3.domesticCons +
-        Config.FofGovWeights(s) * govPurchases +
-        Config.FofInvestWeights(s) * laggedInvestDemand +
+      p.fiscal.fofConsWeights.map(_.toDouble)(s) * in.s3.domesticCons +
+        p.fiscal.fofGovWeights.map(_.toDouble)(s) * govPurchases +
+        p.fiscal.fofInvestWeights.map(_.toDouble)(s) * laggedInvestDemand +
         sectorExports(s)
     }.toVector
     val fofTotalDemand = sectorDemand.kahanSum
@@ -66,7 +66,7 @@ object DemandStep:
       if rawSectorMults(s) > 1.0 then 1.0
       else rawSectorMults(s) + spilloverFrac * (1.0 - rawSectorMults(s))
     }.toVector
-    val realRateEffect = if Config.ExpEnabled then
+    val realRateEffect = if p.flags.expectations then
       val realRate = in.w.nbp.referenceRate.toDouble - in.w.expectations.expectedInflation.toDouble
       -realRate * 0.02
     else 0.0

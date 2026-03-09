@@ -8,6 +8,9 @@ import sfc.types.*
 
 class IntermediateMarketSpec extends AnyFlatSpec with Matchers:
 
+  import sfc.config.SimParams
+  given SimParams = SimParams.defaults
+
   private val defaultMatrix = Vector(
     Vector(0.05, 0.03, 0.04, 0.02, 0.03, 0.01),
     Vector(0.04, 0.35, 0.12, 0.15, 0.05, 0.18),

@@ -3,15 +3,18 @@ package sfc.engine
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import sfc.accounting.{BopState, ForexState}
-import sfc.config.{Config, RunConfig}
+import sfc.config.{RunConfig, SimParams}
 import sfc.engine.markets.OpenEconomy
 import sfc.types.*
 
 class OpenEconomySpec extends AnyFlatSpec with Matchers:
 
+  given SimParams = SimParams.defaults
+  private val p: SimParams = summon[SimParams]
+
   private val rc = RunConfig(1, "test")
 
-  private val baseForex = ForexState(Config.BaseExRate, PLN.Zero, PLN(Config.ExportBase), PLN.Zero, PLN.Zero)
+  private val baseForex = ForexState(p.forex.baseExRate, PLN.Zero, PLN(p.forex.exportBase.toDouble), PLN.Zero, PLN.Zero)
   private val baseSectorOutputs = Vector(30000.0, 160000.0, 450000.0, 60000.0, 220000.0, 80000.0)
   private val gdp = 1e9
 
@@ -28,7 +31,7 @@ class OpenEconomySpec extends AnyFlatSpec with Matchers:
       1e7,
       5e6,
       autoRatio,
-      Config.NbpInitialRate,
+      p.monetary.initialRate.toDouble,
       gdp,
       1.0,
       baseSectorOutputs,
@@ -93,15 +96,15 @@ class OpenEconomySpec extends AnyFlatSpec with Matchers:
       1e7,
       5e6,
       0.0,
-      Config.NbpInitialRate,
+      p.monetary.initialRate.toDouble,
       gdp,
       1.0,
       baseSectorOutputs,
       30,
       rc,
-      euFundsMonthly = Config.OeEuTransfers,
+      euFundsMonthly = p.openEcon.euTransfers.toDouble,
     )
-    r.bop.secondaryIncome.toDouble shouldBe Config.OeEuTransfers +- 0.01
+    r.bop.secondaryIncome.toDouble shouldBe p.openEcon.euTransfers.toDouble +- 0.01
   }
 
   it should "compute trade balance as exports - imports" in {
@@ -129,6 +132,6 @@ class OpenEconomySpec extends AnyFlatSpec with Matchers:
 
   it should "keep exchange rate within floor and ceiling" in {
     val r = runStep()
-    r.forex.exchangeRate should be >= Config.OeErFloor
-    r.forex.exchangeRate should be <= Config.OeErCeiling
+    r.forex.exchangeRate should be >= p.openEcon.erFloor
+    r.forex.exchangeRate should be <= p.openEcon.erCeiling
   }

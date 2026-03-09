@@ -17,13 +17,13 @@ import java.io.File
 object McRunner:
 
   /** Run one simulation with given seed. Throws [[Sfc.SfcViolationException]] on any SFC identity violation. */
-  def runSingle(seed: Int, rc: RunConfig): RunResult =
+  def runSingle(seed: Int, rc: RunConfig)(using p: SimParams): RunResult =
     val init = WorldInit.initialize(seed, rc)
     var state = Simulation.SimState(init.world, init.firms, init.households)
 
-    val results = Array.ofDim[Double](Config.Duration, SimOutput.nCols)
+    val results = Array.ofDim[Double](p.timeline.duration, SimOutput.nCols)
 
-    for t <- 0 until Config.Duration do
+    for t <- 0 until p.timeline.duration do
       val stepResult = Simulation.step(state, rc)
       stepResult.sfcCheck match
         case Left(errors) => throw Sfc.SfcViolationException(t + 1, errors)
@@ -33,7 +33,7 @@ object McRunner:
 
     RunResult(TimeSeries.wrap(results), state)
 
-  def run(rc: RunConfig): Unit =
+  def run(rc: RunConfig)(using SimParams): Unit =
     printBanner(rc)
     val results = runAll(rc, defaultProgress(rc))
     val outDir = new File("mc")
@@ -47,7 +47,7 @@ object McRunner:
 
   // -- Pure MC loop → immutable McResults --
 
-  def runAll(rc: RunConfig, onProgress: (Int, RunResult, Long) => Unit): McResults =
+  def runAll(rc: RunConfig, onProgress: (Int, RunResult, Long) => Unit)(using SimParams): McResults =
     val startTime = System.currentTimeMillis()
     val builder = Vector.newBuilder[RunResult]
     builder.sizeHint(rc.nSeeds)
@@ -79,7 +79,7 @@ object McRunner:
   //  IO: write all CSV files
   // ---------------------------------------------------------------------------
 
-  private def writeResults(rc: RunConfig, results: McResults, dir: File): Unit =
+  private def writeResults(rc: RunConfig, results: McResults, dir: File)(using SimParams): Unit =
     writeTerminalCsv(rc, results, dir)
     writeHhTerminalCsv(rc, results, dir)
     writeBankTerminalCsv(rc, results, dir)
@@ -167,8 +167,8 @@ object McRunner:
     }
 
   // -- Aggregated time-series (mean, std, p05, p95) via batch API --
-  private def writeTimeseriesCsv(rc: RunConfig, results: McResults, dir: File): Unit =
-    val nMonths = Config.Duration
+  private def writeTimeseriesCsv(rc: RunConfig, results: McResults, dir: File)(using p: SimParams): Unit =
+    val nMonths = p.timeline.duration
     val nCols = SimOutput.nCols
     val colNames = SimOutput.colNames
     val headerParts =
@@ -191,7 +191,7 @@ object McRunner:
   //  Summary statistics
   // ---------------------------------------------------------------------------
 
-  private def printSummary(rc: RunConfig, results: McResults): Unit =
+  private def printSummary(rc: RunConfig, results: McResults)(using SimParams): Unit =
     println("\n" + "=" * 54)
     println(s"MONTE CARLO SUMMARY: ${rc.outputPrefix} (N=${rc.nSeeds})")
     println("=" * 54)
@@ -230,10 +230,10 @@ object McRunner:
     val secNames = SectorDefs.map(_.name)
     for s <- SectorDefs.indices do statsSummary(f"  ${secNames(s)}%-22s", Col.sectorAuto(s), 100.0)
 
-  private def printBanner(rc: RunConfig): Unit =
+  private def printBanner(rc: RunConfig)(using p: SimParams): Unit =
     val topoLabel = TOPOLOGY.toString.toUpperCase
-    val firmsLabel = f"${Config.FirmsCount}%,d"
-    val hhLabel = s" | HH=individual (${Config.HhCount})"
+    val firmsLabel = f"${p.pop.firmsCount}%,d"
+    val hhLabel = s" | HH=individual (${p.household.count})"
     val bankLabel = " | BANK=multi (7)"
     println(s"+" + "=" * 68 + "+")
     println(s"|  SFC-ABM v8: N=${rc.nSeeds} seeds, PLN (NBP)${hhLabel}${bankLabel}")

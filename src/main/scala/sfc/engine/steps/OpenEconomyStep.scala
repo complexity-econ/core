@@ -2,7 +2,7 @@ package sfc.engine.steps
 
 import sfc.accounting.{BopState, ForexState}
 import sfc.agents.*
-import sfc.config.{Config, RunConfig, SectorDefs}
+import sfc.config.{RunConfig, SectorDefs, SimParams}
 import sfc.engine.*
 import sfc.engine.markets.{CorporateBondMarket, GvcTrade, OpenEconomy}
 import sfc.engine.mechanisms.Expectations
@@ -50,7 +50,7 @@ object OpenEconomyStep:
     fdiCitLoss: Double,
   )
 
-  def run(in: Input): Output =
+  def run(in: Input)(using p: SimParams): Output =
     val living2 = in.s5.ioFirms.filter(Firm.isAlive)
 
     // Sector outputs for open economy
@@ -62,17 +62,17 @@ object OpenEconomyStep:
 
     // GVC / Deep External Sector (v5.0)
     val newGvc =
-      if Config.GvcEnabled && Config.OeEnabled then
+      if p.flags.gvc && p.flags.openEcon then
         GvcTrade.step(in.w.gvc, sectorOutputs, in.w.priceLevel, in.w.forex.exchangeRate, in.s7.autoR, in.s1.m, in.rc)
       else in.w.gvc
 
     val (gvcExp, gvcImp) =
-      if Config.GvcEnabled && Config.OeEnabled then
+      if p.flags.gvc && p.flags.openEcon then
         (Some(newGvc.totalExports.toDouble), Some(newGvc.sectorImports.map(_.toDouble)))
       else (None, None)
 
     val totalTechAndInvImports = in.s5.sumTechImp + in.s7.investmentImports
-    val (newForex, newBop0, oeValuationEffect, fxResult) = if Config.OeEnabled then
+    val (newForex, newBop0, oeValuationEffect, fxResult) = if p.flags.openEcon then
       val oeResult = OpenEconomy.step(
         in.w.bop,
         in.w.forex,
@@ -109,7 +109,7 @@ object OpenEconomyStep:
 
     // Adjust BOP for foreign dividend outflow (primary income component) + EU funds tracking
     val newBop1 =
-      if in.s7.foreignDividendOutflow > 0 && Config.OeEnabled then
+      if in.s7.foreignDividendOutflow > 0 && p.flags.openEcon then
         newBop0.copy(
           currentAccount = newBop0.currentAccount - PLN(in.s7.foreignDividendOutflow),
           nfa = newBop0.nfa - PLN(in.s7.foreignDividendOutflow),
@@ -118,7 +118,7 @@ object OpenEconomyStep:
     // FDI composition (#33): profit shifting (service import) + repatriation (primary income debit)
     val fdiTotalBopDebit = in.s5.sumProfitShifting + in.s5.sumFdiRepatriation
     val newBop2 =
-      if fdiTotalBopDebit > 0 && Config.FdiEnabled && Config.OeEnabled then
+      if fdiTotalBopDebit > 0 && p.flags.fdi && p.flags.openEcon then
         newBop1.copy(
           currentAccount = newBop1.currentAccount - PLN(fdiTotalBopDebit),
           nfa = newBop1.nfa - PLN(fdiTotalBopDebit),
@@ -126,7 +126,7 @@ object OpenEconomyStep:
           totalImports = newBop1.totalImports + PLN(in.s5.sumProfitShifting),
         )
       else newBop1
-    val fdiCitLoss = in.s5.sumProfitShifting * Config.CitRate
+    val fdiCitLoss = in.s5.sumProfitShifting * p.fiscal.citRate.toDouble
     val newBop = newBop2.copy(
       euFundsMonthly = PLN(in.s7.euMonthly),
       euCumulativeAbsorption = in.w.bop.euCumulativeAbsorption + PLN(in.s7.euMonthly),
@@ -134,12 +134,20 @@ object OpenEconomyStep:
 
     val exRateChg = (newForex.exchangeRate / in.w.forex.exchangeRate) - 1.0
     val newRefRate =
-      Nbp.updateRate(in.w.nbp.referenceRate.toDouble, in.s7.newInfl, exRateChg, in.s2.employed, in.rc)
+      Nbp.updateRate(
+        in.w.nbp.referenceRate.toDouble,
+        in.s7.newInfl,
+        exRateChg,
+        in.s2.employed,
+        in.w.totalPopulation,
+        in.rc,
+      )
 
     // Expectations step: update after inflation + rate computed
-    val unempRateForExp = 1.0 - in.s2.employed.toDouble / Config.TotalPopulation
+    val unempRateForExp = 1.0 - in.s2.employed.toDouble / in.w.totalPopulation
     val newExp =
-      if Config.ExpEnabled then Expectations.step(in.w.expectations, in.s7.newInfl, newRefRate, unempRateForExp, in.rc)
+      if p.flags.expectations then
+        Expectations.step(in.w.expectations, in.s7.newInfl, newRefRate, unempRateForExp, in.rc)
       else in.w.expectations
 
     // Reserve interest, standing facilities, interbank interest
@@ -154,11 +162,11 @@ object OpenEconomyStep:
     val debtToGdp = if annualGdpForBonds > 0 then in.w.gov.cumulativeDebt.toDouble / annualGdpForBonds else 0.0
     val nbpBondGdpShare = if annualGdpForBonds > 0 then in.w.nbp.qeCumulative.toDouble / annualGdpForBonds else 0.0
     // Channel 3: De-anchored expectations → higher bond yields
-    val credPremium = if Config.ExpEnabled then
-      val target = Config.NbpTargetInfl
+    val credPremium = if p.flags.expectations then
+      val target = p.monetary.targetInfl.toDouble
       (1.0 - in.w.expectations.credibility.toDouble) *
         Math.abs(in.w.expectations.expectedInflation.toDouble - target) *
-        Config.ExpBondSensitivity
+        p.labor.expBondSensitivity.toDouble
     else 0.0
     val newBondYield = Nbp.bondYield(newRefRate, debtToGdp, nbpBondGdpShare, in.w.bop.nfa.toDouble, credPremium)
 
@@ -193,9 +201,9 @@ object OpenEconomyStep:
       CorporateBondMarket.processDefaults(in.w.corporateBonds, in.s5.totalBondDefault)
 
     // --- Insurance sector step ---
-    val insUnempRate = 1.0 - in.s2.employed.toDouble / Config.TotalPopulation
+    val insUnempRate = 1.0 - in.s2.employed.toDouble / in.w.totalPopulation
     val newInsurance =
-      if Config.InsEnabled then
+      if p.flags.insurance then
         Insurance.step(
           in.w.insurance,
           in.s2.employed,
@@ -211,9 +219,9 @@ object OpenEconomyStep:
 
     // --- Shadow Banking / NBFI step ---
     val nbfiDepositRate = Math.max(0.0, postFxNbp.referenceRate.toDouble - 0.02)
-    val nbfiUnempRate = 1.0 - in.s2.employed.toDouble / Config.TotalPopulation
+    val nbfiUnempRate = 1.0 - in.s2.employed.toDouble / in.w.totalPopulation
     val newNbfi =
-      if Config.NbfiEnabled then
+      if p.flags.nbfi then
         Nbfi.step(
           in.w.nbfi,
           in.s2.employed,

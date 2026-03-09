@@ -7,6 +7,9 @@ import sfc.types.*
 
 class SimConfigSpec extends AnyFlatSpec with Matchers:
 
+  given SimParams = SimParams.defaults
+  private val p: SimParams = summon[SimParams]
+
   "SectorDefs" should "have 6 entries" in {
     SectorDefs.length shouldBe 6
   }
@@ -32,20 +35,20 @@ class SimConfigSpec extends AnyFlatSpec with Matchers:
 
   "Config" should "have FirmsCount = 10000 by default" in {
     // Only true when FIRMS_COUNT env var is unset
-    if sys.env.get("FIRMS_COUNT").isEmpty then Config.FirmsCount shouldBe 10000
+    if sys.env.get("FIRMS_COUNT").isEmpty then p.pop.firmsCount shouldBe 10000
   }
 
   it should "have Duration = 120" in {
-    Config.Duration shouldBe 120
+    p.timeline.duration shouldBe 120
   }
 
   it should "have WorkersPerFirm = 10" in {
-    Config.WorkersPerFirm shouldBe 10
+    p.pop.workersPerFirm shouldBe 10
   }
 
   it should "have positive AI and Hybrid CAPEX" in {
-    Config.AiCapex should be > 0.0
-    Config.HybridCapex should be > 0.0
+    p.firm.aiCapex.toDouble should be > 0.0
+    p.firm.hybridCapex.toDouble should be > 0.0
   }
 
   "sigmaThreshold" should "return ~0.91 for sigma=2" in {

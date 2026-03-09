@@ -4,12 +4,15 @@ import org.scalacheck.Gen
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import sfc.config.SimParams
 import sfc.Generators.*
-import sfc.config.Config
 import sfc.engine.markets.FiscalBudget
 import sfc.types.*
 
 class BalanceSheetPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks:
+
+  given SimParams = SimParams.defaults
+  private val p: SimParams = summon[SimParams]
 
   implicit override val generatorDrivenConfig: PropertyCheckConfiguration =
     PropertyCheckConfiguration(minSuccessful = 200)
@@ -69,7 +72,7 @@ class BalanceSheetPropertySpec extends AnyFlatSpec with Matchers with ScalaCheck
       val (prev, cit, vat, price, unempBen) = inputs
       val gov = FiscalBudget.update(prev, cit, vat, price, unempBen)
       val totalRev = cit + vat
-      val totalSpend = unempBen + Config.GovBaseSpending * price
+      val totalSpend = unempBen + p.fiscal.govBaseSpending.toDouble * price
       gov.deficit.toDouble shouldBe (totalSpend - totalRev +- 1.0)
     }
   }

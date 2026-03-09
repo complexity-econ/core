@@ -8,6 +8,9 @@ import sfc.types.*
 /** Reserve Interest, Standing Facilities, Interbank Interest tests. */
 class MonetaryPlumbingSpec extends AnyFlatSpec with Matchers:
 
+  import sfc.config.SimParams
+  given SimParams = SimParams.defaults
+
   import sfc.accounting.Sfc
 
   private def zeroSnap: Sfc.Snapshot = Sfc.Snapshot(
@@ -159,7 +162,7 @@ class MonetaryPlumbingSpec extends AnyFlatSpec with Matchers:
   // =========================================================================
 
   "Banking.computeStandingFacilities" should "return zeros when disabled" in {
-    // Standing facilities are OFF by default (Config.NbpStandingFacilities = false)
+    // Standing facilities are OFF by default (p.flags.nbpStandingFacilities = false)
     val banks = Vector(mkBank(0, reservesAtNbp = PLN(1e8)), mkBank(1, reservesAtNbp = PLN(5e7)))
     val (perBank, total) = Banking.computeStandingFacilities(banks, 0.06)
     perBank.foreach(_ shouldBe 0.0)

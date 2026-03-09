@@ -1,6 +1,6 @@
 package sfc.agents
 
-import sfc.config.{Config, SectorDefs}
+import sfc.config.{SectorDefs, SimParams}
 import sfc.types.*
 
 import scala.util.Random
@@ -21,44 +21,44 @@ object Immigration:
   /** Compute monthly immigration inflow. Exogenous: fixed rate × workingAgePop. Endogenous: responds to (domesticWage /
     * foreignWage - 1) × elasticity.
     */
-  def computeInflow(workingAgePop: Int, wage: Double, unempRate: Double, month: Int): Int =
-    if !Config.ImmigEnabled then 0
-    else if Config.ImmigEndogenous then
-      val wageGap = (wage / Config.ImmigForeignWage - 1.0).max(0.0)
-      val pull = wageGap * Config.ImmigWageElasticity
+  def computeInflow(workingAgePop: Int, wage: Double, unempRate: Double, month: Int)(using p: SimParams): Int =
+    if !p.flags.immigration then 0
+    else if p.flags.immigEndogenous then
+      val wageGap = (wage / p.immigration.foreignWage.toDouble - 1.0).max(0.0)
+      val pull = wageGap * p.immigration.wageElasticity
       val push = (1.0 - unempRate).max(0.0)
-      val rate = Config.ImmigMonthlyRate * (0.5 + 0.5 * pull * push)
+      val rate = p.immigration.monthlyRate.toDouble * (0.5 + 0.5 * pull * push)
       (workingAgePop * rate).toInt.max(0)
-    else (workingAgePop * Config.ImmigMonthlyRate).toInt.max(0)
+    else (workingAgePop * p.immigration.monthlyRate.toDouble).toInt.max(0)
 
   /** Compute monthly return migration (outflow). */
-  def computeOutflow(immigrantStock: Int): Int =
-    if !Config.ImmigEnabled then 0
-    else (immigrantStock * Config.ImmigReturnRate).toInt.max(0)
+  def computeOutflow(immigrantStock: Int)(using p: SimParams): Int =
+    if !p.flags.immigration then 0
+    else (immigrantStock * p.immigration.returnRate.toDouble).toInt.max(0)
 
   /** Compute total remittance outflow from immigrant HH (individual mode). Remittances = employed immigrant wages ×
     * remittance rate.
     */
-  def computeRemittances(immigrantHH: Iterable[Household.State]): Double =
-    if !Config.ImmigEnabled then 0.0
+  def computeRemittances(immigrantHH: Iterable[Household.State])(using p: SimParams): Double =
+    if !p.flags.immigration then 0.0
     else
       immigrantHH
         .filter(h => h.isImmigrant)
         .map { h =>
           h.status match
             case HhStatus.Employed(_, _, wage) =>
-              wage.toDouble * Config.ImmigRemittanceRate
+              wage.toDouble * p.immigration.remitRate.toDouble
             case _ => 0.0
         }
         .sum
 
-  /** Choose sector for new immigrant (weighted by Config.ImmigSectorShares). */
-  def chooseSector(rng: Random): Int =
+  /** Choose sector for new immigrant (weighted by p.immigration.sectorShares.map(_.toDouble)). */
+  def chooseSector(rng: Random)(using p: SimParams): Int =
     val r = rng.nextDouble()
     var cum = 0.0
     var s = 0
     while s < SectorDefs.length - 1 do
-      cum += Config.ImmigSectorShares(s)
+      cum += p.immigration.sectorShares.map(_.toDouble)(s)
       if r < cum then return s
       s += 1
     SectorDefs.length - 1 // fallback: last sector
@@ -66,19 +66,19 @@ object Immigration:
   /** Spawn new immigrant households (individual mode). Start as Unemployed(0) — will be matched in next jobSearch
     * round.
     */
-  def spawnImmigrants(count: Int, startId: Int, rng: Random): Vector[Household.State] =
+  def spawnImmigrants(count: Int, startId: Int, rng: Random)(using p: SimParams): Vector[Household.State] =
     (0 until count).map { i =>
       val sector = chooseSector(rng)
-      val edu = Config.drawImmigrantEducation(rng)
-      val skill = Config.ImmigSkillMean + (rng.nextGaussian() * 0.15)
-      val (skillFloor, skillCeiling) = Config.eduSkillRange(edu)
+      val edu = p.social.drawImmigrantEducation(rng)
+      val skill = p.immigration.skillMean.toDouble + (rng.nextGaussian() * 0.15)
+      val (skillFloor, skillCeiling) = p.social.eduSkillRange(edu)
       val clampedSkill = skill.max(skillFloor).min(skillCeiling)
       val savings = rng.nextDouble() * 5000.0
       val mpc = 0.85 + rng.nextGaussian() * 0.05
-      val rent = Config.HhRentMean + rng.nextGaussian() * Config.HhRentStd
+      val rent = p.household.rentMean.toDouble + rng.nextGaussian() * p.household.rentStd.toDouble
       val numChildren =
-        if Config.Social800Enabled && Config.Social800ImmigrantEligible then
-          Household.Init.poissonSample(Config.Social800ChildrenPerHh, rng)
+        if p.flags.social800 && p.flags.social800ImmigEligible then
+          Household.Init.poissonSample(p.fiscal.social800ChildrenPerHh, rng)
         else 0
       Household.State(
         id = HhId(startId + i),
@@ -112,7 +112,7 @@ object Immigration:
     unempRate: Double,
     workingAgePop: Int,
     month: Int,
-  ): State =
+  )(using SimParams): State =
     val inflow = computeInflow(workingAgePop, wage, unempRate, month)
     val outflow = computeOutflow(prev.immigrantStock)
     val newStock = (prev.immigrantStock + inflow - outflow).max(0)

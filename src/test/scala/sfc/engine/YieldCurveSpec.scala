@@ -9,6 +9,9 @@ import sfc.types.*
 /** Interbank term structure tests. */
 class YieldCurveSpec extends AnyFlatSpec with Matchers:
 
+  import sfc.config.SimParams
+  given SimParams = SimParams.defaults
+
   // =========================================================================
   // Compute
   // =========================================================================

@@ -5,10 +5,13 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import sfc.Generators.*
-import sfc.config.Config
 import sfc.types.*
 
 class HouseholdPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks:
+
+  import sfc.config.SimParams
+  given SimParams = SimParams.defaults
+  private val p: SimParams = summon[SimParams]
 
   implicit override val generatorDrivenConfig: PropertyCheckConfiguration =
     PropertyCheckConfiguration(minSuccessful = 200)
@@ -77,7 +80,7 @@ class HouseholdPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPro
   }
 
   it should "be 0 after GovBenefitDuration" in {
-    forAll(Gen.choose(Config.GovBenefitDuration + 1, 100)) { (months: Int) =>
+    forAll(Gen.choose(p.fiscal.govBenefitDuration + 1, 100)) { (months: Int) =>
       Household.computeBenefit(months) shouldBe 0.0
     }
   }

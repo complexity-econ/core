@@ -2,11 +2,14 @@ package sfc.engine
 
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import sfc.config.Config
 import sfc.engine.markets.CorporateBondMarket
 import sfc.types.*
 
 class CorporateBondSpec extends AnyFlatSpec with Matchers:
+
+  import sfc.config.SimParams
+  given SimParams = SimParams.defaults
+  private val p: SimParams = summon[SimParams]
 
   private val initState = CorporateBondMarket.initial
 
@@ -25,7 +28,7 @@ class CorporateBondSpec extends AnyFlatSpec with Matchers:
   }
 
   "CorporateBondMarket.initial" should "have stock = CorpBondInitStock" in {
-    initState.outstanding.toDouble shouldBe (Config.CorpBondInitStock +- 1.0)
+    initState.outstanding.toDouble shouldBe (p.corpBond.initStock.toDouble +- 1.0)
   }
 
   it should "allocate holders summing to 100%" in {
@@ -34,16 +37,16 @@ class CorporateBondSpec extends AnyFlatSpec with Matchers:
   }
 
   it should "have bank holdings = stock * CorpBondBankShare" in {
-    initState.bankHoldings.toDouble shouldBe (initState.outstanding.toDouble * Config.CorpBondBankShare +- 1.0)
+    initState.bankHoldings.toDouble shouldBe (initState.outstanding.toDouble * p.corpBond.bankShare.toDouble +- 1.0)
   }
 
   it should "have ppk holdings = stock * CorpBondPpkShare" in {
-    initState.ppkHoldings.toDouble shouldBe (initState.outstanding.toDouble * Config.CorpBondPpkShare +- 1.0)
+    initState.ppkHoldings.toDouble shouldBe (initState.outstanding.toDouble * p.corpBond.ppkShare.toDouble +- 1.0)
   }
 
   "computeYield" should "equal govYield + spread when nplRatio = 0" in {
     val y = CorporateBondMarket.computeYield(0.06, 0.0)
-    y shouldBe (0.06 + Config.CorpBondSpread +- 0.001)
+    y shouldBe (0.06 + p.corpBond.spread.toDouble +- 0.001)
   }
 
   it should "widen with NPL ratio" in {
@@ -74,7 +77,7 @@ class CorporateBondSpec extends AnyFlatSpec with Matchers:
 
   "amortization" should "equal outstanding / maturity" in {
     val a = CorporateBondMarket.amortization(initState)
-    a shouldBe (initState.outstanding.toDouble / Config.CorpBondMaturity +- 0.01)
+    a shouldBe (initState.outstanding.toDouble / p.corpBond.maturity +- 0.01)
   }
 
   "processDefaults" should "return zeros when no defaults" in {
@@ -89,17 +92,17 @@ class CorporateBondSpec extends AnyFlatSpec with Matchers:
     val defaultAmt = 1000.0
     val (gross, loss, bankL, ppkL) = CorporateBondMarket.processDefaults(initState, defaultAmt)
     gross shouldBe defaultAmt
-    loss shouldBe (defaultAmt * (1.0 - Config.CorpBondRecovery) +- 0.01)
+    loss shouldBe (defaultAmt * (1.0 - p.corpBond.recovery.toDouble) +- 0.01)
     val bankFrac = initState.bankHoldings / initState.outstanding
-    bankL shouldBe (defaultAmt * bankFrac * (1.0 - Config.CorpBondRecovery) +- 0.01)
+    bankL shouldBe (defaultAmt * bankFrac * (1.0 - p.corpBond.recovery.toDouble) +- 0.01)
   }
 
   "processIssuance" should "increase all holder buckets" in {
     val issuance = 5000.0
     val result = CorporateBondMarket.processIssuance(initState, issuance)
     result.outstanding.toDouble shouldBe (initState.outstanding.toDouble + issuance +- 0.01)
-    result.bankHoldings.toDouble shouldBe (initState.bankHoldings.toDouble + issuance * Config.CorpBondBankShare +- 0.01)
-    result.ppkHoldings.toDouble shouldBe (initState.ppkHoldings.toDouble + issuance * Config.CorpBondPpkShare +- 0.01)
+    result.bankHoldings.toDouble shouldBe (initState.bankHoldings.toDouble + issuance * p.corpBond.bankShare.toDouble +- 0.01)
+    result.ppkHoldings.toDouble shouldBe (initState.ppkHoldings.toDouble + issuance * p.corpBond.ppkShare.toDouble +- 0.01)
     result.lastIssuance.toDouble shouldBe issuance
   }
 
@@ -113,7 +116,7 @@ class CorporateBondSpec extends AnyFlatSpec with Matchers:
     val prevOutstanding = initState.outstanding
     val result = CorporateBondMarket.step(initState, 0.06, 0.0, 0.0, 0.0)
     // No issuance, no defaults — only amortization reduces outstanding
-    val amort = prevOutstanding.toDouble / Config.CorpBondMaturity
+    val amort = prevOutstanding.toDouble / p.corpBond.maturity
     result.outstanding.toDouble shouldBe (prevOutstanding.toDouble - amort +- 1.0)
   }
 
@@ -121,30 +124,30 @@ class CorporateBondSpec extends AnyFlatSpec with Matchers:
     val issuance = 2000.0
     val default = 500.0
     val result = CorporateBondMarket.step(initState, 0.06, 0.02, default, issuance)
-    val amort = initState.outstanding.toDouble / Config.CorpBondMaturity
+    val amort = initState.outstanding.toDouble / p.corpBond.maturity
     val expectedChange = issuance - amort - default
     val actualChange = result.outstanding.toDouble - initState.outstanding.toDouble
     actualChange shouldBe (expectedChange +- 1.0)
   }
 
-  "Config.CorpBondSpread" should "be 250 bps by default" in {
-    Config.CorpBondSpread shouldBe 0.025
+  "p.corpBond.spread.toDouble" should "be 250 bps by default" in {
+    p.corpBond.spread.toDouble shouldBe 0.025
   }
 
-  "Config.CorpBondRecovery" should "be 30% by default" in {
-    Config.CorpBondRecovery shouldBe 0.30
+  "p.corpBond.recovery.toDouble" should "be 30% by default" in {
+    p.corpBond.recovery.toDouble shouldBe 0.30
   }
 
-  "Config.CorpBondMaturity" should "be 60 months by default" in {
-    Config.CorpBondMaturity shouldBe 60.0
+  "p.corpBond.maturity" should "be 60 months by default" in {
+    p.corpBond.maturity shouldBe 60.0
   }
 
-  "Config.CorpBondMinSize" should "be 50 workers by default" in {
-    Config.CorpBondMinSize shouldBe 50
+  "p.corpBond.minSize" should "be 50 workers by default" in {
+    p.corpBond.minSize shouldBe 50
   }
 
   "computeAbsorption" should "return 1.0 when spread = base and CAR comfortable" in {
-    val state = initState.copy(creditSpread = Rate(Config.CorpBondSpread))
+    val state = initState.copy(creditSpread = Rate(p.corpBond.spread.toDouble))
     val absorption = CorporateBondMarket.computeAbsorption(state, 1000.0, 0.15, 0.08)
     absorption shouldBe 1.0
   }
@@ -155,28 +158,28 @@ class CorporateBondSpec extends AnyFlatSpec with Matchers:
   }
 
   it should "decrease with widening spread" in {
-    val normalState = initState.copy(creditSpread = Rate(Config.CorpBondSpread))
-    val wideState = initState.copy(creditSpread = Rate(Config.CorpBondSpread + 0.05))
+    val normalState = initState.copy(creditSpread = Rate(p.corpBond.spread.toDouble))
+    val wideState = initState.copy(creditSpread = Rate(p.corpBond.spread.toDouble + 0.05))
     val a1 = CorporateBondMarket.computeAbsorption(normalState, 1000.0, 0.15, 0.08)
     val a2 = CorporateBondMarket.computeAbsorption(wideState, 1000.0, 0.15, 0.08)
     a2 should be < a1
   }
 
   it should "return 0.3 floor at extreme spread" in {
-    val extremeState = initState.copy(creditSpread = Rate(Config.CorpBondSpread + 0.15))
+    val extremeState = initState.copy(creditSpread = Rate(p.corpBond.spread.toDouble + 0.15))
     val absorption = CorporateBondMarket.computeAbsorption(extremeState, 1000.0, 0.15, 0.08)
     absorption shouldBe (0.3 +- 0.001)
   }
 
   it should "decrease when CAR near minimum" in {
-    val state = initState.copy(creditSpread = Rate(Config.CorpBondSpread))
+    val state = initState.copy(creditSpread = Rate(p.corpBond.spread.toDouble))
     val a1 = CorporateBondMarket.computeAbsorption(state, 1000.0, 0.15, 0.08)
     val a2 = CorporateBondMarket.computeAbsorption(state, 1000.0, 0.09, 0.08)
     a2 should be < a1
   }
 
   it should "return 0.3 when CAR at or below minimum" in {
-    val state = initState.copy(creditSpread = Rate(Config.CorpBondSpread))
+    val state = initState.copy(creditSpread = Rate(p.corpBond.spread.toDouble))
     val absorption = CorporateBondMarket.computeAbsorption(state, 1000.0, 0.08, 0.08)
     absorption shouldBe (0.3 +- 0.001)
   }

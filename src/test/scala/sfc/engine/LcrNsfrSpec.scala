@@ -10,6 +10,9 @@ import sfc.types.*
 /** LCR/NSFR and maturity mismatch tests. */
 class LcrNsfrSpec extends AnyFlatSpec with Matchers:
 
+  import sfc.config.SimParams
+  given SimParams = SimParams.defaults
+
   private def mkBank(
     id: Int = 0,
     deposits: PLN = PLN(1e9),
@@ -99,7 +102,7 @@ class LcrNsfrSpec extends AnyFlatSpec with Matchers:
   // =========================================================================
 
   "canLend" should "reject when LCR below minimum (when enabled)" in {
-    // We can't easily toggle Config.BankLcrEnabled in tests,
+    // We can't easily toggle p.flags.bankLcr in tests,
     // but we can test that the LCR/NSFR formulas work correctly
     val b = mkBank(reservesAtNbp = PLN.Zero, govBonds = PLN.Zero, demandDep = PLN(1e9))
     b.lcr shouldBe (0.0 +- 0.01) // zero HQLA → LCR ≈ 0
@@ -127,6 +130,9 @@ class LcrNsfrSpec extends AnyFlatSpec with Matchers:
   }
 
 class LcrNsfrPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks:
+  import sfc.config.SimParams
+  given SimParams = SimParams.defaults
+
   override implicit val generatorDrivenConfig: PropertyCheckConfiguration =
     PropertyCheckConfiguration(minSuccessful = 200)
 

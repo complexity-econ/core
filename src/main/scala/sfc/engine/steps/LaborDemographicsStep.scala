@@ -1,7 +1,7 @@
 package sfc.engine.steps
 
 import sfc.agents.*
-import sfc.config.{Config, RunConfig, SectorDefs}
+import sfc.config.{RunConfig, SectorDefs, SimParams}
 import sfc.engine.World
 import sfc.engine.markets.LaborMarket
 import sfc.types.*
@@ -31,39 +31,41 @@ object LaborDemographicsStep:
     living: Vector[Firm.State],
   )
 
-  def run(in: Input): Output =
+  def run(in: Input)(using p: SimParams): Output =
     val living = in.firms.filter(Firm.isAlive)
     val laborDemand = living.kahanSumBy(f => Firm.workers(f).toDouble).toInt
-    val (rawWage, rawEmployed) = LaborMarket.updateLaborMarket(in.w.hh.marketWage.toDouble, in.s1.resWage, laborDemand)
+    val (rawWage, rawEmployed) =
+      LaborMarket.updateLaborMarket(in.w.hh.marketWage.toDouble, in.s1.resWage, laborDemand, in.w.totalPopulation)
 
     // Channel 1: Expectations-augmented wage Phillips curve
-    val wageAfterExp = if Config.ExpEnabled then
-      val target = Config.NbpTargetInfl
-      val expWagePressure = Config.ExpWagePassthrough *
+    val wageAfterExp = if p.flags.expectations then
+      val target = p.monetary.targetInfl.toDouble
+      val expWagePressure = p.labor.expWagePassthrough.toDouble *
         Math.max(0.0, in.w.expectations.expectedInflation.toDouble - target) / 12.0
       Math.max(in.s1.resWage, rawWage * (1.0 + expWagePressure))
     else rawWage
 
     // Union downward wage rigidity (#44)
-    val newWage = if Config.UnionEnabled && wageAfterExp < in.w.hh.marketWage.toDouble then
-      val aggDensity = SectorDefs.zipWithIndex.map((s, i) => s.share.toDouble * Config.UnionDensity(i)).sum
+    val newWage = if p.flags.unions && wageAfterExp < in.w.hh.marketWage.toDouble then
+      val aggDensity =
+        SectorDefs.zipWithIndex.map((s, i) => s.share.toDouble * p.labor.unionDensity.map(_.toDouble)(i)).sum
       val decline = in.w.hh.marketWage.toDouble - wageAfterExp
-      Math.max(in.s1.resWage, wageAfterExp + decline * Config.UnionRigidity * aggDensity)
+      Math.max(in.s1.resWage, wageAfterExp + decline * p.labor.unionRigidity.toDouble * aggDensity)
     else wageAfterExp
 
     // Demographics caps employment at working-age population
     val employed =
-      if Config.DemEnabled then Math.min(rawEmployed, in.w.demographics.workingAgePop)
+      if p.flags.demographics then Math.min(rawEmployed, in.w.demographics.workingAgePop)
       else rawEmployed
 
     // Immigration
-    val unempRateForImmig = 1.0 - employed.toDouble / Config.TotalPopulation
+    val unempRateForImmig = 1.0 - employed.toDouble / in.w.totalPopulation
     val newImmig = Immigration.step(
       in.w.immigration,
       in.households,
       newWage,
       unempRateForImmig,
-      in.w.demographics.workingAgePop.max(Config.TotalPopulation),
+      in.w.demographics.workingAgePop.max(in.w.totalPopulation),
       in.s1.m,
     )
     val netMigration = newImmig.monthlyInflow - newImmig.monthlyOutflow

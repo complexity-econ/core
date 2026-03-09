@@ -3,11 +3,14 @@ package sfc.agents
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import sfc.accounting.{BankingAggregate, ForexState, GovState}
-import sfc.config.{Config, RunConfig, SectorDefs}
+import sfc.config.{RunConfig, SectorDefs, SimParams}
 import sfc.engine.World
 import sfc.types.*
 
 class StagedDigitalizationSpec extends AnyFlatSpec with Matchers:
+
+  given SimParams = SimParams.defaults
+  private val p: SimParams = summon[SimParams]
 
   // ---- Helpers ----
 
@@ -26,8 +29,8 @@ class StagedDigitalizationSpec extends AnyFlatSpec with Matchers:
       forex = ForexState(4.33, PLN.Zero, PLN(190000000), PLN.Zero, PLN.Zero),
       hh = Household.SectorState(
         100000,
-        PLN(Config.BaseWage),
-        PLN(Config.BaseReservationWage),
+        PLN(p.household.baseWage.toDouble),
+        PLN(p.household.baseReservationWage.toDouble),
         PLN.Zero,
         PLN.Zero,
         PLN.Zero,
@@ -44,17 +47,17 @@ class StagedDigitalizationSpec extends AnyFlatSpec with Matchers:
 
   // ---- Config defaults (3 tests) ----
 
-  "Config.DigiDrift" should "be positive by default" in {
-    Config.DigiDrift should be > 0.0
+  "p.firm.digiDrift.toDouble" should "be positive by default" in {
+    p.firm.digiDrift.toDouble should be > 0.0
   }
 
-  "Config.DigiInvestCost" should "be positive by default" in {
-    Config.DigiInvestCost should be > 0.0
+  "p.firm.digiInvestCost.toDouble" should "be positive by default" in {
+    p.firm.digiInvestCost.toDouble should be > 0.0
   }
 
-  "Config.DigiCapexDiscount" should "be in [0, 1]" in {
-    Config.DigiCapexDiscount should be >= 0.0
-    Config.DigiCapexDiscount should be <= 1.0
+  "p.firm.digiCapexDiscount.toDouble" should "be in [0, 1]" in {
+    p.firm.digiCapexDiscount.toDouble should be >= 0.0
+    p.firm.digiCapexDiscount.toDouble should be <= 1.0
   }
 
   // ---- CAPEX discount (3 tests) ----
@@ -74,8 +77,8 @@ class StagedDigitalizationSpec extends AnyFlatSpec with Matchers:
   "Firm.aiCapex" should "apply no discount when digitalReadiness is 0" in {
     val f0 = mkFirm(TechState.Traditional(10), dr = 0.0)
     // With dr=0: discount factor = 1.0 - 0.30 * 0.0 = 1.0 (no discount)
-    val expectedBase = Config.AiCapex * SectorDefs(2).aiCapexMultiplier * 1.0 *
-      Math.pow(10.0 / Config.WorkersPerFirm, 0.6)
+    val expectedBase = p.firm.aiCapex.toDouble * SectorDefs(2).aiCapexMultiplier * 1.0 *
+      Math.pow(10.0 / p.pop.workersPerFirm, 0.6)
     Firm.aiCapex(f0) shouldBe expectedBase +- 0.01
   }
 
@@ -86,7 +89,7 @@ class StagedDigitalizationSpec extends AnyFlatSpec with Matchers:
     val w = mkWorld()
     val result = Firm.process(f, w, 0.07, _ => true, Vector(f), rc)
     // DR should be at least initial + drift (could also get digital investment boost)
-    result.firm.digitalReadiness.toDouble should be >= (0.40 + Config.DigiDrift - 0.001)
+    result.firm.digitalReadiness.toDouble should be >= (0.40 + p.firm.digiDrift.toDouble - 0.001)
   }
 
   it should "cap digitalReadiness at 1.0" in {
@@ -114,7 +117,7 @@ class StagedDigitalizationSpec extends AnyFlatSpec with Matchers:
     var invested = false
     for _ <- 0 until 500 if !invested do
       val result = Firm.process(f, w, 0.07, _ => false, Vector(f), rc)
-      if result.firm.digitalReadiness.toDouble > f.digitalReadiness.toDouble + Config.DigiDrift + 0.001 then
+      if result.firm.digitalReadiness.toDouble > f.digitalReadiness.toDouble + p.firm.digiDrift.toDouble + 0.001 then
         // Investment happened (DR increased beyond just drift)
         result.firm.cash.toDouble should be < f.cash.toDouble
         invested = true
@@ -133,14 +136,14 @@ class StagedDigitalizationSpec extends AnyFlatSpec with Matchers:
       // But net income is added to cash, so firm may become solvent enough
       // Just verify no investment boost beyond drift
       if Firm.isAlive(result.firm) then
-        result.firm.digitalReadiness.toDouble should be <= (f.digitalReadiness.toDouble + Config.DigiDrift + Config.DigiInvestBoost * 0.001)
+        result.firm.digitalReadiness.toDouble should be <= (f.digitalReadiness.toDouble + p.firm.digiDrift.toDouble + p.firm.digiInvestBoost.toDouble * 0.001)
   }
 
   it should "have diminishing returns at high DR" in {
     val diminishingLow = 1.0 - 0.2 // DR=0.2
     val diminishingHigh = 1.0 - 0.9 // DR=0.9
-    val boostLow = Config.DigiInvestBoost * diminishingLow
-    val boostHigh = Config.DigiInvestBoost * diminishingHigh
+    val boostLow = p.firm.digiInvestBoost.toDouble * diminishingLow
+    val boostHigh = p.firm.digiInvestBoost.toDouble * diminishingHigh
     boostHigh should be < boostLow
   }
 
@@ -165,7 +168,7 @@ class StagedDigitalizationSpec extends AnyFlatSpec with Matchers:
     val result = Firm.process(f, w, 0.07, _ => true, Vector(f), rc)
     if Firm.isAlive(result.firm) then
       // Hybrid learning (+0.005) + natural drift (+0.001)
-      result.firm.digitalReadiness.toDouble should be >= (0.40 + 0.005 + Config.DigiDrift - 0.001)
+      result.firm.digitalReadiness.toDouble should be >= (0.40 + 0.005 + p.firm.digiDrift.toDouble - 0.001)
   }
 
   // ---- Integration (1 test) ----
@@ -178,5 +181,5 @@ class StagedDigitalizationSpec extends AnyFlatSpec with Matchers:
     for _ <- 0 until 10 do
       val result = Firm.process(f, w, 0.07, _ => false, Vector(f), rc)
       if Firm.isAlive(result.firm) then f = result.firm.copy(cash = PLN(1000000.0)) // reset cash for next round
-    f.digitalReadiness.toDouble should be >= (initDR + 10 * Config.DigiDrift - 0.001)
+    f.digitalReadiness.toDouble should be >= (initDR + 10 * p.firm.digiDrift.toDouble - 0.001)
   }

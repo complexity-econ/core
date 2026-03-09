@@ -7,7 +7,10 @@ import sfc.types.*
 /** Progressive PIT unit tests. */
 class PitSpec extends AnyFlatSpec with Matchers:
 
-  // Note: Config.PitEnabled is false by default, so computeMonthlyPit returns 0.
+  import sfc.config.SimParams
+  given SimParams = SimParams.defaults
+
+  // Note: p.flags.pit is false by default, so computeMonthlyPit returns 0.
   // These tests verify the formula logic assuming PIT_ENABLED=true would be set.
   // Since env vars are JVM-global, we test the internal math directly.
 
@@ -23,7 +26,7 @@ class PitSpec extends AnyFlatSpec with Matchers:
     Household.computeMonthlyPit(-5000.0) shouldBe 0.0
   }
 
-  // --- Formula verification tests (independent of Config.PitEnabled) ---
+  // --- Formula verification tests (independent of p.flags.pit) ---
   // These test the mathematical formula: 12% bracket 1, 32% bracket 2, 3600 PLN/yr credit
 
   "PIT formula" should "compute correctly for income below bracket 1" in {

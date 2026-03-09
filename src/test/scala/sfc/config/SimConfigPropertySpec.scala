@@ -8,6 +8,9 @@ import sfc.types.*
 
 class SimConfigPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks:
 
+  given SimParams = SimParams.defaults
+  private val p: SimParams = summon[SimParams]
+
   implicit override val generatorDrivenConfig: PropertyCheckConfiguration =
     PropertyCheckConfiguration(minSuccessful = 200)
 
@@ -44,23 +47,23 @@ class SimConfigPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPro
 
   // --- IoMatrix invariants ---
 
-  "Config.IoMatrix" should "have non-negative entries" in {
+  "p.io.matrix" should "have non-negative entries" in {
     for
-      row <- Config.IoMatrix
+      row <- p.io.matrix
       v <- row
     do v should be >= 0.0
   }
 
   it should "have column sums < 1.0" in {
     for j <- 0 until 6 do
-      val colSum = Config.IoMatrix.map(_(j)).sum
+      val colSum = p.io.matrix.map(_(j)).sum
       colSum should be < 1.0
   }
 
-  "Config.IoColumnSums" should "match IoMatrix computation" in {
+  "p.io.columnSums" should "match IoMatrix computation" in {
     for j <- 0 until 6 do
-      val expected = Config.IoMatrix.map(_(j)).sum
-      Config.IoColumnSums(j) shouldBe (expected +- 1e-10)
+      val expected = p.io.matrix.map(_(j)).sum
+      p.io.columnSums(j) shouldBe (expected +- 1e-10)
   }
 
   // --- Generated IoMatrix properties ---

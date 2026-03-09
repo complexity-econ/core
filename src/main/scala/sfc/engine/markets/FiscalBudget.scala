@@ -21,23 +21,24 @@ object FiscalBudget:
     exciseRevenue: Double = 0.0,
     customsDutyRevenue: Double = 0.0,
     govPurchasesActual: Double = 0.0,
-  ): GovState =
+  )(using p: SimParams): GovState =
     val govBaseRaw =
       if govPurchasesActual > 0 then govPurchasesActual
-      else Config.GovBaseSpending * priceLevel
+      else p.fiscal.govBaseSpending.toDouble * priceLevel
     val (govCurrent, govCapital) =
-      if Config.GovInvestEnabled then (govBaseRaw * (1.0 - Config.GovInvestShare), govBaseRaw * Config.GovInvestShare)
+      if p.flags.govInvest then
+        (govBaseRaw * (1.0 - p.fiscal.govInvestShare.toDouble), govBaseRaw * p.fiscal.govInvestShare.toDouble)
       else (govBaseRaw, 0.0)
     val totalSpend =
       unempBenefitSpend + socialTransferSpend + govCurrent + govCapital + debtService + zusGovSubvention + euCofinancing
     val totalRev = citPaid + vat + nbpRemittance + exciseRevenue + customsDutyRevenue
     val deficit = totalSpend - totalRev
     val newBondsOutstanding =
-      if Config.GovBondMarket then Math.max(0.0, prev.bondsOutstanding.toDouble + deficit)
+      if p.flags.govBondMarket then Math.max(0.0, prev.bondsOutstanding.toDouble + deficit)
       else prev.bondsOutstanding.toDouble
     val newCapitalStock =
-      if Config.GovInvestEnabled then
-        prev.publicCapitalStock.toDouble * (1.0 - Config.GovDepreciationRate / 12.0) + govCapital + euProjectCapital
+      if p.flags.govInvest then
+        prev.publicCapitalStock.toDouble * (1.0 - p.fiscal.govDepreciationRate.toDouble / 12.0) + govCapital + euProjectCapital
       else 0.0
     GovState(
       PLN(totalRev),

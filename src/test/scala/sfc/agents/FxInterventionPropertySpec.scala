@@ -4,9 +4,12 @@ import org.scalacheck.Gen
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import sfc.config.Config
 
 class FxInterventionPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks:
+
+  import sfc.config.SimParams
+  given SimParams = SimParams.defaults
+  private val p: SimParams = summon[SimParams]
 
   implicit override val generatorDrivenConfig: PropertyCheckConfiguration =
     PropertyCheckConfiguration(minSuccessful = 200)
@@ -38,8 +41,8 @@ class FxInterventionPropertySpec extends AnyFlatSpec with Matchers with ScalaChe
   it should "have erEffect opposing deviation when outside band" in {
     forAll(genER, genReserves, genGdp) { (er, reserves, gdp) =>
       val result = fxEnabled(er, reserves, gdp)
-      val erDev = (er - Config.BaseExRate) / Config.BaseExRate
-      if Math.abs(erDev) > Config.NbpFxBand && reserves > 0 && gdp > 0 then
+      val erDev = (er - p.forex.baseExRate) / p.forex.baseExRate
+      if Math.abs(erDev) > p.monetary.fxBand.toDouble && reserves > 0 && gdp > 0 then
         // erEffect should oppose the deviation
         if erDev > 0 then result.erEffect should be <= 0.0
         else result.erEffect should be >= 0.0
@@ -47,9 +50,9 @@ class FxInterventionPropertySpec extends AnyFlatSpec with Matchers with ScalaChe
   }
 
   "Nbp.fxIntervention (disabled)" should "return zero effect" in {
-    // Config.NbpFxIntervention defaults to false
+    // p.flags.nbpFxIntervention defaults to false
     forAll(genER, genReserves, genGdp) { (er, reserves, gdp) =>
-      val result = Nbp.fxIntervention(er, reserves, gdp)
+      val result = Nbp.fxIntervention(er, reserves, gdp, enabled = false)
       result.erEffect shouldBe 0.0
       result.eurTraded shouldBe 0.0
       result.newReserves shouldBe reserves
@@ -59,8 +62,8 @@ class FxInterventionPropertySpec extends AnyFlatSpec with Matchers with ScalaChe
   "Nbp.fxIntervention (enabled)" should "return zero effect when ER within band" in {
     // Generate ER strictly inside band (0.5% margin avoids FP boundary issues)
     val genERInBand = Gen.choose(
-      Config.BaseExRate * (1.0 - Config.NbpFxBand + 0.005),
-      Config.BaseExRate * (1.0 + Config.NbpFxBand - 0.005),
+      p.forex.baseExRate * (1.0 - p.monetary.fxBand.toDouble + 0.005),
+      p.forex.baseExRate * (1.0 + p.monetary.fxBand.toDouble - 0.005),
     )
     forAll(genERInBand, genReserves, genGdp) { (er, reserves, gdp) =>
       val result = fxEnabled(er, reserves, gdp)

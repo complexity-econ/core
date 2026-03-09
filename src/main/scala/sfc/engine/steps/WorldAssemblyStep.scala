@@ -2,7 +2,7 @@ package sfc.engine.steps
 
 import sfc.accounting.*
 import sfc.agents.*
-import sfc.config.{Config, RunConfig, SectorDefs}
+import sfc.config.{RunConfig, SectorDefs, SimParams}
 import sfc.engine.*
 import sfc.engine.markets.SectoralMobility
 import sfc.types.*
@@ -35,7 +35,7 @@ object WorldAssemblyStep:
     sfcResult: Sfc.SfcResult,
   )
 
-  def run(in: Input): Output =
+  def run(in: Input)(using p: SimParams): Output =
     // GPW: finalize equity state with HH equity wealth
     val totalHhEquityWealth = in.s9.reassignedHouseholds.kahanSumBy(_.equityWealth.toDouble)
 
@@ -62,14 +62,14 @@ object WorldAssemblyStep:
 
     // Informal economy: aggregate metrics and next-month cyclical adjustment (#45)
     val taxEvasionLoss =
-      if Config.InformalEnabled then
+      if p.flags.informal then
         in.s5.sumCitEvasion + (in.s9.vat - in.s9.vatAfterEvasion) + (in.s3.pitRevenue - in.s9.pitAfterEvasion) + (in.s9.exciseRevenue - in.s9.exciseAfterEvasion)
       else 0.0
-    val informalEmployed = if Config.InformalEnabled then in.s2.employed.toDouble * in.s9.effectiveShadowShare else 0.0
-    val newInformalCyclicalAdj = if Config.InformalEnabled then
-      val unemp = 1.0 - in.s2.employed.toDouble / Config.TotalPopulation
-      val target = Math.max(0.0, unemp - Config.InformalUnempThreshold) * Config.InformalCyclicalSens
-      in.w.informalCyclicalAdj * Config.InformalSmoothing + target * (1.0 - Config.InformalSmoothing)
+    val informalEmployed = if p.flags.informal then in.s2.employed.toDouble * in.s9.effectiveShadowShare else 0.0
+    val newInformalCyclicalAdj = if p.flags.informal then
+      val unemp = 1.0 - in.s2.employed.toDouble / in.w.totalPopulation
+      val target = Math.max(0.0, unemp - p.informal.unempThreshold.toDouble) * p.informal.cyclicalSens.toDouble
+      in.w.informalCyclicalAdj * p.informal.smoothing.toDouble + target * (1.0 - p.informal.smoothing.toDouble)
     else 0.0
 
     // Pre-compute values surfaced on World for SimOutput
@@ -78,11 +78,12 @@ object WorldAssemblyStep:
       .filter(_.reservesAtNbp > PLN.Zero)
       .kahanSumBy(_.reservesAtNbp.toDouble)
     val etsPrice =
-      if Config.EnergyEnabled then Config.EtsBasePrice * Math.pow(1.0 + Config.EtsPriceDrift / 12.0, in.s1.m.toDouble)
+      if p.flags.energy then
+        p.climate.etsBasePrice * Math.pow(1.0 + p.climate.etsPriceDrift.toDouble / 12.0, in.s1.m.toDouble)
       else 0.0
     val monthInYear = ((in.s1.m - 1) % 12) + 1
     val tourismSeasonalFactor =
-      1.0 + Config.TourismSeasonality * Math.cos(2 * Math.PI * (monthInYear - Config.TourismPeakMonth) / 12.0)
+      1.0 + p.tourism.seasonality.toDouble * Math.cos(2 * Math.PI * (monthInYear - p.tourism.peakMonth) / 12.0)
 
     val newW = World(
       in.s1.m,
@@ -151,9 +152,10 @@ object WorldAssemblyStep:
       bfgFundBalance = PLN(in.w.bfgFundBalance.toDouble + in.s9.bfgLevy),
       bailInLoss = PLN(in.s9.bailInLoss),
       effectiveShadowShare =
-        if Config.InformalEnabled then
-          Config.FofConsWeights
-            .zip(Config.InformalSectorShares)
+        if p.flags.informal then
+          p.fiscal.fofConsWeights
+            .map(_.toDouble)
+            .zip(p.informal.sectorShares.map(_.toDouble))
             .map((cw, ss) => cw * Math.min(1.0, ss + newInformalCyclicalAdj))
             .sum
         else 0.0,
@@ -164,6 +166,7 @@ object WorldAssemblyStep:
       depositFacilityUsage = depositFacilityUsage,
       etsPrice = etsPrice,
       tourismSeasonalFactor = tourismSeasonalFactor,
+      totalPopulation = in.w.totalPopulation + in.s5.netMigration,
     )
 
     // SFC accounting check
@@ -185,12 +188,12 @@ object WorldAssemblyStep:
       totalIncome = PLN(in.s3.totalIncome),
       totalConsumption = PLN(in.s3.consumption),
       newLoans = PLN(in.s5.sumNewLoans),
-      nplRecovery = PLN(in.s5.nplNew * Config.LoanRecovery),
+      nplRecovery = PLN(in.s5.nplNew * p.banking.loanRecovery.toDouble),
       currentAccount = in.s8.newBop.currentAccount,
       valuationEffect = PLN(in.s8.oeValuationEffect),
       bankBondIncome = PLN(in.s8.bankBondIncome),
       qePurchase = PLN(in.s8.qePurchaseAmount),
-      newBondIssuance = PLN(if Config.GovBondMarket then in.s9.actualBondChange else 0.0),
+      newBondIssuance = PLN(if p.flags.govBondMarket then in.s9.actualBondChange else 0.0),
       depositInterestPaid = PLN(in.s6.depositInterestPaid),
       reserveInterest = PLN(in.s8.totalReserveInterest),
       standingFacilityIncome = PLN(in.s8.totalStandingFacilityIncome),
@@ -240,18 +243,18 @@ object WorldAssemblyStep:
 
     // FDI M&A: monthly domestic → foreign conversion (#33)
     val postFdiFirms =
-      if Config.FdiEnabled && Config.FdiMaProb > 0 then
+      if p.flags.fdi && p.fdi.maProb.toDouble > 0 then
         in.s9.reassignedFirms.map { f =>
           if Firm.isAlive(f) && !f.foreignOwned &&
-            f.initialSize >= Config.FdiMaSizeMin &&
-            Random.nextDouble() < Config.FdiMaProb
+            f.initialSize >= p.fdi.maSizeMin &&
+            Random.nextDouble() < p.fdi.maProb.toDouble
           then f.copy(foreignOwned = true)
           else f
         }
       else in.s9.reassignedFirms
 
     // Endogenous Firm Entry (#35): recycle bankrupt slots
-    val (finalFirms, firmBirths) = if Config.FirmEntryEnabled then
+    val (finalFirms, firmBirths) = if p.flags.firmEntry then
       val postLiving = postFdiFirms.filter(Firm.isAlive)
       val sectorCashSum = Array.fill(SectorDefs.length)(0.0)
       val sectorCashCnt = Array.fill(SectorDefs.length)(0)
@@ -268,8 +271,8 @@ object WorldAssemblyStep:
       val sectorWeights = SectorDefs.indices.map { s =>
         Math.max(
           0.01,
-          (1.0 + profitSignals(s) * Config.FirmEntryProfitSens) *
-            Config.FirmEntrySectorBarriers(s),
+          (1.0 + profitSignals(s) * p.firm.entryProfitSens) *
+            p.firm.entrySectorBarriers(s),
         )
       }.toArray
       val totalWeight = sectorWeights.sum
@@ -281,8 +284,8 @@ object WorldAssemblyStep:
       val result = postFdiFirms.map { f =>
         if !Firm.isAlive(f) then
           val slotSector = f.sector.toInt
-          val entryProb = Config.FirmEntryRate * Config.FirmEntrySectorBarriers(slotSector) *
-            Math.max(0.0, 1.0 + profitSignals(slotSector) * Config.FirmEntryProfitSens)
+          val entryProb = p.firm.entryRate.toDouble * p.firm.entrySectorBarriers(slotSector) *
+            Math.max(0.0, 1.0 + profitSignals(slotSector) * p.firm.entryProfitSens)
           if Random.nextDouble() < entryProb then
             births += 1
             val roll = Random.nextDouble() * totalWeight
@@ -294,10 +297,10 @@ object WorldAssemblyStep:
               if roll < cumul then { newSector = s; found = true }
 
             val firmSize = Math.max(1, Random.between(1, 10))
-            val sizeMult = firmSize.toDouble / Config.WorkersPerFirm
+            val sizeMult = firmSize.toDouble / p.pop.workersPerFirm
 
-            val isAiNative = totalAdoption > Config.FirmEntryAiThreshold &&
-              Random.nextDouble() < Config.FirmEntryAiProb
+            val isAiNative = totalAdoption > p.firm.entryAiThreshold.toDouble &&
+              Random.nextDouble() < p.firm.entryAiProb.toDouble
             val dr =
               if isAiNative then Random.between(0.50, 0.90)
               else
@@ -318,26 +321,29 @@ object WorldAssemblyStep:
 
             val newBankId = Banking.assignBank(SectorIdx(newSector), Banking.DefaultConfigs, Random)
 
-            val foreignOwned = Config.FdiEnabled &&
-              Random.nextDouble() < Config.FdiForeignShares(newSector)
+            val foreignOwned = p.flags.fdi &&
+              Random.nextDouble() < p.fdi.foreignShares.map(_.toDouble)(newSector)
 
             val capitalStock =
-              if Config.PhysCapEnabled then firmSize.toDouble * Config.PhysCapKLRatios(newSector)
+              if p.flags.physCap then firmSize.toDouble * p.capital.klRatios.map(_.toDouble)(newSector)
               else 0.0
 
-            val initInventory = if Config.InventoryEnabled then
-              val cap = Config.BaseRevenue * (firmSize.toDouble / Config.WorkersPerFirm) *
+            val initInventory = if p.flags.inventory then
+              val cap = p.firm.baseRevenue.toDouble * (firmSize.toDouble / p.pop.workersPerFirm) *
                 SectorDefs(newSector).revenueMultiplier
-              cap * Config.InventoryTargetRatios(newSector) * Config.InventoryInitRatio
+              cap * p.capital.inventoryTargetRatios.map(_.toDouble)(newSector) * p.capital.inventoryInitRatio.toDouble
             else 0.0
 
             val initGreenK =
-              if Config.EnergyEnabled then firmSize.toDouble * Config.GreenKLRatios(newSector) * Config.GreenInitRatio
+              if p.flags.energy then
+                firmSize.toDouble * p.climate.greenKLRatios.map(_.toDouble)(
+                  newSector,
+                ) * p.climate.greenInitRatio.toDouble
               else 0.0
 
             Firm.State(
               id = f.id,
-              cash = PLN(Config.FirmEntryStartupCash * sizeMult),
+              cash = PLN(p.firm.entryStartupCash.toDouble * sizeMult),
               debt = PLN.Zero,
               tech = tech,
               riskProfile = Ratio(Random.between(0.1, 0.9)),

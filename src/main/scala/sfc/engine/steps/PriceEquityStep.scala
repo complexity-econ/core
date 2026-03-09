@@ -1,7 +1,7 @@
 package sfc.engine.steps
 
 import sfc.agents.*
-import sfc.config.{Config, FirmSizeDistribution, RunConfig, SectorDefs}
+import sfc.config.{FirmSizeDistribution, RunConfig, SectorDefs, SimParams}
 import sfc.engine.*
 import sfc.engine.markets.{EquityMarket, PriceLevel}
 import sfc.engine.mechanisms.{EuFunds, Macroprudential}
@@ -60,7 +60,7 @@ object PriceEquityStep:
   //   sigma_s(t+1) = sigma_s(t) + lambda * sigma_s(t) * adoptionRate_s(t) * (1 - sigma_s(t) / cap)
   //
   // where:
-  //   - lambda       = learning rate (Config.SigmaLambda); 0.0 disables the mechanism entirely
+  //   - lambda       = learning rate (p.firm.sigmaLambda); 0.0 disables the mechanism entirely
   //   - adoptionRate = fraction of alive firms in sector s that are Automated or Hybrid
   //   - cap          = baseSigma * capMult — the logistic ceiling; sigma saturates at cap
   //
@@ -152,12 +152,12 @@ object PriceEquityStep:
     * @return
     *   updated firm array with same length
     */
-  private[steps] def rewireFirms(firms: Vector[Firm.State], rho: Double): Vector[Firm.State] =
+  private[steps] def rewireFirms(firms: Vector[Firm.State], rho: Double)(using p: SimParams): Vector[Firm.State] =
     // Fast path: static network mode — no rewiring, return the exact same array instance.
     if rho == 0.0 then return firms
 
     val n = firms.length
-    val k = Config.NetworkK
+    val k = p.firm.networkK
 
     // Identify bankrupt firms eligible for replacement. Each bankrupt firm independently
     // "rolls the dice" with probability rho — this creates stochastic variation in the
@@ -207,7 +207,7 @@ object PriceEquityStep:
       if toReplace.contains(i) then
         val sec = firms(i).sector
         val newSize = FirmSizeDistribution.draw(Random)
-        val sizeMult = newSize.toDouble / Config.WorkersPerFirm
+        val sizeMult = newSize.toDouble / p.pop.workersPerFirm
         Firm.State(
           id = FirmId(i),
           cash = PLN(Random.between(10000.0, 80000.0) * sizeMult),
@@ -225,7 +225,7 @@ object PriceEquityStep:
           neighbors = adj(i).toArray.map(FirmId(_)),
           initialSize = newSize,
           capitalStock =
-            PLN(if Config.PhysCapEnabled then newSize.toDouble * Config.PhysCapKLRatios(sec.toInt) else 0.0),
+            PLN(if p.flags.physCap then newSize.toDouble * p.capital.klRatios.map(_.toDouble)(sec.toInt) else 0.0),
         )
       else
         // For surviving firms: only allocate a new neighbors array if the neighbor set actually changed
@@ -240,41 +240,41 @@ object PriceEquityStep:
   // Main step logic
   // ---------------------------------------------------------------------------
 
-  def run(in: Input): Output =
+  def run(in: Input)(using p: SimParams): Output =
     val living2 = in.s5.ioFirms.filter(Firm.isAlive)
     val nLiving = living2.length.toDouble
     val autoR = if nLiving > 0 then living2.count(_.tech.isInstanceOf[TechState.Automated]) / nLiving else 0.0
     val hybR = if nLiving > 0 then living2.count(_.tech.isInstanceOf[TechState.Hybrid]) / nLiving else 0.0
-    val aggInventoryStock = if Config.InventoryEnabled then living2.kahanSumBy(_.inventory.toDouble) else 0.0
-    val aggGreenCapital = if Config.EnergyEnabled then living2.kahanSumBy(_.greenCapital.toDouble) else 0.0
+    val aggInventoryStock = if p.flags.inventory then living2.kahanSumBy(_.inventory.toDouble) else 0.0
+    val aggGreenCapital = if p.flags.energy then living2.kahanSumBy(_.greenCapital.toDouble) else 0.0
 
     val euMonthly =
-      if Config.EuFundsEnabled then EuFunds.monthlyTransfer(in.s1.m)
-      else Config.OeEuTransfers
+      if p.flags.euFunds then EuFunds.monthlyTransfer(in.s1.m)
+      else p.openEcon.euTransfers.toDouble
 
     val govGdpContribution =
-      if Config.GovInvestEnabled then
-        Config.GovBaseSpending * (1.0 - Config.GovInvestShare) * Config.GovCurrentMultiplier +
-          Config.GovBaseSpending * Config.GovInvestShare * Config.GovCapitalMultiplier
-      else Config.GovBaseSpending
-    val euCofin = if Config.EuFundsEnabled then EuFunds.cofinancing(euMonthly) else 0.0
+      if p.flags.govInvest then
+        p.fiscal.govBaseSpending.toDouble * (1.0 - p.fiscal.govInvestShare.toDouble) * p.fiscal.govCurrentMultiplier +
+          p.fiscal.govBaseSpending.toDouble * p.fiscal.govInvestShare.toDouble * p.fiscal.govCapitalMultiplier
+      else p.fiscal.govBaseSpending.toDouble
+    val euCofin = if p.flags.euFunds then EuFunds.cofinancing(euMonthly) else 0.0
     val euProjectCapital =
-      if Config.EuFundsEnabled && Config.GovInvestEnabled then EuFunds.capitalInvestment(euMonthly, euCofin)
+      if p.flags.euFunds && p.flags.govInvest then EuFunds.capitalInvestment(euMonthly, euCofin)
       else 0.0
     val euGdpContribution =
-      if Config.EuFundsEnabled && Config.GovInvestEnabled then
-        euProjectCapital * Config.GovCapitalMultiplier +
-          (euCofin - euProjectCapital).max(0.0) * Config.GovCurrentMultiplier
-      else if Config.EuFundsEnabled then euCofin
+      if p.flags.euFunds && p.flags.govInvest then
+        euProjectCapital * p.fiscal.govCapitalMultiplier +
+          (euCofin - euProjectCapital).max(0.0) * p.fiscal.govCurrentMultiplier
+      else if p.flags.euFunds then euCofin
       else 0.0
     val greenDomesticGFCF =
-      if Config.EnergyEnabled then in.s5.sumGreenInvestment * (1.0 - Config.GreenImportShare) else 0.0
-    val domesticGFCF = (if Config.PhysCapEnabled then in.s5.sumGrossInvestment * (1.0 - Config.PhysCapImportShare)
+      if p.flags.energy then in.s5.sumGreenInvestment * (1.0 - p.climate.greenImportShare.toDouble) else 0.0
+    val domesticGFCF = (if p.flags.physCap then in.s5.sumGrossInvestment * (1.0 - p.capital.importShare.toDouble)
                         else 0.0) + greenDomesticGFCF
     val investmentImports =
-      (if Config.PhysCapEnabled then in.s5.sumGrossInvestment * Config.PhysCapImportShare else 0.0) +
-        (if Config.EnergyEnabled then in.s5.sumGreenInvestment * Config.GreenImportShare else 0.0)
-    val aggInventoryChange = if Config.InventoryEnabled then in.s5.sumInventoryChange else 0.0
+      (if p.flags.physCap then in.s5.sumGrossInvestment * p.capital.importShare.toDouble else 0.0) +
+        (if p.flags.energy then in.s5.sumGreenInvestment * p.climate.greenImportShare.toDouble else 0.0)
+    val aggInventoryChange = if p.flags.inventory then in.s5.sumInventoryChange else 0.0
     val gdp =
       in.s3.domesticCons + govGdpContribution + euGdpContribution + in.w.forex.exports.toDouble + domesticGFCF + aggInventoryChange
 
@@ -291,11 +291,11 @@ object PriceEquityStep:
     }.toVector
     val baseSigmas = SectorDefs.map(_.sigma).toVector
     val newSigmas =
-      evolveSigmas(in.w.currentSigmas, baseSigmas, sectorAdoption, Config.SigmaLambda, Config.SigmaCapMult)
+      evolveSigmas(in.w.currentSigmas, baseSigmas, sectorAdoption, p.firm.sigmaLambda, p.firm.sigmaCapMult)
 
-    val rewiredFirms = rewireFirms(in.s5.ioFirms, Config.RewireRho)
+    val rewiredFirms = rewireFirms(in.s5.ioFirms, p.firm.rewireRho.toDouble)
 
-    val exDev = (in.w.forex.exchangeRate / Config.BaseExRate) - 1.0
+    val exDev = (in.w.forex.exchangeRate / p.forex.baseExRate) - 1.0
     val (newInfl, newPrice) = PriceLevel.update(
       in.w.inflation.toDouble,
       in.w.priceLevel,
@@ -310,14 +310,14 @@ object PriceEquityStep:
     val firmProfits = living2.kahanSumBy { f =>
       val rev = Firm.capacity(f) * in.s4.sectorMults(f.sector.toInt) * newPrice
       val labor = Firm.workers(f) * in.s2.newWage * SectorDefs(f.sector.toInt).wageMultiplier
-      val other = Config.OtherCosts * newPrice
+      val other = p.firm.otherCosts.toDouble * newPrice
       val aiMaint = f.tech match
-        case _: TechState.Automated => Config.AiOpex * (0.60 + 0.40 * newPrice)
-        case _: TechState.Hybrid    => Config.HybridOpex * (0.60 + 0.40 * newPrice)
+        case _: TechState.Automated => p.firm.aiOpex.toDouble * (0.60 + 0.40 * newPrice)
+        case _: TechState.Hybrid    => p.firm.hybridOpex.toDouble * (0.60 + 0.40 * newPrice)
         case _                      => 0.0
       val interest = f.debt.toDouble * in.s5.lendingRates(f.bankId.toInt) / 12.0
       val gross = rev - labor - other - aiMaint - interest
-      val tax = Math.max(0.0, gross) * Config.CitRate
+      val tax = Math.max(0.0, gross) * p.fiscal.citRate.toDouble
       Math.max(0.0, gross - tax)
     }
 
@@ -328,7 +328,7 @@ object PriceEquityStep:
     val equityAfterIssuance = EquityMarket.processIssuance(in.s5.sumEquityIssuance, equityAfterIndex)
 
     val (netDomesticDividends, foreignDividendOutflow, dividendTax) =
-      if Config.GpwEnabled && Config.GpwDividends then
+      if p.flags.gpw && p.flags.gpwDividends then
         EquityMarket.computeDividends(
           firmProfits,
           equityAfterIssuance.dividendYield.toDouble,

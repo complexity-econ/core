@@ -1,6 +1,6 @@
 package sfc.agents
 
-import sfc.config.Config
+import sfc.config.SimParams
 import sfc.types.*
 
 /** Insurance sector: life + non-life reserves, asset allocation. */
@@ -21,14 +21,14 @@ object Insurance:
 
   def zero: State = State(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
 
-  def initial: State =
-    val totalAssets = Config.InsLifeReserves + Config.InsNonLifeReserves
+  def initial(using p: SimParams): State =
+    val totalAssets = p.ins.lifeReserves.toDouble + p.ins.nonLifeReserves.toDouble
     State(
-      lifeReserves = PLN(Config.InsLifeReserves),
-      nonLifeReserves = PLN(Config.InsNonLifeReserves),
-      govBondHoldings = PLN(totalAssets * Config.InsGovBondShare),
-      corpBondHoldings = PLN(totalAssets * Config.InsCorpBondShare),
-      equityHoldings = PLN(totalAssets * Config.InsEquityShare),
+      lifeReserves = PLN(p.ins.lifeReserves.toDouble),
+      nonLifeReserves = PLN(p.ins.nonLifeReserves.toDouble),
+      govBondHoldings = PLN(totalAssets * p.ins.govBondShare.toDouble),
+      corpBondHoldings = PLN(totalAssets * p.ins.corpBondShare.toDouble),
+      equityHoldings = PLN(totalAssets * p.ins.equityShare.toDouble),
     )
 
   /** Full monthly step: premiums, claims, investment income, rebalancing. */
@@ -41,15 +41,15 @@ object Insurance:
     govBondYield: Double,
     corpBondYield: Double,
     equityReturn: Double,
-  ): State =
+  )(using p: SimParams): State =
     // Premiums: proportional to wage bill (Double arithmetic)
-    val lifePrem = employed * wage * Config.InsLifePremiumRate
-    val nonLifePrem = employed * wage * Config.InsNonLifePremiumRate * priceLevel
+    val lifePrem = employed * wage * p.ins.lifePremiumRate.toDouble
+    val nonLifePrem = employed * wage * p.ins.nonLifePremiumRate.toDouble * priceLevel
 
     // Claims: life steady, non-life widens with unemployment stress
-    val lifeCl = lifePrem * Config.InsLifeLossRatio
-    val nonLifeBase = nonLifePrem * Config.InsNonLifeLossRatio
-    val nonLifeCl = nonLifeBase * (1.0 + Config.InsNonLifeUnempSens * Math.max(0.0, unempRate - 0.05))
+    val lifeCl = lifePrem * p.ins.lifeLossRatio.toDouble
+    val nonLifeBase = nonLifePrem * p.ins.nonLifeLossRatio.toDouble
+    val nonLifeCl = nonLifeBase * (1.0 + p.ins.nonLifeUnempSens * Math.max(0.0, unempRate - 0.05))
 
     // Investment income from all three asset classes
     val invIncome = prev.govBondHoldings * govBondYield / 12.0 +
@@ -67,10 +67,10 @@ object Insurance:
 
     // Rebalance towards target allocation
     val totalAssets = newLifeRes + newNonLifeRes
-    val s = Config.InsRebalanceSpeed
-    val targetGov = totalAssets * Config.InsGovBondShare
-    val targetCorp = totalAssets * Config.InsCorpBondShare
-    val targetEq = totalAssets * Config.InsEquityShare
+    val s = p.ins.rebalanceSpeed.toDouble
+    val targetGov = totalAssets * p.ins.govBondShare.toDouble
+    val targetCorp = totalAssets * p.ins.corpBondShare.toDouble
+    val targetEq = totalAssets * p.ins.equityShare.toDouble
     val newGov = prev.govBondHoldings + (targetGov - prev.govBondHoldings) * s
     val newCorp = prev.corpBondHoldings + (targetCorp - prev.corpBondHoldings) * s
     val newEq = prev.equityHoldings + (targetEq - prev.equityHoldings) * s

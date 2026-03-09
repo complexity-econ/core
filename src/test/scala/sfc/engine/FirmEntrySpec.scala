@@ -5,49 +5,52 @@ import org.scalatest.matchers.should.Matchers
 import sfc.accounting
 import sfc.accounting.{BankingAggregate, ForexState, GovState}
 import sfc.agents.{Banking, Firm, TechState}
-import sfc.config.{Config, SectorDefs}
+import sfc.config.{SectorDefs, SimParams}
 import sfc.types.*
 
 class FirmEntrySpec extends AnyFlatSpec with Matchers:
+
+  given SimParams = SimParams.defaults
+  private val p: SimParams = summon[SimParams]
 
   // ==========================================================================
   // Config defaults
   // ==========================================================================
 
   "FirmEntryEnabled" should "default to false" in {
-    Config.FirmEntryEnabled shouldBe false
+    p.flags.firmEntry shouldBe false
   }
 
   "FirmEntryRate" should "default to 0.02" in {
-    Config.FirmEntryRate shouldBe 0.02
+    p.firm.entryRate.toDouble shouldBe 0.02
   }
 
   "FirmEntryProfitSens" should "default to 2.0" in {
-    Config.FirmEntryProfitSens shouldBe 2.0
+    p.firm.entryProfitSens shouldBe 2.0
   }
 
   "FirmEntrySectorBarriers" should "have 6 elements" in {
-    Config.FirmEntrySectorBarriers.length shouldBe 6
+    p.firm.entrySectorBarriers.length shouldBe 6
   }
 
   it should "have all positive values" in {
-    Config.FirmEntrySectorBarriers.foreach(_ should be > 0.0)
+    p.firm.entrySectorBarriers.foreach(_ should be > 0.0)
   }
 
   it should "match expected defaults" in {
-    Config.FirmEntrySectorBarriers shouldBe Vector(0.8, 0.6, 1.2, 0.5, 0.1, 0.7)
+    p.firm.entrySectorBarriers shouldBe Vector(0.8, 0.6, 1.2, 0.5, 0.1, 0.7)
   }
 
   "FirmEntryAiThreshold" should "default to 0.15" in {
-    Config.FirmEntryAiThreshold shouldBe 0.15
+    p.firm.entryAiThreshold.toDouble shouldBe 0.15
   }
 
   "FirmEntryAiProb" should "default to 0.20" in {
-    Config.FirmEntryAiProb shouldBe 0.20
+    p.firm.entryAiProb.toDouble shouldBe 0.20
   }
 
   "FirmEntryStartupCash" should "default to 50000.0" in {
-    Config.FirmEntryStartupCash shouldBe 50000.0
+    p.firm.entryStartupCash.toDouble shouldBe 50000.0
   }
 
   // ==========================================================================
@@ -122,8 +125,8 @@ class FirmEntrySpec extends AnyFlatSpec with Matchers:
   }
 
   it should "have positive startup cash" in {
-    val sizeMult = 5.0 / Config.WorkersPerFirm
-    val cash = Config.FirmEntryStartupCash * sizeMult
+    val sizeMult = 5.0 / p.pop.workersPerFirm
+    val cash = p.firm.entryStartupCash.toDouble * sizeMult
     cash should be > 0.0
   }
 
@@ -206,7 +209,7 @@ class FirmEntrySpec extends AnyFlatSpec with Matchers:
   "Entrant capitalStock" should "be initialized when PhysCapEnabled" in {
     val firmSize = 5
     val sector = 1 // Manufacturing
-    val expectedK = firmSize.toDouble * Config.PhysCapKLRatios(sector)
+    val expectedK = firmSize.toDouble * p.capital.klRatios.map(_.toDouble)(sector)
     expectedK should be > 0.0
   }
 
@@ -216,8 +219,8 @@ class FirmEntrySpec extends AnyFlatSpec with Matchers:
 
   "Entrant foreignOwned" should "respect FDI sector shares" in {
     // When FdiEnabled, foreignOwned probability = FdiForeignShares(sector)
-    Config.FdiForeignShares.length shouldBe 6
-    Config.FdiForeignShares.foreach { share =>
+    p.fdi.foreignShares.map(_.toDouble).length shouldBe 6
+    p.fdi.foreignShares.map(_.toDouble).foreach { share =>
       share should be >= 0.0
       share should be <= 1.0
     }
@@ -252,7 +255,7 @@ class FirmEntrySpec extends AnyFlatSpec with Matchers:
 
   "FirmEntry disabled" should "produce zero births column" in {
     // When FirmEntryEnabled=false, firmBirths stays 0
-    Config.FirmEntryEnabled shouldBe false
+    p.flags.firmEntry shouldBe false
     // In a default run, births column (171) should be 0
   }
 
@@ -280,23 +283,23 @@ class FirmEntrySpec extends AnyFlatSpec with Matchers:
   "Entry probability" should "be non-negative" in {
     for s <- 0 until 6 do
       val profitSignal = 0.5 // moderate positive
-      val entryProb = Config.FirmEntryRate * Config.FirmEntrySectorBarriers(s) *
-        Math.max(0.0, 1.0 + profitSignal * Config.FirmEntryProfitSens)
+      val entryProb = p.firm.entryRate.toDouble * p.firm.entrySectorBarriers(s) *
+        Math.max(0.0, 1.0 + profitSignal * p.firm.entryProfitSens)
       entryProb should be >= 0.0
   }
 
   it should "be zero when profit signal is very negative" in {
     val profitSignal = -1.0
-    val entryProb = Config.FirmEntryRate * Config.FirmEntrySectorBarriers(0) *
-      Math.max(0.0, 1.0 + profitSignal * Config.FirmEntryProfitSens)
+    val entryProb = p.firm.entryRate.toDouble * p.firm.entrySectorBarriers(0) *
+      Math.max(0.0, 1.0 + profitSignal * p.firm.entryProfitSens)
     entryProb shouldBe 0.0
   }
 
   it should "scale with sector barriers" in {
     val profitSignal = 0.0
     val probs = (0 until 6).map { s =>
-      Config.FirmEntryRate * Config.FirmEntrySectorBarriers(s) *
-        Math.max(0.0, 1.0 + profitSignal * Config.FirmEntryProfitSens)
+      p.firm.entryRate.toDouble * p.firm.entrySectorBarriers(s) *
+        Math.max(0.0, 1.0 + profitSignal * p.firm.entryProfitSens)
     }
     // Retail (1.2) should have higher prob than Public (0.1)
     probs(2) should be > probs(4) // Retail > Public

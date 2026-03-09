@@ -8,6 +8,10 @@ import sfc.types.*
 /** Unit tests for macroprudential instruments. */
 class MacroprudentialSpec extends AnyFlatSpec with Matchers:
 
+  import sfc.config.SimParams
+  given SimParams = SimParams.defaults
+  private val p: SimParams = summon[SimParams]
+
   // ==========================================================================
   // Macroprudential.State
   // ==========================================================================
@@ -28,7 +32,7 @@ class MacroprudentialSpec extends AnyFlatSpec with Matchers:
   }
 
   "effectiveMinCar (disabled)" should "return base MinCar for all banks" in {
-    for id <- 0 to 6 do Macroprudential.effectiveMinCar(id, 0.02) shouldBe sfc.config.Config.MinCar
+    for id <- 0 to 6 do Macroprudential.effectiveMinCar(id, 0.02) shouldBe p.banking.minCar.toDouble
   }
 
   "step (disabled)" should "return prev unchanged" in {
@@ -64,25 +68,25 @@ class MacroprudentialSpec extends AnyFlatSpec with Matchers:
   "effectiveMinCarInternal" should "equal MinCar + P2R when ccyb=0 and OSII=0" in {
     // Bank id=3 has no OSII buffer, but has P2R
     val eff = Macroprudential.effectiveMinCarInternal(3, 0.0)
-    eff shouldBe (sfc.config.Config.MinCar + sfc.config.Config.P2rAddons(3)) +- 1e-10
+    eff shouldBe (p.banking.minCar.toDouble + p.banking.p2rAddons.map(_.toDouble)(3)) +- 1e-10
   }
 
   it should "add CCyB to MinCar + P2R" in {
     val ccyb = 0.015
     val eff = Macroprudential.effectiveMinCarInternal(3, ccyb)
-    eff shouldBe (sfc.config.Config.MinCar + ccyb + sfc.config.Config.P2rAddons(3)) +- 1e-10
+    eff shouldBe (p.banking.minCar.toDouble + ccyb + p.banking.p2rAddons.map(_.toDouble)(3)) +- 1e-10
   }
 
   it should "add both CCyB and OSII and P2R for PKO BP" in {
     val ccyb = 0.01
     val eff = Macroprudential.effectiveMinCarInternal(0, ccyb)
-    eff shouldBe (sfc.config.Config.MinCar + ccyb + 0.01 + sfc.config.Config.P2rAddons(0)) +- 1e-10
+    eff shouldBe (p.banking.minCar.toDouble + ccyb + 0.01 + p.banking.p2rAddons.map(_.toDouble)(0)) +- 1e-10
   }
 
   it should "add CCyB and OSII and P2R for Pekao" in {
     val ccyb = 0.02
     val eff = Macroprudential.effectiveMinCarInternal(1, ccyb)
-    eff shouldBe (sfc.config.Config.MinCar + ccyb + 0.005 + sfc.config.Config.P2rAddons(1)) +- 1e-10
+    eff shouldBe (p.banking.minCar.toDouble + ccyb + 0.005 + p.banking.p2rAddons.map(_.toDouble)(1)) +- 1e-10
   }
 
   // ==========================================================================
@@ -119,7 +123,7 @@ class MacroprudentialSpec extends AnyFlatSpec with Matchers:
     // totalLoans = 0.40 * 1200 = 480
     val result = Macroprudential.stepInternal(prev, 480.0, 100.0)
     result.ccyb.toDouble should be > 0.0
-    result.ccyb.toDouble should be <= sfc.config.Config.CcybMax
+    result.ccyb.toDouble should be <= p.banking.ccybMax.toDouble
   }
 
   it should "release CCyB immediately when gap falls below release threshold" in {
@@ -136,7 +140,7 @@ class MacroprudentialSpec extends AnyFlatSpec with Matchers:
     // Start near max and build further
     val prev = Macroprudential.State(Rate(0.024), 0.0, 0.30)
     val result = Macroprudential.stepInternal(prev, 480.0, 100.0)
-    result.ccyb.toDouble should be <= sfc.config.Config.CcybMax
+    result.ccyb.toDouble should be <= p.banking.ccybMax.toDouble
   }
 
   // ==========================================================================

@@ -6,6 +6,9 @@ import sfc.util.KahanSum.*
 
 class KahanSumSpec extends AnyFlatSpec with Matchers:
 
+  import sfc.config.SimParams
+  given SimParams = SimParams.defaults
+
   "KahanSum.sum" should "return 0.0 for empty collection" in {
     KahanSum.sum(Seq.empty[Double]) shouldBe 0.0
   }

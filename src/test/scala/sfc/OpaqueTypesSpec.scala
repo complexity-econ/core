@@ -6,6 +6,9 @@ import sfc.types.*
 
 class OpaqueTypesSpec extends AnyFlatSpec with Matchers:
 
+  import sfc.config.SimParams
+  given SimParams = SimParams.defaults
+
   // === BankId ===
 
   "BankId" should "wrap and unwrap Int" in {

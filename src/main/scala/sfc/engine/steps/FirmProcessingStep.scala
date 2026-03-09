@@ -1,7 +1,7 @@
 package sfc.engine.steps
 
 import sfc.agents.*
-import sfc.config.{Config, RunConfig}
+import sfc.config.{RunConfig, SimParams}
 import sfc.engine.markets.{CorporateBondMarket, IntermediateMarket, LaborMarket}
 import sfc.engine.World
 import sfc.types.*
@@ -55,7 +55,7 @@ object FirmProcessingStep:
     postFirmCrossSectorHires: Int,
   )
 
-  def run(in: Input): Output =
+  def run(in: Input)(using p: SimParams): Output =
     val bsec = in.w.bankingSector
     val nBanks = bsec.banks.length
     val perBankNewLoans = new Array[Double](nBanks)
@@ -109,10 +109,10 @@ object FirmProcessingStep:
       sumGreenInvestment += r.greenInvestment.toDouble
 
       val (actualLoan, equityAmt, updatedFirm) =
-        if Config.GpwEnabled && Config.GpwEquityIssuance && r.newLoan > PLN.Zero &&
-          Firm.workers(r.firm) >= Config.GpwIssuanceMinSize
+        if p.flags.gpw && p.flags.gpwEquityIssuance && r.newLoan > PLN.Zero &&
+          Firm.workers(r.firm) >= p.equity.issuanceMinSize
         then
-          val eqAmt = r.newLoan * Config.GpwIssuanceFrac
+          val eqAmt = r.newLoan * p.equity.issuanceFrac.toDouble
           val adjLoan = r.newLoan - eqAmt
           val f2 = r.firm.copy(
             debt = r.firm.debt - eqAmt,
@@ -122,8 +122,8 @@ object FirmProcessingStep:
         else (r.newLoan.toDouble, 0.0, r.firm)
 
       val (finalLoan, bondAmt, bondUpdatedFirm) =
-        if actualLoan > 0 && Firm.workers(updatedFirm) >= Config.CorpBondMinSize then
-          val ba = actualLoan * Config.CorpBondIssuanceFrac
+        if actualLoan > 0 && Firm.workers(updatedFirm) >= p.corpBond.minSize then
+          val ba = actualLoan * p.corpBond.issuanceFrac.toDouble
           val adjLoan = actualLoan - ba
           val f3 = updatedFirm.copy(
             debt = updatedFirm.debt - PLN(ba),
@@ -141,7 +141,12 @@ object FirmProcessingStep:
     }
 
     val corpBondAbsorption =
-      CorporateBondMarket.computeAbsorption(in.w.corporateBonds, sumBondIssuance, in.w.bank.car, Config.MinCar)
+      CorporateBondMarket.computeAbsorption(
+        in.w.corporateBonds,
+        sumBondIssuance,
+        in.w.bank.car,
+        p.banking.minCar.toDouble,
+      )
     val actualBondIssuance = sumBondIssuance * corpBondAbsorption
     val revertRatio = 1.0 - corpBondAbsorption
     val adjustedFirms =
@@ -163,14 +168,14 @@ object FirmProcessingStep:
 
     for f <- adjustedFirms if Firm.isAlive(f) do perBankWorkers(f.bankId.toInt) += Firm.workers(f)
 
-    val (ioFirms, totalIoPaid) = if Config.IoEnabled then
+    val (ioFirms, totalIoPaid) = if p.flags.io then
       val r = IntermediateMarket.process(
         adjustedFirms,
         in.s4.sectorMults,
         in.w.priceLevel,
-        Config.IoMatrix,
-        Config.IoColumnSums,
-        Config.IoScale,
+        p.io.matrix,
+        p.io.columnSums,
+        p.io.scale.toDouble,
       )
       (r.firms, r.totalPaid)
     else (adjustedFirms, 0.0)
@@ -182,7 +187,7 @@ object FirmProcessingStep:
     val preMigrationHouseholds = LaborMarket.updateWages(afterSearch, in.s2.newWage)
 
     val finalHouseholds =
-      if Config.ImmigEnabled then
+      if p.flags.immigration then
         val afterRemoval = Immigration.removeReturnMigrants(preMigrationHouseholds, in.s2.newImmig.monthlyOutflow)
         val startId = afterRemoval.map(_.id.toInt).maxOption.getOrElse(-1) + 1
         val newImmigrants = Immigration.spawnImmigrants(in.s2.newImmig.monthlyInflow, startId, Random)
@@ -193,7 +198,7 @@ object FirmProcessingStep:
     val newlyDead = ioFirms.filter(f => !Firm.isAlive(f) && prevAlive.contains(f.id))
     val firmDeaths = newlyDead.length
     val nplNew = newlyDead.kahanSumBy(_.debt.toDouble)
-    val nplLoss = nplNew * (1.0 - Config.LoanRecovery)
+    val nplLoss = nplNew * (1.0 - p.banking.loanRecovery.toDouble)
     val totalBondDefault = newlyDead.kahanSumBy(_.bondDebt.toDouble)
 
     for f <- newlyDead do perBankNplDebt(f.bankId.toInt) += f.debt.toDouble

@@ -3,12 +3,15 @@ package sfc.engine
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import sfc.accounting.GovState
-import sfc.config.Config
 import sfc.engine.markets.FiscalBudget
 import sfc.engine.mechanisms.EuFunds
 import sfc.types.*
 
 class EuFundsSpec extends AnyFlatSpec with Matchers:
+
+  import sfc.config.SimParams
+  given SimParams = SimParams.defaults
+  private val p: SimParams = summon[SimParams]
 
   // --- Beta PDF tests ---
 
@@ -47,19 +50,19 @@ class EuFundsSpec extends AnyFlatSpec with Matchers:
   }
 
   it should "return 0 after startMonth + periodMonths" in {
-    val afterEnd = Config.EuFundsStartMonth + Config.EuFundsPeriodMonths + 1
+    val afterEnd = p.fiscal.euFundsStartMonth + p.fiscal.euFundsPeriodMonths + 1
     EuFunds.monthlyTransfer(afterEnd) shouldBe 0.0
   }
 
   it should "return positive value in the middle of the period" in {
-    val mid = Config.EuFundsStartMonth + Config.EuFundsPeriodMonths / 2
+    val mid = p.fiscal.euFundsStartMonth + p.fiscal.euFundsPeriodMonths / 2
     EuFunds.monthlyTransfer(mid) should be > 0.0
   }
 
   it should "sum to ~totalAllocation over full period" in {
-    val totalPln = Config.EuFundsTotalEur * Config.BaseExRate *
-      (Config.FirmsCount.toDouble / 10000.0)
-    val sum = (1 to Config.EuFundsPeriodMonths + Config.EuFundsStartMonth).map { m =>
+    val totalPln = p.fiscal.euFundsTotalEur * p.forex.baseExRate *
+      (p.pop.firmsCount.toDouble / 10000.0)
+    val sum = (1 to p.fiscal.euFundsPeriodMonths + p.fiscal.euFundsStartMonth).map { m =>
       EuFunds.monthlyTransfer(m)
     }.sum
     sum shouldBe totalPln +- (totalPln * 0.02) // 2% tolerance (numerical integration)
@@ -142,7 +145,7 @@ class EuFundsSpec extends AnyFlatSpec with Matchers:
 
   "disabled mode" should "produce euCofinancing = 0" in {
     // When EU_FUNDS_ENABLED=false (default), euCofin should be 0
-    Config.EuFundsEnabled shouldBe false
-    val euMonthly = Config.OeEuTransfers // flat fallback
+    p.flags.euFunds shouldBe false
+    val euMonthly = p.openEcon.euTransfers.toDouble // flat fallback
     euMonthly should be > 0.0 // sanity
   }

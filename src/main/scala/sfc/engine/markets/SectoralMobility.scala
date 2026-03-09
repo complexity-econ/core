@@ -1,7 +1,7 @@
 package sfc.engine.markets
 
+import sfc.config.SimParams
 import sfc.agents.*
-import sfc.config.Config
 import sfc.types.*
 
 import scala.util.Random
@@ -30,7 +30,7 @@ object SectoralMobility:
   )
 
   /** Compute number of vacancies per sector. */
-  def sectorVacancies(households: Vector[Household.State], firms: Vector[Firm.State]): Array[Int] =
+  def sectorVacancies(households: Vector[Household.State], firms: Vector[Firm.State])(using SimParams): Array[Int] =
     val workerCounts = new Array[Int](6)
     for hh <- households do
       hh.status match
@@ -68,7 +68,7 @@ object SectoralMobility:
     matrix: Vector[Vector[Double]],
     vacancyWeight: Double,
     rng: Random,
-  ): Int =
+  )(using p: SimParams): Int =
     val scores = new Array[Double](6)
     var total = 0.0
     for to <- 0 until 6 if to != from do
@@ -100,9 +100,11 @@ object SectoralMobility:
       else selected
 
   /** Adjust retraining parameters by friction level. */
-  def frictionAdjustedParams(friction: Double, durationMult: Double, costMult: Double): (Int, Double) =
-    val adjDuration = Math.round(Config.HhRetrainingDuration * (1.0 + friction * durationMult)).toInt
-    val adjCost = Config.HhRetrainingCost * (1.0 + friction * costMult)
+  def frictionAdjustedParams(friction: Double, durationMult: Double, costMult: Double)(using
+    p: SimParams,
+  ): (Int, Double) =
+    val adjDuration = Math.round(p.household.retrainingDuration * (1.0 + friction * durationMult)).toInt
+    val adjCost = p.household.retrainingCost.toDouble * (1.0 + friction * costMult)
     (adjDuration, adjCost)
 
   /** Cross-sector wage penalty: proportional to friction, max 30%. */

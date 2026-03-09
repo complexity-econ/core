@@ -3,34 +3,37 @@ package sfc.agents
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import sfc.accounting.{BankingAggregate, Sfc}
-import sfc.config.Config
 import sfc.types.*
 
 /** Consumer credit unit tests. */
 class ConsumerCreditSpec extends AnyFlatSpec with Matchers:
 
+  import sfc.config.SimParams
+  given SimParams = SimParams.defaults
+  private val p: SimParams = summon[SimParams]
+
   "Config defaults" should "have sensible consumer credit parameters" in {
-    Config.CcSpread shouldBe 0.04
-    Config.CcMaxDti shouldBe 0.40
-    Config.CcMaxLoan shouldBe 50000.0
-    Config.CcAmortRate shouldBe 0.025
-    Config.CcNplRecovery shouldBe 0.15
-    Config.CcEligRate shouldBe 0.30
+    p.household.ccSpread.toDouble shouldBe 0.04
+    p.household.ccMaxDti.toDouble shouldBe 0.40
+    p.household.ccMaxLoan.toDouble shouldBe 50000.0
+    p.household.ccAmortRate.toDouble shouldBe 0.025
+    p.household.ccNplRecovery.toDouble shouldBe 0.15
+    p.household.ccEligRate.toDouble shouldBe 0.30
   }
 
   "DTI limit" should "cap loan at headroom × income" in {
     // HH with income 8000, existing DTI = 0.20 → headroom = (0.40 - 0.20) × 8000 = 1600
     val income = 8000.0
     val existingDti = 0.20
-    val headroom = Math.max(0.0, Config.CcMaxDti - existingDti) * income
+    val headroom = Math.max(0.0, p.household.ccMaxDti.toDouble - existingDti) * income
     headroom shouldBe 1600.0 +- 0.01
-    headroom should be < Config.CcMaxLoan // 1600 < 50000
+    headroom should be < p.household.ccMaxLoan.toDouble // 1600 < 50000
   }
 
   it should "produce zero loan when at max DTI" in {
     val income = 8000.0
     val existingDti = 0.40
-    val headroom = Math.max(0.0, Config.CcMaxDti - existingDti) * income
+    val headroom = Math.max(0.0, p.household.ccMaxDti.toDouble - existingDti) * income
     headroom shouldBe 0.0
   }
 
@@ -38,16 +41,16 @@ class ConsumerCreditSpec extends AnyFlatSpec with Matchers:
     // HH with high income, low DTI → headroom > CcMaxLoan → capped
     val income = 200000.0
     val existingDti = 0.0
-    val headroom = Math.max(0.0, Config.CcMaxDti - existingDti) * income
-    val desired = Math.min(headroom, Config.CcMaxLoan)
-    desired shouldBe Config.CcMaxLoan
+    val headroom = Math.max(0.0, p.household.ccMaxDti.toDouble - existingDti) * income
+    val desired = Math.min(headroom, p.household.ccMaxLoan.toDouble)
+    desired shouldBe p.household.ccMaxLoan.toDouble
   }
 
   "Consumer debt service" should "include both amortization and interest" in {
     val consumerDebt = 10000.0
     val refRate = 0.0575
-    val rate = refRate + Config.CcSpread
-    val debtService = consumerDebt * (Config.CcAmortRate + rate / 12.0)
+    val rate = refRate + p.household.ccSpread.toDouble
+    val debtService = consumerDebt * (p.household.ccAmortRate.toDouble + rate / 12.0)
     // 10000 × (0.025 + (0.0575 + 0.04) / 12) = 10000 × (0.025 + 0.008125) = 331.25
     debtService shouldBe 331.25 +- 0.01
     debtService should be > 0.0
@@ -66,7 +69,7 @@ class ConsumerCreditSpec extends AnyFlatSpec with Matchers:
 
   "Consumer spread" should "be applied on top of reference rate" in {
     val refRate = 0.0575
-    val consumerRate = refRate + Config.CcSpread
+    val consumerRate = refRate + p.household.ccSpread.toDouble
     consumerRate shouldBe 0.0975 +- 0.001
     // Annualized consumer rate ~9.75% (NBP MIR consumer ~9-10%)
   }
@@ -87,16 +90,16 @@ class ConsumerCreditSpec extends AnyFlatSpec with Matchers:
     // Bankrupt HH should have consumer debt → NPL
     hh.consumerDebt.toDouble shouldBe 5000.0
     // NPL loss = consumerDebt × (1 - recovery)
-    val nplLoss = hh.consumerDebt.toDouble * (1.0 - Config.CcNplRecovery)
+    val nplLoss = hh.consumerDebt.toDouble * (1.0 - p.household.ccNplRecovery.toDouble)
     nplLoss shouldBe 4250.0 +- 0.01
   }
 
   "Bank capital" should "absorb consumer NPL loss with CcNplRecovery" in {
     val defaultAmount = 10000.0
-    val nplLoss = defaultAmount * (1.0 - Config.CcNplRecovery)
+    val nplLoss = defaultAmount * (1.0 - p.household.ccNplRecovery.toDouble)
     nplLoss shouldBe 8500.0 +- 0.01
     // Lower recovery (15%) than firm NPL (30%) → higher bank capital impact
-    val firmNplLoss = defaultAmount * (1.0 - Config.LoanRecovery)
+    val firmNplLoss = defaultAmount * (1.0 - p.banking.loanRecovery.toDouble)
     nplLoss should be > firmNplLoss
   }
 
@@ -104,9 +107,9 @@ class ConsumerCreditSpec extends AnyFlatSpec with Matchers:
     val prevStock = 100000.0
     val origination = 5000.0
     val refRate = 0.0575
-    val totalRate = Config.CcAmortRate + (refRate + Config.CcSpread) / 12.0
+    val totalRate = p.household.ccAmortRate.toDouble + (refRate + p.household.ccSpread.toDouble) / 12.0
     val debtService = prevStock * totalRate
-    val principal = debtService * (Config.CcAmortRate / totalRate)
+    val principal = debtService * (p.household.ccAmortRate.toDouble / totalRate)
     val defaultAmt = 1000.0
     val newStock = prevStock + origination - principal - defaultAmt
     val expectedChange = origination - principal - defaultAmt

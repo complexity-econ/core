@@ -1,6 +1,6 @@
 package sfc.agents
 
-import sfc.config.Config
+import sfc.config.SimParams
 import sfc.types.*
 
 /** Local government (JST / samorządy). JST receives PIT/CIT shares, property tax, subventions/dotacje. JST deposits sit
@@ -29,27 +29,27 @@ object Jst:
     gdp: Double,
     nFirms: Int,
     pitRevenue: Double = 0.0,
-  ): (State, Double) =
-    if !Config.JstEnabled then (prev, 0.0)
+  )(using p: SimParams): (State, Double) =
+    if !p.flags.jst then (prev, 0.0)
     else
       // Revenue sources:
       // 1. PIT share: JST gets ~38.46% of PIT collected
       //    When PIT mechanism enabled, use actual pitRevenue; otherwise proxy from wage income
       val jstPitIncome =
-        if Config.PitEnabled && pitRevenue > 0 then pitRevenue * Config.JstPitShare
-        else totalWageIncome * 0.12 * Config.JstPitShare // fallback proxy
+        if p.flags.pit && pitRevenue > 0 then pitRevenue * p.fiscal.jstPitShare.toDouble
+        else totalWageIncome * 0.12 * p.fiscal.jstPitShare.toDouble // fallback proxy
       // 2. CIT share: JST gets ~6.71% of CIT
-      val citRevenue = govTaxRevenue * Config.JstCitShare // govTaxRevenue includes CIT
+      val citRevenue = govTaxRevenue * p.fiscal.jstCitShare.toDouble // govTaxRevenue includes CIT
       // 3. Property tax: fixed per firm per year
-      val propertyTax = nFirms.toDouble * Config.JstPropertyTax / 12.0
+      val propertyTax = nFirms.toDouble * p.fiscal.jstPropertyTax.toDouble / 12.0
       // 4. Subwencja oświatowa (education subvention): ~3% of GDP annually
-      val subvention = gdp * Config.JstSubventionShare / 12.0
+      val subvention = gdp * p.fiscal.jstSubventionShare.toDouble / 12.0
       // 5. Dotacje celowe (targeted grants): ~1% of GDP annually
-      val dotacje = gdp * Config.JstDotacjeShare / 12.0
+      val dotacje = gdp * p.fiscal.jstDotacjeShare.toDouble / 12.0
 
       val totalRevenue = jstPitIncome + citRevenue + propertyTax + subvention + dotacje
       // JST spending: revenue × spending multiplier (slightly > 1 → deficit bias)
-      val totalSpending = totalRevenue * Config.JstSpendingMult
+      val totalSpending = totalRevenue * p.fiscal.jstSpendingMult
       val deficit = totalSpending - totalRevenue
       val newDebt = prev.debt + PLN(deficit)
       val depositChange = totalRevenue - totalSpending // negative when deficit (JST draws down deposits)

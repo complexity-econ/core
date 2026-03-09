@@ -6,6 +6,9 @@ import scala.util.Random
 
 class NetworkSpec extends AnyFlatSpec with Matchers:
 
+  import sfc.config.SimParams
+  given SimParams = SimParams.defaults
+
   // --- Watts-Strogatz ---
 
   "wattsStrogatz" should "produce average degree ≈ k" in {
