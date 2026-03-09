@@ -66,6 +66,8 @@ object types:
       inline def -(other: Rate): Rate     = r - other
       inline def *(scalar: Double): Rate  = r * scalar
       inline def /(scalar: Double): Rate  = r / scalar
+      @targetName("rateDivRate")
+      inline def /(other: Rate): Double   = r / other
       inline def unary_- : Rate           = -r
       inline def abs: Rate                = math.abs(r)
       inline def max(other: Rate): Rate   = math.max(r, other)
