@@ -3,10 +3,9 @@ package sfc.config
 /** Complete parameterization of a 48-mechanism SFC-ABM model of the Polish
   * economy.
   *
-  * Replaces the flat `object Config` singleton with a hierarchical, immutable,
-  * and testable configuration. Thread via Scala 3 `using` context parameters
-  * (PR 2). Constructor is private — use `SimParams.defaults` or (in PR 2)
-  * `SimParams.fromFile(path)`.
+  * Hierarchical, immutable, and testable configuration threaded via Scala 3
+  * `using` context parameters. Constructor is private — use
+  * `SimParams.defaults`.
   *
   * Sub-configs are grouped by economic domain:
   *   - `flags` — 49 mechanism toggles
@@ -104,7 +103,7 @@ object SimParams:
 
   /** All hardcoded defaults with gdpRatio-scaled stock variables.
     *
-    * Matches `object Config` defaults when no env vars are set. Stock values
+    * Hardcoded calibration defaults (no env vars). Stock values
     * (bank balance sheets, government debt, market caps, reserves, etc.) are
     * scaled by `gdpRatio` to map agent-level flows to real Polish GDP.
     */
