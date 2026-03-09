@@ -458,12 +458,12 @@ object Firm:
     if !p.flags.physCap then return r
     val f          = r.firm
     if !isAlive(f) then return r.copy(firm = f.copy(capitalStock = PLN.Zero))
-    val depRate    = p.capital.depRates.map(_.toDouble)(f.sector.toInt) / 12.0
+    val depRate    = p.capital.depRates(f.sector.toInt) / 12.0
     val depn: PLN  = f.capitalStock * depRate
     val postDepK   = f.capitalStock - depn
-    val targetK    = PLN(workerCount(f).toDouble * p.capital.klRatios.map(_.toDouble)(f.sector.toInt))
+    val targetK    = p.capital.klRatios(f.sector.toInt) * workerCount(f).toDouble
     val gap        = (targetK - postDepK).max(PLN.Zero)
-    val desiredInv = depn + gap * p.capital.adjustSpeed.toDouble
+    val desiredInv = depn + gap * p.capital.adjustSpeed
     val actualInv  = desiredInv.min(f.cash.max(PLN.Zero))
     val newK       = postDepK + actualInv
     r.copy(firm = f.copy(cash = f.cash - actualInv, capitalStock = newK), grossInvestment = actualInv)
