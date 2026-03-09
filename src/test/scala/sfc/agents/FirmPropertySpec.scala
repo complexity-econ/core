@@ -78,19 +78,19 @@ class FirmPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckProperty
 
   "Firm.computeAiCapex" should "be > 0 for alive firms" in
     forAll(genAliveFirm) { (firm: Firm.State) =>
-      Firm.computeAiCapex(firm) should be > 0.0
+      Firm.computeAiCapex(firm) should be > PLN.Zero
     }
 
   "Firm.computeHybridCapex" should "be > 0 for alive firms" in
     forAll(genAliveFirm) { (firm: Firm.State) =>
-      Firm.computeHybridCapex(firm) should be > 0.0
+      Firm.computeHybridCapex(firm) should be > PLN.Zero
     }
 
   "Firm.computeAiCapex" should "scale with innovationCostFactor" in
     forAll(genAliveFirm, Gen.choose(1.0, 3.0)) { (firm: Firm.State, factor: Double) =>
       val f1 = firm.copy(innovationCostFactor = 1.0)
       val f2 = firm.copy(innovationCostFactor = factor)
-      Firm.computeAiCapex(f2) shouldBe (Firm.computeAiCapex(f1) * factor +- 0.01)
+      Firm.computeAiCapex(f2).toDouble shouldBe (Firm.computeAiCapex(f1).toDouble * factor +- 0.01)
     }
 
   // --- capacity(Traditional) scales with sqrt(workers/initialSize) ---

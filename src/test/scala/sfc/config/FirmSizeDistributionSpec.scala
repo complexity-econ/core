@@ -174,7 +174,7 @@ class FirmSizeDistributionSpec extends AnyFlatSpec with Matchers:
     val capexSmall = Firm.computeAiCapex(fSmall)
     val capexLarge = Firm.computeAiCapex(fLarge)
     // Sublinear: 10× size → 10^0.6 ≈ 3.98× CAPEX (not 10×)
-    val ratio      = capexLarge / capexSmall
+    val ratio      = capexLarge / capexSmall // PLN / PLN → Double
     ratio shouldBe (Math.pow(10.0, 0.6) +- 0.01)
     ratio should be < 10.0
   }

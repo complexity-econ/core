@@ -67,7 +67,7 @@ class FirmSpec extends AnyFlatSpec with Matchers:
 
   "Firm.computeAiCapex" should "be positive and scale with multipliers" in {
     val f  = mkFirm(TechState.Traditional(10))
-    Firm.computeAiCapex(f) should be > 0.0
+    Firm.computeAiCapex(f) should be > PLN.Zero
     // With higher innovationCostFactor → higher capex
     val f2 = f.copy(innovationCostFactor = 1.5)
     Firm.computeAiCapex(f2) should be > Firm.computeAiCapex(f)
@@ -75,7 +75,7 @@ class FirmSpec extends AnyFlatSpec with Matchers:
 
   "Firm.computeHybridCapex" should "be positive" in {
     val f = mkFirm(TechState.Traditional(10))
-    Firm.computeHybridCapex(f) should be > 0.0
+    Firm.computeHybridCapex(f) should be > PLN.Zero
   }
 
   // --- Firm.sigmaThreshold ---
