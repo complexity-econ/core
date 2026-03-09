@@ -145,7 +145,7 @@ class PhysicalCapitalSpec extends AnyFlatSpec with Matchers:
   "Firm.computeCapacity" should "return positive for firm with capitalStock" in {
     if p.flags.physCap then
       val f = mkFirm(sector = 1, workers = 10, capitalStock = 2500000.0)
-      Firm.computeCapacity(f) should be > 0.0
+      Firm.computeCapacity(f) should be > PLN.Zero
   }
 
   it should "return 0 for bankrupt firm" in {
@@ -161,7 +161,7 @@ class PhysicalCapitalSpec extends AnyFlatSpec with Matchers:
       neighbors = Array.empty[FirmId],
       capitalStock = PLN(100000.0),
     )
-    Firm.computeCapacity(f) shouldBe 0.0
+    Firm.computeCapacity(f) shouldBe PLN.Zero
   }
 
   // --- Bankruptcy ---

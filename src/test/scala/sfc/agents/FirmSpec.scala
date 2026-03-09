@@ -54,13 +54,13 @@ class FirmSpec extends AnyFlatSpec with Matchers:
   // --- Firm.capacity ---
 
   "Firm.computeCapacity" should "be positive for alive firms" in {
-    Firm.computeCapacity(mkFirm(TechState.Traditional(10))) should be > 0.0
-    Firm.computeCapacity(mkFirm(TechState.Hybrid(5, 1.2))) should be > 0.0
-    Firm.computeCapacity(mkFirm(TechState.Automated(1.5))) should be > 0.0
+    Firm.computeCapacity(mkFirm(TechState.Traditional(10))) should be > PLN.Zero
+    Firm.computeCapacity(mkFirm(TechState.Hybrid(5, 1.2))) should be > PLN.Zero
+    Firm.computeCapacity(mkFirm(TechState.Automated(1.5))) should be > PLN.Zero
   }
 
   it should "be 0 for Bankrupt" in {
-    Firm.computeCapacity(mkFirm(TechState.Bankrupt(BankruptReason.Other("test")))) shouldBe 0.0
+    Firm.computeCapacity(mkFirm(TechState.Bankrupt(BankruptReason.Other("test")))) shouldBe PLN.Zero
   }
 
   // --- Firm.aiCapex / hybridCapex ---

@@ -19,14 +19,14 @@ class FirmPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckProperty
 
   "Firm.computeCapacity" should "be >= 0 for all tech states" in
     forAll(genFirm) { (firm: Firm.State) =>
-      Firm.computeCapacity(firm) should be >= 0.0
+      Firm.computeCapacity(firm) should be >= PLN.Zero
     }
 
   it should "be 0 iff Bankrupt" in
     forAll(genFirm) { (firm: Firm.State) =>
       firm.tech match
-        case _: TechState.Bankrupt => Firm.computeCapacity(firm) shouldBe 0.0
-        case _                     => Firm.computeCapacity(firm) should be > 0.0
+        case _: TechState.Bankrupt => Firm.computeCapacity(firm) shouldBe PLN.Zero
+        case _                     => Firm.computeCapacity(firm) should be > PLN.Zero
     }
 
   // --- workers properties ---

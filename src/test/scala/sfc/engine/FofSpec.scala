@@ -169,8 +169,8 @@ class FofSpec extends AnyFlatSpec with Matchers:
     // Both in sector 2 (Retail)
     val firms        = Array(f1.copy(sector = SectorIdx(2)), f2.copy(sector = SectorIdx(2)))
     val price        = 1.0
-    val cap1         = Firm.computeCapacity(firms(0))
-    val cap2         = Firm.computeCapacity(firms(1))
+    val cap1         = Firm.computeCapacity(firms(0)).toDouble
+    val cap2         = Firm.computeCapacity(firms(1)).toDouble
     val sectorDemand = 500000.0
     val totalCap     = cap1 + cap2
     val mult         = sectorDemand / (totalCap * price)

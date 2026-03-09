@@ -138,8 +138,8 @@ class FirmSizeDistributionSpec extends AnyFlatSpec with Matchers:
       Array.empty[FirmId],
       initialSize = 100,
     )
-    val perWorker5   = Firm.computeCapacity(f5) / 5.0
-    val perWorker100 = Firm.computeCapacity(f100) / 100.0
+    val perWorker5   = Firm.computeCapacity(f5).toDouble / 5.0
+    val perWorker100 = Firm.computeCapacity(f100).toDouble / 100.0
     perWorker5 shouldBe (perWorker100 +- 0.01)
   }
 

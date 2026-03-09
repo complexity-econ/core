@@ -110,20 +110,20 @@ object Firm:
     if p.flags.unions then base + base * (p.labor.unionWagePremium * p.labor.unionDensity(sectorIdx.toInt))
     else base
 
-  def computeCapacity(f: State)(using p: SimParams): Double =
+  def computeCapacity(f: State)(using p: SimParams): PLN =
     val sec       = SectorDefs(f.sector.toInt)
     val sizeScale = f.initialSize.toDouble / p.pop.workersPerFirm
-    val base      = f.tech match
+    val base: PLN = f.tech match
       case TechState.Traditional(w) =>
-        p.firm.baseRevenue.toDouble * sizeScale * sec.revenueMultiplier *
-          Math.sqrt(w.toDouble / f.initialSize)
+        p.firm.baseRevenue * (sizeScale * sec.revenueMultiplier *
+          Math.sqrt(w.toDouble / f.initialSize))
       case TechState.Hybrid(w, eff) =>
-        p.firm.baseRevenue.toDouble * sizeScale * sec.revenueMultiplier *
-          (0.4 * Math.sqrt(w.toDouble / f.initialSize) + 0.6 * eff)
+        p.firm.baseRevenue * (sizeScale * sec.revenueMultiplier *
+          (0.4 * Math.sqrt(w.toDouble / f.initialSize) + 0.6 * eff))
       case TechState.Automated(eff) =>
-        p.firm.baseRevenue.toDouble * sizeScale * sec.revenueMultiplier * eff
-      case _: TechState.Bankrupt    => 0.0
-    if p.flags.physCap && f.capitalStock > PLN.Zero && base > 0 then
+        p.firm.baseRevenue * (sizeScale * sec.revenueMultiplier * eff)
+      case _: TechState.Bankrupt    => PLN.Zero
+    if p.flags.physCap && f.capitalStock > PLN.Zero && base > PLN.Zero then
       val targetK       = workerCount(f).toDouble * p.capital.klRatios.map(_.toDouble)(f.sector.toInt)
       val kRatio        = if targetK > 0 then f.capitalStock.toDouble / targetK else 1.0
       val capitalFactor = Math.pow(Math.min(2.0, Math.max(0.1, kRatio)), p.capital.prodElast.toDouble)
@@ -489,7 +489,7 @@ object Firm:
       lendRate: Double,
       month: Int,
   )(using p: SimParams): PnL =
-    val revenue: PLN         = PLN(computeCapacity(firm) * sectorDemandMult * price)
+    val revenue: PLN         = computeCapacity(firm) * (sectorDemandMult * price)
     val labor: PLN           = PLN(workerCount(firm).toDouble * wage) * effectiveWageMult(firm.sector)
     val sizeFactor           = firm.initialSize.toDouble / p.pop.workersPerFirm
     val rawOther: PLN        = p.firm.otherCosts * (price * sizeFactor)
