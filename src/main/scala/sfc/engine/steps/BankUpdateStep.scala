@@ -205,8 +205,8 @@ object BankUpdateStep:
     val monthlyRetSuccesses = in.s3.hhAgg.retrainingSuccesses
     val finalHhAgg          = Household.computeAggregates(
       in.s5.households,
-      in.s2.newWage,
-      in.s1.resWage,
+      PLN(in.s2.newWage),
+      PLN(in.s1.resWage),
       in.s3.importAdj,
       monthlyRetAttempts,
       monthlyRetSuccesses,
@@ -262,13 +262,13 @@ object BankUpdateStep:
           case Some(pbf) =>
             val f = pbf(bId)
             (
-              f.income,
-              f.consumption,
-              f.debtService,
-              f.depositInterest,
-              f.consumerDebtService,
-              f.consumerOrigination,
-              f.consumerDefault,
+              f.income.toDouble,
+              f.consumption.toDouble,
+              f.debtService.toDouble,
+              f.depositInterest.toDouble,
+              f.consumerDebtService.toDouble,
+              f.consumerOrigination.toDouble,
+              f.consumerDefault.toDouble,
             )
           case None      =>
             val ws = if totalWorkers > 0 then in.s5.perBankWorkers(bId) / totalWorkers else 0.0
@@ -305,7 +305,7 @@ object BankUpdateStep:
       val bankMortgageNplLoss     = mortgageDefaultLoss * bankDepShare
       val bankCcNplLoss           = bankCcDef * (1.0 - p.household.ccNplRecovery.toDouble)
       val bankCcPrincipal         = in.s3.perBankHhFlowsOpt match
-        case Some(pbf) => pbf(bId).consumerPrincipal
+        case Some(pbf) => pbf(bId).consumerPrincipal.toDouble
         case _         =>
           if p.household.ccAmortRate.toDouble + (in.s1.lendingBaseRate + p.household.ccSpread.toDouble) / 12.0 > 0 then
             bankCcDSvc * (p.household.ccAmortRate.toDouble / (p.household.ccAmortRate.toDouble + (in.s1.lendingBaseRate + p.household.ccSpread.toDouble) / 12.0))

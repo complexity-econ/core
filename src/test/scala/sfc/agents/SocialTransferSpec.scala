@@ -15,15 +15,15 @@ class SocialTransferSpec extends AnyFlatSpec with Matchers:
   given SimParams = SimParams.defaults
 
   "computeSocialTransfer" should "return 0 when disabled (default)" in {
-    Household.computeSocialTransfer(2) shouldBe 0.0
+    Household.computeSocialTransfer(2).toDouble shouldBe 0.0
   }
 
   it should "return 0 for 0 children regardless of config" in {
-    Household.computeSocialTransfer(0) shouldBe 0.0
+    Household.computeSocialTransfer(0).toDouble shouldBe 0.0
   }
 
   it should "return 0 for negative children" in {
-    Household.computeSocialTransfer(-1) shouldBe 0.0
+    Household.computeSocialTransfer(-1).toDouble shouldBe 0.0
   }
 
   // --- Formula verification (independent of p.flags.social800) ---

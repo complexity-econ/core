@@ -15,15 +15,15 @@ class PitSpec extends AnyFlatSpec with Matchers:
   // Since env vars are JVM-global, we test the internal math directly.
 
   "computeMonthlyPit" should "return 0 when PIT is disabled (default)" in {
-    Household.computeMonthlyPit(10000.0) shouldBe 0.0
+    Household.computeMonthlyPit(PLN(10000.0)).toDouble shouldBe 0.0
   }
 
   it should "return 0 for zero income" in {
-    Household.computeMonthlyPit(0.0) shouldBe 0.0
+    Household.computeMonthlyPit(PLN(0.0)).toDouble shouldBe 0.0
   }
 
   it should "return 0 for negative income" in {
-    Household.computeMonthlyPit(-5000.0) shouldBe 0.0
+    Household.computeMonthlyPit(PLN(-5000.0)).toDouble shouldBe 0.0
   }
 
   // --- Formula verification tests (independent of p.flags.pit) ---

@@ -53,8 +53,8 @@ object HouseholdIncomeStep:
     val (newHhs, agg, pbf) = Household.step(
       afterWages,
       in.w,
-      in.s2.newWage,
-      in.s1.resWage,
+      PLN(in.s2.newWage),
+      PLN(in.s1.resWage),
       importAdj,
       Random,
       nBanksHh,
