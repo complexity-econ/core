@@ -15,15 +15,15 @@ class SocialTransferSpec extends AnyFlatSpec with Matchers:
   given SimParams = SimParams.defaults
 
   "computeSocialTransfer" should "return 0 when disabled (default)" in {
-    Household.computeSocialTransfer(2).toDouble shouldBe 0.0
+    Household.computeSocialTransfer(2) shouldBe PLN.Zero
   }
 
   it should "return 0 for 0 children regardless of config" in {
-    Household.computeSocialTransfer(0).toDouble shouldBe 0.0
+    Household.computeSocialTransfer(0) shouldBe PLN.Zero
   }
 
   it should "return 0 for negative children" in {
-    Household.computeSocialTransfer(-1).toDouble shouldBe 0.0
+    Household.computeSocialTransfer(-1) shouldBe PLN.Zero
   }
 
   // --- Formula verification (independent of p.flags.social800) ---
@@ -100,7 +100,7 @@ class SocialTransferSpec extends AnyFlatSpec with Matchers:
       totalDebtService = PLN.Zero,
       totalUnempBenefits = PLN.Zero,
     )
-    agg.totalSocialTransfers.toDouble shouldBe 0.0
+    agg.totalSocialTransfers shouldBe PLN.Zero
   }
 
   "Household.numDependentChildren" should "default to 0" in {
@@ -120,5 +120,5 @@ class SocialTransferSpec extends AnyFlatSpec with Matchers:
 
   "GovState.socialTransferSpend" should "default to 0.0" in {
     val gov = GovState(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
-    gov.socialTransferSpend.toDouble shouldBe 0.0
+    gov.socialTransferSpend shouldBe PLN.Zero
   }

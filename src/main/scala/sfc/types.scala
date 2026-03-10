@@ -57,6 +57,18 @@ object types:
       inline def >=(other: PLN): Boolean = p >= other
       inline def <=(other: PLN): Boolean = p <= other
     given Ordering[PLN]              = Ordering.Double.TotalOrdering
+    given Numeric[PLN] with
+      def plus(x: PLN, y: PLN): PLN          = x + y
+      def minus(x: PLN, y: PLN): PLN         = x - y
+      def times(x: PLN, y: PLN): PLN         = PLN(x.toDouble * y.toDouble)
+      def negate(x: PLN): PLN                = -x
+      def fromInt(x: Int): PLN               = PLN(x.toDouble)
+      def parseString(str: String): Option[PLN] = str.toDoubleOption.map(PLN(_))
+      def toInt(x: PLN): Int                 = x.toDouble.toInt
+      def toLong(x: PLN): Long               = x.toDouble.toLong
+      def toFloat(x: PLN): Float             = x.toDouble.toFloat
+      def toDouble(x: PLN): Double           = x.toDouble
+      def compare(x: PLN, y: PLN): Int       = java.lang.Double.compare(x, y)
 
   // === Interest rates (annual, e.g., 0.0575 = 5.75%) ===
   opaque type Rate = Double
@@ -80,6 +92,18 @@ object types:
       inline def >=(other: Rate): Boolean = r >= other
       inline def <=(other: Rate): Boolean = r <= other
     given Ordering[Rate]              = Ordering.Double.TotalOrdering
+    given Numeric[Rate] with
+      def plus(x: Rate, y: Rate): Rate          = x + y
+      def minus(x: Rate, y: Rate): Rate         = x - y
+      def times(x: Rate, y: Rate): Rate         = Rate(x.toDouble * y.toDouble)
+      def negate(x: Rate): Rate                 = -x
+      def fromInt(x: Int): Rate                 = Rate(x.toDouble)
+      def parseString(str: String): Option[Rate] = str.toDoubleOption.map(Rate(_))
+      def toInt(x: Rate): Int                   = x.toDouble.toInt
+      def toLong(x: Rate): Long                 = x.toDouble.toLong
+      def toFloat(x: Rate): Float               = x.toDouble.toFloat
+      def toDouble(x: Rate): Double             = x.toDouble
+      def compare(x: Rate, y: Rate): Int        = java.lang.Double.compare(x, y)
 
   // === Ratios (0-1 range: shares, probabilities, adoption rates) ===
   opaque type Ratio = Double
@@ -105,3 +129,15 @@ object types:
       inline def >=(other: Ratio): Boolean = r >= other
       inline def <=(other: Ratio): Boolean = r <= other
     given Ordering[Ratio]              = Ordering.Double.TotalOrdering
+    given Numeric[Ratio] with
+      def plus(x: Ratio, y: Ratio): Ratio          = x + y
+      def minus(x: Ratio, y: Ratio): Ratio         = x - y
+      def times(x: Ratio, y: Ratio): Ratio         = x * y
+      def negate(x: Ratio): Ratio                   = Ratio(-x.toDouble)
+      def fromInt(x: Int): Ratio                    = Ratio(x.toDouble)
+      def parseString(str: String): Option[Ratio]   = str.toDoubleOption.map(Ratio(_))
+      def toInt(x: Ratio): Int                      = x.toDouble.toInt
+      def toLong(x: Ratio): Long                    = x.toDouble.toLong
+      def toFloat(x: Ratio): Float                  = x.toDouble.toFloat
+      def toDouble(x: Ratio): Double                = x.toDouble
+      def compare(x: Ratio, y: Ratio): Int          = java.lang.Double.compare(x, y)
