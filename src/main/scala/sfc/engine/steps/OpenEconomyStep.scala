@@ -3,7 +3,7 @@ package sfc.engine.steps
 import sfc.accounting.{BopState, ForexState}
 import sfc.agents.*
 import sfc.McRunConfig
-import sfc.config.{SectorDefs, SimParams}
+import sfc.config.SimParams
 import sfc.engine.*
 import sfc.engine.markets.{CorporateBondMarket, GvcTrade, OpenEconomy}
 import sfc.engine.mechanisms.Expectations
@@ -55,7 +55,7 @@ object OpenEconomyStep:
     val living2 = in.s5.ioFirms.filter(Firm.isAlive)
 
     // Sector outputs for open economy
-    val sectorOutputs = (0 until SectorDefs.length).map { s =>
+    val sectorOutputs = (0 until p.sectorDefs.length).map { s =>
       living2
         .filter(_.sector.toInt == s)
         .kahanSumBy(f => (Firm.computeCapacity(f) * (in.s4.sectorMults(f.sector.toInt) * in.w.priceLevel)).toDouble)

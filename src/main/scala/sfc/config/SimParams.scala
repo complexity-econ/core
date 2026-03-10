@@ -1,5 +1,27 @@
 package sfc.config
 
+import sfc.types.*
+
+/** Network topology selection for comparative experiments. */
+enum Topology:
+  case Ws, Er, Ba, Lattice
+
+/** 4-to-6 sector definition with heterogeneous sigma (CES elasticity of
+  * substitution). sigma affects: decision threshold, automation efficiency,
+  * CAPEX costs.
+  */
+case class SectorDef(
+    name: String,
+    share: Ratio,                // Share of firm population (GUS BAEL 2024)
+    sigma: Double,               // CES elasticity of substitution
+    wageMultiplier: Double,      // Sector wage multiplier vs national average
+    revenueMultiplier: Double,
+    aiCapexMultiplier: Double,
+    hybridCapexMultiplier: Double,
+    baseDigitalReadiness: Ratio, // Central tendency of digitalReadiness
+    hybridRetainFrac: Ratio,     // Fraction of workers RETAINED in hybrid mode (0.5 = halve)
+)
+
 /** Complete parameterization of a 48-mechanism SFC-ABM model of the Polish
   * economy.
   *

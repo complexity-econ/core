@@ -2,7 +2,7 @@ package sfc.engine.steps
 
 import sfc.agents.*
 import sfc.McRunConfig
-import sfc.config.{SectorDefs, SimParams}
+import sfc.config.SimParams
 import sfc.engine.World
 import sfc.engine.markets.LaborMarket
 import sfc.types.*
@@ -49,7 +49,7 @@ object LaborDemographicsStep:
     // Union downward wage rigidity (#44)
     val newWage = if p.flags.unions && wageAfterExp < in.w.hhAgg.marketWage.toDouble then
       val aggDensity =
-        SectorDefs.zipWithIndex.map((s, i) => s.share.toDouble * p.labor.unionDensity.map(_.toDouble)(i)).sum
+        p.sectorDefs.zipWithIndex.map((s, i) => s.share.toDouble * p.labor.unionDensity.map(_.toDouble)(i)).sum
       val decline    = in.w.hhAgg.marketWage.toDouble - wageAfterExp
       Math.max(in.s1.resWage, wageAfterExp + decline * p.labor.unionRigidity.toDouble * aggDensity)
     else wageAfterExp

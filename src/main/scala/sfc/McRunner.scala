@@ -4,7 +4,7 @@ import sfc.SimOutput.Col
 import sfc.accounting.Sfc
 import sfc.agents.Banking.BankState
 import sfc.agents.Household
-import sfc.config.{SectorDefs, SimParams, TOPOLOGY}
+import sfc.config.SimParams
 import sfc.engine.*
 import sfc.init.WorldInit
 import sfc.types.*
@@ -194,7 +194,7 @@ object McRunner:
   //  Summary statistics
   // ---------------------------------------------------------------------------
 
-  private def printSummary(rc: McRunConfig, results: McResults)(using SimParams): Unit =
+  private def printSummary(rc: McRunConfig, results: McResults)(using p: SimParams): Unit =
     println("\n" + "=" * 54)
     println(s"MONTE CARLO SUMMARY: ${rc.outputPrefix} (N=${rc.nSeeds})")
     println("=" * 54)
@@ -230,11 +230,11 @@ object McRunner:
       println(f"  Mean skill           mean=${avgSkill}%8.4f")
 
     println("\nPer-sector adoption at M120:")
-    val secNames = SectorDefs.map(_.name)
-    for s <- SectorDefs.indices do statsSummary(f"  ${secNames(s)}%-22s", Col.sectorAuto(s), 100.0)
+    val secNames = p.sectorDefs.map(_.name)
+    for s <- p.sectorDefs.indices do statsSummary(f"  ${secNames(s)}%-22s", Col.sectorAuto(s), 100.0)
 
   private def printBanner(rc: McRunConfig)(using p: SimParams): Unit =
-    val topoLabel  = TOPOLOGY.toString.toUpperCase
+    val topoLabel  = p.topology.toString.toUpperCase
     val firmsLabel = f"${p.pop.firmsCount}%,d"
     val hhLabel    = s" | HH=individual (${p.household.count})"
     val bankLabel  = " | BANK=multi (7)"

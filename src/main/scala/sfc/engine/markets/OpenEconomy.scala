@@ -3,7 +3,7 @@ package sfc.engine.markets
 import sfc.accounting.{BopState, ForexState}
 import sfc.agents.Nbp
 import sfc.McRunConfig
-import sfc.config.{SectorDefs, SimParams}
+import sfc.config.SimParams
 import sfc.types.PLN
 import sfc.util.KahanSum.*
 
@@ -62,7 +62,7 @@ object OpenEconomy:
       tourismImport: Double = 0.0,
   )(using p: SimParams): Result =
 
-    val nSectors = SectorDefs.length
+    val nSectors = p.sectorDefs.length
 
     // A. Export demand (structural)
     // Foreign buyers care about the real exchange rate: PL / (ER/baseER).

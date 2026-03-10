@@ -3,7 +3,7 @@ package sfc
 import org.scalacheck.Gen
 import sfc.accounting.*
 import sfc.agents.*
-import sfc.config.{SectorDefs, SimParams}
+import sfc.config.SimParams
 import sfc.engine.{ExternalState, FinancialMarketsState, FlowState, MechanismsState, MonetaryPlumbingState, RealState, SocialState, World}
 import sfc.types.*
 
@@ -269,7 +269,7 @@ object Generators:
     inflation = Rate(infl),
     priceLevel = price,
     gdpProxy = gdp,
-    currentSigmas = SectorDefs.map(_.sigma),
+    currentSigmas = p.sectorDefs.map(_.sigma),
     totalPopulation = employed,
     gov = gov,
     nbp = Nbp.State(Rate(rate)),
