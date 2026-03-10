@@ -214,12 +214,12 @@ object Banking:
     * share.
     */
   def initialize(
-      totalDeposits: PLN,                 // aggregate customer deposits across all banks
-      totalCapital: PLN,                  // aggregate regulatory capital
-      totalLoans: PLN = PLN.Zero,         // aggregate corporate loan book
-      totalGovBonds: PLN = PLN.Zero,      // aggregate gov bond holdings
-      totalConsumerLoans: PLN = PLN.Zero, // aggregate consumer credit outstanding
-      configs: Vector[Config],            // per-bank configuration (market shares, spreads, affinities)
+      totalDeposits: PLN,      // aggregate customer deposits across all banks
+      totalCapital: PLN,       // aggregate regulatory capital
+      totalLoans: PLN,         // aggregate corporate loan book
+      totalGovBonds: PLN,      // aggregate gov bond holdings
+      totalConsumerLoans: PLN, // aggregate consumer credit outstanding
+      configs: Vector[Config], // per-bank configuration (market shares, spreads, affinities)
   )(using p: SimParams): State =
     val banks = configs.map { cfg =>
       BankState(
