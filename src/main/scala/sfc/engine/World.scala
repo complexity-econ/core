@@ -45,7 +45,8 @@ case class World(
     forex: ForexState,
     /** Balance of payments: NFA, current account, capital account, FDI. */
     bop: BopState = BopState.zero,
-    /** Household aggregates (employment, wages, consumption, distributional). */
+    /** Household aggregates (employment, wages, consumption, distributional).
+      */
     hhAgg: Household.Aggregates,
     /** Vector of individual household states. Empty at initialisation. */
     households: Vector[Household.State] = Vector.empty,
