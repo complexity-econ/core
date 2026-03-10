@@ -137,7 +137,7 @@ class EnergyClimateSpec extends AnyFlatSpec with Matchers:
       1.0,
       Ratio(0.3),
       SectorIdx(sector),
-      Array.empty[FirmId],
+      Vector.empty[FirmId],
       bankId = BankId(0),
       equityRaised = PLN.Zero,
       initialSize = 10,

@@ -198,7 +198,7 @@ class FirmPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckProperty
         1.0,
         Ratio(0.4),
         SectorIdx(0),
-        (0 until 10).filter(_ != i).map(FirmId(_)).toArray,
+        (0 until 10).filter(_ != i).map(FirmId(_)).toVector,
         bankId = BankId(0),
         equityRaised = PLN.Zero,
         initialSize = 10,
