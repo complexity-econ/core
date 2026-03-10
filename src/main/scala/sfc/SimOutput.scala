@@ -111,7 +111,7 @@ object SimOutput:
           .toDouble / secFirms.length
     }
 
-    inline def unemployPct: Double = world.hh.unemploymentRate(world.totalPopulation)
+    inline def unemployPct: Double = world.hhAgg.unemploymentRate(world.totalPopulation)
 
   /** The schema: ordered sequence of (name, computation) pairs. SINGLE SOURCE
     * OF TRUTH.
@@ -122,7 +122,7 @@ object SimOutput:
     ColumnDef("Unemployment", ctx => ctx.unemployPct),
     ColumnDef("TotalAdoption", ctx => (ctx.world.real.automationRatio + ctx.world.real.hybridRatio).toDouble),
     ColumnDef("ExRate", ctx => ctx.world.forex.exchangeRate),
-    ColumnDef("MarketWage", ctx => ctx.world.hh.marketWage.toDouble),
+    ColumnDef("MarketWage", ctx => ctx.world.hhAgg.marketWage.toDouble),
     ColumnDef("GovDebt", ctx => ctx.world.gov.cumulativeDebt.toDouble),
     ColumnDef("NPL", ctx => ctx.world.bankingSector.aggregate.nplRatio),
     ColumnDef("RefRate", ctx => ctx.world.nbp.referenceRate.toDouble),
@@ -312,7 +312,7 @@ object SimOutput:
     ColumnDef(
       "EffectivePitRate",
       ctx => {
-        val agg   = ctx.world.hhAgg.get
+        val agg   = ctx.world.hhAgg
         val gross = agg.totalIncome + agg.totalPit
         if gross > PLN.Zero then (agg.totalPit / gross).toDouble else 0.0
       },
@@ -327,7 +327,7 @@ object SimOutput:
     ColumnDef("EuCofinancing", ctx => ctx.world.gov.euCofinancing.toDouble),
     ColumnDef("EuFundsMonthly", ctx => ctx.world.bop.euFundsMonthly.toDouble),
     ColumnDef("EuCumulativeAbsorption", ctx => ctx.world.bop.euCumulativeAbsorption.toDouble),
-    ColumnDef("MinWageLevel", ctx => ctx.world.hh.minWageLevel.toDouble),
+    ColumnDef("MinWageLevel", ctx => ctx.world.gov.minWageLevel.toDouble),
     ColumnDef("FofResidual", ctx => ctx.world.plumbing.fofResidual.toDouble),
     // Consumer Credit
     ColumnDef("ConsumerLoans", ctx => ctx.world.bank.consumerLoans.toDouble),
@@ -337,8 +337,8 @@ object SimOutput:
         if ctx.world.bank.consumerLoans > PLN.Zero then ctx.world.bank.consumerNpl / ctx.world.bank.consumerLoans
         else 0.0,
     ),
-    ColumnDef("ConsumerOrigination", ctx => ctx.world.hhAgg.map(_.totalConsumerOrigination.toDouble).getOrElse(0.0)),
-    ColumnDef("ConsumerDebtService", ctx => ctx.world.hhAgg.map(_.totalConsumerDebtService.toDouble).getOrElse(0.0)),
+    ColumnDef("ConsumerOrigination", ctx => ctx.world.hhAgg.totalConsumerOrigination.toDouble),
+    ColumnDef("ConsumerDebtService", ctx => ctx.world.hhAgg.totalConsumerDebtService.toDouble),
     // Physical Capital
     ColumnDef("AggCapitalStock", ctx => ctx.living.kahanSumBy(_.capitalStock.toDouble)),
     ColumnDef("GrossInvestment", ctx => ctx.world.real.grossInvestment.toDouble),

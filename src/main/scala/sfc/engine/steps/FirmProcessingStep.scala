@@ -88,7 +88,7 @@ object FirmProcessingStep:
     val macro4firms = in.w.copy(
       month = in.s1.m,
       flows = in.w.flows.copy(sectorDemandMult = in.s4.sectorMults),
-      hh = in.w.hh.copy(marketWage = PLN(in.s2.newWage), reservationWage = PLN(in.s1.resWage)),
+      hhAgg = in.w.hhAgg.copy(marketWage = PLN(in.s2.newWage), reservationWage = PLN(in.s1.resWage)),
     )
 
     val firmBondAmounts = scala.collection.mutable.HashMap.empty[FirmId, Double]

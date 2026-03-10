@@ -2,7 +2,7 @@ package sfc.engine
 
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import sfc.agents.Household
+import sfc.accounting.GovState
 import sfc.types.*
 
 class MinWageSpec extends AnyFlatSpec with Matchers:
@@ -17,10 +17,10 @@ class MinWageSpec extends AnyFlatSpec with Matchers:
     p.household.baseReservationWage.toDouble shouldBe 4666.0
   }
 
-  "Household.SectorState defaults" should "have minWageLevel=4666 and minWagePriceLevel=1.0" in {
-    val hh = Household.SectorState(100, PLN(8000.0), PLN(4666.0), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
-    hh.minWageLevel shouldBe PLN(4666.0)
-    hh.minWagePriceLevel shouldBe 1.0
+  "GovState defaults" should "have minWageLevel=4666 and minWagePriceLevel=1.0" in {
+    val gov = GovState(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
+    gov.minWageLevel shouldBe PLN(4666.0)
+    gov.minWagePriceLevel shouldBe 1.0
   }
 
   "Inflation indexation" should "increase min wage by cumulative CPI" in {

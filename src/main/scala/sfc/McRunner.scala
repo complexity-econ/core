@@ -143,7 +143,7 @@ object McRunner:
       hhHeader,
       results.runs.zipWithIndex,
     ) { case (run, idx) =>
-      val agg = run.terminalState.world.hhAgg.get
+      val agg = run.terminalState.world.hhAgg
       s"${idx + 1};" + hhSchema.map(_._2(agg)).mkString(";")
     }
 
@@ -223,7 +223,7 @@ object McRunner:
 
     // Household summary
     println("\nHousehold aggregates at M120:")
-    val allHhAgg = results.runs.map(_.terminalState.world.hhAgg.get)
+    val allHhAgg = results.runs.map(_.terminalState.world.hhAgg)
     if allHhAgg.nonEmpty then
       val avgGini   = allHhAgg.kahanSumBy(_.giniIndividual.toDouble) / allHhAgg.length
       val avgWealth = allHhAgg.kahanSumBy(_.giniWealth.toDouble) / allHhAgg.length

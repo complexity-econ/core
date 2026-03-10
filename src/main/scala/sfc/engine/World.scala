@@ -45,12 +45,8 @@ case class World(
     forex: ForexState,
     /** Balance of payments: NFA, current account, capital account, FDI. */
     bop: BopState = BopState.zero,
-    /** Aggregate household sector state (employment, wages, consumption). */
-    hh: Household.SectorState,
-    /** Micro-household aggregates (computed from `households` at end of step).
-      * None before the first step.
-      */
-    hhAgg: Option[Household.Aggregates] = None,
+    /** Household aggregates (employment, wages, consumption, distributional). */
+    hhAgg: Household.Aggregates,
     /** Vector of individual household states. Empty at initialisation. */
     households: Vector[Household.State] = Vector.empty,
     /** Monetary aggregates (M1, monetary base, credit multiplier). None when

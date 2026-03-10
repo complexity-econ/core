@@ -71,22 +71,6 @@ object Household:
   private val ConsumptionP10   = 0.10 // P10 percentile index
   private val ConsumptionP90   = 0.90 // P90 percentile index
 
-  // ---- Aggregate household state (backward-compat, used in both modes) ----
-
-  /** Per-sector aggregate household statistics. */
-  case class SectorState(
-      employed: Int,                   // number of employed households in this sector
-      marketWage: PLN,                 // current market-clearing wage
-      reservationWage: PLN,            // minimum acceptable wage for job search
-      totalIncome: PLN,                // aggregate income (wages + benefits + transfers)
-      consumption: PLN,                // aggregate consumption (goods + rent)
-      domesticConsumption: PLN,        // domestic component of consumption
-      importConsumption: PLN,          // import component of consumption
-      minWageLevel: PLN = PLN(4666.0), // statutory minimum wage (PLN/month)
-      minWagePriceLevel: Double = 1.0, // price level for real minimum wage calculation
-  ):
-    def unemploymentRate(totalPopulation: Int): Double = 1.0 - employed.toDouble / totalPopulation
-
   // ---- Individual household ----
 
   /** Full state of a single household agent, carried across simulation months.
@@ -151,7 +135,8 @@ object Household:
       totalConsumerOrigination: PLN = PLN.Zero, // aggregate new consumer loans
       totalConsumerDefault: PLN = PLN.Zero,     // aggregate consumer loan defaults
       totalConsumerPrincipal: PLN = PLN.Zero,   // aggregate consumer loan principal repaid
-  )
+  ):
+    def unemploymentRate(totalPopulation: Int): Double = 1.0 - employed.toDouble / totalPopulation
 
   // ---- Init ----
 
