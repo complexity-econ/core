@@ -127,18 +127,29 @@ class EnergyClimateSpec extends AnyFlatSpec with Matchers:
   // Firm defaults
   // ==========================================================================
 
-  "Firm" should "default greenCapital to 0.0" in {
-    val f = Firm.State(
+  private def mkFirm(tech: TechState = TechState.Traditional(10), sector: Int = 0): Firm.State =
+    Firm.State(
       FirmId(0),
       PLN(50000.0),
       PLN.Zero,
-      TechState.Traditional(10),
+      tech,
       Ratio(0.5),
       1.0,
       Ratio(0.3),
-      SectorIdx(0),
+      SectorIdx(sector),
       Array.empty[FirmId],
+      bankId = BankId(0),
+      equityRaised = PLN.Zero,
+      initialSize = 10,
+      capitalStock = PLN.Zero,
+      bondDebt = PLN.Zero,
+      foreignOwned = false,
+      inventory = PLN.Zero,
+      greenCapital = PLN.Zero,
     )
+
+  "Firm" should "default greenCapital to 0.0" in {
+    val f = mkFirm()
     f.greenCapital.toDouble shouldBe 0.0
   }
 
@@ -147,34 +158,12 @@ class EnergyClimateSpec extends AnyFlatSpec with Matchers:
   // ==========================================================================
 
   "Firm.Result" should "default energyCost to 0.0" in {
-    val f = Firm.State(
-      FirmId(0),
-      PLN(50000.0),
-      PLN.Zero,
-      TechState.Traditional(10),
-      Ratio(0.5),
-      1.0,
-      Ratio(0.3),
-      SectorIdx(0),
-      Array.empty[FirmId],
-    )
-    val r = Firm.Result(f, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
+    val r = Firm.Result.zero(mkFirm())
     r.energyCost.toDouble shouldBe 0.0
   }
 
   it should "default greenInvestment to 0.0" in {
-    val f = Firm.State(
-      FirmId(0),
-      PLN(50000.0),
-      PLN.Zero,
-      TechState.Traditional(10),
-      Ratio(0.5),
-      1.0,
-      Ratio(0.3),
-      SectorIdx(0),
-      Array.empty[FirmId],
-    )
-    val r = Firm.Result(f, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
+    val r = Firm.Result.zero(mkFirm())
     r.greenInvestment.toDouble shouldBe 0.0
   }
 
@@ -294,18 +283,7 @@ class EnergyClimateSpec extends AnyFlatSpec with Matchers:
   }
 
   it should "be zero for bankrupt firms" in {
-    val f = Firm.State(
-      FirmId(0),
-      PLN(50000.0),
-      PLN.Zero,
-      TechState.Bankrupt(BankruptReason.Other("test")),
-      Ratio(0.5),
-      1.0,
-      Ratio(0.3),
-      SectorIdx(0),
-      Array.empty[FirmId],
-      greenCapital = PLN(5000.0),
-    )
+    val f = mkFirm(tech = TechState.Bankrupt(BankruptReason.Other("test"))).copy(greenCapital = PLN(5000.0))
     Firm.isAlive(f) shouldBe false
   }
 

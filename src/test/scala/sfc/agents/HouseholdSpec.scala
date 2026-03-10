@@ -360,6 +360,14 @@ class HouseholdSpec extends AnyFlatSpec with Matchers:
         Ratio(0.5),
         SectorIdx(i % SectorDefs.length),
         Array.empty[FirmId],
+        bankId = BankId(0),
+        equityRaised = PLN.Zero,
+        initialSize = 10,
+        capitalStock = PLN.Zero,
+        bondDebt = PLN.Zero,
+        foreignOwned = false,
+        inventory = PLN.Zero,
+        greenCapital = PLN.Zero,
       )
     }.toVector
 

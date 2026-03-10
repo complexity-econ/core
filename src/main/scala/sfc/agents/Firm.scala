@@ -36,16 +36,16 @@ object Firm:
       riskProfile: Ratio,
       innovationCostFactor: Double,
       digitalReadiness: Ratio,
-      sector: SectorIdx,             // Index into SectorDefs
-      neighbors: Array[FirmId],      // Network adjacency (firm IDs)
-      bankId: BankId = BankId(0),    // Multi-bank: index into Banking.State.banks
-      equityRaised: PLN = PLN.Zero,  // GPW: cumulative equity raised via IPO/SPO
-      initialSize: Int = 10,         // Firm size at creation (v6.0: heterogeneous when FIRM_SIZE_DIST=gus)
-      capitalStock: PLN = PLN.Zero,  // Physical capital stock (PLN)
-      bondDebt: PLN = PLN.Zero,      // Outstanding corporate bond debt
-      foreignOwned: Boolean = false, // FDI
-      inventory: PLN = PLN.Zero,     // Inventory stock (PLN)
-      greenCapital: PLN = PLN.Zero,  // Green capital stock (PLN)
+      sector: SectorIdx,        // Index into SectorDefs
+      neighbors: Array[FirmId], // Network adjacency (firm IDs)
+      bankId: BankId,           // Multi-bank: index into Banking.State.banks
+      equityRaised: PLN,        // GPW: cumulative equity raised via IPO/SPO
+      initialSize: Int,         // Firm size at creation (v6.0: heterogeneous when FIRM_SIZE_DIST=gus)
+      capitalStock: PLN,        // Physical capital stock (PLN)
+      bondDebt: PLN,            // Outstanding corporate bond debt
+      foreignOwned: Boolean,    // FDI
+      inventory: PLN,           // Inventory stock (PLN)
+      greenCapital: PLN,        // Green capital stock (PLN)
   )
 
   case class Result(
@@ -54,16 +54,19 @@ object Firm:
       capexSpent: PLN,
       techImports: PLN,
       newLoan: PLN,
-      equityIssuance: PLN = PLN.Zero,
-      grossInvestment: PLN = PLN.Zero,
-      bondIssuance: PLN = PLN.Zero,
-      profitShiftCost: PLN = PLN.Zero,
-      fdiRepatriation: PLN = PLN.Zero,
-      inventoryChange: PLN = PLN.Zero,
-      citEvasion: PLN = PLN.Zero,
-      energyCost: PLN = PLN.Zero,
-      greenInvestment: PLN = PLN.Zero,
+      equityIssuance: PLN,
+      grossInvestment: PLN,
+      bondIssuance: PLN,
+      profitShiftCost: PLN,
+      fdiRepatriation: PLN,
+      inventoryChange: PLN,
+      citEvasion: PLN,
+      energyCost: PLN,
+      greenInvestment: PLN,
   )
+  object Result:
+    def zero(firm: State): Result =
+      Result(firm, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
 
   case class PnL(
       revenue: PLN,
@@ -438,7 +441,22 @@ object Firm:
       techImports: PLN = PLN.Zero,
       newLoan: PLN = PLN.Zero,
   ): Result =
-    Result(firm, pnl.tax, capex, techImports, newLoan, profitShiftCost = pnl.profitShiftCost, energyCost = pnl.energyCost)
+    Result(
+      firm = firm,
+      taxPaid = pnl.tax,
+      capexSpent = capex,
+      techImports = techImports,
+      newLoan = newLoan,
+      equityIssuance = PLN.Zero,
+      grossInvestment = PLN.Zero,
+      bondIssuance = PLN.Zero,
+      profitShiftCost = pnl.profitShiftCost,
+      fdiRepatriation = PLN.Zero,
+      inventoryChange = PLN.Zero,
+      citEvasion = PLN.Zero,
+      energyCost = pnl.energyCost,
+      greenInvestment = PLN.Zero,
+    )
 
   // ---- Post-processing pipeline ----
 

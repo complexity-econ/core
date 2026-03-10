@@ -112,7 +112,14 @@ class FirmEntrySpec extends AnyFlatSpec with Matchers:
       digitalReadiness = Ratio(0.15),
       sector = SectorIdx(2),
       neighbors = Array.empty[FirmId],
+      bankId = BankId(0),
+      equityRaised = PLN.Zero,
       initialSize = 5,
+      capitalStock = PLN.Zero,
+      bondDebt = PLN.Zero,
+      foreignOwned = false,
+      inventory = PLN.Zero,
+      greenCapital = PLN.Zero,
     )
     entrant.debt shouldBe PLN.Zero
   }
@@ -134,7 +141,14 @@ class FirmEntrySpec extends AnyFlatSpec with Matchers:
       digitalReadiness = Ratio(0.15),
       sector = SectorIdx(2),
       neighbors = Array.empty[FirmId],
+      bankId = BankId(0),
+      equityRaised = PLN.Zero,
       initialSize = 5,
+      capitalStock = PLN.Zero,
+      bondDebt = PLN.Zero,
+      foreignOwned = false,
+      inventory = PLN.Zero,
+      greenCapital = PLN.Zero,
     )
     Firm.isAlive(entrant) shouldBe true
   }
@@ -237,7 +251,14 @@ class FirmEntrySpec extends AnyFlatSpec with Matchers:
         digitalReadiness = Ratio(0.15),
         sector = SectorIdx(0),
         neighbors = Array.empty[FirmId],
+        bankId = BankId(0),
+        equityRaised = PLN.Zero,
         initialSize = 5,
+        capitalStock = PLN.Zero,
+        bondDebt = PLN.Zero,
+        foreignOwned = false,
+        inventory = PLN.Zero,
+        greenCapital = PLN.Zero,
       ),
     ) shouldBe 0
   }

@@ -34,6 +34,14 @@ class IntermediateMarketPropertySpec extends AnyFlatSpec with Matchers with Scal
         Ratio(0.4),
         SectorIdx(sector),
         Array.empty[FirmId],
+        bankId = BankId(0),
+        equityRaised = PLN.Zero,
+        initialSize = 10,
+        capitalStock = PLN.Zero,
+        bondDebt = PLN.Zero,
+        foreignOwned = false,
+        inventory = PLN.Zero,
+        greenCapital = PLN.Zero,
       )
     }.toVector
 
@@ -109,42 +117,31 @@ class IntermediateMarketPropertySpec extends AnyFlatSpec with Matchers with Scal
   }
 
   it should "distribute revenue proportionally within sector" in {
-    val f1    = Firm.State(
-      FirmId(0),
+    def mkF(id: Int, sec: Int) = Firm.State(
+      FirmId(id),
       PLN(500000.0),
       PLN.Zero,
       TechState.Traditional(10),
       Ratio(0.5),
       1.0,
       Ratio(0.4),
-      SectorIdx(0),
+      SectorIdx(sec),
       Array.empty[FirmId],
+      bankId = BankId(0),
+      equityRaised = PLN.Zero,
+      initialSize = 10,
+      capitalStock = PLN.Zero,
+      bondDebt = PLN.Zero,
+      foreignOwned = false,
+      inventory = PLN.Zero,
+      greenCapital = PLN.Zero,
     )
-    val f2    = Firm.State(
-      FirmId(1),
-      PLN(500000.0),
-      PLN.Zero,
-      TechState.Traditional(10),
-      Ratio(0.5),
-      1.0,
-      Ratio(0.4),
-      SectorIdx(0),
-      Array.empty[FirmId],
-    )
-    val f3    = Firm.State(
-      FirmId(2),
-      PLN(500000.0),
-      PLN.Zero,
-      TechState.Traditional(10),
-      Ratio(0.5),
-      1.0,
-      Ratio(0.4),
-      SectorIdx(1),
-      Array.empty[FirmId],
-    )
-    val firms = Vector(f1, f2, f3)
-    val r     = IntermediateMarket.process(firms, Vector.fill(6)(1.0), 1.0, defaultMatrix, defaultColSums, 1.0)
-    val adj1  = (r.firms(0).cash - firms(0).cash).toDouble
-    val adj2  = (r.firms(1).cash - firms(1).cash).toDouble
+    val f1                     = mkF(0, 0)
+    val f2                     = mkF(1, 0)
+    val f3                     = mkF(2, 1)
+    val firms                  = Vector(f1, f2, f3)
+    val r                      = IntermediateMarket.process(firms, Vector.fill(6)(1.0), 1.0, defaultMatrix, defaultColSums, 1.0)
+    val adj1                   = (r.firms(0).cash - firms(0).cash).toDouble
+    val adj2                   = (r.firms(1).cash - firms(1).cash).toDouble
     adj1 shouldBe (adj2 +- 1e-6)
   }

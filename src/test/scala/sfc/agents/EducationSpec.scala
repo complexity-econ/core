@@ -136,6 +136,14 @@ class EducationSpec extends AnyFlatSpec with Matchers:
       Ratio(0.5),
       SectorIdx(0),
       Array.empty[FirmId],
+      bankId = BankId(0),
+      equityRaised = PLN.Zero,
+      initialSize = 10,
+      capitalStock = PLN.Zero,
+      bondDebt = PLN.Zero,
+      foreignOwned = false,
+      inventory = PLN.Zero,
+      greenCapital = PLN.Zero,
     )
     val newFirm  = Firm.State(
       FirmId(0),
@@ -147,6 +155,14 @@ class EducationSpec extends AnyFlatSpec with Matchers:
       Ratio(0.5),
       SectorIdx(0),
       Array.empty[FirmId],
+      bankId = BankId(0),
+      equityRaised = PLN.Zero,
+      initialSize = 10,
+      capitalStock = PLN.Zero,
+      bondDebt = PLN.Zero,
+      foreignOwned = false,
+      inventory = PLN.Zero,
+      greenCapital = PLN.Zero,
     )
 
     val hhPrimary    = Household.State(
@@ -209,6 +225,14 @@ class EducationSpec extends AnyFlatSpec with Matchers:
       Ratio(0.5),
       SectorIdx(0),
       Array.empty[FirmId],
+      bankId = BankId(0),
+      equityRaised = PLN.Zero,
+      initialSize = 10,
+      capitalStock = PLN.Zero,
+      bondDebt = PLN.Zero,
+      foreignOwned = false,
+      inventory = PLN.Zero,
+      greenCapital = PLN.Zero,
     )
     val newFirm  = Firm.State(
       FirmId(0),
@@ -220,6 +244,14 @@ class EducationSpec extends AnyFlatSpec with Matchers:
       Ratio(0.5),
       SectorIdx(0),
       Array.empty[FirmId],
+      bankId = BankId(0),
+      equityRaised = PLN.Zero,
+      initialSize = 10,
+      capitalStock = PLN.Zero,
+      bondDebt = PLN.Zero,
+      foreignOwned = false,
+      inventory = PLN.Zero,
+      greenCapital = PLN.Zero,
     )
 
     val hhLowSkill  = Household.State(
@@ -295,30 +327,27 @@ class EducationSpec extends AnyFlatSpec with Matchers:
 
   "Household.Init.initialize" should "assign education to all households" in {
     val rng       = new Random(42)
-    val firms     = Vector(
+    val mkF       = (id: Int, sec: Int, w: Int) =>
       Firm.State(
-        FirmId(0),
+        FirmId(id),
         PLN(1000000.0),
         PLN.Zero,
-        TechState.Traditional(5),
+        TechState.Traditional(w),
         Ratio(0.5),
         1.0,
         Ratio(0.5),
-        SectorIdx(0),
+        SectorIdx(sec),
         Array.empty[FirmId],
-      ),
-      Firm.State(
-        FirmId(1),
-        PLN(1000000.0),
-        PLN.Zero,
-        TechState.Traditional(5),
-        Ratio(0.5),
-        1.0,
-        Ratio(0.5),
-        SectorIdx(2),
-        Array.empty[FirmId],
-      ),
-    )
+        bankId = BankId(0),
+        equityRaised = PLN.Zero,
+        initialSize = w,
+        capitalStock = PLN.Zero,
+        bondDebt = PLN.Zero,
+        foreignOwned = false,
+        inventory = PLN.Zero,
+        greenCapital = PLN.Zero,
+      )
+    val firms     = Vector(mkF(0, 0, 5), mkF(1, 2, 5))
     val socialNet = Array.fill(10)(Array.empty[Int])
     val hhs       = Household.Init.initialize(10, 2, firms, socialNet, rng)
     hhs.foreach { h =>
@@ -340,6 +369,14 @@ class EducationSpec extends AnyFlatSpec with Matchers:
         Ratio(0.5),
         SectorIdx(0),
         Array.empty[FirmId],
+        bankId = BankId(0),
+        equityRaised = PLN.Zero,
+        initialSize = 10,
+        capitalStock = PLN.Zero,
+        bondDebt = PLN.Zero,
+        foreignOwned = false,
+        inventory = PLN.Zero,
+        greenCapital = PLN.Zero,
       ),
     )
     val socialNet = Array.fill(10)(Array.empty[Int])
