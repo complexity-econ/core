@@ -254,14 +254,10 @@ object Banking:
     val total   = weights.kahanSum
     if total <= 0.0 then BankId(0)
     else
-      val r          = rng.nextDouble() * total
-      var cumulative = 0.0
-      var i          = 0
-      while i < weights.length - 1 do
-        cumulative += weights(i)
-        if r < cumulative then return BankId(i)
-        i += 1
-      BankId(weights.length - 1)
+      val r      = rng.nextDouble() * total
+      val cumul  = weights.scanLeft(0.0)(_ + _).tail // cumulative sums
+      val picked = cumul.indexWhere(_ > r)
+      BankId(if picked >= 0 then picked else weights.length - 1)
 
   // ---------------------------------------------------------------------------
   // Rates
@@ -372,8 +368,7 @@ object Banking:
         anyFailed = false,
       )
     else
-      var anyFailed = false
-      val updated   = banks.map: b =>
+      val updated    = banks.map: b =>
         if b.failed then b
         else
           val consec    = b.consecutiveLowCar
@@ -381,11 +376,10 @@ object Banking:
           val lowCar    = b.car.toDouble < minCar
           val lcrBreach = p.flags.bankLcr && b.lcr.toDouble < p.banking.lcrMin * 0.5
           val newConsec = if lowCar then consec + 1 else 0
-          if newConsec >= 3 || lcrBreach then
-            anyFailed = true
-            b.copy(status = BankStatus.Failed(month), capital = PLN.Zero)
+          if newConsec >= 3 || lcrBreach then b.copy(status = BankStatus.Failed(month), capital = PLN.Zero)
           else b.copy(status = BankStatus.Active(newConsec))
-      FailureCheckResult(updated, anyFailed)
+      val prevFailed = banks.filter(_.failed).map(_.id).toSet
+      FailureCheckResult(updated, updated.exists(b => b.failed && !prevFailed.contains(b.id)))
 
   /** Compute monthly BFG levy for all banks.
     *
@@ -403,16 +397,14 @@ object Banking:
   def applyBailIn(banks: Vector[BankState])(using p: SimParams): BailInResult =
     if !p.flags.bailIn then BailInResult(banks, PLN.Zero)
     else
-      var totalBailIn = 0.0
-      val updated     = banks.map: b =>
+      val withHaircut = banks.map: b =>
         if b.failed && b.deposits > PLN.Zero then
           val guaranteed = b.deposits.min(PLN(p.banking.bfgDepositGuarantee.toDouble))
           val uninsured  = b.deposits - guaranteed
           val haircut    = uninsured * p.banking.bailInDepositHaircut.toDouble
-          totalBailIn += haircut.toDouble
-          b.copy(deposits = b.deposits - haircut)
-        else b
-      BailInResult(updated, PLN(totalBailIn))
+          (b.copy(deposits = b.deposits - haircut), haircut)
+        else (b, PLN.Zero)
+      BailInResult(withHaircut.map(_._1), PLN(withHaircut.map(_._2.toDouble).kahanSum))
 
   /** BFG P&A resolution: transfer deposits, bonds, performing loans, consumer
     * loans from failed banks to the healthiest surviving bank.
@@ -484,15 +476,15 @@ object Banking:
     if nAlive == 0 then return banks
     val totalDep    = aliveBanks.kahanSumBy(_.deposits.toDouble)
     val lastAliveId = aliveBanks.last.id
-    var allocated   = PLN.Zero
-    banks.map: b =>
-      if b.failed then b
-      else if b.id == lastAliveId then b.copy(govBondHoldings = b.govBondHoldings + (deficit - allocated))
-      else
-        val share  = if totalDep > 0 then b.deposits.toDouble / totalDep else 1.0 / nAlive
-        val amount = deficit * share
-        allocated = allocated + amount
-        b.copy(govBondHoldings = b.govBondHoldings + amount)
+    val (result, _) = banks.foldLeft((Vector.empty[BankState], PLN.Zero)):
+      case ((acc, allocated), b) =>
+        if b.failed then (acc :+ b, allocated)
+        else if b.id == lastAliveId then (acc :+ b.copy(govBondHoldings = b.govBondHoldings + (deficit - allocated)), deficit)
+        else
+          val share  = if totalDep > 0 then b.deposits.toDouble / totalDep else 1.0 / nAlive
+          val amount = deficit * share
+          (acc :+ b.copy(govBondHoldings = b.govBondHoldings + amount), allocated + amount)
+    result
 
   /** Allocate QE purchases from banks proportional to their bond holdings.
     * Capped at each bank's available holdings.
@@ -505,18 +497,17 @@ object Banking:
       if totalBonds <= 0 then banks
       else
         val lastEligibleId = eligible.last.id
-        var allocated      = PLN.Zero
-        banks.map: b =>
-          if b.failed || b.govBondHoldings <= PLN.Zero then b
-          else if b.id == lastEligibleId then
-            val residual = qeTotal - allocated
-            val sold     = b.govBondHoldings.min(residual)
-            b.copy(govBondHoldings = b.govBondHoldings - sold)
-          else
-            val share = b.govBondHoldings.toDouble / totalBonds
-            val sold  = b.govBondHoldings.min(qeTotal * share)
-            allocated = allocated + sold
-            b.copy(govBondHoldings = b.govBondHoldings - sold)
+        val (result, _)    = banks.foldLeft((Vector.empty[BankState], PLN.Zero)):
+          case ((acc, allocated), b) =>
+            if b.failed || b.govBondHoldings <= PLN.Zero then (acc :+ b, allocated)
+            else if b.id == lastEligibleId then
+              val sold = b.govBondHoldings.min(qeTotal - allocated)
+              (acc :+ b.copy(govBondHoldings = b.govBondHoldings - sold), allocated + sold)
+            else
+              val share = b.govBondHoldings.toDouble / totalBonds
+              val sold  = b.govBondHoldings.min(qeTotal * share)
+              (acc :+ b.copy(govBondHoldings = b.govBondHoldings - sold), allocated + sold)
+        result
 
   // ---------------------------------------------------------------------------
   // Monetary plumbing
