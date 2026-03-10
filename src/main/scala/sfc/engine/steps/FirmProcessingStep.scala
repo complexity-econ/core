@@ -64,13 +64,13 @@ object FirmProcessingStep:
     val perBankIntIncome = new Array[Double](nBanks)
     val perBankWorkers   = new Array[Int](nBanks)
 
-    val currentCcyb                          = in.w.mechanisms.macropru.ccyb.toDouble
-    val rates                                = bsec.banks.zip(bsec.configs).map((b, cfg) => Banking.lendingRate(b, cfg, in.s1.lendingBaseRate))
-    val getFirmRate: Int => Rate             = (bankId: Int) => Rate(rates(bankId))
+    val currentCcyb                          = in.w.mechanisms.macropru.ccyb
+    val rates                                = bsec.banks.zip(bsec.configs).map((b, cfg) => Banking.lendingRate(b, cfg, Rate(in.s1.lendingBaseRate)))
+    val getFirmRate: Int => Rate             = (bankId: Int) => rates(bankId)
     val bankCanLendFn: (Int, PLN) => Boolean =
-      (bankId: Int, amt: PLN) => Banking.canLend(bsec.banks(bankId), amt.toDouble, rng, currentCcyb)
+      (bankId: Int, amt: PLN) => Banking.canLend(bsec.banks(bankId), amt, rng, currentCcyb)
 
-    val lendingRates = rates.toArray
+    val lendingRates = rates.map(_.toDouble).toArray
 
     var sumTax             = 0.0
     var sumCapex           = 0.0
@@ -145,7 +145,7 @@ object FirmProcessingStep:
       CorporateBondMarket.computeAbsorption(
         in.w.financial.corporateBonds,
         sumBondIssuance,
-        in.w.bank.car,
+        in.w.bank.car.toDouble,
         p.banking.minCar.toDouble,
       )
     val actualBondIssuance = sumBondIssuance * corpBondAbsorption
@@ -204,7 +204,7 @@ object FirmProcessingStep:
 
     for f <- newlyDead do perBankNplDebt(f.bankId.toInt) += f.debt.toDouble
 
-    for f <- in.firms if Firm.isAlive(f) do perBankIntIncome(f.bankId.toInt) += f.debt.toDouble * rates(f.bankId.toInt) / 12.0
+    for f <- in.firms if Firm.isAlive(f) do perBankIntIncome(f.bankId.toInt) += f.debt.toDouble * rates(f.bankId.toInt).toDouble / 12.0
 
     val intIncome    = perBankIntIncome.kahanSum
     val netMigration = in.s2.newImmig.monthlyInflow - in.s2.newImmig.monthlyOutflow

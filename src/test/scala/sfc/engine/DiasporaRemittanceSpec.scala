@@ -215,7 +215,7 @@ class DiasporaRemittanceSpec extends AnyFlatSpec with Matchers:
       gov = GovState(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
       nbp = sfc.agents.Nbp.State(Rate(0.05)),
       bank = BankingAggregate(PLN.Zero, PLN.Zero, PLN(100), PLN(1000), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
-      bankingSector = Banking.initialize(1e9, 5e8, 5e8, 0, 0, Banking.DefaultConfigs),
+      bankingSector = Banking.initialize(PLN(1e9), PLN(5e8), PLN(5e8), PLN.Zero, PLN.Zero, Banking.DefaultConfigs),
       forex = ForexState(p.forex.baseExRate, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
       hhAgg = sfc.agents.Household.Aggregates(
         employed = 100,

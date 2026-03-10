@@ -13,11 +13,11 @@ object BankInit:
   def create(firms: Vector[Firm.State], households: Vector[Household.State])(using p: SimParams): Banking.State =
     // Consumer loans passed as 0.0 — per-bank values are set from actual HH sums below
     val bs0 = Banking.initialize(
-      p.banking.initDeposits.toDouble,
-      p.banking.initCapital.toDouble,
-      p.banking.initLoans.toDouble,
-      p.banking.initGovBonds.toDouble,
-      0.0,
+      p.banking.initDeposits,
+      p.banking.initCapital,
+      p.banking.initLoans,
+      p.banking.initGovBonds,
+      PLN.Zero,
       Banking.DefaultConfigs,
     )
 

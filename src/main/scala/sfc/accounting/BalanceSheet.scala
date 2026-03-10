@@ -39,19 +39,19 @@ case class BankingAggregate(
     consumerNpl: PLN,     // Non-performing consumer loan stock
     corpBondHoldings: PLN, // Corporate bond portfolio — bank share only (default 30%, CORPBOND_BANK_SHARE)
 ):
-  /** Non-performing loan ratio: nplAmount / totalLoans. Returns 0.0 when loan
-    * book is empty.
+  /** Non-performing loan ratio: nplAmount / totalLoans. Returns Ratio.Zero when
+    * loan book is empty.
     */
-  def nplRatio: Double = if totalLoans.toDouble > 1.0 then nplAmount / totalLoans else 0.0
+  def nplRatio: Ratio = if totalLoans.toDouble > 1.0 then Ratio(nplAmount / totalLoans) else Ratio.Zero
 
   /** Capital adequacy ratio: capital / risk-weighted assets. Corporate bonds
-    * carry 50% risk weight (Basel III, BBB bucket). Returns 10.0
+    * carry 50% risk weight (Basel III, BBB bucket). Returns Ratio(10.0)
     * (well-capitalised floor) when risk-weighted assets ≤ 1 to avoid division
     * by zero.
     */
-  def car: Double =
+  def car: Ratio =
     val totalRwa = (totalLoans + consumerLoans + corpBondHoldings * 0.50).toDouble
-    if totalRwa > 1.0 then capital.toDouble / totalRwa else 10.0
+    if totalRwa > 1.0 then Ratio(capital.toDouble / totalRwa) else Ratio(10.0)
 
 case class ForexState(
     exchangeRate: Double,

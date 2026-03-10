@@ -4,6 +4,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import sfc.accounting.{BankingAggregate, ForexState, GovState}
 import sfc.agents.Banking
+import sfc.agents.Banking.BankStatus
 import sfc.engine.mechanisms.Macroprudential
 import sfc.types.*
 
@@ -13,21 +14,51 @@ class KnfBfgSpec extends AnyFlatSpec with Matchers:
   given SimParams          = SimParams.defaults
   private val p: SimParams = summon[SimParams]
 
+  private def mkBank(
+      id: Int = 0,
+      deposits: PLN = PLN(1e6),
+      loans: PLN = PLN.Zero,
+      capital: PLN = PLN(100000),
+      nplAmount: PLN = PLN.Zero,
+      govBondHoldings: PLN = PLN.Zero,
+      reservesAtNbp: PLN = PLN.Zero,
+      interbankNet: PLN = PLN.Zero,
+      status: BankStatus = BankStatus.Active(0),
+  ): Banking.BankState = Banking.BankState(
+    id = BankId(id),
+    deposits = deposits,
+    loans = loans,
+    capital = capital,
+    nplAmount = nplAmount,
+    govBondHoldings = govBondHoldings,
+    reservesAtNbp = reservesAtNbp,
+    interbankNet = interbankNet,
+    status = status,
+    demandDeposits = PLN.Zero,
+    termDeposits = PLN.Zero,
+    loansShort = PLN.Zero,
+    loansMedium = PLN.Zero,
+    loansLong = PLN.Zero,
+    consumerLoans = PLN.Zero,
+    consumerNpl = PLN.Zero,
+    corpBondHoldings = PLN.Zero,
+  )
+
   // ==========================================================================
   // Config defaults (5 tests)
   // ==========================================================================
 
   "P2rAddons" should "default to 7 values" in {
-    p.banking.p2rAddons.map(_.toDouble).length shouldBe 7
+    p.banking.p2rAddons.length shouldBe 7
   }
 
   it should "have PKO BP = 1.5%, mBank = 3.0%" in {
-    p.banking.p2rAddons.map(_.toDouble)(0) shouldBe 0.015 // PKO BP
-    p.banking.p2rAddons.map(_.toDouble)(2) shouldBe 0.030 // mBank
+    p.banking.p2rAddons(0) shouldBe Rate(0.015) // PKO BP
+    p.banking.p2rAddons(2) shouldBe Rate(0.030) // mBank
   }
 
   "BfgLevyRate" should "default to 0.0024" in {
-    p.banking.bfgLevyRate.toDouble shouldBe 0.0024
+    p.banking.bfgLevyRate shouldBe Rate(0.0024)
   }
 
   "BailInEnabled" should "default to false" in {
@@ -35,11 +66,11 @@ class KnfBfgSpec extends AnyFlatSpec with Matchers:
   }
 
   "BailInDepositHaircut" should "default to 0.08" in {
-    p.banking.bailInDepositHaircut.toDouble shouldBe 0.08
+    p.banking.bailInDepositHaircut shouldBe Ratio(0.08)
   }
 
   "BfgDepositGuarantee" should "default to 400000" in {
-    p.banking.bfgDepositGuarantee.toDouble shouldBe 400000.0
+    p.banking.bfgDepositGuarantee shouldBe PLN(400000.0)
   }
 
   // ==========================================================================
@@ -57,8 +88,8 @@ class KnfBfgSpec extends AnyFlatSpec with Matchers:
   }
 
   it should "fall back to last value for out-of-range bankId" in {
-    Macroprudential.p2rAddon(7) shouldBe p.banking.p2rAddons.map(_.toDouble).last
-    Macroprudential.p2rAddon(99) shouldBe p.banking.p2rAddons.map(_.toDouble).last
+    Macroprudential.p2rAddon(7) shouldBe p.banking.p2rAddons.last.toDouble
+    Macroprudential.p2rAddon(99) shouldBe p.banking.p2rAddons.last.toDouble
   }
 
   "effectiveMinCarInternal" should "include P2R in total" in {
@@ -85,114 +116,36 @@ class KnfBfgSpec extends AnyFlatSpec with Matchers:
   // ==========================================================================
 
   "computeBfgLevy" should "compute monthly levy = deposits * rate / 12" in {
-    val banks            = Vector(
-      Banking.BankState(
-        BankId(0),
-        deposits = PLN(1200000.0),
-        loans = PLN.Zero,
-        capital = PLN(100000),
-        nplAmount = PLN.Zero,
-        govBondHoldings = PLN.Zero,
-        reservesAtNbp = PLN.Zero,
-        interbankNet = PLN.Zero,
-        failed = false,
-        failedMonth = 0,
-        consecutiveLowCar = 0,
-      ),
-    )
-    val (perBank, total) = Banking.computeBfgLevy(banks)
-    val expected         = 1200000.0 * p.banking.bfgLevyRate.toDouble / 12.0
-    perBank(0) shouldBe expected +- 0.01
-    total shouldBe expected +- 0.01
+    val banks    = Vector(mkBank(deposits = PLN(1200000.0)))
+    val result   = Banking.computeBfgLevy(banks)
+    val expected = 1200000.0 * p.banking.bfgLevyRate.toDouble / 12.0
+    result.perBank(0).toDouble shouldBe expected +- 0.01
+    result.total.toDouble shouldBe expected +- 0.01
   }
 
   it should "return zero for failed bank" in {
-    val banks            = Vector(
-      Banking.BankState(
-        BankId(0),
-        deposits = PLN(1200000.0),
-        loans = PLN.Zero,
-        capital = PLN.Zero,
-        nplAmount = PLN.Zero,
-        govBondHoldings = PLN.Zero,
-        reservesAtNbp = PLN.Zero,
-        interbankNet = PLN.Zero,
-        failed = true,
-        failedMonth = 5,
-        consecutiveLowCar = 3,
-      ),
-    )
-    val (perBank, total) = Banking.computeBfgLevy(banks)
-    perBank(0) shouldBe 0.0
-    total shouldBe 0.0
+    val banks  = Vector(mkBank(deposits = PLN(1200000.0), capital = PLN.Zero, status = BankStatus.Failed(5)))
+    val result = Banking.computeBfgLevy(banks)
+    result.perBank(0) shouldBe PLN.Zero
+    result.total shouldBe PLN.Zero
   }
 
   it should "sum per-bank levies correctly" in {
-    val banks            = Vector(
-      Banking.BankState(
-        BankId(0),
-        deposits = PLN(1000000.0),
-        loans = PLN.Zero,
-        capital = PLN(100000),
-        nplAmount = PLN.Zero,
-        govBondHoldings = PLN.Zero,
-        reservesAtNbp = PLN.Zero,
-        interbankNet = PLN.Zero,
-        failed = false,
-        failedMonth = 0,
-        consecutiveLowCar = 0,
-      ),
-      Banking.BankState(
-        BankId(1),
-        deposits = PLN(2000000.0),
-        loans = PLN.Zero,
-        capital = PLN(200000),
-        nplAmount = PLN.Zero,
-        govBondHoldings = PLN.Zero,
-        reservesAtNbp = PLN.Zero,
-        interbankNet = PLN.Zero,
-        failed = false,
-        failedMonth = 0,
-        consecutiveLowCar = 0,
-      ),
-      Banking.BankState(
-        BankId(2),
-        deposits = PLN(500000.0),
-        loans = PLN.Zero,
-        capital = PLN(50000),
-        nplAmount = PLN.Zero,
-        govBondHoldings = PLN.Zero,
-        reservesAtNbp = PLN.Zero,
-        interbankNet = PLN.Zero,
-        failed = true,
-        failedMonth = 3,
-        consecutiveLowCar = 3,
-      ),
+    val banks    = Vector(
+      mkBank(id = 0, deposits = PLN(1000000.0)),
+      mkBank(id = 1, deposits = PLN(2000000.0), capital = PLN(200000)),
+      mkBank(id = 2, deposits = PLN(500000.0), capital = PLN(50000), status = BankStatus.Failed(3)),
     )
-    val (perBank, total) = Banking.computeBfgLevy(banks)
-    val expected         = (1000000.0 + 2000000.0) * p.banking.bfgLevyRate.toDouble / 12.0
-    total shouldBe expected +- 0.01
-    perBank(2) shouldBe 0.0
+    val result   = Banking.computeBfgLevy(banks)
+    val expected = (1000000.0 + 2000000.0) * p.banking.bfgLevyRate.toDouble / 12.0
+    result.total.toDouble shouldBe expected +- 0.01
+    result.perBank(2) shouldBe PLN.Zero
   }
 
   it should "be positive for non-failed bank with positive deposits" in {
-    val banks        = Vector(
-      Banking.BankState(
-        BankId(0),
-        deposits = PLN(100000.0),
-        loans = PLN.Zero,
-        capital = PLN(10000),
-        nplAmount = PLN.Zero,
-        govBondHoldings = PLN.Zero,
-        reservesAtNbp = PLN.Zero,
-        interbankNet = PLN.Zero,
-        failed = false,
-        failedMonth = 0,
-        consecutiveLowCar = 0,
-      ),
-    )
-    val (perBank, _) = Banking.computeBfgLevy(banks)
-    perBank(0) should be > 0.0
+    val banks  = Vector(mkBank(deposits = PLN(100000.0), capital = PLN(10000)))
+    val result = Banking.computeBfgLevy(banks)
+    result.perBank(0) should be > PLN.Zero
   }
 
   // ==========================================================================
@@ -201,193 +154,56 @@ class KnfBfgSpec extends AnyFlatSpec with Matchers:
 
   "applyBailIn" should "return unchanged banks when BailInEnabled is false" in {
     // BailInEnabled defaults to false
-    val banks          = Vector(
-      Banking.BankState(
-        BankId(0),
-        deposits = PLN(1000000.0),
-        loans = PLN.Zero,
-        capital = PLN.Zero,
-        nplAmount = PLN.Zero,
-        govBondHoldings = PLN.Zero,
-        reservesAtNbp = PLN.Zero,
-        interbankNet = PLN.Zero,
-        failed = true,
-        failedMonth = 5,
-        consecutiveLowCar = 3,
-      ),
-    )
-    val (result, loss) = Banking.applyBailIn(banks)
-    result(0).deposits.toDouble shouldBe 1000000.0
-    loss shouldBe 0.0
+    val banks  = Vector(mkBank(deposits = PLN(1000000.0), capital = PLN.Zero, status = BankStatus.Failed(5)))
+    val result = Banking.applyBailIn(banks)
+    result.banks(0).deposits shouldBe PLN(1000000.0)
+    result.totalLoss shouldBe PLN.Zero
   }
 
   it should "not touch non-failed banks" in {
-    // This test verifies behavior with bail-in logic directly
-    // When bail-in is disabled (default), all banks pass through unchanged
-    val banks          = Vector(
-      Banking.BankState(
-        BankId(0),
-        deposits = PLN(500000.0),
-        loans = PLN(100000),
-        capital = PLN(50000),
-        nplAmount = PLN.Zero,
-        govBondHoldings = PLN.Zero,
-        reservesAtNbp = PLN.Zero,
-        interbankNet = PLN.Zero,
-        failed = false,
-        failedMonth = 0,
-        consecutiveLowCar = 0,
-      ),
-    )
-    val (result, loss) = Banking.applyBailIn(banks)
-    result(0).deposits.toDouble shouldBe 500000.0
-    loss shouldBe 0.0
+    val banks  = Vector(mkBank(deposits = PLN(500000.0), loans = PLN(100000), capital = PLN(50000)))
+    val result = Banking.applyBailIn(banks)
+    result.banks(0).deposits shouldBe PLN(500000.0)
+    result.totalLoss shouldBe PLN.Zero
   }
 
   it should "not haircut deposits below guarantee threshold" in {
-    // Deposits below BfgDepositGuarantee -> no haircut
-    val banks          = Vector(
-      Banking.BankState(
-        BankId(0),
-        deposits = PLN(300000.0),
-        loans = PLN.Zero,
-        capital = PLN.Zero,
-        nplAmount = PLN.Zero,
-        govBondHoldings = PLN.Zero,
-        reservesAtNbp = PLN.Zero,
-        interbankNet = PLN.Zero,
-        failed = true,
-        failedMonth = 5,
-        consecutiveLowCar = 3,
-      ),
-    )
-    // Even if bail-in is enabled, guaranteed = min(deposits, 400K) = 300K
-    // uninsured = 0, haircut = 0
-    // But since BailInEnabled defaults to false, we test the logic path directly
-    // by checking that applyBailIn returns (banks, 0.0) when disabled
-    val (result, loss) = Banking.applyBailIn(banks)
-    result(0).deposits.toDouble shouldBe 300000.0
-    loss shouldBe 0.0
+    val banks  = Vector(mkBank(deposits = PLN(300000.0), capital = PLN.Zero, status = BankStatus.Failed(5)))
+    val result = Banking.applyBailIn(banks)
+    result.banks(0).deposits shouldBe PLN(300000.0)
+    result.totalLoss shouldBe PLN.Zero
   }
 
   it should "return zero bail-in when no failures" in {
-    val banks          = Vector(
-      Banking.BankState(
-        BankId(0),
-        deposits = PLN(1000000.0),
-        loans = PLN(100000),
-        capital = PLN(50000),
-        nplAmount = PLN.Zero,
-        govBondHoldings = PLN.Zero,
-        reservesAtNbp = PLN.Zero,
-        interbankNet = PLN.Zero,
-        failed = false,
-        failedMonth = 0,
-        consecutiveLowCar = 0,
-      ),
-      Banking.BankState(
-        BankId(1),
-        deposits = PLN(2000000.0),
-        loans = PLN(200000),
-        capital = PLN(100000),
-        nplAmount = PLN.Zero,
-        govBondHoldings = PLN.Zero,
-        reservesAtNbp = PLN.Zero,
-        interbankNet = PLN.Zero,
-        failed = false,
-        failedMonth = 0,
-        consecutiveLowCar = 0,
-      ),
+    val banks  = Vector(
+      mkBank(id = 0, deposits = PLN(1000000.0), loans = PLN(100000), capital = PLN(50000)),
+      mkBank(id = 1, deposits = PLN(2000000.0), loans = PLN(200000)),
     )
-    val (result, loss) = Banking.applyBailIn(banks)
-    loss shouldBe 0.0
-    result(0).deposits.toDouble shouldBe 1000000.0
-    result(1).deposits.toDouble shouldBe 2000000.0
+    val result = Banking.applyBailIn(banks)
+    result.totalLoss shouldBe PLN.Zero
+    result.banks(0).deposits shouldBe PLN(1000000.0)
+    result.banks(1).deposits shouldBe PLN(2000000.0)
   }
 
   it should "apply before resolution (bail-in then resolve)" in {
-    // Verify that bail-in is called with failed banks still having deposits
-    val banks             = Vector(
-      Banking.BankState(
-        BankId(0),
-        deposits = PLN(1000000.0),
-        loans = PLN(100000),
-        capital = PLN.Zero,
-        nplAmount = PLN(50000),
-        govBondHoldings = PLN.Zero,
-        reservesAtNbp = PLN.Zero,
-        interbankNet = PLN.Zero,
-        failed = true,
-        failedMonth = 5,
-        consecutiveLowCar = 3,
-      ),
-      Banking.BankState(
-        BankId(1),
-        deposits = PLN(2000000.0),
-        loans = PLN(200000),
-        capital = PLN(200000),
-        nplAmount = PLN.Zero,
-        govBondHoldings = PLN.Zero,
-        reservesAtNbp = PLN.Zero,
-        interbankNet = PLN.Zero,
-        failed = false,
-        failedMonth = 0,
-        consecutiveLowCar = 0,
-      ),
+    val banks        = Vector(
+      mkBank(id = 0, deposits = PLN(1000000.0), loans = PLN(100000), capital = PLN.Zero, nplAmount = PLN(50000), status = BankStatus.Failed(5)),
+      mkBank(id = 1, deposits = PLN(2000000.0), loans = PLN(200000), capital = PLN(200000)),
     )
-    // With bail-in disabled (default), bail-in returns unchanged banks
-    val (afterBailIn, _)  = Banking.applyBailIn(banks)
-    // Then resolve: failed bank deposits transfer to absorber
-    val (afterResolve, _) = Banking.resolveFailures(afterBailIn)
-    afterResolve(0).deposits.toDouble shouldBe 0.0       // failed bank wiped
-    afterResolve(1).deposits.toDouble shouldBe 3000000.0 // absorbed
+    val afterBailIn  = Banking.applyBailIn(banks)
+    val afterResolve = Banking.resolveFailures(afterBailIn.banks)
+    afterResolve.banks(0).deposits shouldBe PLN.Zero       // failed bank wiped
+    afterResolve.banks(1).deposits shouldBe PLN(3000000.0) // absorbed
   }
 
   it should "track total loss across multiple failed banks" in {
-    // With bail-in disabled, total loss = 0 for multiple failed banks
-    val banks     = Vector(
-      Banking.BankState(
-        BankId(0),
-        deposits = PLN(800000.0),
-        loans = PLN.Zero,
-        capital = PLN.Zero,
-        nplAmount = PLN.Zero,
-        govBondHoldings = PLN.Zero,
-        reservesAtNbp = PLN.Zero,
-        interbankNet = PLN.Zero,
-        failed = true,
-        failedMonth = 5,
-        consecutiveLowCar = 3,
-      ),
-      Banking.BankState(
-        BankId(1),
-        deposits = PLN(600000.0),
-        loans = PLN.Zero,
-        capital = PLN.Zero,
-        nplAmount = PLN.Zero,
-        govBondHoldings = PLN.Zero,
-        reservesAtNbp = PLN.Zero,
-        interbankNet = PLN.Zero,
-        failed = true,
-        failedMonth = 5,
-        consecutiveLowCar = 3,
-      ),
-      Banking.BankState(
-        BankId(2),
-        deposits = PLN(2000000.0),
-        loans = PLN(200000),
-        capital = PLN(200000),
-        nplAmount = PLN.Zero,
-        govBondHoldings = PLN.Zero,
-        reservesAtNbp = PLN.Zero,
-        interbankNet = PLN.Zero,
-        failed = false,
-        failedMonth = 0,
-        consecutiveLowCar = 0,
-      ),
+    val banks  = Vector(
+      mkBank(id = 0, deposits = PLN(800000.0), capital = PLN.Zero, status = BankStatus.Failed(5)),
+      mkBank(id = 1, deposits = PLN(600000.0), capital = PLN.Zero, status = BankStatus.Failed(5)),
+      mkBank(id = 2, deposits = PLN(2000000.0), loans = PLN(200000), capital = PLN(200000)),
     )
-    val (_, loss) = Banking.applyBailIn(banks)
-    loss shouldBe 0.0 // bail-in disabled by default
+    val result = Banking.applyBailIn(banks)
+    result.totalLoss shouldBe PLN.Zero // bail-in disabled by default
   }
 
   // ==========================================================================
@@ -405,7 +221,7 @@ class KnfBfgSpec extends AnyFlatSpec with Matchers:
       gov = GovState(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
       nbp = sfc.agents.Nbp.State(Rate(0.05)),
       bank = BankingAggregate(PLN.Zero, PLN.Zero, PLN(100000), PLN(500000), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
-      bankingSector = Banking.initialize(1e9, 5e8, 5e8, 0, 0, Banking.DefaultConfigs),
+      bankingSector = Banking.initialize(PLN(1e9), PLN(5e8), PLN(5e8), PLN.Zero, PLN.Zero, Banking.DefaultConfigs),
       forex = ForexState(4.33, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
       hhAgg = sfc.agents.Household.Aggregates(
         employed = 100,
@@ -445,8 +261,8 @@ class KnfBfgSpec extends AnyFlatSpec with Matchers:
       plumbing = MonetaryPlumbingState.zero,
       flows = FlowState.zero,
     )
-    w.mechanisms.bfgFundBalance.toDouble shouldBe 0.0
-    w.flows.bailInLoss.toDouble shouldBe 0.0
+    w.mechanisms.bfgFundBalance shouldBe PLN.Zero
+    w.flows.bailInLoss shouldBe PLN.Zero
   }
 
   // ==========================================================================
@@ -474,18 +290,15 @@ class KnfBfgSpec extends AnyFlatSpec with Matchers:
   // ==========================================================================
 
   "BFG levy" should "reduce bank capital" in {
-    // A bank with positive deposits should have lower capital after BFG levy
     val deposits        = 1000000.0
     val levy            = deposits * p.banking.bfgLevyRate.toDouble / 12.0
     levy should be > 0.0
-    // Capital reduction equals levy
     val originalCapital = 100000.0
     val newCapital      = originalCapital - levy
     newCapital should be < originalCapital
   }
 
   it should "accumulate monotonically in BFG fund" in {
-    // bfgFundBalance = prev + currentLevy (always non-negative)
     val prevBalance = 1000.0
     val currentLevy = 500.0
     val newBalance  = prevBalance + currentLevy
@@ -499,180 +312,102 @@ class KnfBfgSpec extends AnyFlatSpec with Matchers:
 
   "resolveFailures" should "preserve total gov bond holdings when all banks fail" in {
     val banks            = Vector(
-      Banking.BankState(
-        BankId(0),
+      mkBank(
+        id = 0,
         deposits = PLN(500000.0),
         loans = PLN(100000),
         capital = PLN(-10000),
         nplAmount = PLN(50000),
         govBondHoldings = PLN(20e9),
-        reservesAtNbp = PLN.Zero,
-        interbankNet = PLN.Zero,
-        failed = true,
-        failedMonth = 3,
-        consecutiveLowCar = 3,
+        status = BankStatus.Failed(3),
       ),
-      Banking.BankState(
-        BankId(1),
+      mkBank(
+        id = 1,
         deposits = PLN(300000.0),
         loans = PLN(80000),
         capital = PLN(-5000),
         nplAmount = PLN(30000),
         govBondHoldings = PLN(15e9),
-        reservesAtNbp = PLN.Zero,
-        interbankNet = PLN.Zero,
-        failed = true,
-        failedMonth = 3,
-        consecutiveLowCar = 3,
+        status = BankStatus.Failed(3),
       ),
-      Banking.BankState(
-        BankId(2),
+      mkBank(
+        id = 2,
         deposits = PLN(200000.0),
         loans = PLN(60000),
         capital = PLN(-20000),
         nplAmount = PLN(20000),
         govBondHoldings = PLN(13.8e9),
-        reservesAtNbp = PLN.Zero,
-        interbankNet = PLN.Zero,
-        failed = true,
-        failedMonth = 3,
-        consecutiveLowCar = 3,
+        status = BankStatus.Failed(3),
       ),
     )
     val totalBondsBefore = banks.map(_.govBondHoldings.toDouble).sum
-    val (resolved, _)    = Banking.resolveFailures(banks)
-    val totalBondsAfter  = resolved.map(_.govBondHoldings.toDouble).sum
+    val result           = Banking.resolveFailures(banks)
+    val totalBondsAfter  = result.banks.map(_.govBondHoldings.toDouble).sum
     totalBondsAfter shouldBe totalBondsBefore +- 1.0
-    // Bridge bank (highest capital = bank 1) should be resurrected
-    val bridge           = resolved.find(!_.failed)
+    val bridge           = result.banks.find(!_.failed)
     bridge shouldBe defined
-    bridge.get.govBondHoldings.toDouble should be > 0.0
+    bridge.get.govBondHoldings should be > PLN.Zero
   }
 
   it should "preserve interbank netting sum when all banks fail" in {
     val banks                = Vector(
-      Banking.BankState(
-        BankId(0),
+      mkBank(
+        id = 0,
         deposits = PLN(500000.0),
         loans = PLN(100000),
         capital = PLN(-5000),
         nplAmount = PLN(50000),
-        govBondHoldings = PLN.Zero,
-        reservesAtNbp = PLN.Zero,
         interbankNet = PLN(1000.0),
-        failed = true,
-        failedMonth = 3,
-        consecutiveLowCar = 3,
+        status = BankStatus.Failed(3),
       ),
-      Banking.BankState(
-        BankId(1),
+      mkBank(
+        id = 1,
         deposits = PLN(300000.0),
         loans = PLN(80000),
         capital = PLN(-3000),
         nplAmount = PLN(30000),
-        govBondHoldings = PLN.Zero,
-        reservesAtNbp = PLN.Zero,
         interbankNet = PLN(-600.0),
-        failed = true,
-        failedMonth = 3,
-        consecutiveLowCar = 3,
+        status = BankStatus.Failed(3),
       ),
-      Banking.BankState(
-        BankId(2),
+      mkBank(
+        id = 2,
         deposits = PLN(200000.0),
         loans = PLN(60000),
         capital = PLN(-10000),
         nplAmount = PLN(20000),
-        govBondHoldings = PLN.Zero,
-        reservesAtNbp = PLN.Zero,
         interbankNet = PLN(-400.0),
-        failed = true,
-        failedMonth = 3,
-        consecutiveLowCar = 3,
+        status = BankStatus.Failed(3),
       ),
     )
-    val (resolved, _)        = Banking.resolveFailures(banks)
-    // All interbank nets should sum to the original total (zero-sum preserved)
-    val totalInterbankAfter  = resolved.map(_.interbankNet.toDouble).sum
+    val result               = Banking.resolveFailures(banks)
+    val totalInterbankAfter  = result.banks.map(_.interbankNet.toDouble).sum
     val totalInterbankBefore = banks.map(_.interbankNet.toDouble).sum
     totalInterbankAfter shouldBe totalInterbankBefore +- 1e-6
   }
 
   it should "transfer bonds to healthy absorber in partial failure" in {
-    val banks         = Vector(
-      Banking.BankState(
-        BankId(0),
+    val banks  = Vector(
+      mkBank(
+        id = 0,
         deposits = PLN(500000.0),
         loans = PLN(100000),
         capital = PLN.Zero,
         nplAmount = PLN(50000),
         govBondHoldings = PLN(10e9),
-        reservesAtNbp = PLN.Zero,
-        interbankNet = PLN.Zero,
-        failed = true,
-        failedMonth = 3,
-        consecutiveLowCar = 3,
+        status = BankStatus.Failed(3),
       ),
-      Banking.BankState(
-        BankId(1),
-        deposits = PLN(2000000.0),
-        loans = PLN(200000),
-        capital = PLN(200000),
-        nplAmount = PLN.Zero,
-        govBondHoldings = PLN(5e9),
-        reservesAtNbp = PLN.Zero,
-        interbankNet = PLN.Zero,
-        failed = false,
-        failedMonth = 0,
-        consecutiveLowCar = 0,
-      ),
+      mkBank(id = 1, deposits = PLN(2000000.0), loans = PLN(200000), capital = PLN(200000), govBondHoldings = PLN(5e9)),
     )
-    val (resolved, _) = Banking.resolveFailures(banks)
-    resolved(0).govBondHoldings.toDouble shouldBe 0.0
-    resolved(1).govBondHoldings.toDouble shouldBe 15e9 +- 1.0
+    val result = Banking.resolveFailures(banks)
+    result.banks(0).govBondHoldings shouldBe PLN.Zero
+    result.banks(1).govBondHoldings.toDouble shouldBe 15e9 +- 1.0
   }
 
   "healthiestBankId" should "return bank with highest capital when all fail" in {
     val banks = Vector(
-      Banking.BankState(
-        BankId(0),
-        deposits = PLN(500000.0),
-        loans = PLN(100000),
-        capital = PLN(-20000),
-        nplAmount = PLN(50000),
-        govBondHoldings = PLN.Zero,
-        reservesAtNbp = PLN.Zero,
-        interbankNet = PLN.Zero,
-        failed = true,
-        failedMonth = 3,
-        consecutiveLowCar = 3,
-      ),
-      Banking.BankState(
-        BankId(1),
-        deposits = PLN(300000.0),
-        loans = PLN(80000),
-        capital = PLN(-5000),
-        nplAmount = PLN(30000),
-        govBondHoldings = PLN.Zero,
-        reservesAtNbp = PLN.Zero,
-        interbankNet = PLN.Zero,
-        failed = true,
-        failedMonth = 3,
-        consecutiveLowCar = 3,
-      ),
-      Banking.BankState(
-        BankId(2),
-        deposits = PLN(200000.0),
-        loans = PLN(60000),
-        capital = PLN(-15000),
-        nplAmount = PLN(20000),
-        govBondHoldings = PLN.Zero,
-        reservesAtNbp = PLN.Zero,
-        interbankNet = PLN.Zero,
-        failed = true,
-        failedMonth = 3,
-        consecutiveLowCar = 3,
-      ),
+      mkBank(id = 0, deposits = PLN(500000.0), loans = PLN(100000), capital = PLN(-20000), nplAmount = PLN(50000), status = BankStatus.Failed(3)),
+      mkBank(id = 1, deposits = PLN(300000.0), loans = PLN(80000), capital = PLN(-5000), nplAmount = PLN(30000), status = BankStatus.Failed(3)),
+      mkBank(id = 2, deposits = PLN(200000.0), loans = PLN(60000), capital = PLN(-15000), nplAmount = PLN(20000), status = BankStatus.Failed(3)),
     )
     // Bank 1 has highest (least negative) capital: -5000
     Banking.healthiestBankId(banks) shouldBe BankId(1)

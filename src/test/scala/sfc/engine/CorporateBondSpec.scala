@@ -197,5 +197,5 @@ class CorporateBondSpec extends AnyFlatSpec with Matchers:
       corpBondHoldings = PLN(400.0),
     )
     // RWA = 1000 + 400 * 0.5 = 1200; CAR = 200 / 1200 = 0.1667
-    bank.car shouldBe (200.0 / 1200.0 +- 0.001)
+    bank.car.toDouble shouldBe (200.0 / 1200.0 +- 0.001)
   }
