@@ -55,6 +55,14 @@ class SfcSpec extends AnyFlatSpec with Matchers:
         Ratio(0.3),
         SectorIdx(0),
         Array.empty[FirmId],
+        bankId = BankId(0),
+        equityRaised = PLN.Zero,
+        initialSize = 10,
+        capitalStock = PLN.Zero,
+        bondDebt = PLN.Zero,
+        foreignOwned = false,
+        inventory = PLN.Zero,
+        greenCapital = PLN.Zero,
       )
     }.toVector
 

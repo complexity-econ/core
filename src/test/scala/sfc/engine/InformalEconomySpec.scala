@@ -112,19 +112,29 @@ class InformalEconomySpec extends AnyFlatSpec with Matchers:
   // Firm.Result citEvasion
   // ==========================================================================
 
-  "Firm.Result" should "have citEvasion defaulting to 0.0" in {
-    val f = Firm.State(
+  private def mkFirm(tech: TechState = TechState.Traditional(10), cash: Double = 50000.0): Firm.State =
+    Firm.State(
       FirmId(0),
-      PLN(50000.0),
+      PLN(cash),
       PLN.Zero,
-      TechState.Traditional(10),
+      tech,
       Ratio(0.5),
       1.0,
       Ratio(0.3),
       SectorIdx(0),
       Array.empty[FirmId],
+      bankId = BankId(0),
+      equityRaised = PLN.Zero,
+      initialSize = 10,
+      capitalStock = PLN.Zero,
+      bondDebt = PLN.Zero,
+      foreignOwned = false,
+      inventory = PLN.Zero,
+      greenCapital = PLN.Zero,
     )
-    val r = Firm.Result(f, PLN(100.0), PLN.Zero, PLN.Zero, PLN.Zero)
+
+  "Firm.Result" should "have citEvasion defaulting to 0.0" in {
+    val r = Firm.Result.zero(mkFirm()).copy(taxPaid = PLN(100.0))
     r.citEvasion.toDouble shouldBe 0.0
   }
 
@@ -135,18 +145,7 @@ class InformalEconomySpec extends AnyFlatSpec with Matchers:
   "CIT evasion (disabled)" should "not reduce taxPaid when InformalEnabled=false" in {
     // InformalEnabled defaults to false
     p.flags.informal shouldBe false
-    val f = Firm.State(
-      FirmId(0),
-      PLN(50000.0),
-      PLN.Zero,
-      TechState.Traditional(10),
-      Ratio(0.5),
-      1.0,
-      Ratio(0.3),
-      SectorIdx(0),
-      Array.empty[FirmId],
-    )
-    val r = Firm.Result(f, PLN(1000.0), PLN.Zero, PLN.Zero, PLN.Zero)
+    val r = Firm.Result.zero(mkFirm()).copy(taxPaid = PLN(1000.0))
     // Since InformalEnabled is false, citEvasion should remain 0
     r.citEvasion.toDouble shouldBe 0.0
   }
@@ -156,34 +155,12 @@ class InformalEconomySpec extends AnyFlatSpec with Matchers:
   // ==========================================================================
 
   "CIT evasion" should "be zero for bankrupt firms" in {
-    val f = Firm.State(
-      FirmId(0),
-      PLN.Zero,
-      PLN.Zero,
-      TechState.Bankrupt(BankruptReason.Other("test")),
-      Ratio(0.5),
-      1.0,
-      Ratio(0.3),
-      SectorIdx(0),
-      Array.empty[FirmId],
-    )
-    val r = Firm.Result(f, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
+    val r = Firm.Result.zero(mkFirm(TechState.Bankrupt(BankruptReason.Other("test")), cash = 0.0))
     r.citEvasion.toDouble shouldBe 0.0
   }
 
   it should "be zero when taxPaid <= 0" in {
-    val f = Firm.State(
-      FirmId(0),
-      PLN(50000.0),
-      PLN.Zero,
-      TechState.Traditional(10),
-      Ratio(0.5),
-      1.0,
-      Ratio(0.3),
-      SectorIdx(0),
-      Array.empty[FirmId],
-    )
-    val r = Firm.Result(f, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
+    val r = Firm.Result.zero(mkFirm())
     r.citEvasion.toDouble shouldBe 0.0
   }
 

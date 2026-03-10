@@ -159,7 +159,25 @@ class FirmSpec extends AnyFlatSpec with Matchers:
   // --- helpers ---
 
   private def mkFirmWithNeighbors(id: Int, tech: TechState, neighbors: Array[FirmId]): Firm.State =
-    Firm.State(FirmId(id), PLN(50000.0), PLN.Zero, tech, Ratio(0.5), 1.0, Ratio(0.5), SectorIdx(0), neighbors)
+    Firm.State(
+      FirmId(id),
+      PLN(50000.0),
+      PLN.Zero,
+      tech,
+      Ratio(0.5),
+      1.0,
+      Ratio(0.5),
+      SectorIdx(0),
+      neighbors,
+      bankId = BankId(0),
+      equityRaised = PLN.Zero,
+      initialSize = 10,
+      capitalStock = PLN.Zero,
+      bondDebt = PLN.Zero,
+      foreignOwned = false,
+      inventory = PLN.Zero,
+      greenCapital = PLN.Zero,
+    )
 
   private def mkFirm(tech: TechState, sector: Int = 2): Firm.State =
     Firm.State(
@@ -172,6 +190,14 @@ class FirmSpec extends AnyFlatSpec with Matchers:
       Ratio(0.5),
       SectorIdx(sector),
       Array.empty[FirmId],
+      bankId = BankId(0),
+      equityRaised = PLN.Zero,
+      initialSize = 10,
+      capitalStock = PLN.Zero,
+      bondDebt = PLN.Zero,
+      foreignOwned = false,
+      inventory = PLN.Zero,
+      greenCapital = PLN.Zero,
     )
 
   private def mkWorld(): World =

@@ -226,8 +226,14 @@ object PriceEquityStep:
           ),
           sector = sec,
           neighbors = adj(i).toArray.map(FirmId(_)),
+          bankId = BankId(0),
+          equityRaised = PLN.Zero,
           initialSize = newSize,
           capitalStock = PLN(if p.flags.physCap then newSize.toDouble * p.capital.klRatios.map(_.toDouble)(sec.toInt) else 0.0),
+          bondDebt = PLN.Zero,
+          foreignOwned = false,
+          inventory = PLN.Zero,
+          greenCapital = PLN.Zero,
         )
       else
         // For surviving firms: only allocate a new neighbors array if the neighbor set actually changed

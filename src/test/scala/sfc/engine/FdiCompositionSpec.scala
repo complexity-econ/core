@@ -61,7 +61,7 @@ class FdiCompositionSpec extends AnyFlatSpec with Matchers:
   // --- Firm.Result fields ---
 
   "Firm.Result" should "default profitShiftCost and fdiRepatriation to 0" in {
-    val r = Firm.Result(mkFirm(TechState.Traditional(10)), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
+    val r = Firm.Result.zero(mkFirm(TechState.Traditional(10)))
     r.profitShiftCost.toDouble shouldBe 0.0
     r.fdiRepatriation.toDouble shouldBe 0.0
   }
@@ -95,7 +95,7 @@ class FdiCompositionSpec extends AnyFlatSpec with Matchers:
 
   "applyFdiFlows" should "not repatriate from domestic firm" in {
     val f = mkFirm(TechState.Traditional(10)).copy(foreignOwned = false, cash = PLN(100000.0))
-    val r = Firm.Result(f, taxPaid = PLN(1000.0), PLN.Zero, PLN.Zero, PLN.Zero)
+    val r = Firm.Result.zero(f).copy(taxPaid = PLN(1000.0))
     // applyFdiFlows is private, but tested through Firm.process
     // Domestic firm should have 0 repatriation regardless
     r.fdiRepatriation.toDouble shouldBe 0.0
@@ -103,7 +103,7 @@ class FdiCompositionSpec extends AnyFlatSpec with Matchers:
 
   it should "not repatriate from bankrupt firm" in {
     val f = mkFirm(TechState.Bankrupt(BankruptReason.Other("test"))).copy(foreignOwned = true, cash = PLN(100000.0))
-    val r = Firm.Result(f, taxPaid = PLN(1000.0), PLN.Zero, PLN.Zero, PLN.Zero)
+    val r = Firm.Result.zero(f).copy(taxPaid = PLN(1000.0))
     r.fdiRepatriation.toDouble shouldBe 0.0
   }
 
@@ -182,6 +182,14 @@ class FdiCompositionSpec extends AnyFlatSpec with Matchers:
       Ratio(0.5),
       SectorIdx(sector),
       Array.empty[FirmId],
+      bankId = BankId(0),
+      equityRaised = PLN.Zero,
+      initialSize = 10,
+      capitalStock = PLN.Zero,
+      bondDebt = PLN.Zero,
+      foreignOwned = false,
+      inventory = PLN.Zero,
+      greenCapital = PLN.Zero,
     )
 
   private def mkWorld(): World =

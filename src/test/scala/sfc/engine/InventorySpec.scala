@@ -114,34 +114,33 @@ class InventorySpec extends AnyFlatSpec with Matchers:
   // Firm inventory field
   // ==========================================================================
 
-  "Firm" should "have inventory defaulting to 0.0" in {
-    val f = Firm.State(
+  private def mkFirm(tech: TechState = TechState.Traditional(10)): Firm.State =
+    Firm.State(
       FirmId(0),
       PLN(50000.0),
       PLN.Zero,
-      TechState.Traditional(10),
+      tech,
       Ratio(0.5),
       1.0,
       Ratio(0.3),
       SectorIdx(0),
       Array.empty[FirmId],
+      bankId = BankId(0),
+      equityRaised = PLN.Zero,
+      initialSize = 10,
+      capitalStock = PLN.Zero,
+      bondDebt = PLN.Zero,
+      foreignOwned = false,
+      inventory = PLN.Zero,
+      greenCapital = PLN.Zero,
     )
-    f.inventory.toDouble shouldBe 0.0
+
+  "Firm" should "have inventory defaulting to 0.0" in {
+    mkFirm().inventory.toDouble shouldBe 0.0
   }
 
   "Firm.Result" should "have inventoryChange defaulting to 0.0" in {
-    val f = Firm.State(
-      FirmId(0),
-      PLN(50000.0),
-      PLN.Zero,
-      TechState.Traditional(10),
-      Ratio(0.5),
-      1.0,
-      Ratio(0.3),
-      SectorIdx(0),
-      Array.empty[FirmId],
-    )
-    val r = Firm.Result(f, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
+    val r = Firm.Result.zero(mkFirm())
     r.inventoryChange.toDouble shouldBe 0.0
   }
 
@@ -304,18 +303,8 @@ class InventorySpec extends AnyFlatSpec with Matchers:
   // ==========================================================================
 
   "Bankrupt firm" should "have zero inventory" in {
-    val f = Firm.State(
-      FirmId(0),
-      PLN(-1000.0),
-      PLN(50000.0),
-      TechState.Bankrupt(BankruptReason.Other("test")),
-      Ratio(0.5),
-      1.0,
-      Ratio(0.3),
-      SectorIdx(0),
-      Array.empty[FirmId],
-      inventory = PLN(5000.0),
-    )
+    val f = mkFirm(TechState.Bankrupt(BankruptReason.Other("test")))
+      .copy(cash = PLN(-1000.0), debt = PLN(50000.0), inventory = PLN(5000.0))
     // applyInventory should zero out inventory for bankrupt firms
     Firm.isAlive(f) shouldBe false
   }

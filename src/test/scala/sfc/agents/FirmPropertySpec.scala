@@ -108,7 +108,14 @@ class FirmPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckProperty
         Ratio(digiR),
         SectorIdx(sector),
         Array.empty[FirmId],
+        bankId = BankId(0),
+        equityRaised = PLN.Zero,
         initialSize = 16,
+        capitalStock = PLN.Zero,
+        bondDebt = PLN.Zero,
+        foreignOwned = false,
+        inventory = PLN.Zero,
+        greenCapital = PLN.Zero,
       )
       val f2    = Firm.State(
         FirmId(0),
@@ -120,7 +127,14 @@ class FirmPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckProperty
         Ratio(digiR),
         SectorIdx(sector),
         Array.empty[FirmId],
+        bankId = BankId(0),
+        equityRaised = PLN.Zero,
         initialSize = 16,
+        capitalStock = PLN.Zero,
+        bondDebt = PLN.Zero,
+        foreignOwned = false,
+        inventory = PLN.Zero,
+        greenCapital = PLN.Zero,
       )
       val ratio = Firm.computeCapacity(f2) / Firm.computeCapacity(f1)
       ratio shouldBe (2.0 +- 0.01)
@@ -138,7 +152,14 @@ class FirmPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckProperty
         Ratio(digiR),
         SectorIdx(sector),
         Array.empty[FirmId],
+        bankId = BankId(0),
+        equityRaised = PLN.Zero,
         initialSize = 10,
+        capitalStock = PLN.Zero,
+        bondDebt = PLN.Zero,
+        foreignOwned = false,
+        inventory = PLN.Zero,
+        greenCapital = PLN.Zero,
       )
       val f2    = Firm.State(
         FirmId(0),
@@ -150,7 +171,14 @@ class FirmPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckProperty
         Ratio(digiR),
         SectorIdx(sector),
         Array.empty[FirmId],
+        bankId = BankId(0),
+        equityRaised = PLN.Zero,
         initialSize = 25,
+        capitalStock = PLN.Zero,
+        bondDebt = PLN.Zero,
+        foreignOwned = false,
+        inventory = PLN.Zero,
+        greenCapital = PLN.Zero,
       )
       val ratio = Firm.computeCapacity(f2) / Firm.computeCapacity(f1)
       ratio shouldBe (2.5 +- 0.01)
@@ -171,6 +199,14 @@ class FirmPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckProperty
         Ratio(0.4),
         SectorIdx(0),
         (0 until 10).filter(_ != i).map(FirmId(_)).toArray,
+        bankId = BankId(0),
+        equityRaised = PLN.Zero,
+        initialSize = 10,
+        capitalStock = PLN.Zero,
+        bondDebt = PLN.Zero,
+        foreignOwned = false,
+        inventory = PLN.Zero,
+        greenCapital = PLN.Zero,
       )
     }.toVector
     for f <- firms do
@@ -190,6 +226,14 @@ class FirmPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckProperty
       Ratio(0.4),
       SectorIdx(0),
       Array.empty[FirmId],
+      bankId = BankId(0),
+      equityRaised = PLN.Zero,
+      initialSize = 10,
+      capitalStock = PLN.Zero,
+      bondDebt = PLN.Zero,
+      foreignOwned = false,
+      inventory = PLN.Zero,
+      greenCapital = PLN.Zero,
     )
     val firms = Vector(firm)
     Firm.computeLocalAutoRatio(firm, firms) shouldBe 0.0

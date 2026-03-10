@@ -180,6 +180,14 @@ class LaborMarketSpec extends AnyFlatSpec with Matchers:
         Ratio(0.5),
         SectorIdx(2),
         Array.empty[FirmId],
+        bankId = BankId(0),
+        equityRaised = PLN.Zero,
+        initialSize = 10,
+        capitalStock = PLN.Zero,
+        bondDebt = PLN.Zero,
+        foreignOwned = false,
+        inventory = PLN.Zero,
+        greenCapital = PLN.Zero,
       ) // sector 2 = Retail/Services
     }.toVector
 

@@ -27,8 +27,14 @@ class PhysicalCapitalSpec extends AnyFlatSpec with Matchers:
       digitalReadiness = Ratio(0.3),
       sector = SectorIdx(sector),
       neighbors = Array.empty[FirmId],
+      bankId = BankId(0),
+      equityRaised = PLN.Zero,
       initialSize = workers,
       capitalStock = PLN(capitalStock),
+      bondDebt = PLN.Zero,
+      foreignOwned = false,
+      inventory = PLN.Zero,
+      greenCapital = PLN.Zero,
     )
 
   // --- Config defaults ---
@@ -159,7 +165,14 @@ class PhysicalCapitalSpec extends AnyFlatSpec with Matchers:
       digitalReadiness = Ratio(0.3),
       sector = SectorIdx(0),
       neighbors = Array.empty[FirmId],
+      bankId = BankId(0),
+      equityRaised = PLN.Zero,
+      initialSize = 10,
       capitalStock = PLN(100000.0),
+      bondDebt = PLN.Zero,
+      foreignOwned = false,
+      inventory = PLN.Zero,
+      greenCapital = PLN.Zero,
     )
     Firm.computeCapacity(f) shouldBe PLN.Zero
   }
@@ -178,9 +191,16 @@ class PhysicalCapitalSpec extends AnyFlatSpec with Matchers:
       digitalReadiness = Ratio(0.3),
       sector = SectorIdx(1),
       neighbors = Array.empty[FirmId],
+      bankId = BankId(0),
+      equityRaised = PLN.Zero,
+      initialSize = 10,
       capitalStock = PLN(2500000.0),
+      bondDebt = PLN.Zero,
+      foreignOwned = false,
+      inventory = PLN.Zero,
+      greenCapital = PLN.Zero,
     )
-    val r = Firm.Result(f, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
+    val r = Firm.Result.zero(f)
     // When PhysCapEnabled, applyInvestment should zero K for bankrupt
     if p.flags.physCap then
       // Call process on a bankrupt firm — capitalStock should be 0

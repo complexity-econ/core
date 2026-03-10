@@ -86,6 +86,11 @@ object Generators:
     BankId(bankId),
     PLN(eqR),
     iSize,
+    capitalStock = PLN.Zero,
+    bondDebt = PLN.Zero,
+    foreignOwned = false,
+    inventory = PLN.Zero,
+    greenCapital = PLN.Zero,
   )
 
   val genAliveFirm: Gen[Firm.State] = for
@@ -113,6 +118,11 @@ object Generators:
     BankId(bankId),
     PLN(eqR),
     iSize,
+    capitalStock = PLN.Zero,
+    bondDebt = PLN.Zero,
+    foreignOwned = false,
+    inventory = PLN.Zero,
+    greenCapital = PLN.Zero,
   )
 
   // --- Balance sheet state generators ---
