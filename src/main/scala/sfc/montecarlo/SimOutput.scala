@@ -1,4 +1,4 @@
-package sfc
+package sfc.montecarlo
 
 import sfc.agents.*
 import sfc.config.SimParams

@@ -2,8 +2,8 @@ package sfc.engine.markets
 
 import sfc.accounting.{BopState, ForexState}
 import sfc.agents.Nbp
-import sfc.McRunConfig
 import sfc.config.SimParams
+import sfc.montecarlo.McRunConfig
 import sfc.types.PLN
 import sfc.util.KahanSum.*
 

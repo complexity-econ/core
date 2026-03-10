@@ -6,9 +6,9 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import sfc.Generators.*
 import sfc.accounting.{BopState, ForexState}
-import sfc.McRunConfig
 import sfc.config.SimParams
 import sfc.engine.markets.OpenEconomy
+import sfc.montecarlo.McRunConfig
 import sfc.types.*
 
 class OpenEconomyPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks:

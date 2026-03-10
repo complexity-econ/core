@@ -1,7 +1,7 @@
 package sfc.engine.markets
 
-import sfc.McRunConfig
 import sfc.config.SimParams
+import sfc.montecarlo.McRunConfig
 
 object PriceLevel:
 

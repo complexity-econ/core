@@ -1,7 +1,7 @@
 package sfc.engine.mechanisms
 
-import sfc.McRunConfig
 import sfc.config.SimParams
+import sfc.montecarlo.McRunConfig
 import sfc.types.*
 
 object Expectations:

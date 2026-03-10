@@ -5,6 +5,8 @@ import org.scalatest.matchers.should.Matchers
 import sfc.accounting.{BankingAggregate, BopState, ForexState, GovState}
 import sfc.agents.Banking
 import sfc.engine.markets.OpenEconomy
+import sfc.montecarlo
+import sfc.montecarlo.McRunConfig
 import sfc.types.*
 
 class DiasporaRemittanceSpec extends AnyFlatSpec with Matchers:
@@ -155,7 +157,7 @@ class DiasporaRemittanceSpec extends AnyFlatSpec with Matchers:
   "secondaryIncome" should "include diasporaInflow as credit" in {
     val prevBop   = BopState.zero
     val prevForex = ForexState(p.forex.baseExRate, PLN.Zero, PLN(p.forex.exportBase.toDouble), PLN.Zero, PLN.Zero)
-    val rc        = sfc.McRunConfig(1, "test")
+    val rc        = McRunConfig(1, "test")
 
     val resultWith    =
       OpenEconomy.step(prevBop, prevForex, 0, 0, 0, 0.05, 1e9, 1.0, Vector.fill(6)(1e8), 1, rc, diasporaInflow = 1000.0)
@@ -168,7 +170,7 @@ class DiasporaRemittanceSpec extends AnyFlatSpec with Matchers:
   it should "net outflow and inflow" in {
     val prevBop   = BopState.zero
     val prevForex = ForexState(p.forex.baseExRate, PLN.Zero, PLN(p.forex.exportBase.toDouble), PLN.Zero, PLN.Zero)
-    val rc        = sfc.McRunConfig(1, "test")
+    val rc        = montecarlo.McRunConfig(1, "test")
 
     val result = OpenEconomy.step(
       prevBop,

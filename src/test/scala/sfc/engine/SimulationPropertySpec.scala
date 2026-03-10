@@ -7,9 +7,9 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import sfc.Generators.*
 import sfc.accounting.{ForexState, GovState}
 import sfc.agents.Nbp
-import sfc.McRunConfig
 import sfc.config.SimParams
 import sfc.engine.markets.{FiscalBudget, LaborMarket, OpenEconomy, PriceLevel}
+import sfc.montecarlo.McRunConfig
 import sfc.types.*
 
 class SimulationPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks:

@@ -5,9 +5,9 @@ import org.scalatest.matchers.should.Matchers
 import sfc.accounting
 import sfc.accounting.GovState
 import sfc.agents.Nbp
-import sfc.McRunConfig
 import sfc.config.SimParams
 import sfc.engine.markets.{FiscalBudget, LaborMarket, PriceLevel}
+import sfc.montecarlo.McRunConfig
 import sfc.types.*
 
 class SimulationSpec extends AnyFlatSpec with Matchers:

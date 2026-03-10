@@ -1,9 +1,9 @@
 package sfc.engine.steps
 
-import sfc.McRunConfig
 import sfc.config.SimParams
 import sfc.engine.World
 import sfc.engine.mechanisms.YieldCurve
+import sfc.montecarlo.McRunConfig
 import sfc.types.*
 
 object FiscalConstraintStep:

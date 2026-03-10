@@ -2,11 +2,10 @@ package sfc.engine
 
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import sfc.McRunner.runSingle
-import sfc.SimOutput
-import sfc.SimOutput.Col
-import sfc.McRunConfig
+import sfc.montecarlo.McRunner.runSingle
+import sfc.montecarlo.SimOutput.Col
 import sfc.config.SimParams
+import sfc.montecarlo.{McRunConfig, SimOutput}
 
 class McRunnerSpec extends AnyFlatSpec with Matchers:
 

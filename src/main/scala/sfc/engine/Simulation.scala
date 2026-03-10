@@ -2,8 +2,8 @@ package sfc.engine
 
 import sfc.accounting.*
 import sfc.agents.*
-import sfc.McRunConfig
 import sfc.config.*
+import sfc.montecarlo.McRunConfig
 import sfc.types.*
 
 import scala.util.Random

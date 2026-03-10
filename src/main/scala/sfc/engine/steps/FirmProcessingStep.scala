@@ -1,10 +1,10 @@
 package sfc.engine.steps
 
 import sfc.agents.*
-import sfc.McRunConfig
 import sfc.config.SimParams
 import sfc.engine.markets.{CorporateBondMarket, IntermediateMarket, LaborMarket}
 import sfc.engine.World
+import sfc.montecarlo.McRunConfig
 import sfc.types.*
 import sfc.util.KahanSum.*
 

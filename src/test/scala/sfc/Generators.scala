@@ -5,6 +5,7 @@ import sfc.accounting.*
 import sfc.agents.*
 import sfc.config.SimParams
 import sfc.engine.{ExternalState, FinancialMarketsState, FlowState, MechanismsState, MonetaryPlumbingState, RealState, SocialState, World}
+import sfc.montecarlo.McRunConfig
 import sfc.types.*
 
 object Generators:

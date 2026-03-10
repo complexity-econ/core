@@ -1,6 +1,6 @@
-package sfc
+package sfc.montecarlo
 
-import sfc.SimOutput.Col
+import SimOutput.Col
 import sfc.accounting.Sfc
 import sfc.agents.Banking.BankState
 import sfc.agents.Household
@@ -10,6 +10,7 @@ import sfc.init.WorldInit
 import sfc.types.*
 import sfc.util.CsvWriter
 import sfc.util.KahanSum.*
+import sfc.*
 
 import java.io.File
 

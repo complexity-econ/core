@@ -1,6 +1,7 @@
 package sfc
 
 import sfc.config.SimParams
+import sfc.montecarlo.{McRunConfig, McRunner}
 
 // $COVERAGE-OFF$ entry point only
 @main def sfcMonteCarlo(

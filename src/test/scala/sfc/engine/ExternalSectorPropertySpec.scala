@@ -5,9 +5,9 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import sfc.Generators.*
-import sfc.McRunConfig
 import sfc.config.SimParams
 import sfc.engine.markets.GvcTrade
+import sfc.montecarlo.McRunConfig
 import sfc.types.*
 
 class ExternalSectorPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks:

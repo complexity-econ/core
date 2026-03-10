@@ -4,9 +4,9 @@ import org.scalacheck.Gen
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import sfc.McRunConfig
 import sfc.config.SimParams
 import sfc.engine.mechanisms.Expectations
+import sfc.montecarlo.McRunConfig
 import sfc.types.*
 
 class ExpectationsPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks:

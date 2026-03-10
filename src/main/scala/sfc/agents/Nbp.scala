@@ -1,7 +1,7 @@
 package sfc.agents
 
-import sfc.McRunConfig
 import sfc.config.SimParams
+import sfc.montecarlo.McRunConfig
 import sfc.types.*
 
 /** National Bank of Poland: Taylor rule, bond yield, QE, FX intervention. */
