@@ -140,7 +140,7 @@ object FinancialMarketsState:
   val zero: FinancialMarketsState = FinancialMarketsState(
     equity = EquityMarket.zero,
     corporateBonds = CorporateBondMarket.zero,
-    insurance = Insurance.zero,
+    insurance = Insurance.State.zero,
     nbfi = Nbfi.zero,
   )
 

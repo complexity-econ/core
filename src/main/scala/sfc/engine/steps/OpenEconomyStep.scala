@@ -200,18 +200,18 @@ object OpenEconomyStep:
       CorporateBondMarket.processDefaults(in.w.financial.corporateBonds, in.s5.totalBondDefault)
 
     // --- Insurance sector step ---
-    val insUnempRate        = 1.0 - in.s2.employed.toDouble / in.w.totalPopulation
+    val insUnempRate        = Ratio(1.0 - in.s2.employed.toDouble / in.w.totalPopulation)
     val newInsurance        =
       if p.flags.insurance then
         Insurance.step(
           in.w.financial.insurance,
           in.s2.employed,
-          in.s2.newWage,
+          PLN(in.s2.newWage),
           in.w.priceLevel,
           insUnempRate,
-          newBondYield,
-          in.w.financial.corporateBonds.corpBondYield.toDouble,
-          in.w.financial.equity.monthlyReturn.toDouble,
+          Rate(newBondYield),
+          in.w.financial.corporateBonds.corpBondYield,
+          in.w.financial.equity.monthlyReturn,
         )
       else in.w.financial.insurance
     val insNetDepositChange = newInsurance.lastNetDepositChange.toDouble
