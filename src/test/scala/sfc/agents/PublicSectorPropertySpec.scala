@@ -16,30 +16,30 @@ class PublicSectorPropertySpec extends AnyFlatSpec with Matchers with ScalaCheck
 
   "ZUS (disabled)" should "always return zero contributions and pensions" in
     forAll(Gen.choose(0.0, 1e10), Gen.choose(0, 200000), Gen.choose(1000.0, 20000.0), Gen.choose(0, 100000)) { (prevBal, employed, wage, retirees) =>
-      val zus = SocialSecurity.zusStep(prevBal, employed, wage, retirees)
-      zus.contributions.toDouble shouldBe 0.0
-      zus.pensionPayments.toDouble shouldBe 0.0
-      zus.govSubvention.toDouble shouldBe 0.0
-      zus.fusBalance.toDouble shouldBe prevBal // unchanged
+      val zus = SocialSecurity.zusStep(PLN(prevBal), employed, PLN(wage), retirees)
+      zus.contributions shouldBe PLN.Zero
+      zus.pensionPayments shouldBe PLN.Zero
+      zus.govSubvention shouldBe PLN.Zero
+      zus.fusBalance shouldBe PLN(prevBal) // unchanged
     }
 
   "PPK (disabled)" should "always return zero contributions and preserve holdings" in
     forAll(Gen.choose(0.0, 1e10), Gen.choose(0, 200000), Gen.choose(1000.0, 20000.0)) { (prevHoldings, employed, wage) =>
-      val ppk = SocialSecurity.ppkStep(prevHoldings, employed, wage)
-      ppk.contributions.toDouble shouldBe 0.0
-      ppk.bondHoldings.toDouble shouldBe prevHoldings
+      val ppk = SocialSecurity.ppkStep(PLN(prevHoldings), employed, PLN(wage))
+      ppk.contributions shouldBe PLN.Zero
+      ppk.bondHoldings shouldBe PLN(prevHoldings)
     }
 
   "PPK bond purchase" should "be non-negative" in
     forAll(Gen.choose(0.0, 1e10), Gen.choose(0.0, 1e8)) { (holdings, contributions) =>
       val ppk = SocialSecurity.PpkState(PLN(holdings), PLN(contributions))
-      SocialSecurity.ppkBondPurchase(ppk) should be >= 0.0
+      SocialSecurity.ppkBondPurchase(ppk) should be >= PLN.Zero
     }
 
   "Demographics (disabled)" should "preserve state except monthlyRetirements" in
     forAll(Gen.choose(0, 100000), Gen.choose(0, 200000), Gen.choose(0, 1000), Gen.choose(0, 200000)) { (retirees, workingAge, prevRetirements, employed) =>
       val prev   = SocialSecurity.DemographicsState(retirees, workingAge, prevRetirements)
-      val result = SocialSecurity.demographicsStep(prev, employed)
+      val result = SocialSecurity.demographicsStep(prev, employed, 0)
       result.retirees shouldBe retirees
       result.workingAgePop shouldBe workingAge
       result.monthlyRetirements shouldBe 0
