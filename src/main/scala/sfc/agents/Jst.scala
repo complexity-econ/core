@@ -24,7 +24,7 @@ object Jst:
 
   /** Result of monthly JST step. */
   case class StepResult(
-      state: State,       // updated JST state
+      state: State,      // updated JST state
       depositChange: PLN, // effect on bank deposits (SFC Identity 2)
   )
 
@@ -33,11 +33,11 @@ object Jst:
     */
   def step(
       prev: State,
-      govTaxRevenue: PLN,    // central government total tax revenue (CIT + VAT)
-      totalWageIncome: PLN,  // total wage income (for PIT proxy)
-      gdp: PLN,              // GDP proxy for subvention/dotacje
-      nFirms: Int,           // number of living firms (for property tax)
-      pitRevenue: PLN,       // PIT revenue (zero when PIT mechanism disabled)
+      govTaxRevenue: PLN,   // central government total tax revenue (CIT + VAT)
+      totalWageIncome: PLN, // total wage income (for PIT proxy)
+      gdp: PLN,             // GDP proxy for subvention/dotacje
+      nFirms: Int,          // number of living firms (for property tax)
+      pitRevenue: PLN,      // PIT revenue (zero when PIT mechanism disabled)
   )(using p: SimParams): StepResult =
     if !p.flags.jst then StepResult(prev, PLN.Zero)
     else
@@ -47,13 +47,13 @@ object Jst:
         if p.flags.pit && pitRevenue > PLN.Zero then pitRevenue * p.fiscal.jstPitShare.toDouble
         else totalWageIncome * (FallbackPitRate * p.fiscal.jstPitShare.toDouble)
       // 2. CIT share: JST gets ~6.71% of CIT
-      val citRevenue  = govTaxRevenue * p.fiscal.jstCitShare.toDouble
+      val citRevenue   = govTaxRevenue * p.fiscal.jstCitShare.toDouble
       // 3. Property tax: fixed per firm per year
-      val propertyTax = PLN(nFirms.toDouble * p.fiscal.jstPropertyTax.toDouble / 12.0)
+      val propertyTax  = PLN(nFirms.toDouble * p.fiscal.jstPropertyTax.toDouble / 12.0)
       // 4. Subwencja oświatowa (education subvention): ~3% of GDP annually
-      val subvention  = gdp * p.fiscal.jstSubventionShare.toDouble / 12.0
+      val subvention   = gdp * p.fiscal.jstSubventionShare.toDouble / 12.0
       // 5. Dotacje celowe (targeted grants): ~1% of GDP annually
-      val dotacje     = gdp * p.fiscal.jstDotacjeShare.toDouble / 12.0
+      val dotacje      = gdp * p.fiscal.jstDotacjeShare.toDouble / 12.0
 
       val totalRevenue  = jstPitIncome + citRevenue + propertyTax + subvention + dotacje
       // JST spending: revenue × spending multiplier (slightly > 1 → deficit bias)

@@ -117,8 +117,8 @@ object BankUpdateStep:
     val newGovWithYield = newGov.copy(bondYield = Rate(in.s8.newBondYield))
 
     // JST (local government)
-    val nLivingFirms = in.s5.ioFirms.count(Firm.isAlive)
-    val jstResult    =
+    val nLivingFirms     = in.s5.ioFirms.count(Firm.isAlive)
+    val jstResult        =
       Jst.step(
         in.w.social.jst,
         newGovWithYield.taxRevenue,
