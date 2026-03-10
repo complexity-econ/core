@@ -397,7 +397,7 @@ object Household:
       case HhStatus.Unemployed(months) if months > UnemploymentRetrainingThreshold && p.household.retrainingEnabled =>
         val retrainProb = p.household.retrainingProb.toDouble +
           (if neighborDistress > NeighborDistressThreshold then NeighborDistressRetrainBoost else 0.0)
-        if hh.savings.toDouble > p.household.retrainingCost.toDouble && rng.nextDouble() < retrainProb then
+        if hh.savings > p.household.retrainingCost && rng.nextDouble() < retrainProb then
           if p.flags.sectoralMobility && sectorWages.isDefined then
             val sw                = sectorWages.get
             val sv                = sectorVacancies.get
@@ -409,7 +409,7 @@ object Household:
             else (status, 0, 0)
           else
             val targetSector = rng.nextInt(p.sectorDefs.length)
-            (HhStatus.Retraining(p.household.retrainingDuration, SectorIdx(targetSector), PLN(p.household.retrainingCost.toDouble)), 1, 0)
+            (HhStatus.Retraining(p.household.retrainingDuration, SectorIdx(targetSector), p.household.retrainingCost), 1, 0)
         else (status, 0, 0)
 
       case HhStatus.Retraining(monthsLeft, targetSector, cost) =>
@@ -417,7 +417,7 @@ object Household:
           val afterSkill      = applySkillDecay(hh, status)
           val afterHealth     = applyHealthScarring(hh, status)
           val baseSuccessProb =
-            p.household.retrainingBaseSuccess.toDouble * afterSkill.toDouble * (1.0 - afterHealth.toDouble) * p.social.eduRetrainMultiplier(hh.education)
+            (p.household.retrainingBaseSuccess * afterSkill).toDouble * (1.0 - afterHealth.toDouble) * p.social.eduRetrainMultiplier(hh.education)
           val successProb     = if p.flags.sectoralMobility then
             val fromSector = if hh.lastSectorIdx.toInt >= 0 then hh.lastSectorIdx.toInt else 0
             val friction   = p.labor.frictionMatrix(fromSector)(targetSector.toInt)
