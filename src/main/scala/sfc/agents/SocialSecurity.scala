@@ -40,7 +40,7 @@ object SocialSecurity:
 
   /** PPK state: capital pension fund bond holdings and monthly flows. */
   case class PpkState(
-      bondHoldings: PLN,  // accumulated government bond holdings
+      bondHoldings: PLN, // accumulated government bond holdings
       contributions: PLN, // this month's total PPK contributions
   )
   object PpkState:
@@ -67,8 +67,8 @@ object SocialSecurity:
 
   /** Demographics state: retirees and working-age population. */
   case class DemographicsState(
-      retirees: Int,           // total retired workers receiving pensions
-      workingAgePop: Int,      // effective working-age population
+      retirees: Int,          // total retired workers receiving pensions
+      workingAgePop: Int,     // effective working-age population
       monthlyRetirements: Int, // new retirements this month
   )
   object DemographicsState:
