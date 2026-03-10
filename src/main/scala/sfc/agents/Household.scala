@@ -184,52 +184,39 @@ object Household:
         socialNetwork: Array[Array[Int]],
         rng: Random,
     )(using p: SimParams): State =
-      val savings = Math.exp(p.household.savingsMu + p.household.savingsSigma * rng.nextGaussian())
-
-      val debt =
-        if rng.nextDouble() < p.household.debtFraction.toDouble then Math.exp(p.household.debtMu + p.household.debtSigma * rng.nextGaussian())
-        else 0.0
-
-      val rent = Math.max(
-        p.household.rentFloor.toDouble,
-        p.household.rentMean.toDouble + p.household.rentStd.toDouble * rng.nextGaussian(),
-      )
-
-      val mpc = Distributions.betaSample(p.household.mpcAlpha, p.household.mpcBeta, rng)
-
-      val (edu, skill) = sampleEducationAndSkill(sectorIdx, rng)
-      val wage         = p.household.baseWage.toDouble * p.sectorDefs(sectorIdx.toInt).wageMultiplier * skill
-
-      val eqWealth =
+      val savings: PLN  = PLN(Math.exp(p.household.savingsMu + p.household.savingsSigma * rng.nextGaussian()))
+      val debt: PLN     =
+        if rng.nextDouble() < p.household.debtFraction.toDouble then PLN(Math.exp(p.household.debtMu + p.household.debtSigma * rng.nextGaussian()))
+        else PLN.Zero
+      val rent: PLN     = (p.household.rentMean + p.household.rentStd * rng.nextGaussian()).max(p.household.rentFloor)
+      val mpc           = Distributions.betaSample(p.household.mpcAlpha, p.household.mpcBeta, rng)
+      val (edu, skill)  = sampleEducationAndSkill(sectorIdx, rng)
+      val wage: PLN     = p.household.baseWage * (p.sectorDefs(sectorIdx.toInt).wageMultiplier * skill)
+      val eqWealth: PLN =
         if p.flags.gpwHhEquity && rng.nextDouble() < p.equity.hhEquityFrac.toDouble then savings * GpwEquityInitFrac
-        else 0.0
-
-      val numChildren =
-        if p.flags.social800 then Distributions.poissonSample(p.fiscal.social800ChildrenPerHh, rng)
-        else 0
-
-      val consDebt =
+        else PLN.Zero
+      val numChildren   = if p.flags.social800 then Distributions.poissonSample(p.fiscal.social800ChildrenPerHh, rng) else 0
+      val consDebt: PLN =
         if rng.nextDouble() < p.household.debtFraction.toDouble then
-          Math.exp(p.household.debtMu + p.household.debtSigma * rng.nextGaussian()) * ConsumerDebtInitFrac
-        else 0.0
-
+          PLN(Math.exp(p.household.debtMu + p.household.debtSigma * rng.nextGaussian()) * ConsumerDebtInitFrac)
+        else PLN.Zero
       State(
         id = HhId(hhId),
-        savings = PLN(savings),
-        debt = PLN(debt),
-        monthlyRent = PLN(rent),
+        savings = savings,
+        debt = debt,
+        monthlyRent = rent,
         skill = Ratio(skill),
         healthPenalty = Ratio.Zero,
         mpc = Ratio(Math.max(MpcFloor, Math.min(MpcCeiling, mpc))),
-        status = HhStatus.Employed(firm.id, sectorIdx, PLN(wage)),
+        status = HhStatus.Employed(firm.id, sectorIdx, wage),
         socialNeighbors =
           if hhId < socialNetwork.length then socialNetwork(hhId).map(HhId(_)) else Array.empty[HhId],
         bankId = BankId(0),
-        equityWealth = PLN(eqWealth),
+        equityWealth = eqWealth,
         lastSectorIdx = sectorIdx,
         isImmigrant = false,
         numDependentChildren = numChildren,
-        consumerDebt = PLN(consDebt),
+        consumerDebt = consDebt,
         education = edu,
       )
 
