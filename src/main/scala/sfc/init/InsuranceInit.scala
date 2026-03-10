@@ -8,4 +8,4 @@ object InsuranceInit:
 
   def create()(using p: SimParams): Insurance.State =
     if p.flags.insurance then Insurance.initial
-    else Insurance.zero
+    else Insurance.State.zero
