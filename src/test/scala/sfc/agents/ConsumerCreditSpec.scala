@@ -13,12 +13,12 @@ class ConsumerCreditSpec extends AnyFlatSpec with Matchers:
   private val p: SimParams = summon[SimParams]
 
   "Config defaults" should "have sensible consumer credit parameters" in {
-    p.household.ccSpread.toDouble shouldBe 0.04
-    p.household.ccMaxDti.toDouble shouldBe 0.40
-    p.household.ccMaxLoan.toDouble shouldBe 50000.0
-    p.household.ccAmortRate.toDouble shouldBe 0.025
-    p.household.ccNplRecovery.toDouble shouldBe 0.15
-    p.household.ccEligRate.toDouble shouldBe 0.30
+    p.household.ccSpread shouldBe Rate(0.04)
+    p.household.ccMaxDti shouldBe Ratio(0.40)
+    p.household.ccMaxLoan shouldBe PLN(50000.0)
+    p.household.ccAmortRate shouldBe Rate(0.025)
+    p.household.ccNplRecovery shouldBe Ratio(0.15)
+    p.household.ccEligRate shouldBe Ratio(0.30)
   }
 
   "DTI limit" should "cap loan at headroom × income" in {
@@ -88,7 +88,7 @@ class ConsumerCreditSpec extends AnyFlatSpec with Matchers:
       consumerDebt = PLN(5000.0),
     )
     // Bankrupt HH should have consumer debt → NPL
-    hh.consumerDebt.toDouble shouldBe 5000.0
+    hh.consumerDebt shouldBe PLN(5000.0)
     // NPL loss = consumerDebt × (1 - recovery)
     val nplLoss = hh.consumerDebt.toDouble * (1.0 - p.household.ccNplRecovery.toDouble)
     nplLoss shouldBe 4250.0 +- 0.01
@@ -157,9 +157,9 @@ class ConsumerCreditSpec extends AnyFlatSpec with Matchers:
       totalDebtService = PLN.Zero,
       totalUnempBenefits = PLN.Zero,
     )
-    agg.totalConsumerDebtService.toDouble shouldBe 0.0
-    agg.totalConsumerOrigination.toDouble shouldBe 0.0
-    agg.totalConsumerDefault.toDouble shouldBe 0.0
+    agg.totalConsumerDebtService shouldBe PLN.Zero
+    agg.totalConsumerOrigination shouldBe PLN.Zero
+    agg.totalConsumerDefault shouldBe PLN.Zero
   }
 
   "Household" should "have consumerDebt field defaulting to 0" in {
@@ -174,24 +174,24 @@ class ConsumerCreditSpec extends AnyFlatSpec with Matchers:
       status = HhStatus.Employed(FirmId(0), SectorIdx(0), PLN(8266.0)),
       socialNeighbors = Array.empty[HhId],
     )
-    hh.consumerDebt.toDouble shouldBe 0.0
+    hh.consumerDebt shouldBe PLN.Zero
   }
 
   "BankingAggregate" should "have consumerLoans and consumerNpl fields" in {
     val bank = BankingAggregate(PLN(1000.0), PLN(50.0), PLN(500.0), PLN(2000.0), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
-    bank.consumerLoans.toDouble shouldBe 0.0
-    bank.consumerNpl.toDouble shouldBe 0.0
+    bank.consumerLoans shouldBe PLN.Zero
+    bank.consumerNpl shouldBe PLN.Zero
   }
 
   "BankingAggregate.car" should "include consumer loans in RWA" in {
     val bank     =
       BankingAggregate(PLN(1000.0), PLN(50.0), PLN(500.0), PLN(2000.0), PLN.Zero, PLN(1000.0), PLN.Zero, PLN.Zero)
     // CAR = capital / (totalLoans + consumerLoans) = 500 / 2000 = 0.25
-    bank.car shouldBe 0.25 +- 0.01
+    bank.car.toDouble shouldBe 0.25 +- 0.01
     // Without consumer loans: CAR = 500 / 1000 = 0.50
     val bankNoCc =
       BankingAggregate(PLN(1000.0), PLN(50.0), PLN(500.0), PLN(2000.0), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
-    bankNoCc.car shouldBe 0.50 +- 0.01
+    bankNoCc.car.toDouble shouldBe 0.50 +- 0.01
     bank.car should be < bankNoCc.car
   }
 

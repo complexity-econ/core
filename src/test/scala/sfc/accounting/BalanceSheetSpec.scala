@@ -12,7 +12,7 @@ class BalanceSheetSpec extends AnyFlatSpec with Matchers:
   "BankingAggregate.nplRatio" should "equal nplAmount / totalLoans when totalLoans > 1" in {
     val b =
       BankingAggregate(PLN(1000000), PLN(50000), PLN(200000), PLN(500000), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
-    b.nplRatio shouldBe 0.05 +- 0.001
+    b.nplRatio.toDouble shouldBe 0.05 +- 0.001
   }
 
   it should "return 0.0 when totalLoans <= 1" in {
@@ -25,7 +25,7 @@ class BalanceSheetSpec extends AnyFlatSpec with Matchers:
       PLN.Zero,
       PLN.Zero,
       PLN.Zero,
-    ).nplRatio shouldBe 0.0
+    ).nplRatio shouldBe Ratio.Zero
     BankingAggregate(
       PLN(1),
       PLN(100),
@@ -35,12 +35,12 @@ class BalanceSheetSpec extends AnyFlatSpec with Matchers:
       PLN.Zero,
       PLN.Zero,
       PLN.Zero,
-    ).nplRatio shouldBe 0.0
+    ).nplRatio shouldBe Ratio.Zero
   }
 
   "BankingAggregate.car" should "equal capital / totalLoans when totalLoans > 1" in {
     val b = BankingAggregate(PLN(1000000), PLN.Zero, PLN(200000), PLN(500000), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
-    b.car shouldBe 0.2 +- 0.001
+    b.car.toDouble shouldBe 0.2 +- 0.001
   }
 
   it should "return 10.0 when totalLoans <= 1" in {
@@ -53,7 +53,7 @@ class BalanceSheetSpec extends AnyFlatSpec with Matchers:
       PLN.Zero,
       PLN.Zero,
       PLN.Zero,
-    ).car shouldBe 10.0
+    ).car shouldBe Ratio(10.0)
   }
 
   // lendingRate and canLend removed from BankingAggregate — now only on Banking.BankState

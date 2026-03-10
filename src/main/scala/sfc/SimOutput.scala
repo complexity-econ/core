@@ -124,7 +124,7 @@ object SimOutput:
     ColumnDef("ExRate", ctx => ctx.world.forex.exchangeRate),
     ColumnDef("MarketWage", ctx => ctx.world.hhAgg.marketWage.toDouble),
     ColumnDef("GovDebt", ctx => ctx.world.gov.cumulativeDebt.toDouble),
-    ColumnDef("NPL", ctx => ctx.world.bankingSector.aggregate.nplRatio),
+    ColumnDef("NPL", ctx => ctx.world.bankingSector.aggregate.nplRatio.toDouble),
     ColumnDef("RefRate", ctx => ctx.world.nbp.referenceRate.toDouble),
     ColumnDef("PriceLevel", ctx => ctx.world.priceLevel),
     ColumnDef("AutoRatio", ctx => ctx.world.real.automationRatio.toDouble),
@@ -174,8 +174,8 @@ object SimOutput:
     ColumnDef("FxInterventionActive", ctx => if ctx.p.flags.nbpFxIntervention then 1.0 else 0.0),
     // Interbank
     ColumnDef("InterbankRate", ctx => ctx.world.bankingSector.interbankRate.toDouble),
-    ColumnDef("MinBankCAR", ctx => if ctx.aliveBanks.isEmpty then 0.0 else ctx.aliveBanks.map(_.car).min),
-    ColumnDef("MaxBankNPL", ctx => if ctx.aliveBanks.isEmpty then 0.0 else ctx.aliveBanks.map(_.nplRatio).max),
+    ColumnDef("MinBankCAR", ctx => if ctx.aliveBanks.isEmpty then 0.0 else ctx.aliveBanks.map(_.car).min.toDouble),
+    ColumnDef("MaxBankNPL", ctx => if ctx.aliveBanks.isEmpty then 0.0 else ctx.aliveBanks.map(_.nplRatio).max.toDouble),
     ColumnDef("BankFailures", ctx => ctx.world.bankingSector.banks.count(_.failed).toDouble),
     // Monetary plumbing — now read from World
     ColumnDef("ReserveInterest", ctx => ctx.world.plumbing.reserveInterestTotal.toDouble),
@@ -195,9 +195,9 @@ object SimOutput:
     // LCR/NSFR
     ColumnDef(
       "MinBankLCR",
-      ctx => { given SimParams = ctx.p; if ctx.aliveBanks.isEmpty then 0.0 else ctx.aliveBanks.map(_.lcr).min },
+      ctx => { given SimParams = ctx.p; if ctx.aliveBanks.isEmpty then 0.0 else ctx.aliveBanks.map(_.lcr).min.toDouble },
     ),
-    ColumnDef("MinBankNSFR", ctx => if ctx.aliveBanks.isEmpty then 0.0 else ctx.aliveBanks.map(_.nsfr).min),
+    ColumnDef("MinBankNSFR", ctx => if ctx.aliveBanks.isEmpty then 0.0 else ctx.aliveBanks.map(_.nsfr).min.toDouble),
     ColumnDef(
       "AvgTermDepositFrac",
       ctx =>

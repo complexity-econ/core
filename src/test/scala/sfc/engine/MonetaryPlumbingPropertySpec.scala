@@ -7,6 +7,7 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import sfc.Generators.*
 import sfc.accounting.Sfc
 import sfc.agents.Banking
+import sfc.agents.Banking.BankStatus
 import sfc.types.*
 
 /** Monetary plumbing property-based tests. */
@@ -17,6 +18,34 @@ class MonetaryPlumbingPropertySpec extends AnyFlatSpec with Matchers with ScalaC
   override implicit val generatorDrivenConfig: PropertyCheckConfiguration =
     PropertyCheckConfiguration(minSuccessful = 200)
 
+  private def mkBank(
+      id: Int = 0,
+      deposits: PLN = PLN(1e9),
+      loans: PLN = PLN(5e8),
+      capital: PLN = PLN(1e8),
+      reservesAtNbp: PLN = PLN.Zero,
+      interbankNet: PLN = PLN.Zero,
+      status: BankStatus = BankStatus.Active(0),
+  ): Banking.BankState = Banking.BankState(
+    id = BankId(id),
+    deposits = deposits,
+    loans = loans,
+    capital = capital,
+    nplAmount = PLN.Zero,
+    govBondHoldings = PLN.Zero,
+    reservesAtNbp = reservesAtNbp,
+    interbankNet = interbankNet,
+    status = status,
+    demandDeposits = PLN.Zero,
+    termDeposits = PLN.Zero,
+    loansShort = PLN.Zero,
+    loansMedium = PLN.Zero,
+    loansLong = PLN.Zero,
+    consumerLoans = PLN.Zero,
+    consumerNpl = PLN.Zero,
+    corpBondHoldings = PLN.Zero,
+  )
+
   // =========================================================================
   // Reserve Interest Properties
   // =========================================================================
@@ -24,37 +53,25 @@ class MonetaryPlumbingPropertySpec extends AnyFlatSpec with Matchers with ScalaC
   "reserveInterest" should "be non-negative for alive banks with non-negative reserves" in
     forAll(genBanking.BankState, genRate) { (bank, rate) =>
       whenever(!bank.failed && bank.reservesAtNbp >= PLN.Zero && rate >= 0) {
-        Banking.reserveInterest(bank, rate) should be >= 0.0
+        Banking.reserveInterest(bank, Rate(rate)) should be >= PLN.Zero
       }
     }
 
   it should "scale linearly with reserves" in
     forAll(genRate, Gen.choose(1e4, 1e9), Gen.choose(1.1, 5.0)) { (rate, reserves, mult) =>
       whenever(rate > 0.001) {
-        val b1 = Banking.BankState(
-          id = BankId(0),
-          deposits = PLN(1e9),
-          loans = PLN(5e8),
-          capital = PLN(1e8),
-          nplAmount = PLN.Zero,
-          govBondHoldings = PLN.Zero,
-          reservesAtNbp = PLN(reserves),
-          interbankNet = PLN.Zero,
-          failed = false,
-          failedMonth = 0,
-          consecutiveLowCar = 0,
-        )
+        val b1 = mkBank(reservesAtNbp = PLN(reserves))
         val b2 = b1.copy(reservesAtNbp = PLN(reserves * mult))
-        val r1 = Banking.reserveInterest(b1, rate)
-        val r2 = Banking.reserveInterest(b2, rate)
-        r2 shouldBe (r1 * mult +- 1.0)
+        val r1 = Banking.reserveInterest(b1, Rate(rate))
+        val r2 = Banking.reserveInterest(b2, Rate(rate))
+        r2.toDouble shouldBe (r1.toDouble * mult +- 1.0)
       }
     }
 
   "computeReserveInterest total" should "equal sum of per-bank interest" in
     forAll(genBanking.State, genRate) { (bs, rate) =>
-      val (perBank, total) = Banking.computeReserveInterest(bs.banks, rate)
-      total shouldBe (perBank.sum +- 0.01)
+      val result = Banking.computeReserveInterest(bs.banks, Rate(rate))
+      result.total.toDouble shouldBe (result.perBank.map(_.toDouble).sum +- 0.01)
     }
 
   // =========================================================================
@@ -64,72 +81,24 @@ class MonetaryPlumbingPropertySpec extends AnyFlatSpec with Matchers with ScalaC
   "interbankInterestFlows" should "net to zero for balanced positions" in
     forAll(Gen.choose(-1e8, 1e8), genRate) { (net1, rate) =>
       whenever(rate > 0.001) {
-        val banks      = Vector(
-          Banking.BankState(
-            id = BankId(0),
-            deposits = PLN(1e9),
-            loans = PLN(5e8),
-            capital = PLN(1e8),
-            nplAmount = PLN.Zero,
-            govBondHoldings = PLN.Zero,
-            reservesAtNbp = PLN.Zero,
-            interbankNet = PLN(net1),
-            failed = false,
-            failedMonth = 0,
-            consecutiveLowCar = 0,
-          ),
-          Banking.BankState(
-            id = BankId(1),
-            deposits = PLN(1e9),
-            loans = PLN(5e8),
-            capital = PLN(1e8),
-            nplAmount = PLN.Zero,
-            govBondHoldings = PLN.Zero,
-            reservesAtNbp = PLN.Zero,
-            interbankNet = PLN(-net1),
-            failed = false,
-            failedMonth = 0,
-            consecutiveLowCar = 0,
-          ),
+        val banks  = Vector(
+          mkBank(id = 0, interbankNet = PLN(net1)),
+          mkBank(id = 1, interbankNet = PLN(-net1)),
         )
-        val (_, total) = Banking.interbankInterestFlows(banks, rate)
-        total shouldBe (0.0 +- 1.0)
+        val result = Banking.interbankInterestFlows(banks, Rate(rate))
+        result.total.toDouble shouldBe (0.0 +- 1.0)
       }
     }
 
   it should "return zero for all-zero positions" in
     forAll(genRate) { rate =>
-      val banks            = Vector(
-        Banking.BankState(
-          id = BankId(0),
-          deposits = PLN(1e9),
-          loans = PLN(5e8),
-          capital = PLN(1e8),
-          nplAmount = PLN.Zero,
-          govBondHoldings = PLN.Zero,
-          reservesAtNbp = PLN.Zero,
-          interbankNet = PLN.Zero,
-          failed = false,
-          failedMonth = 0,
-          consecutiveLowCar = 0,
-        ),
-        Banking.BankState(
-          id = BankId(1),
-          deposits = PLN(1e9),
-          loans = PLN(5e8),
-          capital = PLN(1e8),
-          nplAmount = PLN.Zero,
-          govBondHoldings = PLN.Zero,
-          reservesAtNbp = PLN.Zero,
-          interbankNet = PLN.Zero,
-          failed = false,
-          failedMonth = 0,
-          consecutiveLowCar = 0,
-        ),
+      val banks  = Vector(
+        mkBank(id = 0, interbankNet = PLN.Zero),
+        mkBank(id = 1, interbankNet = PLN.Zero),
       )
-      val (perBank, total) = Banking.interbankInterestFlows(banks, rate)
-      perBank.foreach(_ shouldBe 0.0)
-      total shouldBe 0.0
+      val result = Banking.interbankInterestFlows(banks, Rate(rate))
+      result.perBank.foreach(_ shouldBe PLN.Zero)
+      result.total shouldBe PLN.Zero
     }
 
   // =========================================================================

@@ -406,7 +406,7 @@ class HouseholdSpec extends AnyFlatSpec with Matchers:
       gov = GovState(PLN(0.0), PLN(0.0), PLN(0.0), PLN(0.0)),
       nbp = Nbp.State(Rate(0.0575)),
       bank = BankingAggregate(PLN(1000000), PLN(10000), PLN(500000), PLN(1000000), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
-      bankingSector = Banking.initialize(1e9, 5e8, 5e8, 0, 0, Banking.DefaultConfigs),
+      bankingSector = Banking.initialize(PLN(1e9), PLN(5e8), PLN(5e8), PLN.Zero, PLN.Zero, Banking.DefaultConfigs),
       forex = ForexState(4.33, PLN(0.0), PLN(190000000), PLN(0.0), PLN(0.0)),
       hhAgg = Household.Aggregates(
         employed = 100000,

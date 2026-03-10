@@ -5,6 +5,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import sfc.Generators.*
+import sfc.agents.Banking.BankStatus
 import sfc.config.SimParams
 import sfc.types.*
 
@@ -19,11 +20,41 @@ class BankingSectorPropertySpec extends AnyFlatSpec with Matchers with ScalaChec
 
   private val configs = Banking.DefaultConfigs
 
+  private def mkBank(
+      id: Int = 0,
+      deposits: PLN = PLN(1e6),
+      loans: PLN = PLN(1e6),
+      capital: PLN = PLN(2e5),
+      nplAmount: PLN = PLN.Zero,
+      govBondHoldings: PLN = PLN.Zero,
+      reservesAtNbp: PLN = PLN.Zero,
+      interbankNet: PLN = PLN.Zero,
+      status: BankStatus = BankStatus.Active(0),
+  ): Banking.BankState = Banking.BankState(
+    id = BankId(id),
+    deposits = deposits,
+    loans = loans,
+    capital = capital,
+    nplAmount = nplAmount,
+    govBondHoldings = govBondHoldings,
+    reservesAtNbp = reservesAtNbp,
+    interbankNet = interbankNet,
+    status = status,
+    demandDeposits = PLN.Zero,
+    termDeposits = PLN.Zero,
+    loansShort = PLN.Zero,
+    loansMedium = PLN.Zero,
+    loansLong = PLN.Zero,
+    consumerLoans = PLN.Zero,
+    consumerNpl = PLN.Zero,
+    corpBondHoldings = PLN.Zero,
+  )
+
   // ---- Interbank netting invariant ----
 
   "clearInterbank" should "always produce interbankNet that sums to zero" in
     forAll(genBanking.State) { (bs: Banking.State) =>
-      val cleared = Banking.clearInterbank(bs.banks, bs.configs, bs.interbankRate.toDouble)
+      val cleared = Banking.clearInterbank(bs.banks, bs.configs)
       val netSum  = cleared.map(_.interbankNet.toDouble).sum
       netSum shouldBe 0.0 +- 1.0 // tolerance for floating-point
     }
@@ -34,7 +65,7 @@ class BankingSectorPropertySpec extends AnyFlatSpec with Matchers with ScalaChec
     forAll(genBanking.State, Gen.choose(-1e8, 1e8)) { (bs: Banking.State, deficit: Double) =>
       val aliveDep = bs.banks.filterNot(_.failed).map(_.deposits.toDouble).sum
       whenever(aliveDep > 0 && deficit != 0.0) {
-        val after  = Banking.allocateBonds(bs.banks, deficit)
+        val after  = Banking.allocateBonds(bs.banks, PLN(deficit))
         // Per-bank deltas sum to exactly deficit (residual-based allocation)
         val deltas = after.zip(bs.banks).map((a, b) => a.govBondHoldings.toDouble - b.govBondHoldings.toDouble)
         deltas.sum shouldBe deficit +- 1e-6
@@ -46,7 +77,7 @@ class BankingSectorPropertySpec extends AnyFlatSpec with Matchers with ScalaChec
       val alive = bs.banks.filterNot(_.failed)
       whenever(alive.nonEmpty) {
         val before   = bs.banks.map(_.govBondHoldings.toDouble).sum
-        val after    = Banking.allocateBonds(bs.banks, deficit)
+        val after    = Banking.allocateBonds(bs.banks, PLN(deficit))
         val afterSum = after.map(_.govBondHoldings.toDouble).sum
         (afterSum - before) shouldBe deficit +- 1.0 // well within SFC tolerance
       }
@@ -58,34 +89,10 @@ class BankingSectorPropertySpec extends AnyFlatSpec with Matchers with ScalaChec
     forAll(genRate, Gen.choose(0.0, 0.15), Gen.choose(0.0, 0.15)) { (refRate: Double, npl1Frac: Double, npl2Frac: Double) =>
       val loans    = 1e6
       val (lo, hi) = if npl1Frac <= npl2Frac then (npl1Frac, npl2Frac) else (npl2Frac, npl1Frac)
-      val bankLo   = Banking.BankState(
-        id = BankId(0),
-        deposits = PLN(1e6),
-        loans = PLN(loans),
-        capital = PLN(2e5),
-        nplAmount = PLN(loans * lo),
-        govBondHoldings = PLN(0),
-        reservesAtNbp = PLN(0),
-        interbankNet = PLN(0),
-        failed = false,
-        failedMonth = 0,
-        consecutiveLowCar = 0,
-      )
-      val bankHi   = Banking.BankState(
-        id = BankId(0),
-        deposits = PLN(1e6),
-        loans = PLN(loans),
-        capital = PLN(2e5),
-        nplAmount = PLN(loans * hi),
-        govBondHoldings = PLN(0),
-        reservesAtNbp = PLN(0),
-        interbankNet = PLN(0),
-        failed = false,
-        failedMonth = 0,
-        consecutiveLowCar = 0,
-      )
-      val rateLo   = Banking.lendingRate(bankLo, configs(0), refRate)
-      val rateHi   = Banking.lendingRate(bankHi, configs(0), refRate)
+      val bankLo   = mkBank(nplAmount = PLN(loans * lo))
+      val bankHi   = mkBank(nplAmount = PLN(loans * hi))
+      val rateLo   = Banking.lendingRate(bankLo, configs(0), Rate(refRate))
+      val rateHi   = Banking.lendingRate(bankHi, configs(0), Rate(refRate))
       rateHi should be >= rateLo
     }
 
@@ -120,9 +127,9 @@ class BankingSectorPropertySpec extends AnyFlatSpec with Matchers with ScalaChec
 
   "checkFailures" should "never un-fail a bank" in
     forAll(genBanking.State) { (bs: Banking.State) =>
-      val failedBefore    = bs.banks.filter(_.failed).map(_.id).toSet
-      val (afterCheck, _) = Banking.checkFailures(bs.banks, 50, enabled = true)
-      val failedAfter     = afterCheck.filter(_.failed).map(_.id).toSet
+      val failedBefore = bs.banks.filter(_.failed).map(_.id).toSet
+      val afterCheck   = Banking.checkFailures(bs.banks, 50, enabled = true, Rate.Zero)
+      val failedAfter  = afterCheck.banks.filter(_.failed).map(_.id).toSet
       failedBefore.subsetOf(failedAfter) shouldBe true
     }
 
@@ -130,15 +137,15 @@ class BankingSectorPropertySpec extends AnyFlatSpec with Matchers with ScalaChec
 
   "clearInterbank" should "keep reserves non-negative" in
     forAll(genBanking.State) { (bs: Banking.State) =>
-      val cleared = Banking.clearInterbank(bs.banks, bs.configs, bs.interbankRate.toDouble)
-      cleared.foreach(_.reservesAtNbp.toDouble should be >= 0.0)
+      val cleared = Banking.clearInterbank(bs.banks, bs.configs)
+      cleared.foreach(_.reservesAtNbp should be >= PLN.Zero)
     }
 
   // ---- Initialize preserves totals ----
 
   "initialize" should "preserve total deposits and capital" in
     forAll(Gen.choose(1e5, 1e10), Gen.choose(1e4, 1e9)) { (totalDep: Double, totalCap: Double) =>
-      val bs = Banking.initialize(totalDep, totalCap, configs = configs)
+      val bs = Banking.initialize(PLN(totalDep), PLN(totalCap), PLN.Zero, PLN.Zero, PLN.Zero, configs)
       bs.banks.map(_.deposits.toDouble).sum shouldBe totalDep +- 1.0
       bs.banks.map(_.capital.toDouble).sum shouldBe totalCap +- 1.0
     }
@@ -147,6 +154,6 @@ class BankingSectorPropertySpec extends AnyFlatSpec with Matchers with ScalaChec
 
   "allocateQePurchases" should "not make any bank's bond holdings negative" in
     forAll(genBanking.State, Gen.choose(0.0, 1e9)) { (bs: Banking.State, qe: Double) =>
-      val result = Banking.allocateQePurchases(bs.banks, qe)
-      result.foreach(_.govBondHoldings.toDouble should be >= 0.0)
+      val result = Banking.allocateQePurchases(bs.banks, PLN(qe))
+      result.foreach(_.govBondHoldings should be >= PLN.Zero)
     }

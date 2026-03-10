@@ -274,7 +274,7 @@ object Generators:
     gov = gov,
     nbp = Nbp.State(Rate(rate)),
     bank = bank,
-    bankingSector = Banking.initialize(1e9, 5e8, 5e8, 0, 0, Banking.DefaultConfigs),
+    bankingSector = Banking.initialize(PLN(1e9), PLN(5e8), PLN(5e8), PLN.Zero, PLN.Zero, Banking.DefaultConfigs),
     forex = forex,
     hhAgg = Household.Aggregates(
       employed = employed,
@@ -550,7 +550,7 @@ object Generators:
       cet1   <- Gen.choose(0.10, 0.25)
       spread <- Gen.choose(-0.005, 0.005)
       aff    <- Gen.sequence[Vector[Double], Double]((0 until 6).map(_ => Gen.choose(0.05, 0.40)))
-    yield Banking.Config(BankId(id), s"Bank$id", Ratio(share), Ratio(cet1), Rate(spread), aff)
+    yield Banking.Config(BankId(id), s"Bank$id", Ratio(share), Ratio(cet1), Rate(spread), aff.map(Ratio(_)))
 
     val BankState: Gen[Banking.BankState] = for
       id       <- Gen.choose(0, 6)
@@ -572,9 +572,15 @@ object Generators:
       govBondHoldings = PLN(bonds),
       reservesAtNbp = PLN(reserves),
       interbankNet = PLN(ibNet),
-      failed = failed,
-      failedMonth = if failed then 30 else 0,
-      consecutiveLowCar = lowCar,
+      status = if failed then Banking.BankStatus.Failed(30) else Banking.BankStatus.Active(lowCar),
+      demandDeposits = PLN.Zero,
+      termDeposits = PLN.Zero,
+      loansShort = PLN.Zero,
+      loansMedium = PLN.Zero,
+      loansLong = PLN.Zero,
+      consumerLoans = PLN.Zero,
+      consumerNpl = PLN.Zero,
+      corpBondHoldings = PLN.Zero,
     )
 
     val State: Gen[Banking.State] = for
@@ -582,4 +588,4 @@ object Generators:
       banks  <- Gen.listOfN(nBanks, BankState).map(_.toVector.zipWithIndex.map((b, i) => b.copy(id = BankId(i))))
       rate   <- genRate
       cfgs   <- Gen.listOfN(nBanks, Config).map(_.toVector.zipWithIndex.map((c, i) => c.copy(id = BankId(i))))
-    yield Banking.State(banks, Rate(rate), cfgs)
+    yield Banking.State(banks, Rate(rate), cfgs, None)

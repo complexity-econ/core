@@ -150,11 +150,11 @@ object OpenEconomyStep:
       else in.w.mechanisms.expectations
 
     // Reserve interest, standing facilities, interbank interest
-    val bsec                             = in.w.bankingSector
-    val (_, totalReserveInterest)        = Banking.computeReserveInterest(bsec.banks, in.w.nbp.referenceRate.toDouble)
-    val (_, totalStandingFacilityIncome) =
-      Banking.computeStandingFacilities(bsec.banks, in.w.nbp.referenceRate.toDouble)
-    val (_, totalInterbankInterest)      = Banking.interbankInterestFlows(bsec.banks, bsec.interbankRate.toDouble)
+    val bsec                        = in.w.bankingSector
+    val totalReserveInterest        = Banking.computeReserveInterest(bsec.banks, in.w.nbp.referenceRate).total.toDouble
+    val totalStandingFacilityIncome =
+      Banking.computeStandingFacilities(bsec.banks, in.w.nbp.referenceRate).total.toDouble
+    val totalInterbankInterest      = Banking.interbankInterestFlows(bsec.banks, bsec.interbankRate).total.toDouble
 
     // --- Bond market + QE ---
     val annualGdpForBonds = in.w.gdpProxy * 12.0
@@ -193,7 +193,7 @@ object OpenEconomyStep:
     // --- Corporate bond market step (#40) ---
     val corpBondAmort                      = CorporateBondMarket.amortization(in.w.financial.corporateBonds)
     val newCorpBonds                       = CorporateBondMarket
-      .step(in.w.financial.corporateBonds, newBondYield, in.w.bank.nplRatio, in.s5.totalBondDefault, in.s5.actualBondIssuance)
+      .step(in.w.financial.corporateBonds, newBondYield, in.w.bank.nplRatio.toDouble, in.s5.totalBondDefault, in.s5.actualBondIssuance)
       .copy(lastAbsorptionRate = Ratio(in.s5.corpBondAbsorption))
     val (_, corpBondBankCoupon, _)         = CorporateBondMarket.computeCoupon(in.w.financial.corporateBonds)
     val (_, _, corpBondBankDefaultLoss, _) =
@@ -227,7 +227,7 @@ object OpenEconomyStep:
           in.s2.newWage,
           in.w.priceLevel,
           nbfiUnempRate,
-          in.w.bank.nplRatio,
+          in.w.bank.nplRatio.toDouble,
           newBondYield,
           in.w.financial.corporateBonds.corpBondYield.toDouble,
           in.w.financial.equity.monthlyReturn.toDouble,
