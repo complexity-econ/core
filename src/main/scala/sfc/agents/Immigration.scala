@@ -2,6 +2,7 @@ package sfc.agents
 
 import sfc.config.{SectorDefs, SimParams}
 import sfc.types.*
+import sfc.util.Distributions
 
 import scala.util.Random
 
@@ -80,7 +81,7 @@ object Immigration:
       val mpc                        = 0.85 + rng.nextGaussian() * 0.05
       val rent                       = p.household.rentMean.toDouble + rng.nextGaussian() * p.household.rentStd.toDouble
       val numChildren                =
-        if p.flags.social800 && p.flags.social800ImmigEligible then Household.Init.poissonSample(p.fiscal.social800ChildrenPerHh, rng)
+        if p.flags.social800 && p.flags.social800ImmigEligible then Distributions.poissonSample(p.fiscal.social800ChildrenPerHh, rng)
         else 0
       Household.State(
         id = HhId(startId + i),

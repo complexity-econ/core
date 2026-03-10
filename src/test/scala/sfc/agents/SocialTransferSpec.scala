@@ -5,6 +5,7 @@ import org.scalatest.matchers.should.Matchers
 import sfc.accounting.GovState
 import sfc.config.SimParams
 import sfc.types.*
+import sfc.util.Distributions
 
 import scala.util.Random
 
@@ -45,26 +46,26 @@ class SocialTransferSpec extends AnyFlatSpec with Matchers:
 
   "poissonSample" should "return 0 for lambda=0" in {
     val rng = new Random(42)
-    Household.Init.poissonSample(0.0, rng) shouldBe 0
+    Distributions.poissonSample(0.0, rng) shouldBe 0
   }
 
   it should "return 0 for negative lambda" in {
     val rng = new Random(42)
-    Household.Init.poissonSample(-1.0, rng) shouldBe 0
+    Distributions.poissonSample(-1.0, rng) shouldBe 0
   }
 
   it should "have mean approximately equal to lambda" in {
     val rng     = new Random(42)
     val lambda  = 0.35
     val n       = 10000
-    val samples = (0 until n).map(_ => Household.Init.poissonSample(lambda, rng))
+    val samples = (0 until n).map(_ => Distributions.poissonSample(lambda, rng))
     val mean    = samples.sum.toDouble / n
     mean shouldBe lambda +- (lambda * 0.10) // ±10% tolerance
   }
 
   it should "produce non-negative values" in {
     val rng     = new Random(42)
-    val samples = (0 until 1000).map(_ => Household.Init.poissonSample(0.35, rng))
+    val samples = (0 until 1000).map(_ => Distributions.poissonSample(0.35, rng))
     all(samples) should be >= 0
   }
 
