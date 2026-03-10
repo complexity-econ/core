@@ -110,17 +110,17 @@ class MonetaryPlumbingSpec extends AnyFlatSpec with Matchers:
       failed: Boolean = false,
   ) =
     Banking.BankState(
-      BankId(id),
-      deposits,
-      loans,
-      capital,
-      PLN.Zero,
-      PLN.Zero,
-      reservesAtNbp,
-      interbankNet,
-      failed,
-      if failed then 30 else 0,
-      0,
+      id = BankId(id),
+      deposits = deposits,
+      loans = loans,
+      capital = capital,
+      nplAmount = PLN.Zero,
+      govBondHoldings = PLN.Zero,
+      reservesAtNbp = reservesAtNbp,
+      interbankNet = interbankNet,
+      failed = failed,
+      failedMonth = if failed then 30 else 0,
+      consecutiveLowCar = 0,
     )
 
   // =========================================================================

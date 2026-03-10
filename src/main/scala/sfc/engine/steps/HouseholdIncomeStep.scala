@@ -26,7 +26,7 @@ object HouseholdIncomeStep:
       domesticCons: Double,
       updatedHouseholds: Vector[Household.State],
       hhAgg: Household.Aggregates,
-      perBankHhFlowsOpt: Option[PerBankHhFlows],
+      perBankHhFlowsOpt: Option[Vector[PerBankFlow]],
       pitRevenue: Double,
       importAdj: Double,
       aggUnempBenefit: Double,

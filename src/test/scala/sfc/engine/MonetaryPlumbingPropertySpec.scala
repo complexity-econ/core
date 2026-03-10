@@ -32,17 +32,17 @@ class MonetaryPlumbingPropertySpec extends AnyFlatSpec with Matchers with ScalaC
     forAll(genRate, Gen.choose(1e4, 1e9), Gen.choose(1.1, 5.0)) { (rate, reserves, mult) =>
       whenever(rate > 0.001) {
         val b1 = Banking.BankState(
-          BankId(0),
-          PLN(1e9),
-          PLN(5e8),
-          PLN(1e8),
-          PLN.Zero,
-          PLN.Zero,
-          PLN(reserves),
-          PLN.Zero,
-          false,
-          0,
-          0,
+          id = BankId(0),
+          deposits = PLN(1e9),
+          loans = PLN(5e8),
+          capital = PLN(1e8),
+          nplAmount = PLN.Zero,
+          govBondHoldings = PLN.Zero,
+          reservesAtNbp = PLN(reserves),
+          interbankNet = PLN.Zero,
+          failed = false,
+          failedMonth = 0,
+          consecutiveLowCar = 0,
         )
         val b2 = b1.copy(reservesAtNbp = PLN(reserves * mult))
         val r1 = Banking.reserveInterest(b1, rate)
@@ -65,20 +65,31 @@ class MonetaryPlumbingPropertySpec extends AnyFlatSpec with Matchers with ScalaC
     forAll(Gen.choose(-1e8, 1e8), genRate) { (net1, rate) =>
       whenever(rate > 0.001) {
         val banks      = Vector(
-          Banking
-            .BankState(BankId(0), PLN(1e9), PLN(5e8), PLN(1e8), PLN.Zero, PLN.Zero, PLN.Zero, PLN(net1), false, 0, 0),
           Banking.BankState(
-            BankId(1),
-            PLN(1e9),
-            PLN(5e8),
-            PLN(1e8),
-            PLN.Zero,
-            PLN.Zero,
-            PLN.Zero,
-            PLN(-net1),
-            false,
-            0,
-            0,
+            id = BankId(0),
+            deposits = PLN(1e9),
+            loans = PLN(5e8),
+            capital = PLN(1e8),
+            nplAmount = PLN.Zero,
+            govBondHoldings = PLN.Zero,
+            reservesAtNbp = PLN.Zero,
+            interbankNet = PLN(net1),
+            failed = false,
+            failedMonth = 0,
+            consecutiveLowCar = 0,
+          ),
+          Banking.BankState(
+            id = BankId(1),
+            deposits = PLN(1e9),
+            loans = PLN(5e8),
+            capital = PLN(1e8),
+            nplAmount = PLN.Zero,
+            govBondHoldings = PLN.Zero,
+            reservesAtNbp = PLN.Zero,
+            interbankNet = PLN(-net1),
+            failed = false,
+            failedMonth = 0,
+            consecutiveLowCar = 0,
           ),
         )
         val (_, total) = Banking.interbankInterestFlows(banks, rate)
@@ -89,8 +100,32 @@ class MonetaryPlumbingPropertySpec extends AnyFlatSpec with Matchers with ScalaC
   it should "return zero for all-zero positions" in
     forAll(genRate) { rate =>
       val banks            = Vector(
-        Banking.BankState(BankId(0), PLN(1e9), PLN(5e8), PLN(1e8), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, false, 0, 0),
-        Banking.BankState(BankId(1), PLN(1e9), PLN(5e8), PLN(1e8), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, false, 0, 0),
+        Banking.BankState(
+          id = BankId(0),
+          deposits = PLN(1e9),
+          loans = PLN(5e8),
+          capital = PLN(1e8),
+          nplAmount = PLN.Zero,
+          govBondHoldings = PLN.Zero,
+          reservesAtNbp = PLN.Zero,
+          interbankNet = PLN.Zero,
+          failed = false,
+          failedMonth = 0,
+          consecutiveLowCar = 0,
+        ),
+        Banking.BankState(
+          id = BankId(1),
+          deposits = PLN(1e9),
+          loans = PLN(5e8),
+          capital = PLN(1e8),
+          nplAmount = PLN.Zero,
+          govBondHoldings = PLN.Zero,
+          reservesAtNbp = PLN.Zero,
+          interbankNet = PLN.Zero,
+          failed = false,
+          failedMonth = 0,
+          consecutiveLowCar = 0,
+        ),
       )
       val (perBank, total) = Banking.interbankInterestFlows(banks, rate)
       perBank.foreach(_ shouldBe 0.0)

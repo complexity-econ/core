@@ -55,23 +55,71 @@ class BankingSectorSpec extends AnyFlatSpec with Matchers:
 
   "Banking.lendingRate" should "return high spread for failed bank" in {
     val bank =
-      Banking.BankState(BankId(0), PLN(1e6), PLN(1e6), PLN(1e5), PLN(0), PLN(0), PLN(0), PLN(0), failed = true, 30, 0)
+      Banking.BankState(
+        id = BankId(0),
+        deposits = PLN(1e6),
+        loans = PLN(1e6),
+        capital = PLN(1e5),
+        nplAmount = PLN(0),
+        govBondHoldings = PLN(0),
+        reservesAtNbp = PLN(0),
+        interbankNet = PLN(0),
+        failed = true,
+        failedMonth = 30,
+        consecutiveLowCar = 0,
+      )
     val rate = Banking.lendingRate(bank, configs(0), 0.05)
     rate shouldBe (0.05 + 0.50) +- 0.001
   }
 
   it should "increase with NPL ratio" in {
     val bankLowNpl  =
-      Banking.BankState(BankId(0), PLN(1e6), PLN(1e6), PLN(2e5), PLN(1e4), PLN(0), PLN(0), PLN(0), false, 0, 0)
+      Banking.BankState(
+        id = BankId(0),
+        deposits = PLN(1e6),
+        loans = PLN(1e6),
+        capital = PLN(2e5),
+        nplAmount = PLN(1e4),
+        govBondHoldings = PLN(0),
+        reservesAtNbp = PLN(0),
+        interbankNet = PLN(0),
+        failed = false,
+        failedMonth = 0,
+        consecutiveLowCar = 0,
+      )
     val bankHighNpl =
-      Banking.BankState(BankId(0), PLN(1e6), PLN(1e6), PLN(2e5), PLN(2e5), PLN(0), PLN(0), PLN(0), false, 0, 0)
+      Banking.BankState(
+        id = BankId(0),
+        deposits = PLN(1e6),
+        loans = PLN(1e6),
+        capital = PLN(2e5),
+        nplAmount = PLN(2e5),
+        govBondHoldings = PLN(0),
+        reservesAtNbp = PLN(0),
+        interbankNet = PLN(0),
+        failed = false,
+        failedMonth = 0,
+        consecutiveLowCar = 0,
+      )
     val rateLow     = Banking.lendingRate(bankLowNpl, configs(0), 0.05)
     val rateHigh    = Banking.lendingRate(bankHighNpl, configs(0), 0.05)
     rateHigh should be > rateLow
   }
 
   it should "include bank-specific spread" in {
-    val bank    = Banking.BankState(BankId(0), PLN(1e6), PLN(1e6), PLN(2e5), PLN(0), PLN(0), PLN(0), PLN(0), false, 0, 0)
+    val bank    = Banking.BankState(
+      id = BankId(0),
+      deposits = PLN(1e6),
+      loans = PLN(1e6),
+      capital = PLN(2e5),
+      nplAmount = PLN(0),
+      govBondHoldings = PLN(0),
+      reservesAtNbp = PLN(0),
+      interbankNet = PLN(0),
+      failed = false,
+      failedMonth = 0,
+      consecutiveLowCar = 0,
+    )
     val ratePko = Banking.lendingRate(bank, configs(0), 0.05) // spread = -0.002
     val rateBps = Banking.lendingRate(bank, configs(5), 0.05) // spread = +0.003
     rateBps should be > ratePko
@@ -81,7 +129,19 @@ class BankingSectorSpec extends AnyFlatSpec with Matchers:
 
   "Banking.canLend" should "return false for failed bank" in {
     val bank =
-      Banking.BankState(BankId(0), PLN(1e6), PLN(1e6), PLN(1e5), PLN(0), PLN(0), PLN(0), PLN(0), failed = true, 30, 0)
+      Banking.BankState(
+        id = BankId(0),
+        deposits = PLN(1e6),
+        loans = PLN(1e6),
+        capital = PLN(1e5),
+        nplAmount = PLN(0),
+        govBondHoldings = PLN(0),
+        reservesAtNbp = PLN(0),
+        interbankNet = PLN(0),
+        failed = true,
+        failedMonth = 30,
+        consecutiveLowCar = 0,
+      )
     Banking.canLend(bank, 1000.0, new Random(42)) shouldBe false
   }
 
@@ -89,7 +149,19 @@ class BankingSectorSpec extends AnyFlatSpec with Matchers:
     // capital=8000, loans=100000, existing CAR=0.08
     // Adding 10000 loan -> projected = 8000/110000 = 0.0727 < 0.08
     val bank    =
-      Banking.BankState(BankId(0), PLN(1e6), PLN(100000.0), PLN(8000.0), PLN(0), PLN(0), PLN(0), PLN(0), false, 0, 0)
+      Banking.BankState(
+        id = BankId(0),
+        deposits = PLN(1e6),
+        loans = PLN(100000.0),
+        capital = PLN(8000.0),
+        nplAmount = PLN(0),
+        govBondHoldings = PLN(0),
+        reservesAtNbp = PLN(0),
+        interbankNet = PLN(0),
+        failed = false,
+        failedMonth = 0,
+        consecutiveLowCar = 0,
+      )
     // Need to test multiple times since there's a stochastic element
     val results = (0 until 100).map(_ => Banking.canLend(bank, 10000.0, new Random(42)))
     results.forall(_ == false) shouldBe true
@@ -99,8 +171,32 @@ class BankingSectorSpec extends AnyFlatSpec with Matchers:
 
   "Banking.interbankRate" should "return deposit rate when NPL is zero" in {
     val banks = Vector(
-      Banking.BankState(BankId(0), PLN(1e6), PLN(1e6), PLN(2e5), PLN(0), PLN(0), PLN(0), PLN(0), false, 0, 0),
-      Banking.BankState(BankId(1), PLN(1e6), PLN(1e6), PLN(2e5), PLN(0), PLN(0), PLN(0), PLN(0), false, 0, 0),
+      Banking.BankState(
+        id = BankId(0),
+        deposits = PLN(1e6),
+        loans = PLN(1e6),
+        capital = PLN(2e5),
+        nplAmount = PLN(0),
+        govBondHoldings = PLN(0),
+        reservesAtNbp = PLN(0),
+        interbankNet = PLN(0),
+        failed = false,
+        failedMonth = 0,
+        consecutiveLowCar = 0,
+      ),
+      Banking.BankState(
+        id = BankId(1),
+        deposits = PLN(1e6),
+        loans = PLN(1e6),
+        capital = PLN(2e5),
+        nplAmount = PLN(0),
+        govBondHoldings = PLN(0),
+        reservesAtNbp = PLN(0),
+        interbankNet = PLN(0),
+        failed = false,
+        failedMonth = 0,
+        consecutiveLowCar = 0,
+      ),
     )
     val rate  = Banking.interbankRate(banks, 0.05)
     rate shouldBe (0.05 - 0.01) +- 0.001 // deposit rate
@@ -109,19 +205,31 @@ class BankingSectorSpec extends AnyFlatSpec with Matchers:
   it should "approach lombard rate when NPL is high" in {
     val banks = Vector(
       Banking.BankState(
-        BankId(0),
-        PLN(1e6),
-        PLN(1e6),
-        PLN(2e5),
-        PLN(1e5),
-        PLN(0),
-        PLN(0),
-        PLN(0),
-        false,
-        0,
-        0,
+        id = BankId(0),
+        deposits = PLN(1e6),
+        loans = PLN(1e6),
+        capital = PLN(2e5),
+        nplAmount = PLN(1e5),
+        govBondHoldings = PLN(0),
+        reservesAtNbp = PLN(0),
+        interbankNet = PLN(0),
+        failed = false,
+        failedMonth = 0,
+        consecutiveLowCar = 0,
       ), // 10% NPL
-      Banking.BankState(BankId(1), PLN(1e6), PLN(1e6), PLN(2e5), PLN(1e5), PLN(0), PLN(0), PLN(0), false, 0, 0),
+      Banking.BankState(
+        id = BankId(1),
+        deposits = PLN(1e6),
+        loans = PLN(1e6),
+        capital = PLN(2e5),
+        nplAmount = PLN(1e5),
+        govBondHoldings = PLN(0),
+        reservesAtNbp = PLN(0),
+        interbankNet = PLN(0),
+        failed = false,
+        failedMonth = 0,
+        consecutiveLowCar = 0,
+      ),
     )
     val rate  = Banking.interbankRate(banks, 0.05)
     // stress = 0.10 / 0.05 = 2.0, clipped to 1.0
@@ -132,9 +240,45 @@ class BankingSectorSpec extends AnyFlatSpec with Matchers:
 
   "Banking.clearInterbank" should "produce interbankNet that sums to zero" in {
     val banks   = Vector(
-      Banking.BankState(BankId(0), PLN(1e6), PLN(3e5), PLN(2e5), PLN(0), PLN(1e5), PLN(0), PLN(0), false, 0, 0),
-      Banking.BankState(BankId(1), PLN(5e5), PLN(8e5), PLN(1e5), PLN(0), PLN(0), PLN(0), PLN(0), false, 0, 0),
-      Banking.BankState(BankId(2), PLN(8e5), PLN(2e5), PLN(1.5e5), PLN(0), PLN(5e4), PLN(0), PLN(0), false, 0, 0),
+      Banking.BankState(
+        id = BankId(0),
+        deposits = PLN(1e6),
+        loans = PLN(3e5),
+        capital = PLN(2e5),
+        nplAmount = PLN(0),
+        govBondHoldings = PLN(1e5),
+        reservesAtNbp = PLN(0),
+        interbankNet = PLN(0),
+        failed = false,
+        failedMonth = 0,
+        consecutiveLowCar = 0,
+      ),
+      Banking.BankState(
+        id = BankId(1),
+        deposits = PLN(5e5),
+        loans = PLN(8e5),
+        capital = PLN(1e5),
+        nplAmount = PLN(0),
+        govBondHoldings = PLN(0),
+        reservesAtNbp = PLN(0),
+        interbankNet = PLN(0),
+        failed = false,
+        failedMonth = 0,
+        consecutiveLowCar = 0,
+      ),
+      Banking.BankState(
+        id = BankId(2),
+        deposits = PLN(8e5),
+        loans = PLN(2e5),
+        capital = PLN(1.5e5),
+        nplAmount = PLN(0),
+        govBondHoldings = PLN(5e4),
+        reservesAtNbp = PLN(0),
+        interbankNet = PLN(0),
+        failed = false,
+        failedMonth = 0,
+        consecutiveLowCar = 0,
+      ),
     )
     val cleared = Banking.clearInterbank(banks, configs.take(3), 0.05)
     val netSum  = cleared.map(_.interbankNet.toDouble).sum
@@ -143,8 +287,32 @@ class BankingSectorSpec extends AnyFlatSpec with Matchers:
 
   it should "set failed banks' interbankNet to zero" in {
     val banks   = Vector(
-      Banking.BankState(BankId(0), PLN(1e6), PLN(3e5), PLN(2e5), PLN(0), PLN(0), PLN(0), PLN(0), false, 0, 0),
-      Banking.BankState(BankId(1), PLN(5e5), PLN(8e5), PLN(1e5), PLN(0), PLN(0), PLN(0), PLN(0), failed = true, 30, 3),
+      Banking.BankState(
+        id = BankId(0),
+        deposits = PLN(1e6),
+        loans = PLN(3e5),
+        capital = PLN(2e5),
+        nplAmount = PLN(0),
+        govBondHoldings = PLN(0),
+        reservesAtNbp = PLN(0),
+        interbankNet = PLN(0),
+        failed = false,
+        failedMonth = 0,
+        consecutiveLowCar = 0,
+      ),
+      Banking.BankState(
+        id = BankId(1),
+        deposits = PLN(5e5),
+        loans = PLN(8e5),
+        capital = PLN(1e5),
+        nplAmount = PLN(0),
+        govBondHoldings = PLN(0),
+        reservesAtNbp = PLN(0),
+        interbankNet = PLN(0),
+        failed = true,
+        failedMonth = 30,
+        consecutiveLowCar = 3,
+      ),
     )
     val cleared = Banking.clearInterbank(banks, configs.take(2), 0.05)
     cleared(1).interbankNet.toDouble shouldBe 0.0
@@ -155,17 +323,17 @@ class BankingSectorSpec extends AnyFlatSpec with Matchers:
   "Banking.checkFailures" should "not trigger when disabled" in {
     val banks = Vector(
       Banking.BankState(
-        BankId(0),
-        PLN(1e6),
-        PLN(1e6),
-        PLN(1000.0),
-        PLN(0),
-        PLN(0),
-        PLN(0),
-        PLN(0),
-        false,
-        0,
-        5,
+        id = BankId(0),
+        deposits = PLN(1e6),
+        loans = PLN(1e6),
+        capital = PLN(1000.0),
+        nplAmount = PLN(0),
+        govBondHoldings = PLN(0),
+        reservesAtNbp = PLN(0),
+        interbankNet = PLN(0),
+        failed = false,
+        failedMonth = 0,
+        consecutiveLowCar = 5,
       ), // Very low CAR
     )
     val (result, anyFailed) = Banking.checkFailures(banks, 30, enabled = false)
@@ -175,7 +343,19 @@ class BankingSectorSpec extends AnyFlatSpec with Matchers:
 
   it should "trigger after 3 consecutive months of low CAR" in {
     val bank                =
-      Banking.BankState(BankId(0), PLN(1e6), PLN(1e6), PLN(1000.0), PLN(0), PLN(0), PLN(0), PLN(0), false, 0, 2)
+      Banking.BankState(
+        id = BankId(0),
+        deposits = PLN(1e6),
+        loans = PLN(1e6),
+        capital = PLN(1000.0),
+        nplAmount = PLN(0),
+        govBondHoldings = PLN(0),
+        reservesAtNbp = PLN(0),
+        interbankNet = PLN(0),
+        failed = false,
+        failedMonth = 0,
+        consecutiveLowCar = 2,
+      )
     val (result, anyFailed) = Banking.checkFailures(Vector(bank), 30, enabled = true)
     anyFailed shouldBe true
     result(0).failed shouldBe true
@@ -184,17 +364,17 @@ class BankingSectorSpec extends AnyFlatSpec with Matchers:
 
   it should "reset consecutive counter when CAR recovers" in {
     val bank = Banking.BankState(
-      BankId(0),
-      PLN(1e6),
-      PLN(1e6),
-      PLN(2e5),
-      PLN(0),
-      PLN(0),
-      PLN(0),
-      PLN(0),
-      false,
-      0,
-      2,
+      id = BankId(0),
+      deposits = PLN(1e6),
+      loans = PLN(1e6),
+      capital = PLN(2e5),
+      nplAmount = PLN(0),
+      govBondHoldings = PLN(0),
+      reservesAtNbp = PLN(0),
+      interbankNet = PLN(0),
+      failed = false,
+      failedMonth = 0,
+      consecutiveLowCar = 2,
     ) // CAR = 0.20 > MinCar
     val (result, anyFailed) = Banking.checkFailures(Vector(bank), 30, enabled = true)
     anyFailed shouldBe false
@@ -206,30 +386,30 @@ class BankingSectorSpec extends AnyFlatSpec with Matchers:
   "Banking.resolveFailures" should "transfer deposits to healthiest bank" in {
     val banks         = Vector(
       Banking.BankState(
-        BankId(0),
-        PLN(500000.0),
-        PLN(100000.0),
-        PLN(50000.0),
-        PLN(0),
-        PLN(10000.0),
-        PLN(0),
-        PLN(0),
-        false,
-        0,
-        0,
+        id = BankId(0),
+        deposits = PLN(500000.0),
+        loans = PLN(100000.0),
+        capital = PLN(50000.0),
+        nplAmount = PLN(0),
+        govBondHoldings = PLN(10000.0),
+        reservesAtNbp = PLN(0),
+        interbankNet = PLN(0),
+        failed = false,
+        failedMonth = 0,
+        consecutiveLowCar = 0,
       ),
       Banking.BankState(
-        BankId(1),
-        PLN(300000.0),
-        PLN(80000.0),
-        PLN(0.0),
-        PLN(0),
-        PLN(5000.0),
-        PLN(0),
-        PLN(0),
+        id = BankId(1),
+        deposits = PLN(300000.0),
+        loans = PLN(80000.0),
+        capital = PLN(0.0),
+        nplAmount = PLN(0),
+        govBondHoldings = PLN(5000.0),
+        reservesAtNbp = PLN(0),
+        interbankNet = PLN(0),
         failed = true,
-        30,
-        3,
+        failedMonth = 30,
+        consecutiveLowCar = 3,
       ),
     )
     val (resolved, _) = Banking.resolveFailures(banks)
@@ -241,8 +421,32 @@ class BankingSectorSpec extends AnyFlatSpec with Matchers:
 
   "Banking.allocateBonds" should "distribute proportional to deposits" in {
     val banks  = Vector(
-      Banking.BankState(BankId(0), PLN(600000.0), PLN(0), PLN(1e5), PLN(0), PLN(0), PLN(0), PLN(0), false, 0, 0),
-      Banking.BankState(BankId(1), PLN(400000.0), PLN(0), PLN(1e5), PLN(0), PLN(0), PLN(0), PLN(0), false, 0, 0),
+      Banking.BankState(
+        id = BankId(0),
+        deposits = PLN(600000.0),
+        loans = PLN(0),
+        capital = PLN(1e5),
+        nplAmount = PLN(0),
+        govBondHoldings = PLN(0),
+        reservesAtNbp = PLN(0),
+        interbankNet = PLN(0),
+        failed = false,
+        failedMonth = 0,
+        consecutiveLowCar = 0,
+      ),
+      Banking.BankState(
+        id = BankId(1),
+        deposits = PLN(400000.0),
+        loans = PLN(0),
+        capital = PLN(1e5),
+        nplAmount = PLN(0),
+        govBondHoldings = PLN(0),
+        reservesAtNbp = PLN(0),
+        interbankNet = PLN(0),
+        failed = false,
+        failedMonth = 0,
+        consecutiveLowCar = 0,
+      ),
     )
     val result = Banking.allocateBonds(banks, 10000.0)
     result(0).govBondHoldings.toDouble shouldBe 6000.0 +- 0.01
@@ -251,8 +455,32 @@ class BankingSectorSpec extends AnyFlatSpec with Matchers:
 
   it should "handle negative deficit (surplus)" in {
     val banks  = Vector(
-      Banking.BankState(BankId(0), PLN(500000.0), PLN(0), PLN(1e5), PLN(0), PLN(8000.0), PLN(0), PLN(0), false, 0, 0),
-      Banking.BankState(BankId(1), PLN(500000.0), PLN(0), PLN(1e5), PLN(0), PLN(2000.0), PLN(0), PLN(0), false, 0, 0),
+      Banking.BankState(
+        id = BankId(0),
+        deposits = PLN(500000.0),
+        loans = PLN(0),
+        capital = PLN(1e5),
+        nplAmount = PLN(0),
+        govBondHoldings = PLN(8000.0),
+        reservesAtNbp = PLN(0),
+        interbankNet = PLN(0),
+        failed = false,
+        failedMonth = 0,
+        consecutiveLowCar = 0,
+      ),
+      Banking.BankState(
+        id = BankId(1),
+        deposits = PLN(500000.0),
+        loans = PLN(0),
+        capital = PLN(1e5),
+        nplAmount = PLN(0),
+        govBondHoldings = PLN(2000.0),
+        reservesAtNbp = PLN(0),
+        interbankNet = PLN(0),
+        failed = false,
+        failedMonth = 0,
+        consecutiveLowCar = 0,
+      ),
     )
     val result = Banking.allocateBonds(banks, -4000.0)
     result(0).govBondHoldings.toDouble shouldBe 6000.0 +- 0.01 // 8000 + (-4000 * 0.5)
@@ -264,17 +492,17 @@ class BankingSectorSpec extends AnyFlatSpec with Matchers:
     val banks   = (0 until 7)
       .map(i =>
         Banking.BankState(
-          BankId(i),
-          PLN(1e6 / 7.0 * (i + 1)),
-          PLN(0),
-          PLN(1e5),
-          PLN(0),
-          PLN(1000.0 * (i + 1)),
-          PLN(0),
-          PLN(0),
-          false,
-          0,
-          0,
+          id = BankId(i),
+          deposits = PLN(1e6 / 7.0 * (i + 1)),
+          loans = PLN(0),
+          capital = PLN(1e5),
+          nplAmount = PLN(0),
+          govBondHoldings = PLN(1000.0 * (i + 1)),
+          reservesAtNbp = PLN(0),
+          interbankNet = PLN(0),
+          failed = false,
+          failedMonth = 0,
+          consecutiveLowCar = 0,
         ),
       )
       .toVector
@@ -297,8 +525,32 @@ class BankingSectorSpec extends AnyFlatSpec with Matchers:
 
   "Banking.allocateQePurchases" should "sell proportional to bond holdings" in {
     val banks  = Vector(
-      Banking.BankState(BankId(0), PLN(1e6), PLN(0), PLN(1e5), PLN(0), PLN(6000.0), PLN(0), PLN(0), false, 0, 0),
-      Banking.BankState(BankId(1), PLN(1e6), PLN(0), PLN(1e5), PLN(0), PLN(4000.0), PLN(0), PLN(0), false, 0, 0),
+      Banking.BankState(
+        id = BankId(0),
+        deposits = PLN(1e6),
+        loans = PLN(0),
+        capital = PLN(1e5),
+        nplAmount = PLN(0),
+        govBondHoldings = PLN(6000.0),
+        reservesAtNbp = PLN(0),
+        interbankNet = PLN(0),
+        failed = false,
+        failedMonth = 0,
+        consecutiveLowCar = 0,
+      ),
+      Banking.BankState(
+        id = BankId(1),
+        deposits = PLN(1e6),
+        loans = PLN(0),
+        capital = PLN(1e5),
+        nplAmount = PLN(0),
+        govBondHoldings = PLN(4000.0),
+        reservesAtNbp = PLN(0),
+        interbankNet = PLN(0),
+        failed = false,
+        failedMonth = 0,
+        consecutiveLowCar = 0,
+      ),
     )
     val result = Banking.allocateQePurchases(banks, 5000.0)
     result(0).govBondHoldings.toDouble shouldBe 3000.0 +- 0.01 // 6000 - 5000*0.6
@@ -307,7 +559,19 @@ class BankingSectorSpec extends AnyFlatSpec with Matchers:
 
   it should "not change banks when qeTotal is zero" in {
     val banks  = Vector(
-      Banking.BankState(BankId(0), PLN(1e6), PLN(0), PLN(1e5), PLN(0), PLN(5000.0), PLN(0), PLN(0), false, 0, 0),
+      Banking.BankState(
+        id = BankId(0),
+        deposits = PLN(1e6),
+        loans = PLN(0),
+        capital = PLN(1e5),
+        nplAmount = PLN(0),
+        govBondHoldings = PLN(5000.0),
+        reservesAtNbp = PLN(0),
+        interbankNet = PLN(0),
+        failed = false,
+        failedMonth = 0,
+        consecutiveLowCar = 0,
+      ),
     )
     val result = Banking.allocateQePurchases(banks, 0.0)
     result(0).govBondHoldings.toDouble shouldBe 5000.0
@@ -317,16 +581,64 @@ class BankingSectorSpec extends AnyFlatSpec with Matchers:
 
   "Banking.reassignBankId" should "keep valid bank unchanged" in {
     val banks = Vector(
-      Banking.BankState(BankId(0), PLN(1e6), PLN(1e6), PLN(2e5), PLN(0), PLN(0), PLN(0), PLN(0), false, 0, 0),
-      Banking.BankState(BankId(1), PLN(1e6), PLN(1e6), PLN(1e5), PLN(0), PLN(0), PLN(0), PLN(0), false, 0, 0),
+      Banking.BankState(
+        id = BankId(0),
+        deposits = PLN(1e6),
+        loans = PLN(1e6),
+        capital = PLN(2e5),
+        nplAmount = PLN(0),
+        govBondHoldings = PLN(0),
+        reservesAtNbp = PLN(0),
+        interbankNet = PLN(0),
+        failed = false,
+        failedMonth = 0,
+        consecutiveLowCar = 0,
+      ),
+      Banking.BankState(
+        id = BankId(1),
+        deposits = PLN(1e6),
+        loans = PLN(1e6),
+        capital = PLN(1e5),
+        nplAmount = PLN(0),
+        govBondHoldings = PLN(0),
+        reservesAtNbp = PLN(0),
+        interbankNet = PLN(0),
+        failed = false,
+        failedMonth = 0,
+        consecutiveLowCar = 0,
+      ),
     )
     Banking.reassignBankId(BankId(0), banks) shouldBe BankId(0)
   }
 
   it should "route to healthiest bank when current bank failed" in {
     val banks = Vector(
-      Banking.BankState(BankId(0), PLN(1e6), PLN(1e6), PLN(2e5), PLN(0), PLN(0), PLN(0), PLN(0), false, 0, 0),
-      Banking.BankState(BankId(1), PLN(1e6), PLN(1e6), PLN(1e5), PLN(0), PLN(0), PLN(0), PLN(0), failed = true, 30, 3),
+      Banking.BankState(
+        id = BankId(0),
+        deposits = PLN(1e6),
+        loans = PLN(1e6),
+        capital = PLN(2e5),
+        nplAmount = PLN(0),
+        govBondHoldings = PLN(0),
+        reservesAtNbp = PLN(0),
+        interbankNet = PLN(0),
+        failed = false,
+        failedMonth = 0,
+        consecutiveLowCar = 0,
+      ),
+      Banking.BankState(
+        id = BankId(1),
+        deposits = PLN(1e6),
+        loans = PLN(1e6),
+        capital = PLN(1e5),
+        nplAmount = PLN(0),
+        govBondHoldings = PLN(0),
+        reservesAtNbp = PLN(0),
+        interbankNet = PLN(0),
+        failed = true,
+        failedMonth = 30,
+        consecutiveLowCar = 3,
+      ),
     )
     Banking.reassignBankId(BankId(1), banks) shouldBe BankId(0)
   }

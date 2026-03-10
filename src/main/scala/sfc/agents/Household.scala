@@ -25,17 +25,20 @@ case class BankRates(
     depositRates: Array[Double], // annual deposit rate per bank (index = BankId)
 )
 
-/** Per-bank HH flow accumulators for multi-bank mode (indexed by BankId). */
-case class PerBankHhFlows(
-    income: Array[Double],                            // total income (incl. deposit interest)
-    consumption: Array[Double],                       // total consumption (goods + rent)
-    debtService: Array[Double],                       // total mortgage/secured debt service
-    depositInterest: Array[Double],                   // total deposit interest paid
-    consumerDebtService: Array[Double] = Array.empty, // consumer (unsecured) debt service
-    consumerOrigination: Array[Double] = Array.empty, // new consumer loans originated
-    consumerDefault: Array[Double] = Array.empty,     // consumer loan defaults (bankruptcy write-offs)
-    consumerPrincipal: Array[Double] = Array.empty,   // consumer loan principal repaid
+/** Per-bank HH flow accumulator for multi-bank mode (one per BankId). */
+case class PerBankFlow(
+    income: Double,              // total income (incl. deposit interest)
+    consumption: Double,         // total consumption (goods + rent)
+    debtService: Double,         // total mortgage/secured debt service
+    depositInterest: Double,     // total deposit interest paid
+    consumerDebtService: Double, // consumer (unsecured) debt service
+    consumerOrigination: Double, // new consumer loans originated
+    consumerDefault: Double,     // consumer loan defaults (bankruptcy write-offs)
+    consumerPrincipal: Double,   // consumer loan principal repaid
 )
+
+object PerBankFlow:
+  val zero: PerBankFlow = PerBankFlow(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
 
 object Household:
 
@@ -277,28 +280,26 @@ object Household:
       voluntaryQuits = voluntaryQuits + r.voluntaryQuit,
     )
 
-  /** Build per-bank flow arrays from (BankId, HhMonthlyResult) pairs. */
-  private def buildPerBankFlows(flows: Vector[(BankId, HhMonthlyResult)], nBanks: Int): PerBankHhFlows =
-    val inc    = new Array[Double](nBanks)
-    val cons   = new Array[Double](nBanks)
-    val dSvc   = new Array[Double](nBanks)
-    val depInt = new Array[Double](nBanks)
-    val ccSvc  = new Array[Double](nBanks)
-    val ccOrig = new Array[Double](nBanks)
-    val ccDef  = new Array[Double](nBanks)
-    val ccPrin = new Array[Double](nBanks)
-    flows.foreach { case (bankId, r) =>
+  /** Build per-bank flow vector from (BankId, HhMonthlyResult) pairs. */
+  private def buildPerBankFlows(flows: Vector[(BankId, HhMonthlyResult)], nBanks: Int): Vector[PerBankFlow] =
+    val zero = Vector.fill(nBanks)(PerBankFlow.zero)
+    flows.foldLeft(zero) { case (acc, (bankId, r)) =>
       val bId = bankId.toInt
-      inc(bId) += r.income
-      cons(bId) += r.consumption + r.rent
-      dSvc(bId) += r.debtService
-      depInt(bId) += r.depositInterest
-      ccSvc(bId) += r.credit.debtService
-      ccOrig(bId) += r.credit.newLoan
-      ccDef(bId) += r.credit.defaultAmt
-      ccPrin(bId) += r.credit.principal
+      val cur = acc(bId)
+      acc.updated(
+        bId,
+        cur.copy(
+          income = cur.income + r.income,
+          consumption = cur.consumption + r.consumption + r.rent,
+          debtService = cur.debtService + r.debtService,
+          depositInterest = cur.depositInterest + r.depositInterest,
+          consumerDebtService = cur.consumerDebtService + r.credit.debtService,
+          consumerOrigination = cur.consumerOrigination + r.credit.newLoan,
+          consumerDefault = cur.consumerDefault + r.credit.defaultAmt,
+          consumerPrincipal = cur.consumerPrincipal + r.credit.principal,
+        ),
+      )
     }
-    PerBankHhFlows(inc, cons, dSvc, depInt, ccSvc, ccOrig, ccDef, ccPrin)
 
   // ---- Extracted per-HH pipeline types ----
 
@@ -641,7 +642,7 @@ object Household:
       equityIndexReturn: Double = 0.0,
       sectorWages: Option[Array[Double]] = None,
       sectorVacancies: Option[Array[Int]] = None,
-  )(using p: SimParams): (Vector[State], Aggregates, Option[PerBankHhFlows]) =
+  )(using p: SimParams): (Vector[State], Aggregates, Option[Vector[PerBankFlow]]) =
 
     // Pre-compute distressed HH set: O(N_hh) instead of O(N_hh x k) per-HH lookup
     val distressedIds = new java.util.BitSet(households.length)

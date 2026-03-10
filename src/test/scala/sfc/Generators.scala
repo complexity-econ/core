@@ -564,17 +564,17 @@ object Generators:
       failed   <- Gen.oneOf(false, false, false, false, true) // 20% chance
       lowCar   <- Gen.choose(0, 5)
     yield Banking.BankState(
-      BankId(id),
-      PLN(deposits),
-      PLN(loans),
-      PLN(capital),
-      PLN(loans * nplFrac),
-      PLN(bonds),
-      PLN(reserves),
-      PLN(ibNet),
-      failed,
-      if failed then 30 else 0,
-      lowCar,
+      id = BankId(id),
+      deposits = PLN(deposits),
+      loans = PLN(loans),
+      capital = PLN(capital),
+      nplAmount = PLN(loans * nplFrac),
+      govBondHoldings = PLN(bonds),
+      reservesAtNbp = PLN(reserves),
+      interbankNet = PLN(ibNet),
+      failed = failed,
+      failedMonth = if failed then 30 else 0,
+      consecutiveLowCar = lowCar,
     )
 
     val State: Gen[Banking.State] = for
