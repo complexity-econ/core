@@ -28,17 +28,17 @@ object FiscalConstraintStep:
       val isAdjustMonth = m > 0 && m % p.fiscal.minWageAdjustMonths == 0
       if isAdjustMonth then
         val cumInfl     =
-          if p.fiscal.minWageInflationIndex && w.hh.minWagePriceLevel > 0 then w.priceLevel / w.hh.minWagePriceLevel - 1.0
+          if p.fiscal.minWageInflationIndex && w.gov.minWagePriceLevel > 0 then w.priceLevel / w.gov.minWagePriceLevel - 1.0
           else 0.0
-        val inflIndexed = w.hh.minWageLevel.toDouble * (1.0 + Math.max(0.0, cumInfl))
-        val target      = w.hh.marketWage.toDouble * p.fiscal.minWageTargetRatio.toDouble
+        val inflIndexed = w.gov.minWageLevel.toDouble * (1.0 + Math.max(0.0, cumInfl))
+        val target      = w.hhAgg.marketWage.toDouble * p.fiscal.minWageTargetRatio.toDouble
         val gap         = target - inflIndexed
         val adjusted    =
           if gap > 0 then inflIndexed + gap * p.fiscal.minWageConvergenceSpeed.toDouble
           else inflIndexed
-        (Math.max(w.hh.minWageLevel.toDouble, adjusted), w.priceLevel)
-      else (w.hh.minWageLevel.toDouble, w.hh.minWagePriceLevel)
-    else (p.household.baseReservationWage.toDouble, w.hh.minWagePriceLevel)
+        (Math.max(w.gov.minWageLevel.toDouble, adjusted), w.priceLevel)
+      else (w.gov.minWageLevel.toDouble, w.gov.minWagePriceLevel)
+    else (p.household.baseReservationWage.toDouble, w.gov.minWagePriceLevel)
 
     val resWage = baseMinWage
 

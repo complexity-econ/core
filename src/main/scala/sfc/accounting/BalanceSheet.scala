@@ -17,6 +17,8 @@ case class GovState(
     euCofinancing: PLN = PLN.Zero,
     exciseRevenue: PLN = PLN.Zero,
     customsDutyRevenue: PLN = PLN.Zero,
+    minWageLevel: PLN = PLN(4666.0),
+    minWagePriceLevel: Double = 1.0,
 )
 
 /** Aggregate banking-sector balance sheet — sum over all 7 per-bank BankStates.

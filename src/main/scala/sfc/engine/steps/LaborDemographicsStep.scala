@@ -35,7 +35,7 @@ object LaborDemographicsStep:
     val living                 = in.firms.filter(Firm.isAlive)
     val laborDemand            = living.kahanSumBy(f => Firm.workerCount(f).toDouble).toInt
     val (rawWage, rawEmployed) =
-      LaborMarket.updateLaborMarket(in.w.hh.marketWage.toDouble, in.s1.resWage, laborDemand, in.w.totalPopulation)
+      LaborMarket.updateLaborMarket(in.w.hhAgg.marketWage.toDouble, in.s1.resWage, laborDemand, in.w.totalPopulation)
 
     // Channel 1: Expectations-augmented wage Phillips curve
     val wageAfterExp = if p.flags.expectations then
@@ -46,10 +46,10 @@ object LaborDemographicsStep:
     else rawWage
 
     // Union downward wage rigidity (#44)
-    val newWage = if p.flags.unions && wageAfterExp < in.w.hh.marketWage.toDouble then
+    val newWage = if p.flags.unions && wageAfterExp < in.w.hhAgg.marketWage.toDouble then
       val aggDensity =
         SectorDefs.zipWithIndex.map((s, i) => s.share.toDouble * p.labor.unionDensity.map(_.toDouble)(i)).sum
-      val decline    = in.w.hh.marketWage.toDouble - wageAfterExp
+      val decline    = in.w.hhAgg.marketWage.toDouble - wageAfterExp
       Math.max(in.s1.resWage, wageAfterExp + decline * p.labor.unionRigidity.toDouble * aggDensity)
     else wageAfterExp
 
@@ -76,7 +76,7 @@ object LaborDemographicsStep:
     val newPpk             = SocialSecurity.ppkStep(in.w.social.ppk.bondHoldings.toDouble, employed, newWage)
     val rawPpkBondPurchase = SocialSecurity.ppkBondPurchase(newPpk)
 
-    val wageGrowth = if in.w.hh.marketWage.toDouble > 0 then newWage / in.w.hh.marketWage.toDouble - 1.0 else 0.0
+    val wageGrowth = if in.w.hhAgg.marketWage.toDouble > 0 then newWage / in.w.hhAgg.marketWage.toDouble - 1.0 else 0.0
 
     Output(
       newWage,

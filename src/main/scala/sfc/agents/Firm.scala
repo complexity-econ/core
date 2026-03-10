@@ -366,7 +366,7 @@ object Firm:
       w: World,
       lendRate: Rate,
   )(using p: SimParams): Decision =
-    val pnl = computePnL(firm, w.hh.marketWage, w.flows.sectorDemandMult(firm.sector.toInt), w.priceLevel, lendRate, w.month)
+    val pnl = computePnL(firm, w.hhAgg.marketWage, w.flows.sectorDemandMult(firm.sector.toInt), w.priceLevel, lendRate, w.month)
     val nc  = firm.cash + pnl.netAfterTax
     if nc < PLN.Zero then Decision.GoBankrupt(pnl, nc, BankruptReason.AiDebtTrap)
     else Decision.Survive(pnl, nc)
@@ -380,13 +380,13 @@ object Firm:
       workers: Int,
       aiEff: Double,
   )(using p: SimParams): Decision =
-    val pnl    = computePnL(firm, w.hh.marketWage, w.flows.sectorDemandMult(firm.sector.toInt), w.priceLevel, lendRate, w.month)
+    val pnl    = computePnL(firm, w.hhAgg.marketWage, w.flows.sectorDemandMult(firm.sector.toInt), w.priceLevel, lendRate, w.month)
     val ready2 = Ratio(Math.min(1.0, firm.digitalReadiness.toDouble + HybridMonthlyDrDrift))
 
     val upCapex    = computeAiCapex(firm) * HybridToFullCapexMul
     val upLoan     = upCapex * FullAiLoanShare
     val upDown     = upCapex * FullAiDownShare
-    val upCost     = estimateMonthlyCost(firm, p.firm.aiOpex, skeletonCrew(firm), upLoan, w.hh.marketWage, lendRate, w.priceLevel)
+    val upCost     = estimateMonthlyCost(firm, p.firm.aiOpex, skeletonCrew(firm), upLoan, w.hhAgg.marketWage, lendRate, w.priceLevel)
     val profitable = pnl.costs > upCost * FullAiProfitMargin
     val canPay     = firm.cash > upDown
     val ready      = firm.digitalReadiness >= p.firm.fullAiReadinessMin
@@ -403,7 +403,7 @@ object Firm:
     else
       val nc = firm.cash + pnl.netAfterTax
       if nc < PLN.Zero then
-        attemptDownsize(firm, pnl, nc, workers, w => TechState.Hybrid(w, aiEff), w.hh.marketWage, BankruptReason.HybridInsolvency, drUpdate = Some(ready2))
+        attemptDownsize(firm, pnl, nc, workers, w => TechState.Hybrid(w, aiEff), w.hhAgg.marketWage, BankruptReason.HybridInsolvency, drUpdate = Some(ready2))
       else Decision.Survive(pnl, nc, drUpdate = Some(ready2))
 
   /** Upgrade feasibility for one tech path (full-AI or hybrid). */
@@ -429,7 +429,7 @@ object Firm:
     val capex = computeAiCapex(firm)
     val loan  = capex * FullAiLoanShare
     val down  = capex * FullAiDownShare
-    val cost  = estimateMonthlyCost(firm, p.firm.aiOpex, skeletonCrew(firm), loan, w.hh.marketWage, lendRate, w.priceLevel)
+    val cost  = estimateMonthlyCost(firm, p.firm.aiOpex, skeletonCrew(firm), loan, w.hhAgg.marketWage, lendRate, w.priceLevel)
     UpgradeCandidate(
       capex,
       loan,
@@ -453,7 +453,7 @@ object Firm:
     val loan  = capex * HybridLoanShare
     val down  = capex * HybridDownShare
     val hWkrs = Math.max(3, (workers * SectorDefs(firm.sector.toInt).hybridRetainFrac.toDouble).toInt)
-    val cost  = estimateMonthlyCost(firm, p.firm.hybridOpex, hWkrs, loan, w.hh.marketWage, lendRate, w.priceLevel)
+    val cost  = estimateMonthlyCost(firm, p.firm.hybridOpex, hWkrs, loan, w.hhAgg.marketWage, lendRate, w.priceLevel)
     val cand  = UpgradeCandidate(
       capex,
       loan,
@@ -551,7 +551,7 @@ object Firm:
       val boost = p.firm.digiInvestBoost.toDouble * diminishing
       val newDR = Ratio(Math.min(1.0, firm.digitalReadiness.toDouble + boost))
       Decision.DigiInvest(pnl, digiCost, newDR)
-    else if nc < PLN.Zero then attemptDownsize(firm, pnl, nc, workers, TechState.Traditional(_), w.hh.marketWage, BankruptReason.LaborCostInsolvency)
+    else if nc < PLN.Zero then attemptDownsize(firm, pnl, nc, workers, TechState.Traditional(_), w.hhAgg.marketWage, BankruptReason.LaborCostInsolvency)
     else Decision.Survive(pnl, nc)
 
   /** Traditional firm: evaluate full-AI, hybrid, downsize, digital invest, or
@@ -565,7 +565,7 @@ object Firm:
       allFirms: Vector[State],
       workers: Int,
   )(using p: SimParams): Decision =
-    val pnl           = computePnL(firm, w.hh.marketWage, w.flows.sectorDemandMult(firm.sector.toInt), w.priceLevel, lendRate, w.month)
+    val pnl           = computePnL(firm, w.hhAgg.marketWage, w.flows.sectorDemandMult(firm.sector.toInt), w.priceLevel, lendRate, w.month)
     val ai            = evaluateFullAi(firm, pnl, w, lendRate, bankCanLend)
     val (hyb, hWkrs)  = evaluateHybrid(firm, pnl, workers, w, lendRate, bankCanLend)
     val (pFull, pHyb) = adoptionProbabilities(firm, pnl, ai, hyb, w, allFirms)
