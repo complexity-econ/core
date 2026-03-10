@@ -1,9 +1,11 @@
 package sfc.agents
 
-import sfc.config.SimParams
+import sfc.config.*
 import sfc.engine.World
 import sfc.engine.markets.SectoralMobility
+import sfc.networks.Network
 import sfc.types.*
+import sfc.util.Distributions
 import sfc.util.KahanSum.*
 
 import scala.util.Random
@@ -154,20 +156,17 @@ object Household:
   // ---- Init ----
 
   object Init:
+
     /** Create individual households with multi-bank assignment. */
     def create(rng: Random, firms: Vector[Firm.State])(using p: SimParams): Vector[State] =
-      import sfc.config.*
-      import sfc.networks.Network
-      val hhCount   = firms.map(f => Firm.workerCount(f)).sum
+      val hhCount   = firms.map(Firm.workerCount).sum
       val hhNetwork = Network.wattsStrogatz(hhCount, p.household.socialK, p.household.socialP.toDouble)
       val hhs       = initialize(hhCount, p.pop.firmsCount, firms, hhNetwork, rng)
       // Assign households to same bank as their employer
-      hhs.map { h =>
+      hhs.map: h =>
         h.status match
-          case HhStatus.Employed(fid, _, _) if fid.toInt < firms.length =>
-            h.copy(bankId = firms(fid.toInt).bankId)
+          case HhStatus.Employed(fid, _, _) if fid.toInt < firms.length => h.copy(bankId = firms(fid.toInt).bankId)
           case _                                                        => h
-      }
 
     /** Initialize households, all employed, assigned proportionally to firm
       * sizes.
@@ -202,7 +201,7 @@ object Household:
             )
 
             // MPC: Beta(alpha, beta) via gamma transformation
-            val mpc = betaSample(p.household.mpcAlpha, p.household.mpcBeta, rng)
+            val mpc = Distributions.betaSample(p.household.mpcAlpha, p.household.mpcBeta, rng)
 
             // Education draw + skill range
             val edu                        = p.social.drawEducation(sectorIdx.toInt, rng)
@@ -221,7 +220,7 @@ object Household:
 
             // 800+ children: Poisson(λ) per HH
             val numChildren =
-              if p.flags.social800 then poissonSample(p.fiscal.social800ChildrenPerHh, rng)
+              if p.flags.social800 then Distributions.poissonSample(p.fiscal.social800ChildrenPerHh, rng)
               else 0
 
             // Consumer credit: 40% of HH have small consumer loans (reuse HhDebtFraction)
@@ -251,47 +250,70 @@ object Household:
 
       builder.result()
 
-    /** Sample from Poisson(lambda) using Knuth algorithm (small λ). */
-    private[agents] def poissonSample(lambda: Double, rng: Random): Int =
-      if lambda <= 0 then 0
-      else
-        val L = Math.exp(-lambda)
-        var k = 0
-        var p = rng.nextDouble()
-        while p > L do
-          k += 1
-          p *= rng.nextDouble()
-        k
+  // ---- Step flow totals (immutable, folded from per-HH results) ----
 
-    /** Sample from Beta(alpha, beta) using two Gamma samples. */
-    private def betaSample(alpha: Double, beta: Double, rng: Random): Double =
-      val x = gammaSample(alpha, rng)
-      val y = gammaSample(beta, rng)
-      if x + y > 0 then x / (x + y) else 0.5
+  /** Accumulated flow totals from one step, built via fold over
+    * HhMonthlyResult.
+    */
+  private case class StepTotals(
+      income: Double = 0.0,
+      unempBenefits: Double = 0.0,
+      debtService: Double = 0.0,
+      depositInterest: Double = 0.0,
+      goodsConsumption: Double = 0.0,
+      rent: Double = 0.0,
+      remittances: Double = 0.0,
+      pit: Double = 0.0,
+      socialTransfers: Double = 0.0,
+      consumerDebtService: Double = 0.0,
+      consumerOrigination: Double = 0.0,
+      consumerDefault: Double = 0.0,
+      consumerPrincipal: Double = 0.0,
+      retrainingAttempts: Int = 0,
+      retrainingSuccesses: Int = 0,
+      voluntaryQuits: Int = 0,
+  ):
+    def add(r: HhMonthlyResult): StepTotals = copy(
+      income = income + r.income,
+      unempBenefits = unempBenefits + r.benefit,
+      debtService = debtService + r.debtService,
+      depositInterest = depositInterest + r.depositInterest,
+      goodsConsumption = goodsConsumption + r.consumption,
+      rent = rent + r.rent,
+      remittances = remittances + r.remittance,
+      pit = pit + r.pitTax,
+      socialTransfers = socialTransfers + r.socialTransfer,
+      consumerDebtService = consumerDebtService + r.credit.debtService,
+      consumerOrigination = consumerOrigination + r.credit.newLoan,
+      consumerDefault = consumerDefault + r.credit.defaultAmt,
+      consumerPrincipal = consumerPrincipal + r.credit.principal,
+      retrainingAttempts = retrainingAttempts + r.retrainingAttempt,
+      retrainingSuccesses = retrainingSuccesses + r.retrainingSuccess,
+      voluntaryQuits = voluntaryQuits + r.voluntaryQuit,
+    )
 
-    /** Sample from Gamma(shape, 1) using Marsaglia-Tsang method. */
-    private def gammaSample(shape: Double, rng: Random): Double =
-      if shape < 1.0 then gammaSample(shape + 1.0, rng) * Math.pow(rng.nextDouble(), 1.0 / shape)
-      else
-        val d      = shape - 1.0 / 3.0
-        val c      = 1.0 / Math.sqrt(9.0 * d)
-        var result = 0.0
-        var done   = false
-        while !done do
-          var x = rng.nextGaussian()
-          var v = 1.0 + c * x
-          while v <= 0 do
-            x = rng.nextGaussian()
-            v = 1.0 + c * x
-          v = v * v * v
-          val u = rng.nextDouble()
-          if u < 1.0 - 0.0331 * x * x * x * x then
-            result = d * v
-            done = true
-          else if Math.log(u) < 0.5 * x * x + d * (1.0 - v + Math.log(v)) then
-            result = d * v
-            done = true
-        result
+  /** Build per-bank flow arrays from (BankId, HhMonthlyResult) pairs. */
+  private def buildPerBankFlows(flows: Vector[(BankId, HhMonthlyResult)], nBanks: Int): PerBankHhFlows =
+    val inc    = new Array[Double](nBanks)
+    val cons   = new Array[Double](nBanks)
+    val dSvc   = new Array[Double](nBanks)
+    val depInt = new Array[Double](nBanks)
+    val ccSvc  = new Array[Double](nBanks)
+    val ccOrig = new Array[Double](nBanks)
+    val ccDef  = new Array[Double](nBanks)
+    val ccPrin = new Array[Double](nBanks)
+    flows.foreach { case (bankId, r) =>
+      val bId = bankId.toInt
+      inc(bId) += r.income
+      cons(bId) += r.consumption + r.rent
+      dSvc(bId) += r.debtService
+      depInt(bId) += r.depositInterest
+      ccSvc(bId) += r.credit.debtService
+      ccOrig(bId) += r.credit.newLoan
+      ccDef(bId) += r.credit.defaultAmt
+      ccPrin(bId) += r.credit.principal
+    }
+    PerBankHhFlows(inc, cons, dSvc, depInt, ccSvc, ccOrig, ccDef, ccPrin)
 
   // ---- Extracted per-HH pipeline types ----
 
@@ -645,40 +667,9 @@ object Household:
         case _                                          =>
       idx += 1
 
-    // Per-bank flow accumulators (only when bankRates provided)
-    val perBankArrays = bankRates.map { _ =>
-      (
-        new Array[Double](nBanks), // inc
-        new Array[Double](nBanks), // cons
-        new Array[Double](nBanks), // dSvc
-        new Array[Double](nBanks), // depInt
-        new Array[Double](nBanks), // ccDSvc
-        new Array[Double](nBanks), // ccOrig
-        new Array[Double](nBanks), // ccDef
-        new Array[Double](nBanks), // ccPrin
-      )
-    }
-
-    // Mutable accumulators for flows (folded from per-HH results)
-    var totalIncome              = 0.0
-    var totalUnempBenefits       = 0.0
-    var totalDebtService         = 0.0
-    var totalDepositInterest     = 0.0
-    var totalGoodsConsumption    = 0.0
-    var totalRent                = 0.0
-    var totalRemittances         = 0.0
-    var totalPit                 = 0.0
-    var totalSocialTransfers     = 0.0
-    var totalConsumerDebtService = 0.0
-    var totalConsumerOrigination = 0.0
-    var totalConsumerDefault     = 0.0
-    var totalConsumerPrincipal   = 0.0
-    var retrainingAttempts       = 0
-    var retrainingSuccesses      = 0
-    var voluntaryQuits           = 0
-
-    val updated = households.map { hh =>
-      if hh.status == HhStatus.Bankrupt then hh // absorbing barrier
+    // Map each HH to (updatedState, Option[(bankId, result)])
+    val mapped = households.map: hh =>
+      if hh.status == HhStatus.Bankrupt then (hh, None) // absorbing barrier
       else
         val result = processHousehold(
           hh,
@@ -690,45 +681,18 @@ object Household:
           sectorVacancies,
           distressedIds,
         )
+        (result.newState, Some((hh.bankId, result)))
 
-        // Accumulate flows
-        totalIncome += result.income
-        totalUnempBenefits += result.benefit
-        totalDebtService += result.debtService
-        totalDepositInterest += result.depositInterest
-        totalGoodsConsumption += result.consumption
-        totalRent += result.rent
-        totalRemittances += result.remittance
-        totalPit += result.pitTax
-        totalSocialTransfers += result.socialTransfer
-        totalConsumerDebtService += result.credit.debtService
-        totalConsumerOrigination += result.credit.newLoan
-        totalConsumerDefault += result.credit.defaultAmt
-        totalConsumerPrincipal += result.credit.principal
-        retrainingAttempts += result.retrainingAttempt
-        retrainingSuccesses += result.retrainingSuccess
-        voluntaryQuits += result.voluntaryQuit
+    val updated = mapped.map(_._1)
+    val flows   = mapped.flatMap(_._2)
 
-        // Per-bank accumulation
-        perBankArrays.foreach { case (pbInc, pbCons, pbDSvc, pbDepInt, pbCcDSvc, pbCcOrig, pbCcDef, pbCcPrin) =>
-          val bId = hh.bankId.toInt
-          pbInc(bId) += result.income
-          pbCons(bId) += result.consumption + result.rent
-          pbDSvc(bId) += result.debtService
-          pbDepInt(bId) += result.depositInterest
-          pbCcDSvc(bId) += result.credit.debtService
-          pbCcOrig(bId) += result.credit.newLoan
-          pbCcDef(bId) += result.credit.defaultAmt
-          pbCcPrin(bId) += result.credit.principal
-        }
-
-        result.newState
-    }
+    // Fold totals (immutable)
+    val t = flows.foldLeft(StepTotals())((acc, br) => acc.add(br._2))
 
     val agg                    =
-      computeAggregates(updated, marketWage, reservationWage, importAdj, retrainingAttempts, retrainingSuccesses)
-    val actualTotalConsumption = totalGoodsConsumption + totalRent
-    val actualImportCons       = totalGoodsConsumption * Math.min(ImportRatioCap, importAdj)
+      computeAggregates(updated, marketWage, reservationWage, importAdj, t.retrainingAttempts, t.retrainingSuccesses)
+    val actualTotalConsumption = t.goodsConsumption + t.rent
+    val actualImportCons       = t.goodsConsumption * Math.min(ImportRatioCap, importAdj)
     val actualDomesticCons     = actualTotalConsumption - actualImportCons
     // Sector mobility rate: fraction of employed in different sector than lastSectorIdx
     val smRate                 = if p.flags.sectoralMobility then
@@ -741,27 +705,25 @@ object Household:
       else 0.0
     else 0.0
     val correctedAgg           = agg.copy(
-      totalIncome = PLN(totalIncome),
+      totalIncome = PLN(t.income),
       consumption = PLN(actualTotalConsumption),
       importConsumption = PLN(actualImportCons),
       domesticConsumption = PLN(actualDomesticCons),
-      totalUnempBenefits = PLN(totalUnempBenefits),
-      totalDebtService = PLN(totalDebtService),
-      totalDepositInterest = PLN(totalDepositInterest),
-      totalRent = PLN(totalRent),
-      voluntaryQuits = voluntaryQuits,
+      totalUnempBenefits = PLN(t.unempBenefits),
+      totalDebtService = PLN(t.debtService),
+      totalDepositInterest = PLN(t.depositInterest),
+      totalRent = PLN(t.rent),
+      voluntaryQuits = t.voluntaryQuits,
       sectorMobilityRate = Ratio(smRate),
-      totalRemittances = PLN(totalRemittances),
-      totalPit = PLN(totalPit),
-      totalSocialTransfers = PLN(totalSocialTransfers),
-      totalConsumerDebtService = PLN(totalConsumerDebtService),
-      totalConsumerOrigination = PLN(totalConsumerOrigination),
-      totalConsumerDefault = PLN(totalConsumerDefault),
-      totalConsumerPrincipal = PLN(totalConsumerPrincipal),
+      totalRemittances = PLN(t.remittances),
+      totalPit = PLN(t.pit),
+      totalSocialTransfers = PLN(t.socialTransfers),
+      totalConsumerDebtService = PLN(t.consumerDebtService),
+      totalConsumerOrigination = PLN(t.consumerOrigination),
+      totalConsumerDefault = PLN(t.consumerDefault),
+      totalConsumerPrincipal = PLN(t.consumerPrincipal),
     )
-    val pbf                    = perBankArrays.map { case (pbInc, pbCons, pbDSvc, pbDepInt, pbCcDSvc, pbCcOrig, pbCcDef, pbCcPrin) =>
-      PerBankHhFlows(pbInc, pbCons, pbDSvc, pbDepInt, pbCcDSvc, pbCcOrig, pbCcDef, pbCcPrin)
-    }
+    val pbf                    = if bankRates.isDefined then Some(buildPerBankFlows(flows, nBanks)) else None
     (updated, correctedAgg, pbf)
 
   /** Base income, benefit, and updated status for one HH. */
