@@ -176,7 +176,7 @@ object Banking:
       banks: Vector[BankState],
       interbankRate: Rate,
       configs: Vector[Config],
-      interbankCurve: Option[YieldCurve.State] = None,
+      interbankCurve: Option[YieldCurve.State],
   ):
     def aggregate: sfc.accounting.BankingAggregate =
       sfc.accounting.BankingAggregate(
@@ -242,7 +242,7 @@ object Banking:
         corpBondHoldings = PLN.Zero,
       )
     }
-    State(banks, Rate.Zero, configs)
+    State(banks, Rate.Zero, configs, None)
 
   // ---------------------------------------------------------------------------
   // Bank assignment

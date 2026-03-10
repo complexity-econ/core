@@ -588,4 +588,4 @@ object Generators:
       banks  <- Gen.listOfN(nBanks, BankState).map(_.toVector.zipWithIndex.map((b, i) => b.copy(id = BankId(i))))
       rate   <- genRate
       cfgs   <- Gen.listOfN(nBanks, Config).map(_.toVector.zipWithIndex.map((c, i) => c.copy(id = BankId(i))))
-    yield Banking.State(banks, Rate(rate), cfgs)
+    yield Banking.State(banks, Rate(rate), cfgs, None)

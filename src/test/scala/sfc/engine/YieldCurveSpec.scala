@@ -69,7 +69,7 @@ class YieldCurveSpec extends AnyFlatSpec with Matchers:
   // =========================================================================
 
   "Banking.State" should "default to None for interbankCurve" in {
-    val bs = Banking.State(Vector.empty, Rate(0.05), Vector.empty)
+    val bs = Banking.State(Vector.empty, Rate(0.05), Vector.empty, None)
     bs.interbankCurve shouldBe None
   }
 
