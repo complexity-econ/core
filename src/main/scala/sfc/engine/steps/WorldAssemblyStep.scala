@@ -333,8 +333,8 @@ object WorldAssemblyStep:
 
             val nNeighbors   = Math.min(6, livingIds.length)
             val newNeighbors =
-              if nNeighbors > 0 then Random.shuffle(livingIds.toList).take(nNeighbors).map(FirmId(_)).toArray
-              else Array.empty[FirmId]
+              if nNeighbors > 0 then Random.shuffle(livingIds.toList).take(nNeighbors).map(FirmId(_)).toVector
+              else Vector.empty[FirmId]
 
             val newBankId = Banking.assignBank(SectorIdx(newSector), Banking.DefaultConfigs, Random)
 

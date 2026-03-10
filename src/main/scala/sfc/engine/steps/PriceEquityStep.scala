@@ -225,7 +225,7 @@ object PriceEquityStep:
             ),
           ),
           sector = sec,
-          neighbors = adj(i).toArray.map(FirmId(_)),
+          neighbors = adj(i).iterator.map(FirmId(_)).toVector,
           bankId = BankId(0),
           equityRaised = PLN.Zero,
           initialSize = newSize,
@@ -239,7 +239,7 @@ object PriceEquityStep:
         // For surviving firms: only allocate a new neighbors array if the neighbor set actually changed
         // (an edge was added/removed due to a nearby firm being replaced). This avoids unnecessary
         // garbage collection pressure in the common case where most firms are unaffected.
-        val newNb = adj(i).toArray.map(FirmId(_))
+        val newNb = adj(i).iterator.map(FirmId(_)).toVector
         if newNb.length != firms(i).neighbors.length then firms(i).copy(neighbors = newNb)
         else firms(i)
     }.toVector

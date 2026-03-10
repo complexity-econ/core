@@ -98,34 +98,34 @@ class FirmSpec extends AnyFlatSpec with Matchers:
 
   "Firm.computeLocalAutoRatio" should "return 0.0 when no automated neighbors" in {
     val firms = Vector(
-      mkFirmWithNeighbors(0, TechState.Traditional(10), Array(FirmId(1), FirmId(2))),
-      mkFirmWithNeighbors(1, TechState.Traditional(10), Array(FirmId(0))),
-      mkFirmWithNeighbors(2, TechState.Traditional(10), Array(FirmId(0))),
+      mkFirmWithNeighbors(0, TechState.Traditional(10), Vector(FirmId(1), FirmId(2))),
+      mkFirmWithNeighbors(1, TechState.Traditional(10), Vector(FirmId(0))),
+      mkFirmWithNeighbors(2, TechState.Traditional(10), Vector(FirmId(0))),
     )
     Firm.computeLocalAutoRatio(firms(0), firms) shouldBe 0.0
   }
 
   it should "return 1.0 when all neighbors are Automated" in {
     val firms = Vector(
-      mkFirmWithNeighbors(0, TechState.Traditional(10), Array(FirmId(1), FirmId(2))),
-      mkFirmWithNeighbors(1, TechState.Automated(1.2), Array(FirmId(0))),
-      mkFirmWithNeighbors(2, TechState.Automated(1.1), Array(FirmId(0))),
+      mkFirmWithNeighbors(0, TechState.Traditional(10), Vector(FirmId(1), FirmId(2))),
+      mkFirmWithNeighbors(1, TechState.Automated(1.2), Vector(FirmId(0))),
+      mkFirmWithNeighbors(2, TechState.Automated(1.1), Vector(FirmId(0))),
     )
     Firm.computeLocalAutoRatio(firms(0), firms) shouldBe 1.0
   }
 
   it should "count Hybrid as automated in ratio" in {
     val firms = Vector(
-      mkFirmWithNeighbors(0, TechState.Traditional(10), Array(FirmId(1), FirmId(2), FirmId(3))),
-      mkFirmWithNeighbors(1, TechState.Automated(1.2), Array(FirmId(0))),
-      mkFirmWithNeighbors(2, TechState.Hybrid(5, 1.0), Array(FirmId(0))),
-      mkFirmWithNeighbors(3, TechState.Traditional(10), Array(FirmId(0))),
+      mkFirmWithNeighbors(0, TechState.Traditional(10), Vector(FirmId(1), FirmId(2), FirmId(3))),
+      mkFirmWithNeighbors(1, TechState.Automated(1.2), Vector(FirmId(0))),
+      mkFirmWithNeighbors(2, TechState.Hybrid(5, 1.0), Vector(FirmId(0))),
+      mkFirmWithNeighbors(3, TechState.Traditional(10), Vector(FirmId(0))),
     )
     Firm.computeLocalAutoRatio(firms(0), firms) shouldBe (2.0 / 3.0 +- 0.001)
   }
 
   it should "return 0.0 for firm with no neighbors" in {
-    val firms = Vector(mkFirmWithNeighbors(0, TechState.Traditional(10), Array.empty[FirmId]))
+    val firms = Vector(mkFirmWithNeighbors(0, TechState.Traditional(10), Vector.empty[FirmId]))
     Firm.computeLocalAutoRatio(firms(0), firms) shouldBe 0.0
   }
 
@@ -158,7 +158,7 @@ class FirmSpec extends AnyFlatSpec with Matchers:
 
   // --- helpers ---
 
-  private def mkFirmWithNeighbors(id: Int, tech: TechState, neighbors: Array[FirmId]): Firm.State =
+  private def mkFirmWithNeighbors(id: Int, tech: TechState, neighbors: Vector[FirmId]): Firm.State =
     Firm.State(
       FirmId(id),
       PLN(50000.0),
@@ -189,7 +189,7 @@ class FirmSpec extends AnyFlatSpec with Matchers:
       1.0,
       Ratio(0.5),
       SectorIdx(sector),
-      Array.empty[FirmId],
+      Vector.empty[FirmId],
       bankId = BankId(0),
       equityRaised = PLN.Zero,
       initialSize = 10,
