@@ -286,8 +286,9 @@ object Banking:
     * stress = aggNplRate / stressThreshold, clipped to [0,1].
     */
   def interbankRate(banks: Vector[BankState], refRate: Rate)(using p: SimParams): Rate =
-    val aggNpl      = banks.filterNot(_.failed).kahanSumBy(_.nplAmount.toDouble)
-    val aggLoans    = banks.filterNot(_.failed).kahanSumBy(_.loans.toDouble)
+    val alive       = banks.filterNot(_.failed)
+    val aggNpl      = alive.kahanSumBy(_.nplAmount.toDouble)
+    val aggLoans    = alive.kahanSumBy(_.loans.toDouble)
     val aggNplRate  = if aggLoans > MinBalanceThreshold then aggNpl / aggLoans else 0.0
     val stress      = Math.max(0.0, Math.min(1.0, aggNplRate / p.banking.stressThreshold.toDouble))
     val depositRate = Math.max(0.0, refRate.toDouble - DepositSpreadFromRef)
@@ -301,7 +302,7 @@ object Banking:
   /** Can this bank lend `amount`? Checks projected CAR, LCR/NSFR, and
     * stochastic approval probability penalised by NPL ratio.
     */
-  def canLend(bank: BankState, amount: PLN, rng: Random, ccyb: Rate = Rate.Zero)(using p: SimParams): Boolean =
+  def canLend(bank: BankState, amount: PLN, rng: Random, ccyb: Rate)(using p: SimParams): Boolean =
     if bank.failed then false
     else
       val projectedCar =
@@ -318,7 +319,7 @@ object Banking:
   // ---------------------------------------------------------------------------
 
   /** Clear the interbank market: excess reserves → lender/borrower netting. */
-  def clearInterbank(banks: Vector[BankState], configs: Vector[Config], rate: Rate)(using
+  def clearInterbank(banks: Vector[BankState], configs: Vector[Config])(using
       p: SimParams,
   ): Vector[BankState] =
     val excess = banks
@@ -354,9 +355,9 @@ object Banking:
     */
   def checkFailures(
       banks: Vector[BankState],
-      month: Int,            // simulation month (recorded in BankStatus.Failed)
-      enabled: Boolean,      // whether failure mechanism is active
-      ccyb: Rate = Rate.Zero, // countercyclical capital buffer
+      month: Int,       // simulation month (recorded in BankStatus.Failed)
+      enabled: Boolean, // whether failure mechanism is active
+      ccyb: Rate,       // countercyclical capital buffer
   )(using p: SimParams): FailureCheckResult =
     if !enabled then
       FailureCheckResult(
@@ -413,23 +414,29 @@ object Banking:
     val newlyFailed = banks.filter(b => b.failed && b.deposits > PLN.Zero)
     if newlyFailed.isEmpty then ResolutionResult(banks, BankId.NoBank)
     else
-      val absorberId = healthiestBankId(banks)
-      val resolved   = banks.map: b =>
+      val absorberId                                           = healthiestBankId(banks)
+      val toAbsorb                                             = newlyFailed.filter(_.id != absorberId)
+      // Single-pass aggregation of all flows from failed banks
+      val (addDep, addLoans, addBonds, addCorpB, addCC, addIB) =
+        toAbsorb.foldLeft((0.0, 0.0, 0.0, 0.0, 0.0, 0.0)):
+          case ((dep, ln, bd, cb, cc, ib), f) =>
+            (
+              dep + f.deposits.toDouble,
+              ln + (f.loans - f.nplAmount).toDouble,
+              bd + f.govBondHoldings.toDouble,
+              cb + f.corpBondHoldings.toDouble,
+              cc + f.consumerLoans.toDouble,
+              ib + f.interbankNet.toDouble,
+            )
+      val resolved                                             = banks.map: b =>
         if b.id == absorberId then
-          val toAbsorb           = newlyFailed.filter(_.id != absorberId)
-          val addedDeposits      = toAbsorb.kahanSumBy(_.deposits.toDouble)
-          val addedLoans         = toAbsorb.kahanSumBy(f => (f.loans - f.nplAmount).toDouble)
-          val addedBonds         = toAbsorb.kahanSumBy(_.govBondHoldings.toDouble)
-          val addedCorpBonds     = toAbsorb.kahanSumBy(_.corpBondHoldings.toDouble)
-          val addedConsumerLoans = toAbsorb.kahanSumBy(_.consumerLoans.toDouble)
-          val addedInterbank     = toAbsorb.kahanSumBy(_.interbankNet.toDouble)
           b.copy(
-            deposits = b.deposits + PLN(addedDeposits),
-            loans = b.loans + PLN(Math.max(0, addedLoans)),
-            govBondHoldings = b.govBondHoldings + PLN(addedBonds),
-            corpBondHoldings = b.corpBondHoldings + PLN(addedCorpBonds),
-            consumerLoans = b.consumerLoans + PLN(addedConsumerLoans),
-            interbankNet = b.interbankNet + PLN(addedInterbank),
+            deposits = b.deposits + PLN(addDep),
+            loans = b.loans + PLN(Math.max(0, addLoans)),
+            govBondHoldings = b.govBondHoldings + PLN(addBonds),
+            corpBondHoldings = b.corpBondHoldings + PLN(addCorpB),
+            consumerLoans = b.consumerLoans + PLN(addCC),
+            interbankNet = b.interbankNet + PLN(addIB),
             status = BankStatus.Active(0),
           )
         else if b.failed && b.deposits > PLN.Zero then

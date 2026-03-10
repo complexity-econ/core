@@ -54,7 +54,7 @@ class BankingSectorPropertySpec extends AnyFlatSpec with Matchers with ScalaChec
 
   "clearInterbank" should "always produce interbankNet that sums to zero" in
     forAll(genBanking.State) { (bs: Banking.State) =>
-      val cleared = Banking.clearInterbank(bs.banks, bs.configs, bs.interbankRate)
+      val cleared = Banking.clearInterbank(bs.banks, bs.configs)
       val netSum  = cleared.map(_.interbankNet.toDouble).sum
       netSum shouldBe 0.0 +- 1.0 // tolerance for floating-point
     }
@@ -128,7 +128,7 @@ class BankingSectorPropertySpec extends AnyFlatSpec with Matchers with ScalaChec
   "checkFailures" should "never un-fail a bank" in
     forAll(genBanking.State) { (bs: Banking.State) =>
       val failedBefore = bs.banks.filter(_.failed).map(_.id).toSet
-      val afterCheck   = Banking.checkFailures(bs.banks, 50, enabled = true)
+      val afterCheck   = Banking.checkFailures(bs.banks, 50, enabled = true, Rate.Zero)
       val failedAfter  = afterCheck.banks.filter(_.failed).map(_.id).toSet
       failedBefore.subsetOf(failedAfter) shouldBe true
     }
@@ -137,7 +137,7 @@ class BankingSectorPropertySpec extends AnyFlatSpec with Matchers with ScalaChec
 
   "clearInterbank" should "keep reserves non-negative" in
     forAll(genBanking.State) { (bs: Banking.State) =>
-      val cleared = Banking.clearInterbank(bs.banks, bs.configs, bs.interbankRate)
+      val cleared = Banking.clearInterbank(bs.banks, bs.configs)
       cleared.foreach(_.reservesAtNbp should be >= PLN.Zero)
     }
 

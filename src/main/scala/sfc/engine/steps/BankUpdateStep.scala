@@ -338,7 +338,7 @@ object BankUpdateStep:
       )
     }
     val ibRate               = Banking.interbankRate(updatedBanks, in.w.nbp.referenceRate)
-    val afterInterbank       = Banking.clearInterbank(updatedBanks, bs.configs, ibRate)
+    val afterInterbank       = Banking.clearInterbank(updatedBanks, bs.configs)
     val afterBonds           =
       if p.flags.govBondMarket then Banking.allocateBonds(afterInterbank, PLN(actualBondChange))
       else afterInterbank

@@ -117,7 +117,7 @@ class BankingSectorSpec extends AnyFlatSpec with Matchers:
 
   "Banking.canLend" should "return false for failed bank" in {
     val bank = mkBank(capital = PLN(1e5), status = BankStatus.Failed(30))
-    Banking.canLend(bank, PLN(1000.0), new Random(42)) shouldBe false
+    Banking.canLend(bank, PLN(1000.0), new Random(42), Rate.Zero) shouldBe false
   }
 
   it should "reject when projected CAR too low" in {
@@ -125,7 +125,7 @@ class BankingSectorSpec extends AnyFlatSpec with Matchers:
     // Adding 10000 loan -> projected = 8000/110000 = 0.0727 < 0.08
     val bank    = mkBank(loans = PLN(100000.0), capital = PLN(8000.0))
     // Need to test multiple times since there's a stochastic element
-    val results = (0 until 100).map(_ => Banking.canLend(bank, PLN(10000.0), new Random(42)))
+    val results = (0 until 100).map(_ => Banking.canLend(bank, PLN(10000.0), new Random(42), Rate.Zero))
     results.forall(_ == false) shouldBe true
   }
 
@@ -158,7 +158,7 @@ class BankingSectorSpec extends AnyFlatSpec with Matchers:
       mkBank(id = 1, deposits = PLN(5e5), loans = PLN(8e5), capital = PLN(1e5)),
       mkBank(id = 2, deposits = PLN(8e5), loans = PLN(2e5), capital = PLN(1.5e5), govBondHoldings = PLN(5e4)),
     )
-    val cleared = Banking.clearInterbank(banks, configs.take(3), Rate(0.05))
+    val cleared = Banking.clearInterbank(banks, configs.take(3))
     val netSum  = cleared.map(_.interbankNet.toDouble).sum
     netSum shouldBe 0.0 +- 0.01
   }
@@ -168,7 +168,7 @@ class BankingSectorSpec extends AnyFlatSpec with Matchers:
       mkBank(id = 0, loans = PLN(3e5)),
       mkBank(id = 1, deposits = PLN(5e5), loans = PLN(8e5), capital = PLN(1e5), status = BankStatus.Failed(30)),
     )
-    val cleared = Banking.clearInterbank(banks, configs.take(2), Rate(0.05))
+    val cleared = Banking.clearInterbank(banks, configs.take(2))
     cleared(1).interbankNet shouldBe PLN.Zero
   }
 
@@ -178,14 +178,14 @@ class BankingSectorSpec extends AnyFlatSpec with Matchers:
     val banks = Vector(
       mkBank(capital = PLN(1000.0), status = BankStatus.Active(5)), // Very low CAR
     )
-    val result = Banking.checkFailures(banks, 30, enabled = false)
+    val result = Banking.checkFailures(banks, 30, enabled = false, Rate.Zero)
     result.anyFailed shouldBe false
     result.banks(0).failed shouldBe false
   }
 
   it should "trigger after 3 consecutive months of low CAR" in {
     val bank   = mkBank(capital = PLN(1000.0), status = BankStatus.Active(2))
-    val result = Banking.checkFailures(Vector(bank), 30, enabled = true)
+    val result = Banking.checkFailures(Vector(bank), 30, enabled = true, Rate.Zero)
     result.anyFailed shouldBe true
     result.banks(0).failed shouldBe true
     result.banks(0).capital shouldBe PLN.Zero // Shareholders wiped
@@ -193,7 +193,7 @@ class BankingSectorSpec extends AnyFlatSpec with Matchers:
 
   it should "reset consecutive counter when CAR recovers" in {
     val bank   = mkBank(status = BankStatus.Active(2)) // CAR = 0.20 > MinCar
-    val result = Banking.checkFailures(Vector(bank), 30, enabled = true)
+    val result = Banking.checkFailures(Vector(bank), 30, enabled = true, Rate.Zero)
     result.anyFailed shouldBe false
     result.banks(0).consecutiveLowCar shouldBe 0
   }
