@@ -27,15 +27,18 @@ case class BankRates(
 
 /** Per-bank HH flow accumulator for multi-bank mode (one per BankId). */
 case class PerBankFlow(
-    income: Double = 0.0,              // total income (incl. deposit interest)
-    consumption: Double = 0.0,         // total consumption (goods + rent)
-    debtService: Double = 0.0,         // total mortgage/secured debt service
-    depositInterest: Double = 0.0,     // total deposit interest paid
-    consumerDebtService: Double = 0.0, // consumer (unsecured) debt service
-    consumerOrigination: Double = 0.0, // new consumer loans originated
-    consumerDefault: Double = 0.0,     // consumer loan defaults (bankruptcy write-offs)
-    consumerPrincipal: Double = 0.0,   // consumer loan principal repaid
+    income: Double,              // total income (incl. deposit interest)
+    consumption: Double,         // total consumption (goods + rent)
+    debtService: Double,         // total mortgage/secured debt service
+    depositInterest: Double,     // total deposit interest paid
+    consumerDebtService: Double, // consumer (unsecured) debt service
+    consumerOrigination: Double, // new consumer loans originated
+    consumerDefault: Double,     // consumer loan defaults (bankruptcy write-offs)
+    consumerPrincipal: Double,   // consumer loan principal repaid
 )
+
+object PerBankFlow:
+  val zero: PerBankFlow = PerBankFlow(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
 
 object Household:
 
@@ -279,7 +282,7 @@ object Household:
 
   /** Build per-bank flow vector from (BankId, HhMonthlyResult) pairs. */
   private def buildPerBankFlows(flows: Vector[(BankId, HhMonthlyResult)], nBanks: Int): Vector[PerBankFlow] =
-    val zero = Vector.fill(nBanks)(PerBankFlow())
+    val zero = Vector.fill(nBanks)(PerBankFlow.zero)
     flows.foldLeft(zero) { case (acc, (bankId, r)) =>
       val bId = bankId.toInt
       val cur = acc(bId)
