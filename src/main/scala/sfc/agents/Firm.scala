@@ -8,6 +8,9 @@ import scala.util.Random
 
 // ---- Domain types ----
 
+/** Reason a firm exited the simulation — carried in `TechState.Bankrupt` and
+  * `Decision.UpgradeFailed`.
+  */
 sealed trait BankruptReason
 object BankruptReason:
   case object AiDebtTrap          extends BankruptReason
@@ -17,6 +20,9 @@ object BankruptReason:
   case object LaborCostInsolvency extends BankruptReason
   case class Other(msg: String)   extends BankruptReason
 
+/** Technology regime of a firm. Determines worker count, capacity, and cost
+  * structure.
+  */
 sealed trait TechState
 object TechState:
   case class Traditional(workers: Int)                  extends TechState
@@ -24,61 +30,73 @@ object TechState:
   case class Automated(efficiency: Double)              extends TechState
   case class Bankrupt(reason: BankruptReason)           extends TechState
 
+/** Firm agent: stateless functions operating on `State`. Entry point:
+  * `process`.
+  */
 object Firm:
 
   // ---- Data types ----
 
+  /** Full mutable state of a single firm, carried across simulation months. */
   case class State(
-      id: FirmId,
-      cash: PLN,
-      debt: PLN,
-      tech: TechState,
-      riskProfile: Ratio,
-      innovationCostFactor: Double,
-      digitalReadiness: Ratio,
-      sector: SectorIdx,        // Index into SectorDefs
-      neighbors: Array[FirmId], // Network adjacency (firm IDs)
-      bankId: BankId,           // Multi-bank: index into Banking.State.banks
-      equityRaised: PLN,        // GPW: cumulative equity raised via IPO/SPO
-      initialSize: Int,         // Firm size at creation (v6.0: heterogeneous when FIRM_SIZE_DIST=gus)
-      capitalStock: PLN,        // Physical capital stock (PLN)
-      bondDebt: PLN,            // Outstanding corporate bond debt
-      foreignOwned: Boolean,    // FDI
-      inventory: PLN,           // Inventory stock (PLN)
-      greenCapital: PLN,        // Green capital stock (PLN)
+      id: FirmId,                   // Unique firm identifier (index into firms vector)
+      cash: PLN,                    // Current cash balance (can be negative)
+      debt: PLN,                    // Outstanding bank loan debt
+      tech: TechState,              // Current technology regime
+      riskProfile: Ratio,           // Propensity to invest / adopt technology [0,1]
+      innovationCostFactor: Double, // Firm-specific CAPEX multiplier (drawn at creation)
+      digitalReadiness: Ratio,      // Digital readiness score [0,1], gates tech upgrades
+      sector: SectorIdx,            // Index into SectorDefs
+      neighbors: Array[FirmId],     // Network adjacency (firm IDs)
+      bankId: BankId,               // Multi-bank: index into Banking.State.banks
+      equityRaised: PLN,            // GPW: cumulative equity raised via IPO/SPO
+      initialSize: Int,             // Firm size at creation (heterogeneous when FIRM_SIZE_DIST=gus)
+      capitalStock: PLN,            // Physical capital stock (PLN)
+      bondDebt: PLN,                // Outstanding corporate bond debt
+      foreignOwned: Boolean,        // FDI: subject to profit shifting & repatriation
+      inventory: PLN,               // Inventory stock (PLN)
+      greenCapital: PLN,            // Green capital stock (PLN)
   )
 
+  /** Output of `process` for one firm in one month — updated state + flow
+    * variables.
+    */
   case class Result(
-      firm: State,
-      taxPaid: PLN,
-      capexSpent: PLN,
-      techImports: PLN,
-      newLoan: PLN,
-      equityIssuance: PLN,
-      grossInvestment: PLN,
-      bondIssuance: PLN,
-      profitShiftCost: PLN,
-      fdiRepatriation: PLN,
-      inventoryChange: PLN,
-      citEvasion: PLN,
-      energyCost: PLN,
-      greenInvestment: PLN,
+      firm: State,          // Updated firm state after this month
+      taxPaid: PLN,         // CIT actually paid (after informal evasion)
+      capexSpent: PLN,      // Technology upgrade CAPEX (AI or hybrid)
+      techImports: PLN,     // Import content of CAPEX (forex demand)
+      newLoan: PLN,         // New bank loan taken for upgrade
+      equityIssuance: PLN,  // GPW equity raised this month (filled by S4)
+      grossInvestment: PLN, // Physical capital investment this month
+      bondIssuance: PLN,    // Corporate bond issuance (filled by S4)
+      profitShiftCost: PLN, // FDI profit shifting outflow
+      fdiRepatriation: PLN, // FDI dividend repatriation outflow
+      inventoryChange: PLN, // Net inventory change (+ accumulation, - drawdown)
+      citEvasion: PLN,      // CIT evaded via informal economy
+      energyCost: PLN,      // Total energy + ETS cost this month
+      greenInvestment: PLN, // Green capital investment this month
   )
   object Result:
+    /** Convenience factory for tests — all flow fields set to `PLN.Zero`. */
     def zero(firm: State): Result =
       Result(firm, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
 
+  /** Monthly profit-and-loss breakdown, computed by `computePnL`. */
   case class PnL(
-      revenue: PLN,
-      costs: PLN,
-      tax: PLN,
-      netAfterTax: PLN,
-      profitShiftCost: PLN,
-      energyCost: PLN,
+      revenue: PLN,         // Gross revenue (capacity × demand × price)
+      costs: PLN,           // Total costs including profit shifting
+      tax: PLN,             // CIT on positive profit
+      netAfterTax: PLN,     // Profit minus tax (can be negative)
+      profitShiftCost: PLN, // FDI profit shifting cost (zero if not foreign-owned)
+      energyCost: PLN,      // Energy + ETS carbon surcharge
   )
   object PnL:
     val zero: PnL = PnL(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
 
+  /** Intermediate ADT from `decide` → `execute`. Separates stochastic choices
+    * from state mutation.
+    */
   sealed trait Decision
   object Decision:
     case object StayBankrupt                                                                                                  extends Decision
@@ -91,10 +109,14 @@ object Firm:
 
   // ---- Queries ----
 
+  /** True unless the firm is in `Bankrupt` tech state. */
   def isAlive(f: State): Boolean = f.tech match
     case _: TechState.Bankrupt => false
     case _                     => true
 
+  /** Headcount: workers for Traditional/Hybrid, skeleton crew for Automated, 0
+    * for Bankrupt.
+    */
   def workerCount(f: State)(using SimParams): Int = f.tech match
     case TechState.Traditional(w) => w
     case TechState.Hybrid(w, _)   => w
@@ -111,6 +133,9 @@ object Firm:
     if p.flags.unions then base + base * (p.labor.unionWagePremium * p.labor.unionDensity(sectorIdx.toInt))
     else base
 
+  /** Monthly production capacity in PLN. Scales with tech, sector, firm size;
+    * augmented by physical capital (Cobb-Douglas) when enabled.
+    */
   def computeCapacity(f: State)(using p: SimParams): PLN =
     val sec       = SectorDefs(f.sector.toInt)
     val sizeScale = f.initialSize.toDouble / p.pop.workersPerFirm
@@ -134,6 +159,9 @@ object Firm:
     val digiDiscount = (Ratio.One - p.firm.digiCapexDiscount * f.digitalReadiness).toDouble
     p.firm.aiCapex * (SectorDefs(f.sector.toInt).aiCapexMultiplier * f.innovationCostFactor * sizeFactor * digiDiscount)
 
+  /** Hybrid upgrade CAPEX — same scaling as AI CAPEX but using hybrid
+    * multipliers.
+    */
   def computeHybridCapex(f: State)(using p: SimParams): PLN =
     val sizeFactor   = Math.pow(f.initialSize.toDouble / p.pop.workersPerFirm, 0.6)
     val digiDiscount = (Ratio.One - p.firm.digiCapexDiscount * f.digitalReadiness).toDouble
@@ -170,6 +198,9 @@ object Firm:
 
   // ---- Entry point ----
 
+  /** Monthly entry point. Pipeline: decide → execute → greenInvest → invest →
+    * digiDrift → inventory → FDI → informal evasion.
+    */
   def process(
       firm: State,
       w: World,
@@ -188,6 +219,7 @@ object Firm:
 
   // ---- Decide (all match logic + Random rolls) ----
 
+  /** Dispatch to tech-specific decision logic. Contains all Random calls. */
   private def decide(
       firm: State,
       w: World,
@@ -201,6 +233,7 @@ object Firm:
       case TechState.Hybrid(wkrs, aiEff) => decideHybrid(firm, w, lendRate, bankCanLend, wkrs, aiEff)
       case TechState.Traditional(wkrs)   => decideTraditional(firm, w, lendRate, bankCanLend, allFirms, wkrs)
 
+  /** Automated firm: compute PnL, survive or go bankrupt (AI debt trap). */
   private def decideAutomated(
       firm: State,
       w: World,
@@ -211,6 +244,7 @@ object Firm:
     if nc < PLN.Zero then Decision.GoBankrupt(pnl, nc, BankruptReason.AiDebtTrap)
     else Decision.Survive(pnl, nc)
 
+  /** Hybrid firm: attempt full-AI upgrade, else survive/downsize/bankrupt. */
   private def decideHybrid(
       firm: State,
       w: World,
@@ -261,6 +295,9 @@ object Firm:
         else Decision.GoBankrupt(pnl, nc, BankruptReason.HybridInsolvency)
       else Decision.Survive(pnl, nc, drUpdate = Some(ready2))
 
+  /** Traditional firm: evaluate full-AI, hybrid, downsize, digital invest, or
+    * survive/bankrupt. Most complex decision path.
+    */
   private def decideTraditional(
       firm: State,
       w: World,
@@ -385,6 +422,9 @@ object Firm:
 
   // ---- Execute (pure dispatch, zero Random calls) ----
 
+  /** Pure dispatch: map `Decision` → `Result`. No Random calls, no side
+    * effects.
+    */
   private def execute(firm: State, d: Decision)(using p: SimParams): Result =
     d match
       case Decision.StayBankrupt =>
@@ -434,6 +474,10 @@ object Firm:
         val nc = firm.cash + pnl.netAfterTax
         buildResult(firm.copy(cash = nc - cost, digitalReadiness = newDR), pnl)
 
+  /** Assemble `Result` from updated `State` and `PnL`. Flow fields not set by
+    * the decision (equity, investment, inventory, FDI, evasion) default to zero
+    * — filled by post-processing steps.
+    */
   private def buildResult(
       firm: State,
       pnl: PnL,
@@ -487,6 +531,10 @@ object Firm:
 
   // ---- PnL computation ----
 
+  /** Monthly P&L: revenue (capacity × demand × price) minus labor, other costs,
+    * depreciation, AI/hybrid opex, interest, inventory carrying, energy/ETS,
+    * FDI profit shifting. CIT on positive profit.
+    */
   private def computePnL(
       firm: State,
       wage: PLN,
@@ -559,7 +607,11 @@ object Firm:
     val newGK       = postDepGK + actualInv
     r.copy(firm = f.copy(cash = f.cash - actualInv, greenCapital = newGK), greenInvestment = actualInv)
 
-  /** Apply inventory accumulation/drawdown after firm decision. */
+  /** Apply inventory accumulation/drawdown after firm decision. Includes
+    * sector-specific spoilage, target-based adjustment toward desired inventory
+    * level, and stress liquidation at a discount when the firm is
+    * cash-negative.
+    */
   private def applyInventory(r: Result, sectorDemandMult: Double)(using p: SimParams): Result =
     if !p.flags.inventory then return r
     val f                     = r.firm
