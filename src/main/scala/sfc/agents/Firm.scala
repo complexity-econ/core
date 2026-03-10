@@ -418,8 +418,7 @@ object Firm:
         val boost = p.firm.digiInvestBoost.toDouble * diminishing
         val newDR = Ratio(Math.min(1.0, firm.digitalReadiness.toDouble + boost))
         Decision.DigiInvest(pnl, digiCost, newDR)
-      else if nc < PLN.Zero then
-        attemptDownsize(firm, pnl, nc, workers, TechState.Traditional(_), w.hh.marketWage, BankruptReason.LaborCostInsolvency)
+      else if nc < PLN.Zero then attemptDownsize(firm, pnl, nc, workers, TechState.Traditional(_), w.hh.marketWage, BankruptReason.LaborCostInsolvency)
       else Decision.Survive(pnl, nc)
 
   // ---- Execute (pure dispatch, zero Random calls) ----
