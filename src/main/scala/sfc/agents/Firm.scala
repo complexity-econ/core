@@ -47,7 +47,7 @@ object Firm:
       innovationCostFactor: Double, // Firm-specific CAPEX multiplier (drawn at creation)
       digitalReadiness: Ratio,      // Digital readiness score [0,1], gates tech upgrades
       sector: SectorIdx,            // Index into SectorDefs
-      neighbors: Array[FirmId],     // Network adjacency (firm IDs)
+      neighbors: Vector[FirmId],    // Network adjacency (firm IDs)
       bankId: BankId,               // Multi-bank: index into Banking.State.banks
       equityRaised: PLN,            // GPW: cumulative equity raised via IPO/SPO
       initialSize: Int,             // Firm size at creation (heterogeneous when FIRM_SIZE_DIST=gus)
