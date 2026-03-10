@@ -149,7 +149,7 @@ object Household:
     def create(rng: Random, firms: Vector[Firm.State])(using p: SimParams): Vector[State] =
       val hhCount   = firms.map(Firm.workerCount).sum
       val hhNetwork = Network.wattsStrogatz(hhCount, p.household.socialK, p.household.socialP.toDouble, rng)
-      val hhs       = initialize(hhCount, p.pop.firmsCount, firms, hhNetwork, rng)
+      val hhs       = initialize(hhCount, firms, hhNetwork, rng)
       // Assign households to same bank as their employer
       hhs.map: h =>
         h.status match
@@ -161,84 +161,87 @@ object Household:
       */
     def initialize(
         nHouseholds: Int,
-        nFirms: Int,
         firms: Vector[Firm.State],
         socialNetwork: Array[Array[Int]],
         rng: Random,
     )(using p: SimParams): Vector[State] =
-      var hhId    = 0
-      val builder = Vector.newBuilder[State]
+      // Expand alive firms into (firm, sectorIdx) per worker slot, capped at nHouseholds
+      val assignments: Vector[(Firm.State, SectorIdx)] =
+        firms
+          .filter(Firm.isAlive)
+          .flatMap(f => Vector.fill(Firm.workerCount(f))((f, f.sector)))
+          .take(nHouseholds)
 
-      for f <- firms if Firm.isAlive(f) do
-        val nWorkers  = Firm.workerCount(f)
-        val sectorIdx = f.sector
-        for _ <- 0 until nWorkers do
-          if hhId < nHouseholds then
-            // Savings: LogNormal(mu, sigma)
-            val savings = Math.exp(p.household.savingsMu + p.household.savingsSigma * rng.nextGaussian())
+      assignments.zipWithIndex.map { case ((firm, sectorIdx), hhId) =>
+        sampleHousehold(hhId, firm, sectorIdx, socialNetwork, rng)
+      }
 
-            // Debt: 40% have debt
-            val debt =
-              if rng.nextDouble() < p.household.debtFraction.toDouble then Math.exp(p.household.debtMu + p.household.debtSigma * rng.nextGaussian())
-              else 0.0
+    /** Sample attributes for a single household from init distributions. */
+    private def sampleHousehold(
+        hhId: Int,
+        firm: Firm.State,
+        sectorIdx: SectorIdx,
+        socialNetwork: Array[Array[Int]],
+        rng: Random,
+    )(using p: SimParams): State =
+      val savings = Math.exp(p.household.savingsMu + p.household.savingsSigma * rng.nextGaussian())
 
-            // Rent: Normal(mean, std), floored
-            val rent = Math.max(
-              p.household.rentFloor.toDouble,
-              p.household.rentMean.toDouble + p.household.rentStd.toDouble * rng.nextGaussian(),
-            )
+      val debt =
+        if rng.nextDouble() < p.household.debtFraction.toDouble then Math.exp(p.household.debtMu + p.household.debtSigma * rng.nextGaussian())
+        else 0.0
 
-            // MPC: Beta(alpha, beta) via gamma transformation
-            val mpc = Distributions.betaSample(p.household.mpcAlpha, p.household.mpcBeta, rng)
+      val rent = Math.max(
+        p.household.rentFloor.toDouble,
+        p.household.rentMean.toDouble + p.household.rentStd.toDouble * rng.nextGaussian(),
+      )
 
-            // Education draw + skill range
-            val edu                        = p.social.drawEducation(sectorIdx.toInt, rng)
-            val (skillFloor, skillCeiling) = p.social.eduSkillRange(edu)
-            val sectorSigma                = p.sectorDefs(sectorIdx.toInt).sigma
-            val baseSkill                  = skillFloor + (skillCeiling - skillFloor) * rng.nextDouble()
-            val sectorBonus                = Math.min(SectorSkillBonusMax, SectorSkillBonusCoeff * Math.log(sectorSigma))
-            val skill                      = Math.max(skillFloor, Math.min(skillCeiling, baseSkill + sectorBonus))
+      val mpc = Distributions.betaSample(p.household.mpcAlpha, p.household.mpcBeta, rng)
 
-            val wage = p.household.baseWage.toDouble * p.sectorDefs(sectorIdx.toInt).wageMultiplier * skill
+      val (edu, skill) = sampleEducationAndSkill(sectorIdx, rng)
+      val wage         = p.household.baseWage.toDouble * p.sectorDefs(sectorIdx.toInt).wageMultiplier * skill
 
-            // GPW equity wealth: GpwHhEquityFrac of HH participate, with wealth ∝ savings
-            val eqWealth =
-              if p.flags.gpwHhEquity && rng.nextDouble() < p.equity.hhEquityFrac.toDouble then savings * GpwEquityInitFrac
-              else 0.0
+      val eqWealth =
+        if p.flags.gpwHhEquity && rng.nextDouble() < p.equity.hhEquityFrac.toDouble then savings * GpwEquityInitFrac
+        else 0.0
 
-            // 800+ children: Poisson(λ) per HH
-            val numChildren =
-              if p.flags.social800 then Distributions.poissonSample(p.fiscal.social800ChildrenPerHh, rng)
-              else 0
+      val numChildren =
+        if p.flags.social800 then Distributions.poissonSample(p.fiscal.social800ChildrenPerHh, rng)
+        else 0
 
-            // Consumer credit: 40% of HH have small consumer loans (reuse HhDebtFraction)
-            val consDebt =
-              if rng.nextDouble() < p.household.debtFraction.toDouble then
-                Math.exp(p.household.debtMu + p.household.debtSigma * rng.nextGaussian()) * ConsumerDebtInitFrac
-              else 0.0
+      val consDebt =
+        if rng.nextDouble() < p.household.debtFraction.toDouble then
+          Math.exp(p.household.debtMu + p.household.debtSigma * rng.nextGaussian()) * ConsumerDebtInitFrac
+        else 0.0
 
-            builder += State(
-              id = HhId(hhId),
-              savings = PLN(savings),
-              debt = PLN(debt),
-              monthlyRent = PLN(rent),
-              skill = Ratio(skill),
-              healthPenalty = Ratio.Zero,
-              mpc = Ratio(Math.max(MpcFloor, Math.min(MpcCeiling, mpc))),
-              status = HhStatus.Employed(f.id, sectorIdx, PLN(wage)),
-              socialNeighbors =
-                if hhId < socialNetwork.length then socialNetwork(hhId).map(HhId(_)) else Array.empty[HhId],
-              bankId = BankId(0),
-              equityWealth = PLN(eqWealth),
-              lastSectorIdx = sectorIdx,
-              isImmigrant = false,
-              numDependentChildren = numChildren,
-              consumerDebt = PLN(consDebt),
-              education = edu,
-            )
-            hhId += 1
+      State(
+        id = HhId(hhId),
+        savings = PLN(savings),
+        debt = PLN(debt),
+        monthlyRent = PLN(rent),
+        skill = Ratio(skill),
+        healthPenalty = Ratio.Zero,
+        mpc = Ratio(Math.max(MpcFloor, Math.min(MpcCeiling, mpc))),
+        status = HhStatus.Employed(firm.id, sectorIdx, PLN(wage)),
+        socialNeighbors =
+          if hhId < socialNetwork.length then socialNetwork(hhId).map(HhId(_)) else Array.empty[HhId],
+        bankId = BankId(0),
+        equityWealth = PLN(eqWealth),
+        lastSectorIdx = sectorIdx,
+        isImmigrant = false,
+        numDependentChildren = numChildren,
+        consumerDebt = PLN(consDebt),
+        education = edu,
+      )
 
-      builder.result()
+    /** Sample education level and skill for a sector, clamped to edu range. */
+    private def sampleEducationAndSkill(sectorIdx: SectorIdx, rng: Random)(using p: SimParams): (Int, Double) =
+      val edu                        = p.social.drawEducation(sectorIdx.toInt, rng)
+      val (skillFloor, skillCeiling) = p.social.eduSkillRange(edu)
+      val sectorSigma                = p.sectorDefs(sectorIdx.toInt).sigma
+      val baseSkill                  = skillFloor + (skillCeiling - skillFloor) * rng.nextDouble()
+      val sectorBonus                = Math.min(SectorSkillBonusMax, SectorSkillBonusCoeff * Math.log(sectorSigma))
+      val skill                      = Math.max(skillFloor, Math.min(skillCeiling, baseSkill + sectorBonus))
+      (edu, skill)
 
   // ---- Step flow totals (immutable, folded from per-HH results) ----
 
