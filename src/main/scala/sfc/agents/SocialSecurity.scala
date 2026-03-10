@@ -6,15 +6,37 @@ import sfc.types.*
 /** Social security and demographics: ZUS/FUS, PPK, demographics, BGK. */
 object SocialSecurity:
 
+  // ---------------------------------------------------------------------------
+  // ZUS / FUS
+  // ---------------------------------------------------------------------------
+
   /** ZUS/FUS state: social insurance fund balance and monthly flows. */
   case class ZusState(
-      fusBalance: PLN,      // cumulative raw surplus/deficit (contributions - pensions, before gov subvention)
+      fusBalance: PLN,      // cumulative raw surplus/deficit (contributions − pensions, before gov subvention)
       contributions: PLN,   // this month's total contributions
       pensionPayments: PLN, // this month's total pension payments
       govSubvention: PLN,   // this month's government subvention (covers deficit)
   )
   object ZusState:
     val zero: ZusState = ZusState(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
+
+  /** Compute ZUS monthly flows. Contributions from employed workers, pensions
+    * to retirees. FUS deficit covered by government subvention (Identity 3).
+    * fusBalance tracks raw surplus/deficit (Identity 8).
+    */
+  def zusStep(prevBalance: PLN, employed: Int, wage: PLN, nRetirees: Int)(using p: SimParams): ZusState =
+    if !p.flags.zus then ZusState(prevBalance, PLN.Zero, PLN.Zero, PLN.Zero)
+    else
+      val contributions = wage * (employed.toDouble * p.social.zusContribRate.toDouble * p.social.zusScale)
+      val pensions      = p.social.zusBasePension * nRetirees.toDouble
+      val monthlyFlow   = contributions - pensions
+      val govSubvention = if monthlyFlow < PLN.Zero then -monthlyFlow else PLN.Zero
+      val newBalance    = prevBalance + monthlyFlow
+      ZusState(newBalance, contributions, pensions, govSubvention)
+
+  // ---------------------------------------------------------------------------
+  // PPK
+  // ---------------------------------------------------------------------------
 
   /** PPK state: capital pension fund bond holdings and monthly flows. */
   case class PpkState(
@@ -23,6 +45,25 @@ object SocialSecurity:
   )
   object PpkState:
     val zero: PpkState = PpkState(PLN.Zero, PLN.Zero)
+
+  /** Compute PPK monthly contributions. PPK buys government bonds proportional
+    * to contributions × bond allocation. Does NOT affect bank deposits (PPK is
+    * a pass-through bond market participant).
+    */
+  def ppkStep(prevHoldings: PLN, employed: Int, wage: PLN)(using p: SimParams): PpkState =
+    if !p.flags.ppk then PpkState(prevHoldings, PLN.Zero)
+    else
+      val contributions = wage * (employed.toDouble *
+        (p.social.ppkEmployeeRate.toDouble + p.social.ppkEmployerRate.toDouble))
+      PpkState(prevHoldings, contributions)
+
+  /** PPK bond purchase this month: contributions × bond allocation. */
+  def ppkBondPurchase(ppk: PpkState)(using p: SimParams): PLN =
+    ppk.contributions * p.social.ppkBondAlloc.toDouble
+
+  // ---------------------------------------------------------------------------
+  // Demographics
+  // ---------------------------------------------------------------------------
 
   /** Demographics state: retirees and working-age population. */
   case class DemographicsState(
@@ -33,50 +74,10 @@ object SocialSecurity:
   object DemographicsState:
     val zero: DemographicsState = DemographicsState(0, 0, 0)
 
-  /** BGK state: state development bank (stub for future use). */
-  case class BgkState(
-      loanPortfolio: PLN = PLN.Zero,
-  )
-  object BgkState:
-    val zero: BgkState = BgkState(PLN.Zero)
-
-  /** Compute ZUS monthly flows. Contributions from employed workers, pensions
-    * to retirees. FUS deficit covered by government subvention (flows into
-    * Identity 3). fusBalance tracks raw surplus/deficit (Identity 8).
-    */
-  def zusStep(prevBalance: Double, employed: Int, wage: Double, nRetirees: Int)(using p: SimParams): ZusState =
-    if !p.flags.zus then ZusState(PLN(prevBalance), PLN.Zero, PLN.Zero, PLN.Zero)
-    else
-      val contributions = employed.toDouble * wage * p.social.zusContribRate.toDouble * p.social.zusScale
-      val pensions      = nRetirees.toDouble * p.social.zusBasePension.toDouble
-      val monthlyFlow   = contributions - pensions
-      val govSubvention = if monthlyFlow < 0 then -monthlyFlow else 0.0
-      val newBalance    = prevBalance + monthlyFlow
-      ZusState(PLN(newBalance), PLN(contributions), PLN(pensions), PLN(govSubvention))
-
-  /** Compute PPK monthly bond purchase amount. PPK buys government bonds
-    * proportional to contributions × bond allocation. Does NOT affect bank
-    * deposits (PPK is a pass-through bond market participant).
-    */
-  def ppkStep(prevHoldings: Double, employed: Int, wage: Double)(using p: SimParams): PpkState =
-    if !p.flags.ppk then PpkState(PLN(prevHoldings), PLN.Zero)
-    else
-      val contributions = employed.toDouble * wage *
-        (p.social.ppkEmployeeRate.toDouble + p.social.ppkEmployerRate.toDouble)
-      PpkState(PLN(prevHoldings), PLN(contributions))
-
-  /** PPK bond purchase this month (from contributions × bond allocation). */
-  def ppkBondPurchase(ppk: PpkState)(using p: SimParams): Double =
-    ppk.contributions.toDouble * p.social.ppkBondAlloc.toDouble
-
   /** Compute demographics monthly step. Monthly retirements reduce labor
     * supply; working-age population declines.
-    * @param netMigration
-    *   net immigration (inflow - outflow), added to workingAgePop
     */
-  def demographicsStep(prev: DemographicsState, employed: Int, netMigration: Int = 0)(using
-      p: SimParams,
-  ): DemographicsState =
+  def demographicsStep(prev: DemographicsState, employed: Int, netMigration: Int)(using p: SimParams): DemographicsState =
     if !p.flags.demographics then prev.copy(monthlyRetirements = 0)
     else
       val retirements       = Math.max(0, (employed.toDouble * p.social.demRetirementRate.toDouble).toInt)
@@ -87,3 +88,14 @@ object SocialSecurity:
         workingAgePop = Math.max(0, prev.workingAgePop - retirements - workingAgeDecline + netMigration),
         monthlyRetirements = retirements,
       )
+
+  // ---------------------------------------------------------------------------
+  // BGK (stub)
+  // ---------------------------------------------------------------------------
+
+  /** BGK state: state development bank (stub for future use). */
+  case class BgkState(
+      loanPortfolio: PLN, // outstanding BGK loan portfolio
+  )
+  object BgkState:
+    val zero: BgkState = BgkState(PLN.Zero)

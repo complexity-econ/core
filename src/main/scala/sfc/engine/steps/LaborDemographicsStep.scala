@@ -73,9 +73,9 @@ object LaborDemographicsStep:
 
     val newDemographics = SocialSecurity.demographicsStep(in.w.social.demographics, employed, netMigration)
 
-    val newZus             = SocialSecurity.zusStep(in.w.social.zus.fusBalance.toDouble, employed, newWage, newDemographics.retirees)
-    val newPpk             = SocialSecurity.ppkStep(in.w.social.ppk.bondHoldings.toDouble, employed, newWage)
-    val rawPpkBondPurchase = SocialSecurity.ppkBondPurchase(newPpk)
+    val newZus             = SocialSecurity.zusStep(in.w.social.zus.fusBalance, employed, PLN(newWage), newDemographics.retirees)
+    val newPpk             = SocialSecurity.ppkStep(in.w.social.ppk.bondHoldings, employed, PLN(newWage))
+    val rawPpkBondPurchase = SocialSecurity.ppkBondPurchase(newPpk).toDouble
 
     val wageGrowth = if in.w.hhAgg.marketWage.toDouble > 0 then newWage / in.w.hhAgg.marketWage.toDouble - 1.0 else 0.0
 

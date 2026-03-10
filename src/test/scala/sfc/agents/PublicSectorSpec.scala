@@ -15,11 +15,11 @@ class PublicSectorSpec extends AnyFlatSpec with Matchers:
   // =========================================================================
 
   "SocialSecurity.zusStep" should "return zero flows when ZUS disabled" in {
-    val zus = SocialSecurity.zusStep(0.0, 100000, 8266.0, 50000)
-    zus.contributions.toDouble shouldBe 0.0
-    zus.pensionPayments.toDouble shouldBe 0.0
-    zus.govSubvention.toDouble shouldBe 0.0
-    zus.fusBalance.toDouble shouldBe 0.0
+    val zus = SocialSecurity.zusStep(PLN.Zero, 100000, PLN(8266.0), 50000)
+    zus.contributions shouldBe PLN.Zero
+    zus.pensionPayments shouldBe PLN.Zero
+    zus.govSubvention shouldBe PLN.Zero
+    zus.fusBalance shouldBe PLN.Zero
   }
 
   it should "compute contributions from employed × wage × rate" in {
@@ -57,10 +57,10 @@ class PublicSectorSpec extends AnyFlatSpec with Matchers:
   }
 
   "SocialSecurity.ZusState.zero" should "have all zero fields" in {
-    SocialSecurity.ZusState.zero.fusBalance.toDouble shouldBe 0.0
-    SocialSecurity.ZusState.zero.contributions.toDouble shouldBe 0.0
-    SocialSecurity.ZusState.zero.pensionPayments.toDouble shouldBe 0.0
-    SocialSecurity.ZusState.zero.govSubvention.toDouble shouldBe 0.0
+    SocialSecurity.ZusState.zero.fusBalance shouldBe PLN.Zero
+    SocialSecurity.ZusState.zero.contributions shouldBe PLN.Zero
+    SocialSecurity.ZusState.zero.pensionPayments shouldBe PLN.Zero
+    SocialSecurity.ZusState.zero.govSubvention shouldBe PLN.Zero
   }
 
   // =========================================================================
@@ -68,26 +68,26 @@ class PublicSectorSpec extends AnyFlatSpec with Matchers:
   // =========================================================================
 
   "SocialSecurity.ppkStep" should "return zero flows when PPK disabled" in {
-    val ppk = SocialSecurity.ppkStep(0.0, 100000, 8266.0)
-    ppk.contributions.toDouble shouldBe 0.0
-    ppk.bondHoldings.toDouble shouldBe 0.0
+    val ppk = SocialSecurity.ppkStep(PLN.Zero, 100000, PLN(8266.0))
+    ppk.contributions shouldBe PLN.Zero
+    ppk.bondHoldings shouldBe PLN.Zero
   }
 
   it should "preserve previous bond holdings when disabled" in {
-    val ppk = SocialSecurity.ppkStep(1e9, 100000, 8266.0)
-    ppk.bondHoldings.toDouble shouldBe 1e9
+    val ppk = SocialSecurity.ppkStep(PLN(1e9), 100000, PLN(8266.0))
+    ppk.bondHoldings shouldBe PLN(1e9)
   }
 
   "SocialSecurity.ppkBondPurchase" should "be contributions × bondAlloc" in {
     val ppk      = SocialSecurity.PpkState(bondHoldings = PLN.Zero, contributions = PLN(1e6))
     // Default bondAlloc = 0.60
     val purchase = SocialSecurity.ppkBondPurchase(ppk)
-    purchase shouldBe (1e6 * 0.60 +- 0.01)
+    purchase.toDouble shouldBe (1e6 * 0.60 +- 0.01)
   }
 
   "SocialSecurity.PpkState.zero" should "have all zero fields" in {
-    SocialSecurity.PpkState.zero.bondHoldings.toDouble shouldBe 0.0
-    SocialSecurity.PpkState.zero.contributions.toDouble shouldBe 0.0
+    SocialSecurity.PpkState.zero.bondHoldings shouldBe PLN.Zero
+    SocialSecurity.PpkState.zero.contributions shouldBe PLN.Zero
   }
 
   // =========================================================================
@@ -96,18 +96,10 @@ class PublicSectorSpec extends AnyFlatSpec with Matchers:
 
   "SocialSecurity.demographicsStep" should "return unchanged state when disabled" in {
     val dem    = SocialSecurity.DemographicsState(100, 10000, 5)
-    val result = SocialSecurity.demographicsStep(dem, 9000)
+    val result = SocialSecurity.demographicsStep(dem, 9000, 0)
     result.retirees shouldBe 100
     result.workingAgePop shouldBe 10000
     result.monthlyRetirements shouldBe 0
-  }
-
-  it should "accept netMigration=0 as default (backward compat)" in {
-    val dem     = SocialSecurity.DemographicsState(100, 10000, 5)
-    val result  = SocialSecurity.demographicsStep(dem, 9000)
-    // Same as calling with explicit netMigration=0
-    val result2 = SocialSecurity.demographicsStep(dem, 9000, 0)
-    result.workingAgePop shouldBe result2.workingAgePop
   }
 
   it should "increase workingAgePop with positive netMigration (when disabled)" in {
@@ -130,7 +122,7 @@ class PublicSectorSpec extends AnyFlatSpec with Matchers:
   // =========================================================================
 
   "SocialSecurity.BgkState.zero" should "have zero loan portfolio" in {
-    SocialSecurity.BgkState.zero.loanPortfolio.toDouble shouldBe 0.0
+    SocialSecurity.BgkState.zero.loanPortfolio shouldBe PLN.Zero
   }
 
   // =========================================================================
