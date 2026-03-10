@@ -6,15 +6,12 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import sfc.config.SimParams
 import sfc.engine.mechanisms.Expectations
-import sfc.montecarlo.McRunConfig
 import sfc.types.*
 
 class ExpectationsPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks:
 
   given SimParams          = SimParams.defaults
   private val p: SimParams = summon[SimParams]
-
-  private val rc = McRunConfig(1, "test")
 
   private val inflationGen = Gen.choose(-0.10, 0.20)
   private val rateGen      = Gen.choose(0.001, 0.25)
@@ -24,7 +21,7 @@ class ExpectationsPropertySpec extends AnyFlatSpec with Matchers with ScalaCheck
   "Expectations.step" should "always bound credibility in [0.01, 1.0]" in
     forAll(inflationGen, rateGen, credGen, unempGen) { (infl: Double, rate: Double, cred: Double, unemp: Double) =>
       val prev = Expectations.initial.copy(credibility = Ratio(cred))
-      val r    = Expectations.step(prev, infl, rate, unemp, rc)
+      val r    = Expectations.step(prev, infl, rate, unemp)
       r.credibility.toDouble should be >= 0.01
       r.credibility.toDouble should be <= 1.0
     }
@@ -32,21 +29,21 @@ class ExpectationsPropertySpec extends AnyFlatSpec with Matchers with ScalaCheck
   it should "produce finite expected inflation" in
     forAll(inflationGen, rateGen, credGen, unempGen) { (infl: Double, rate: Double, cred: Double, unemp: Double) =>
       val prev = Expectations.initial.copy(credibility = Ratio(cred))
-      val r    = Expectations.step(prev, infl, rate, unemp, rc)
+      val r    = Expectations.step(prev, infl, rate, unemp)
       r.expectedInflation.toDouble.isFinite shouldBe true
     }
 
   it should "produce finite expected rate" in
     forAll(inflationGen, rateGen, credGen, unempGen) { (infl: Double, rate: Double, cred: Double, unemp: Double) =>
       val prev = Expectations.initial.copy(credibility = Ratio(cred))
-      val r    = Expectations.step(prev, infl, rate, unemp, rc)
+      val r    = Expectations.step(prev, infl, rate, unemp)
       r.expectedRate.toDouble.isFinite shouldBe true
     }
 
   it should "compute correct forecast error" in
     forAll(inflationGen, rateGen, unempGen) { (infl: Double, rate: Double, unemp: Double) =>
       val prev = Expectations.initial
-      val r    = Expectations.step(prev, infl, rate, unemp, rc)
+      val r    = Expectations.step(prev, infl, rate, unemp)
       r.forecastError.toDouble shouldBe (infl - prev.expectedInflation.toDouble) +- 1e-10
     }
 
@@ -54,16 +51,16 @@ class ExpectationsPropertySpec extends AnyFlatSpec with Matchers with ScalaCheck
     val prev   = Expectations.initial.copy(credibility = Ratio(0.5))
     val target = p.monetary.targetInfl.toDouble
     // Low deviation
-    val r1     = Expectations.step(prev, target + 0.005, 0.0575, 0.05, rc)
+    val r1     = Expectations.step(prev, target + 0.005, 0.0575, 0.05)
     // High deviation
-    val r2     = Expectations.step(prev, target + 0.10, 0.0575, 0.05, rc)
+    val r2     = Expectations.step(prev, target + 0.10, 0.0575, 0.05)
     r1.credibility.toDouble should be > r2.credibility.toDouble
   }
 
   it should "keep expected inflation between target and adaptive" in
     forAll(inflationGen, credGen) { (infl: Double, cred: Double) =>
       val prev     = Expectations.initial.copy(credibility = Ratio(cred))
-      val r        = Expectations.step(prev, infl, 0.0575, 0.05, rc)
+      val r        = Expectations.step(prev, infl, 0.0575, 0.05)
       val target   = p.monetary.targetInfl.toDouble
       val adaptive =
         prev.expectedInflation.toDouble + p.labor.expLambda.toDouble * (infl - prev.expectedInflation.toDouble)
@@ -76,7 +73,7 @@ class ExpectationsPropertySpec extends AnyFlatSpec with Matchers with ScalaCheck
   it should "produce finite forward guidance rate" in
     forAll(inflationGen, rateGen, credGen, unempGen) { (infl: Double, rate: Double, cred: Double, unemp: Double) =>
       val prev = Expectations.initial.copy(credibility = Ratio(cred))
-      val r    = Expectations.step(prev, infl, rate, unemp, rc)
+      val r    = Expectations.step(prev, infl, rate, unemp)
       r.forwardGuidanceRate.toDouble.isFinite shouldBe true
     }
 
@@ -96,7 +93,7 @@ class ExpectationsPropertySpec extends AnyFlatSpec with Matchers with ScalaCheck
 
   "step with no change" should "preserve stability at target" in {
     val prev = Expectations.initial
-    val r    = Expectations.step(prev, p.monetary.targetInfl.toDouble, p.monetary.initialRate.toDouble, 0.05, rc)
+    val r    = Expectations.step(prev, p.monetary.targetInfl.toDouble, p.monetary.initialRate.toDouble, 0.05)
     // Expectations should stay near initial values
     Math.abs(r.expectedInflation.toDouble - p.monetary.targetInfl.toDouble) should be < 0.01
     r.credibility.toDouble should be >= prev.credibility.toDouble

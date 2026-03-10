@@ -1,7 +1,6 @@
 package sfc.agents
 
 import sfc.config.SimParams
-import sfc.montecarlo.McRunConfig
 import sfc.types.*
 
 /** National Bank of Poland: Taylor rule, bond yield, QE, FX intervention. */
@@ -103,7 +102,6 @@ object Nbp:
       exRateChange: Double,
       employed: Int,
       totalPopulation: Int,
-      rc: McRunConfig,
   )(using p: SimParams): Rate =
     val taylor = taylorTarget(inflation, exRateChange, employed, totalPopulation)
     clampRate(smoothAndClamp(prevRate, taylor))

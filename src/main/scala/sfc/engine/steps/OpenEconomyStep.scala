@@ -6,7 +6,6 @@ import sfc.config.SimParams
 import sfc.engine.*
 import sfc.engine.markets.{CorporateBondMarket, GvcTrade, OpenEconomy}
 import sfc.engine.mechanisms.Expectations
-import sfc.montecarlo.McRunConfig
 import sfc.types.*
 import sfc.util.KahanSum.*
 
@@ -14,7 +13,6 @@ object OpenEconomyStep:
 
   case class Input(
       w: World,
-      rc: McRunConfig,
       s1: FiscalConstraintStep.Output,
       s2: LaborDemographicsStep.Output,
       s3: HouseholdIncomeStep.Output,
@@ -63,8 +61,7 @@ object OpenEconomyStep:
 
     // GVC / Deep External Sector (v5.0)
     val newGvc =
-      if p.flags.gvc && p.flags.openEcon then
-        GvcTrade.step(in.w.external.gvc, sectorOutputs, in.w.priceLevel, in.w.forex.exchangeRate, in.s7.autoR, in.s1.m, in.rc)
+      if p.flags.gvc && p.flags.openEcon then GvcTrade.step(in.w.external.gvc, sectorOutputs, in.w.priceLevel, in.w.forex.exchangeRate, in.s7.autoR, in.s1.m)
       else in.w.external.gvc
 
     val (gvcExp, gvcImp) =
@@ -84,7 +81,6 @@ object OpenEconomyStep:
         in.w.priceLevel,
         sectorOutputs,
         in.s1.m,
-        in.rc,
         nbpFxReserves = in.w.nbp.fxReserves.toDouble,
         gvcExports = gvcExp,
         gvcIntermImports = gvcImp,
@@ -103,7 +99,6 @@ object OpenEconomyStep:
         in.s7.autoR,
         in.w.nbp.referenceRate.toDouble,
         in.s7.gdp,
-        in.rc,
       )
       (fx, in.w.bop, 0.0, Nbp.FxInterventionResult(0.0, PLN.Zero, in.w.nbp.fxReserves))
 
@@ -140,13 +135,12 @@ object OpenEconomyStep:
         exRateChg,
         in.s2.employed,
         in.w.totalPopulation,
-        in.rc,
       )
 
     // Expectations step: update after inflation + rate computed
     val unempRateForExp = 1.0 - in.s2.employed.toDouble / in.w.totalPopulation
     val newExp          =
-      if p.flags.expectations then Expectations.step(in.w.mechanisms.expectations, in.s7.newInfl, newRefRate.toDouble, unempRateForExp, in.rc)
+      if p.flags.expectations then Expectations.step(in.w.mechanisms.expectations, in.s7.newInfl, newRefRate.toDouble, unempRateForExp)
       else in.w.mechanisms.expectations
 
     // Reserve interest, standing facilities, interbank interest

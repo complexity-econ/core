@@ -5,7 +5,6 @@ import sfc.agents.*
 import sfc.config.SimParams
 import sfc.engine.*
 import sfc.engine.markets.SectoralMobility
-import sfc.montecarlo.McRunConfig
 import sfc.types.*
 import sfc.util.KahanSum.*
 
@@ -15,7 +14,6 @@ object WorldAssemblyStep:
 
   case class Input(
       w: World,
-      rc: McRunConfig,
       firms: Vector[Firm.State],
       households: Vector[Household.State],
       s1: FiscalConstraintStep.Output,

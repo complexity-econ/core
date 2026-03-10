@@ -7,7 +7,6 @@ import sfc.accounting.GovState
 import sfc.agents.Nbp
 import sfc.config.SimParams
 import sfc.engine.markets.{FiscalBudget, LaborMarket, PriceLevel}
-import sfc.montecarlo.McRunConfig
 import sfc.types.*
 
 class SimulationSpec extends AnyFlatSpec with Matchers:
@@ -49,29 +48,25 @@ class SimulationSpec extends AnyFlatSpec with Matchers:
   // --- updateInflation ---
 
   "PriceLevel.update" should "produce higher inflation with higher demand" in {
-    val rc         = McRunConfig(1, "test")
-    val (infl1, _) = PriceLevel.update(0.02, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, rc)
-    val (infl2, _) = PriceLevel.update(0.02, 1.0, 1.5, 0.0, 0.0, 0.0, 0.0, rc)
+    val (infl1, _) = PriceLevel.update(0.02, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0)
+    val (infl2, _) = PriceLevel.update(0.02, 1.0, 1.5, 0.0, 0.0, 0.0, 0.0)
     infl2 should be > infl1
   }
 
   it should "produce tech deflation with more automation" in {
-    val rc         = McRunConfig(1, "test")
-    val (infl1, _) = PriceLevel.update(0.02, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, rc)
-    val (infl2, _) = PriceLevel.update(0.02, 1.0, 1.0, 0.0, 0.0, 0.8, 0.0, rc)
+    val (infl1, _) = PriceLevel.update(0.02, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0)
+    val (infl2, _) = PriceLevel.update(0.02, 1.0, 1.0, 0.0, 0.0, 0.8, 0.0)
     infl2 should be < infl1
   }
 
   it should "enforce price floor at 0.30" in {
-    val rc         = McRunConfig(1, "test")
-    val (_, price) = PriceLevel.update(-0.50, 0.31, 0.5, -0.1, 0.0, 0.9, 0.0, rc)
+    val (_, price) = PriceLevel.update(-0.50, 0.31, 0.5, -0.1, 0.0, 0.9, 0.0)
     price should be >= 0.30
   }
 
   it should "apply soft deflation floor at -1.5%/mo" in {
-    val rc            = McRunConfig(1, "test")
     // Strong deflation scenario: heavy automation, no demand, negative wage growth
-    val (inflHard, _) = PriceLevel.update(-0.10, 1.0, 0.5, -0.05, 0.0, 0.9, 0.0, rc)
+    val (inflHard, _) = PriceLevel.update(-0.10, 1.0, 0.5, -0.05, 0.0, 0.9, 0.0)
     // The soft floor means deflation doesn't accelerate as fast
     // Raw monthly would be very negative; with floor, annualized should be bounded
     inflHard should be > -1.0 // deflation shouldn't exceed 100% annualized
@@ -80,18 +75,16 @@ class SimulationSpec extends AnyFlatSpec with Matchers:
   // --- updateCbRate ---
 
   "Nbp.updateRate" should "increase rate when inflation rises (PLN)" in {
-    val rc    = McRunConfig(1, "test")
-    val rate1 = Nbp.updateRate(Rate(0.0575), Rate(0.03), 0.0, totalPop * 95 / 100, totalPop, rc)
-    val rate2 = Nbp.updateRate(Rate(0.0575), Rate(0.10), 0.0, totalPop * 95 / 100, totalPop, rc)
+    val rate1 = Nbp.updateRate(Rate(0.0575), Rate(0.03), 0.0, totalPop * 95 / 100, totalPop)
+    val rate2 = Nbp.updateRate(Rate(0.0575), Rate(0.10), 0.0, totalPop * 95 / 100, totalPop)
     rate2.toDouble should be > rate1.toDouble
   }
 
   it should "bound rate between floor and ceiling" in {
-    val rc      = McRunConfig(1, "test")
-    val rateLow = Nbp.updateRate(Rate(0.005), Rate(-0.50), 0.0, totalPop * 95 / 100, totalPop, rc)
+    val rateLow = Nbp.updateRate(Rate(0.005), Rate(-0.50), 0.0, totalPop * 95 / 100, totalPop)
     rateLow.toDouble should be >= p.monetary.rateFloor.toDouble
 
-    val rateHigh = Nbp.updateRate(Rate(0.25), Rate(1.0), 0.5, totalPop * 95 / 100, totalPop, rc)
+    val rateHigh = Nbp.updateRate(Rate(0.25), Rate(1.0), 0.5, totalPop * 95 / 100, totalPop)
     rateHigh.toDouble should be <= p.monetary.rateCeiling.toDouble
   }
 

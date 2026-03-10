@@ -2,11 +2,11 @@ package sfc
 
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import sfc.config.SimParams
 import sfc.types.*
 
 class OpaqueTypesSpec extends AnyFlatSpec with Matchers:
 
-  import sfc.config.SimParams
   given SimParams = SimParams.defaults
 
   // === BankId ===

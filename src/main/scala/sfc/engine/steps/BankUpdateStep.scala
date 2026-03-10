@@ -6,7 +6,6 @@ import sfc.config.SimParams
 import sfc.engine.*
 import sfc.engine.markets.{FiscalBudget, HousingMarket}
 import sfc.engine.mechanisms.YieldCurve
-import sfc.montecarlo.McRunConfig
 import sfc.types.*
 import sfc.util.KahanSum.*
 
@@ -14,7 +13,6 @@ object BankUpdateStep:
 
   case class Input(
       w: World,
-      rc: McRunConfig,
       s1: FiscalConstraintStep.Output,
       s2: LaborDemographicsStep.Output,
       s3: HouseholdIncomeStep.Output,

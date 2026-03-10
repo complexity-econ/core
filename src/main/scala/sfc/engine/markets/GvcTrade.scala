@@ -1,7 +1,6 @@
 package sfc.engine.markets
 
 import sfc.config.SimParams
-import sfc.montecarlo.McRunConfig
 import sfc.types.*
 import sfc.util.KahanSum.*
 
@@ -61,7 +60,6 @@ object GvcTrade:
       exchangeRate: Double,
       autoRatio: Double,
       month: Int,
-      rc: McRunConfig,
   )(using p: SimParams): State =
 
     // 1. Evolve foreign price

@@ -4,7 +4,6 @@ import sfc.agents.*
 import sfc.config.SimParams
 import sfc.engine.markets.{LaborMarket, SectoralMobility}
 import sfc.engine.World
-import sfc.montecarlo.McRunConfig
 import sfc.types.*
 
 import scala.util.Random
@@ -13,7 +12,6 @@ object HouseholdIncomeStep:
 
   case class Input(
       w: World,
-      rc: McRunConfig,
       firms: Vector[Firm.State],
       households: Vector[Household.State],
       s1: FiscalConstraintStep.Output,

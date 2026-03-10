@@ -27,7 +27,7 @@ object McRunner:
     val results = Array.ofDim[Double](p.timeline.duration, SimOutput.nCols)
 
     for t <- 0 until p.timeline.duration do
-      val stepResult = Simulation.step(state, rc, seed, t)
+      val stepResult = Simulation.step(state, seed, t)
       stepResult.sfcCheck match
         case Left(errors) => throw Sfc.SfcViolationException(t + 1, errors)
         case Right(())    => // OK

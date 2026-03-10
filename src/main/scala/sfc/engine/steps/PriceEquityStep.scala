@@ -5,7 +5,6 @@ import sfc.config.{FirmSizeDistribution, SimParams}
 import sfc.engine.*
 import sfc.engine.markets.{EquityMarket, PriceLevel}
 import sfc.engine.mechanisms.{EuFunds, Macroprudential}
-import sfc.montecarlo.McRunConfig
 import sfc.types.*
 import sfc.util.KahanSum.*
 
@@ -15,7 +14,6 @@ object PriceEquityStep:
 
   case class Input(
       w: World,
-      rc: McRunConfig,
       s1: FiscalConstraintStep.Output,
       s2: LaborDemographicsStep.Output,
       s3: HouseholdIncomeStep.Output,
@@ -313,7 +311,6 @@ object PriceEquityStep:
       exDev,
       autoR,
       hybR,
-      in.rc,
     )
 
     val firmProfits = living2.kahanSumBy { f =>

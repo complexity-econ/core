@@ -5,8 +5,6 @@ import org.scalatest.matchers.should.Matchers
 import sfc.accounting.{BankingAggregate, BopState, ForexState, GovState}
 import sfc.agents.Banking
 import sfc.engine.markets.OpenEconomy
-import sfc.montecarlo
-import sfc.montecarlo.McRunConfig
 import sfc.types.*
 
 class TourismSpec extends AnyFlatSpec with Matchers:
@@ -212,12 +210,9 @@ class TourismSpec extends AnyFlatSpec with Matchers:
   "OpenEconomy exports" should "include tourismExport" in {
     val prevBop   = BopState.zero
     val prevForex = ForexState(p.forex.baseExRate, PLN.Zero, PLN(p.forex.exportBase.toDouble), PLN.Zero, PLN.Zero)
-    val rc        = McRunConfig(1, "test")
 
-    val resultWith    =
-      OpenEconomy.step(prevBop, prevForex, 0, 0, 0, 0.05, 1e9, 1.0, Vector.fill(6)(1e8), 1, rc, tourismExport = 1000.0)
-    val resultWithout =
-      OpenEconomy.step(prevBop, prevForex, 0, 0, 0, 0.05, 1e9, 1.0, Vector.fill(6)(1e8), 1, rc, tourismExport = 0.0)
+    val resultWith    = OpenEconomy.step(prevBop, prevForex, 0, 0, 0, 0.05, 1e9, 1.0, Vector.fill(6)(1e8), 1, tourismExport = 1000.0)
+    val resultWithout = OpenEconomy.step(prevBop, prevForex, 0, 0, 0, 0.05, 1e9, 1.0, Vector.fill(6)(1e8), 1, tourismExport = 0.0)
 
     resultWith.bop.exports shouldBe resultWithout.bop.exports + PLN(1000.0)
   }
@@ -225,12 +220,9 @@ class TourismSpec extends AnyFlatSpec with Matchers:
   "OpenEconomy imports" should "include tourismImport" in {
     val prevBop   = BopState.zero
     val prevForex = ForexState(p.forex.baseExRate, PLN.Zero, PLN(p.forex.exportBase.toDouble), PLN.Zero, PLN.Zero)
-    val rc        = montecarlo.McRunConfig(1, "test")
 
-    val resultWith    =
-      OpenEconomy.step(prevBop, prevForex, 0, 0, 0, 0.05, 1e9, 1.0, Vector.fill(6)(1e8), 1, rc, tourismImport = 500.0)
-    val resultWithout =
-      OpenEconomy.step(prevBop, prevForex, 0, 0, 0, 0.05, 1e9, 1.0, Vector.fill(6)(1e8), 1, rc, tourismImport = 0.0)
+    val resultWith    = OpenEconomy.step(prevBop, prevForex, 0, 0, 0, 0.05, 1e9, 1.0, Vector.fill(6)(1e8), 1, tourismImport = 500.0)
+    val resultWithout = OpenEconomy.step(prevBop, prevForex, 0, 0, 0, 0.05, 1e9, 1.0, Vector.fill(6)(1e8), 1, tourismImport = 0.0)
 
     resultWith.bop.totalImports shouldBe resultWithout.bop.totalImports + PLN(500.0)
   }

@@ -2,11 +2,11 @@ package sfc.accounting
 
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import sfc.config.SimParams
 import sfc.types.*
 
 class BalanceSheetSpec extends AnyFlatSpec with Matchers:
 
-  import sfc.config.SimParams
   given SimParams = SimParams.defaults
 
   "BankingAggregate.nplRatio" should "equal nplAmount / totalLoans when totalLoans > 1" in {

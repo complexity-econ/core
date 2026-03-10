@@ -7,7 +7,6 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import sfc.Generators.*
 import sfc.config.SimParams
 import sfc.engine.markets.GvcTrade
-import sfc.montecarlo.McRunConfig
 import sfc.types.*
 
 class ExternalSectorPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks:
@@ -18,7 +17,6 @@ class ExternalSectorPropertySpec extends AnyFlatSpec with Matchers with ScalaChe
   implicit override val generatorDrivenConfig: PropertyCheckConfiguration =
     PropertyCheckConfiguration(minSuccessful = 100)
 
-  private val rc                   = McRunConfig(1, "test")
   private val defaultSectorOutputs = Vector.fill(6)(1e8)
 
   private def runStep(
@@ -26,9 +24,8 @@ class ExternalSectorPropertySpec extends AnyFlatSpec with Matchers with ScalaChe
       price: Double = 1.0,
       autoR: Double = 0.0,
       month: Int = 30,
-      rc: McRunConfig = rc,
   ): GvcTrade.State =
-    GvcTrade.step(GvcTrade.initial, defaultSectorOutputs, price, er, autoR, month, rc)
+    GvcTrade.step(GvcTrade.initial, defaultSectorOutputs, price, er, autoR, month)
 
   // --- Exports always non-negative ---
 

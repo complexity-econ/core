@@ -4,8 +4,7 @@ import org.scalacheck.Gen
 import sfc.accounting.*
 import sfc.agents.*
 import sfc.config.SimParams
-import sfc.engine.{ExternalState, FinancialMarketsState, FlowState, MechanismsState, MonetaryPlumbingState, RealState, SocialState, World}
-import sfc.montecarlo.McRunConfig
+import sfc.engine.*
 import sfc.types.*
 
 object Generators:
@@ -514,11 +513,6 @@ object Generators:
       // Bond clearing: bankBondHoldings + nbpBondHoldings + ppkBondHoldings = bondsOutstanding
       // genSnapshot already ensures this for prev; curr inherits prev's bond fields unchanged
       (prev, curr, flows)
-
-  // --- McRunConfig generators ---
-
-  val genMcRunConfig: Gen[McRunConfig] =
-    Gen.const(McRunConfig(1, "test"))
 
   // --- Sorted array generator (for Gini tests) ---
 
