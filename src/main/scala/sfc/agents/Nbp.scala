@@ -57,6 +57,43 @@ object Nbp:
   // Taylor rule
   // ---------------------------------------------------------------------------
 
+  /** Raw Taylor target: symmetric (dual mandate) or asymmetric
+    * (inflation-only).
+    */
+  private def taylorTarget(
+      inflation: Rate,
+      exRateChange: Double,
+      employed: Int,
+      totalPopulation: Int,
+  )(using p: SimParams): Double =
+    val infGap = inflation.toDouble - p.monetary.targetInfl.toDouble
+    if p.flags.nbpSymmetric then
+      val unempRate    = 1.0 - (employed.toDouble / totalPopulation)
+      val rawOutputGap = (unempRate - p.monetary.nairu.toDouble) / p.monetary.nairu.toDouble
+      val outputGap    = Math.max(-OutputGapCap, Math.min(OutputGapCap, rawOutputGap))
+      p.monetary.neutralRate.toDouble +
+        p.monetary.taylorAlpha * infGap -
+        p.monetary.taylorDelta * outputGap +
+        p.monetary.taylorBeta * exRateChange
+    else
+      p.monetary.neutralRate.toDouble +
+        p.monetary.taylorAlpha * Math.max(0.0, infGap) +
+        p.monetary.taylorBeta * Math.max(0.0, exRateChange)
+
+  /** Inertia smoothing + max rate change clamping. */
+  private def smoothAndClamp(prevRate: Rate, taylor: Double)(using p: SimParams): Double =
+    val smoothed = prevRate.toDouble * p.monetary.taylorInertia.toDouble + taylor * (1.0 - p.monetary.taylorInertia.toDouble)
+    if p.monetary.maxRateChange.toDouble > 0 then
+      prevRate.toDouble + Math.max(
+        -p.monetary.maxRateChange.toDouble,
+        Math.min(p.monetary.maxRateChange.toDouble, smoothed - prevRate.toDouble),
+      )
+    else smoothed
+
+  /** Floor/ceiling clamp to [rateFloor, rateCeiling]. */
+  private def clampRate(rate: Double)(using p: SimParams): Rate =
+    Rate(Math.max(p.monetary.rateFloor.toDouble, Math.min(p.monetary.rateCeiling.toDouble, rate)))
+
   /** Update NBP reference rate via Taylor rule. Symmetric (dual mandate) or
     * asymmetric (inflation-only) depending on flags.nbpSymmetric.
     */
@@ -68,38 +105,8 @@ object Nbp:
       totalPopulation: Int,
       rc: McRunConfig,
   )(using p: SimParams): Rate =
-    if p.flags.nbpSymmetric then
-      val infGap       = inflation.toDouble - p.monetary.targetInfl.toDouble
-      val unempRate    = 1.0 - (employed.toDouble / totalPopulation)
-      val rawOutputGap = (unempRate - p.monetary.nairu.toDouble) / p.monetary.nairu.toDouble
-      val outputGap    = Math.max(-OutputGapCap, Math.min(OutputGapCap, rawOutputGap))
-      val taylor       = p.monetary.neutralRate.toDouble +
-        p.monetary.taylorAlpha * infGap -
-        p.monetary.taylorDelta * outputGap +
-        p.monetary.taylorBeta * exRateChange
-      val smoothed     = prevRate.toDouble * p.monetary.taylorInertia.toDouble + taylor * (1.0 - p.monetary.taylorInertia.toDouble)
-      val effective    =
-        if p.monetary.maxRateChange.toDouble > 0 then
-          prevRate.toDouble + Math.max(
-            -p.monetary.maxRateChange.toDouble,
-            Math.min(p.monetary.maxRateChange.toDouble, smoothed - prevRate.toDouble),
-          )
-        else smoothed
-      Rate(Math.max(p.monetary.rateFloor.toDouble, Math.min(p.monetary.rateCeiling.toDouble, effective)))
-    else
-      val infGap    = inflation.toDouble - p.monetary.targetInfl.toDouble
-      val taylor    = p.monetary.neutralRate.toDouble +
-        p.monetary.taylorAlpha * Math.max(0.0, infGap) +
-        p.monetary.taylorBeta * Math.max(0.0, exRateChange)
-      val smoothed  = prevRate.toDouble * p.monetary.taylorInertia.toDouble + taylor * (1.0 - p.monetary.taylorInertia.toDouble)
-      val effective =
-        if p.monetary.maxRateChange.toDouble > 0 then
-          prevRate.toDouble + Math.max(
-            -p.monetary.maxRateChange.toDouble,
-            Math.min(p.monetary.maxRateChange.toDouble, smoothed - prevRate.toDouble),
-          )
-        else smoothed
-      Rate(Math.max(p.monetary.rateFloor.toDouble, Math.min(p.monetary.rateCeiling.toDouble, effective)))
+    val taylor = taylorTarget(inflation, exRateChange, employed, totalPopulation)
+    clampRate(smoothAndClamp(prevRate, taylor))
 
   // ---------------------------------------------------------------------------
   // Bond yield
