@@ -164,10 +164,10 @@ class HouseholdSpec extends AnyFlatSpec with Matchers:
     // Expected debt service: debt * (HhBaseAmortRate + lendingRate/12)
     val expectedDs0        = debt.toDouble * (p.household.baseAmortRate.toDouble + 0.06 / 12.0)
     val expectedDs1        = debt.toDouble * (p.household.baseAmortRate.toDouble + 0.10 / 12.0)
-    pbf.debtService(0) shouldBe expectedDs0 +- 0.01
-    pbf.debtService(1) shouldBe expectedDs1 +- 0.01
+    pbf(0).debtService shouldBe expectedDs0 +- 0.01
+    pbf(1).debtService shouldBe expectedDs1 +- 0.01
     // Bank 1's higher rate should mean higher debt service
-    pbf.debtService(1) should be > pbf.debtService(0)
+    pbf(1).debtService should be > pbf(0).debtService
   }
 
   it should "pay deposit interest to HH with positive savings" in {
@@ -185,7 +185,7 @@ class HouseholdSpec extends AnyFlatSpec with Matchers:
       Household.step(hhs, mkWorld(), 8000.0, 4666.0, 0.4, rng, nBanks = 1, bankRates = Some(br))
     val pbf                = maybePbf.get
     val expectedDepInt     = depRate / 12.0 * savings.toDouble
-    pbf.depositInterest(0) shouldBe expectedDepInt +- 0.01
+    pbf(0).depositInterest shouldBe expectedDepInt +- 0.01
     agg.totalDepositInterest.toDouble shouldBe expectedDepInt +- 0.01
   }
 
@@ -240,14 +240,14 @@ class HouseholdSpec extends AnyFlatSpec with Matchers:
       Household.step(hhs, mkWorld(), 8000.0, 4666.0, 0.4, rng, nBanks = 2, bankRates = Some(br))
     val pbf              = maybePbf.get
     // Bank 0 has HH 0 and 1: income should include both
-    pbf.income(0) should be > 0.0
-    pbf.income(1) should be > 0.0
+    pbf(0).income should be > 0.0
+    pbf(1).income should be > 0.0
     // Bank 0 deposit interest: (50000 + 30000) * 0.035/12
     val expDepInt0       = (50000.0 + 30000.0) * 0.035 / 12.0
-    pbf.depositInterest(0) shouldBe expDepInt0 +- 0.01
+    pbf(0).depositInterest shouldBe expDepInt0 +- 0.01
     // Bank 1 deposit interest: 80000 * 0.035/12
     val expDepInt1       = 80000.0 * 0.035 / 12.0
-    pbf.depositInterest(1) shouldBe expDepInt1 +- 0.01
+    pbf(1).depositInterest shouldBe expDepInt1 +- 0.01
   }
 
   it should "not pay deposit interest on negative savings" in {
@@ -263,7 +263,7 @@ class HouseholdSpec extends AnyFlatSpec with Matchers:
       Household.step(hhs, mkWorld(), 8000.0, 4666.0, 0.4, rng, nBanks = 1, bankRates = Some(br))
     val pbf                = maybePbf.get
     // Deposit interest on negative savings is floored at 0
-    pbf.depositInterest(0) shouldBe 0.0
+    pbf(0).depositInterest shouldBe 0.0
     agg.totalDepositInterest.toDouble shouldBe 0.0
   }
 
