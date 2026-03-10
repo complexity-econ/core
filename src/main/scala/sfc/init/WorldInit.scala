@@ -133,7 +133,7 @@ object WorldInit:
       external = ExternalState(
         gvc = GvcInit.create(),
         immigration =
-          if p.flags.immigration then Immigration.State(p.immigration.initStock, 0, 0, 0.0)
+          if p.flags.immigration then Immigration.State(p.immigration.initStock, 0, 0, PLN.Zero)
           else Immigration.State.zero,
       ),
       real = RealState(

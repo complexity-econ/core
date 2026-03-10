@@ -15,7 +15,7 @@ class ImmigrationPropertySpec extends AnyFlatSpec with Matchers:
     val rng = new Random(42)
     for _ <- 0 until 100 do
       val wap    = rng.nextInt(200000) + 1
-      val wage   = rng.nextDouble() * 20000
+      val wage   = PLN(rng.nextDouble() * 20000)
       val unemp  = rng.nextDouble()
       val month  = rng.nextInt(120) + 1
       val result = Immigration.computeInflow(wap, wage, unemp, month)
@@ -32,7 +32,7 @@ class ImmigrationPropertySpec extends AnyFlatSpec with Matchers:
 
   "Immigration.chooseSector" should "produce all 6 sectors over many draws" in {
     val rng     = new Random(42)
-    val sectors = (0 until 1000).map(_ => Immigration.chooseSector(rng)).toSet
+    val sectors = (0 until 1000).map(_ => Immigration.chooseSector(rng).toInt).toSet
     sectors.size shouldBe 6
     sectors.foreach { s =>
       s should be >= 0
@@ -53,8 +53,8 @@ class ImmigrationPropertySpec extends AnyFlatSpec with Matchers:
     val rng        = new Random(42)
     val immigrants = Immigration.spawnImmigrants(200, 0, rng)
     immigrants.foreach { h =>
-      h.savings.toDouble should be >= 0.0
-      h.savings.toDouble should be <= 5000.0
+      h.savings should be >= PLN.Zero
+      h.savings should be <= PLN(5000.0)
     }
   }
 
@@ -67,15 +67,15 @@ class ImmigrationPropertySpec extends AnyFlatSpec with Matchers:
   it should "have rent >= 800" in {
     val rng        = new Random(42)
     val immigrants = Immigration.spawnImmigrants(100, 0, rng)
-    immigrants.foreach(_.monthlyRent.toDouble should be >= 800.0)
+    immigrants.foreach(_.monthlyRent should be >= PLN(800.0))
   }
 
   "Immigration.step" should "preserve non-negative stock" in {
     val rng = new Random(42)
     for _ <- 0 until 100 do
       val prevStock = rng.nextInt(5000)
-      val prev      = Immigration.State(prevStock, 0, 0, 0.0)
-      val result    = Immigration.step(prev, Vector.empty, 8000.0, 0.05, 100000, 1)
+      val prev      = Immigration.State(prevStock, 0, 0, PLN.Zero)
+      val result    = Immigration.step(prev, Vector.empty, PLN(8000.0), 0.05, 100000, 1)
       result.immigrantStock should be >= 0
   }
 
