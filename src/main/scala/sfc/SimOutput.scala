@@ -298,7 +298,7 @@ object SimOutput:
     // Immigration
     ColumnDef("ImmigrantStock", ctx => ctx.world.external.immigration.immigrantStock.toDouble),
     ColumnDef("MonthlyImmigInflow", ctx => ctx.world.external.immigration.monthlyInflow.toDouble),
-    ColumnDef("RemittanceOutflow", ctx => ctx.world.external.immigration.remittanceOutflow),
+    ColumnDef("RemittanceOutflow", ctx => ctx.world.external.immigration.remittanceOutflow.toDouble),
     ColumnDef(
       "ImmigrantUnempRate",
       ctx =>
@@ -424,7 +424,7 @@ object SimOutput:
     ColumnDef("DiasporaRemittanceInflow", ctx => ctx.world.flows.diasporaRemittanceInflow.toDouble),
     ColumnDef(
       "NetRemittances",
-      ctx => (ctx.world.flows.diasporaRemittanceInflow - PLN(ctx.world.external.immigration.remittanceOutflow)).toDouble,
+      ctx => (ctx.world.flows.diasporaRemittanceInflow - ctx.world.external.immigration.remittanceOutflow).toDouble,
     ),
     // Tourism (#47)
     ColumnDef("TourismExport", ctx => ctx.world.flows.tourismExport.toDouble),

@@ -15,7 +15,7 @@ class ImmigrationSpec extends AnyFlatSpec with Matchers:
 
   "Immigration.computeInflow" should "return 0 when disabled" in {
     // p.flags.immigration is false by default
-    Immigration.computeInflow(100000, 8000.0, 0.05, 1) shouldBe 0
+    Immigration.computeInflow(100000, PLN(8000.0), 0.05, 1) shouldBe 0
   }
 
   // ---- computeOutflow ----
@@ -41,7 +41,7 @@ class ImmigrationSpec extends AnyFlatSpec with Matchers:
         isImmigrant = true,
       ),
     )
-    Immigration.computeRemittances(hhs) shouldBe 0.0
+    Immigration.computeRemittances(hhs) shouldBe PLN.Zero
   }
 
   it should "return 0 for non-immigrant households" in {
@@ -59,7 +59,7 @@ class ImmigrationSpec extends AnyFlatSpec with Matchers:
         isImmigrant = false,
       ),
     )
-    Immigration.computeRemittances(hhs) shouldBe 0.0
+    Immigration.computeRemittances(hhs) shouldBe PLN.Zero
   }
 
   // ---- chooseSector ----
@@ -68,8 +68,8 @@ class ImmigrationSpec extends AnyFlatSpec with Matchers:
     val rng = new Random(42)
     for _ <- 0 until 100 do
       val sector = Immigration.chooseSector(rng)
-      sector should be >= 0
-      sector should be < 6
+      sector.toInt should be >= 0
+      sector.toInt should be < 6
   }
 
   // ---- spawnImmigrants ----
@@ -102,8 +102,8 @@ class ImmigrationSpec extends AnyFlatSpec with Matchers:
     val rng        = new Random(42)
     val immigrants = Immigration.spawnImmigrants(100, 0, rng)
     immigrants.foreach { h =>
-      h.skill.toDouble should be >= 0.15
-      h.skill.toDouble should be <= 0.95
+      h.skill should be >= Ratio(0.15)
+      h.skill should be <= Ratio(0.95)
     }
   }
 
@@ -111,8 +111,8 @@ class ImmigrationSpec extends AnyFlatSpec with Matchers:
     val rng        = new Random(42)
     val immigrants = Immigration.spawnImmigrants(100, 0, rng)
     immigrants.foreach { h =>
-      h.mpc.toDouble should be >= 0.7
-      h.mpc.toDouble should be <= 0.98
+      h.mpc should be >= Ratio(0.7)
+      h.mpc should be <= Ratio(0.98)
     }
   }
 
@@ -138,7 +138,7 @@ class ImmigrationSpec extends AnyFlatSpec with Matchers:
       Household.State(
         HhId(0),
         PLN(1000.0),
-        PLN(0.0),
+        PLN.Zero,
         PLN(1800.0),
         Ratio(0.5),
         Ratio(0.0),
@@ -150,7 +150,7 @@ class ImmigrationSpec extends AnyFlatSpec with Matchers:
       Household.State(
         HhId(1),
         PLN(1000.0),
-        PLN(0.0),
+        PLN.Zero,
         PLN(1800.0),
         Ratio(0.5),
         Ratio(0.0),
@@ -162,7 +162,7 @@ class ImmigrationSpec extends AnyFlatSpec with Matchers:
       Household.State(
         HhId(2),
         PLN(1000.0),
-        PLN(0.0),
+        PLN.Zero,
         PLN(1800.0),
         Ratio(0.5),
         Ratio(0.0),
@@ -174,7 +174,7 @@ class ImmigrationSpec extends AnyFlatSpec with Matchers:
       Household.State(
         HhId(3),
         PLN(1000.0),
-        PLN(0.0),
+        PLN.Zero,
         PLN(1800.0),
         Ratio(0.5),
         Ratio(0.0),
@@ -197,7 +197,7 @@ class ImmigrationSpec extends AnyFlatSpec with Matchers:
       Household.State(
         HhId(0),
         PLN(1000.0),
-        PLN(0.0),
+        PLN.Zero,
         PLN(1800.0),
         Ratio(0.5),
         Ratio(0.0),
@@ -209,7 +209,7 @@ class ImmigrationSpec extends AnyFlatSpec with Matchers:
       Household.State(
         HhId(1),
         PLN(1000.0),
-        PLN(0.0),
+        PLN.Zero,
         PLN(1800.0),
         Ratio(0.5),
         Ratio(0.0),
@@ -228,7 +228,7 @@ class ImmigrationSpec extends AnyFlatSpec with Matchers:
       Household.State(
         HhId(0),
         PLN(1000.0),
-        PLN(0.0),
+        PLN.Zero,
         PLN(1800.0),
         Ratio(0.5),
         Ratio(0.0),
@@ -244,18 +244,18 @@ class ImmigrationSpec extends AnyFlatSpec with Matchers:
   // ---- step ----
 
   "Immigration.step" should "return zero state when disabled" in {
-    val prev   = Immigration.State(100, 0, 0, 0.0)
-    val result = Immigration.step(prev, Vector.empty, 8000.0, 0.05, 100000, 1)
+    val prev   = Immigration.State(100, 0, 0, PLN.Zero)
+    val result = Immigration.step(prev, Vector.empty, PLN(8000.0), 0.05, 100000, 1)
     result.monthlyInflow shouldBe 0
     result.monthlyOutflow shouldBe 0
-    result.remittanceOutflow shouldBe 0.0
+    result.remittanceOutflow shouldBe PLN.Zero
     result.immigrantStock shouldBe 100 // stock preserved (no inflow/outflow when disabled)
   }
 
   it should "maintain non-negative immigrant stock" in {
     // Even with large outflow, stock should not go negative
-    val prev   = Immigration.State(2, 0, 0, 0.0)
-    val result = Immigration.step(prev, Vector.empty, 8000.0, 0.05, 100000, 1)
+    val prev   = Immigration.State(2, 0, 0, PLN.Zero)
+    val result = Immigration.step(prev, Vector.empty, PLN(8000.0), 0.05, 100000, 1)
     result.immigrantStock should be >= 0
   }
 
@@ -265,5 +265,5 @@ class ImmigrationSpec extends AnyFlatSpec with Matchers:
     Immigration.State.zero.immigrantStock shouldBe 0
     Immigration.State.zero.monthlyInflow shouldBe 0
     Immigration.State.zero.monthlyOutflow shouldBe 0
-    Immigration.State.zero.remittanceOutflow shouldBe 0.0
+    Immigration.State.zero.remittanceOutflow shouldBe PLN.Zero
   }

@@ -64,7 +64,7 @@ object LaborDemographicsStep:
     val newImmig          = Immigration.step(
       in.w.external.immigration,
       in.households,
-      newWage,
+      PLN(newWage),
       unempRateForImmig,
       in.w.social.demographics.workingAgePop.max(in.w.totalPopulation),
       in.s1.m,
