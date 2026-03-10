@@ -5,11 +5,11 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import sfc.Generators.*
+import sfc.config.SimParams
 import sfc.types.*
 
 class CentralBankPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks:
 
-  import sfc.config.SimParams
   given SimParams          = SimParams.defaults
   private val p: SimParams = summon[SimParams]
 

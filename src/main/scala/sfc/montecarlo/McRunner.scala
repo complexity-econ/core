@@ -1,6 +1,6 @@
-package sfc
+package sfc.montecarlo
 
-import sfc.SimOutput.Col
+import SimOutput.Col
 import sfc.accounting.Sfc
 import sfc.agents.Banking.BankState
 import sfc.agents.Household
@@ -10,6 +10,7 @@ import sfc.init.WorldInit
 import sfc.types.*
 import sfc.util.CsvWriter
 import sfc.util.KahanSum.*
+import sfc.*
 
 import java.io.File
 
@@ -26,7 +27,7 @@ object McRunner:
     val results = Array.ofDim[Double](p.timeline.duration, SimOutput.nCols)
 
     for t <- 0 until p.timeline.duration do
-      val stepResult = Simulation.step(state, rc, seed, t)
+      val stepResult = Simulation.step(state, seed, t)
       stepResult.sfcCheck match
         case Left(errors) => throw Sfc.SfcViolationException(t + 1, errors)
         case Right(())    => // OK

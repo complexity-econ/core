@@ -1,6 +1,5 @@
 package sfc.agents
 
-import sfc.McRunConfig
 import sfc.config.SimParams
 import sfc.types.*
 
@@ -103,7 +102,6 @@ object Nbp:
       exRateChange: Double,
       employed: Int,
       totalPopulation: Int,
-      rc: McRunConfig,
   )(using p: SimParams): Rate =
     val taylor = taylorTarget(inflation, exRateChange, employed, totalPopulation)
     clampRate(smoothAndClamp(prevRate, taylor))

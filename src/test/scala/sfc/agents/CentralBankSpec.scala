@@ -2,11 +2,11 @@ package sfc.agents
 
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import sfc.config.SimParams
 import sfc.types.*
 
 class CentralBankSpec extends AnyFlatSpec with Matchers:
 
-  import sfc.config.SimParams
   given SimParams          = SimParams.defaults
   private val p: SimParams = summon[SimParams]
 

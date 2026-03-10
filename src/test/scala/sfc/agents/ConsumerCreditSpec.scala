@@ -3,12 +3,12 @@ package sfc.agents
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import sfc.accounting.{BankingAggregate, Sfc}
+import sfc.config.SimParams
 import sfc.types.*
 
 /** Consumer credit unit tests. */
 class ConsumerCreditSpec extends AnyFlatSpec with Matchers:
 
-  import sfc.config.SimParams
   given SimParams          = SimParams.defaults
   private val p: SimParams = summon[SimParams]
 

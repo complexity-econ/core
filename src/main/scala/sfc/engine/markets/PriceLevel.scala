@@ -1,6 +1,5 @@
 package sfc.engine.markets
 
-import sfc.McRunConfig
 import sfc.config.SimParams
 
 object PriceLevel:
@@ -13,7 +12,6 @@ object PriceLevel:
       exRateDeviation: Double,
       autoRatio: Double,
       hybridRatio: Double,
-      rc: McRunConfig,
   )(using p: SimParams): (Double, Double) =
     val demandPull    = (demandMult - 1.0) * 0.15
     val costPush      = wageGrowth * 0.25

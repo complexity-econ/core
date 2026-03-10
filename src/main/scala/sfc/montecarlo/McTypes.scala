@@ -1,7 +1,7 @@
-package sfc
+package sfc.montecarlo
 
-import sfc.SimOutput.Col
 import sfc.engine.Simulation
+import sfc.montecarlo.SimOutput.Col
 import sfc.util.KahanSum.*
 
 /** Zero-cost typed wrappers for Monte Carlo simulation output. */

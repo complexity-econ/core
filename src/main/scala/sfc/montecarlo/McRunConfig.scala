@@ -1,4 +1,4 @@
-package sfc
+package sfc.montecarlo
 
 /** Runtime configuration: values that depend on CLI arguments. Passed through
   * McRunner and Simulation.step.

@@ -7,7 +7,6 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import sfc.Generators.*
 import sfc.accounting.{ForexState, GovState}
 import sfc.agents.Nbp
-import sfc.McRunConfig
 import sfc.config.SimParams
 import sfc.engine.markets.{FiscalBudget, LaborMarket, OpenEconomy, PriceLevel}
 import sfc.types.*
@@ -20,7 +19,6 @@ class SimulationPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPr
   implicit override val generatorDrivenConfig: PropertyCheckConfiguration =
     PropertyCheckConfiguration(minSuccessful = 200)
 
-  private val rc       = McRunConfig(1, "test")
   private val totalPop = p.pop.firmsCount * p.pop.workersPerFirm
 
   // Combined generator for gov inputs (avoids >6 forAll limit)
@@ -49,7 +47,7 @@ class SimulationPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPr
 
   "updateCbRate" should "be in [RateFloor, RateCeiling] for PLN" in
     forAll(genRate, genInflation, Gen.choose(-0.10, 0.10), Gen.choose(0, totalPop)) { (prevRate: Double, inflation: Double, exRateChg: Double, employed: Int) =>
-      val r = Nbp.updateRate(Rate(prevRate), Rate(inflation), exRateChg, employed, totalPop, rc)
+      val r = Nbp.updateRate(Rate(prevRate), Rate(inflation), exRateChg, employed, totalPop)
       r.toDouble should be >= p.monetary.rateFloor.toDouble
       r.toDouble should be <= p.monetary.rateCeiling.toDouble
     }
@@ -58,8 +56,8 @@ class SimulationPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPr
     forAll(genRate, Gen.choose(-0.10, 0.30), Gen.choose(0, totalPop)) { (prevRate: Double, baseInflation: Double, employed: Int) =>
       val lowInfl  = baseInflation
       val highInfl = baseInflation + 0.10
-      val rLow     = Nbp.updateRate(Rate(prevRate), Rate(lowInfl), 0.0, employed, totalPop, rc)
-      val rHigh    = Nbp.updateRate(Rate(prevRate), Rate(highInfl), 0.0, employed, totalPop, rc)
+      val rLow     = Nbp.updateRate(Rate(prevRate), Rate(lowInfl), 0.0, employed, totalPop)
+      val rHigh    = Nbp.updateRate(Rate(prevRate), Rate(highInfl), 0.0, employed, totalPop)
       rHigh.toDouble should be >= (rLow.toDouble - 1e-10)
     }
 
@@ -69,20 +67,20 @@ class SimulationPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPr
     forAll(genInflInputs) { (inputs: (Double, Double, Double, Double, Double, Double, Double)) =>
       val (prevInfl, prevPrice, demandMult, wageGrowth, exRateDev, autoR, hybR) = inputs
       val (_, newPrice)                                                         =
-        PriceLevel.update(prevInfl, prevPrice, demandMult, wageGrowth, exRateDev, autoR, hybR, rc)
+        PriceLevel.update(prevInfl, prevPrice, demandMult, wageGrowth, exRateDev, autoR, hybR)
       newPrice should be >= 0.30
     }
 
   it should "apply soft deflation floor (price >= 0.30)" in {
-    val (_, price) = PriceLevel.update(-0.30, 1.0, 0.5, -0.10, 0.0, 0.80, 0.15, rc)
+    val (_, price) = PriceLevel.update(-0.30, 1.0, 0.5, -0.10, 0.0, 0.80, 0.15)
     price should be >= 0.30
   }
 
   it should "produce lower inflation with more automation" in
     forAll(genInflation, genPrice, Gen.choose(0.8, 1.2), Gen.choose(-0.02, 0.02)) {
       (prevInfl: Double, prevPrice: Double, demandMult: Double, wageGrowth: Double) =>
-        val (infl1, _) = PriceLevel.update(prevInfl, prevPrice, demandMult, wageGrowth, 0.0, 0.05, 0.0, rc)
-        val (infl2, _) = PriceLevel.update(prevInfl, prevPrice, demandMult, wageGrowth, 0.0, 0.50, 0.0, rc)
+        val (infl1, _) = PriceLevel.update(prevInfl, prevPrice, demandMult, wageGrowth, 0.0, 0.05, 0.0)
+        val (infl2, _) = PriceLevel.update(prevInfl, prevPrice, demandMult, wageGrowth, 0.0, 0.50, 0.0)
         infl2 should be <= (infl1 + 1e-10)
     }
 
@@ -141,7 +139,7 @@ class SimulationPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPr
   "updateForeign" should "keep exchange rate in [3.0, 8.0]" in
     forAll(genForexState, Gen.choose(0.0, 1e8), Gen.choose(0.0, 1e7), genFraction, genRate, Gen.choose(1e6, 1e10)) {
       (prev: ForexState, importCons: Double, techImp: Double, autoR: Double, rate: Double, gdp: Double) =>
-        val fx = OpenEconomy.updateForeign(prev, importCons, techImp, autoR, rate, gdp, rc)
+        val fx = OpenEconomy.updateForeign(prev, importCons, techImp, autoR, rate, gdp)
         fx.exchangeRate should be >= 3.0
         fx.exchangeRate should be <= 8.0
     }

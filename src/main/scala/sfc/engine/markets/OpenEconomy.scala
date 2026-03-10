@@ -2,7 +2,6 @@ package sfc.engine.markets
 
 import sfc.accounting.{BopState, ForexState}
 import sfc.agents.Nbp
-import sfc.McRunConfig
 import sfc.config.SimParams
 import sfc.types.PLN
 import sfc.util.KahanSum.*
@@ -16,7 +15,6 @@ object OpenEconomy:
       autoRatio: Double,
       domesticRate: Double,
       gdp: Double,
-      rc: McRunConfig,
   )(using p: SimParams): ForexState =
     val techComp  = 1.0 + autoRatio * p.forex.exportAutoBoost.toDouble
     val totalImp  = importConsumption + techImports
@@ -51,7 +49,6 @@ object OpenEconomy:
       priceLevel: Double,
       sectorOutputs: Vector[Double],
       month: Int,
-      rc: McRunConfig,
       nbpFxReserves: Double = 0.0,
       gvcExports: Option[Double] = None,
       gvcIntermImports: Option[Vector[Double]] = None,

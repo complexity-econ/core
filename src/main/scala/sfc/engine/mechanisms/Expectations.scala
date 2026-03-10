@@ -1,6 +1,5 @@
 package sfc.engine.mechanisms
 
-import sfc.McRunConfig
 import sfc.config.SimParams
 import sfc.types.*
 
@@ -23,9 +22,7 @@ object Expectations:
     forwardGuidanceRate = Rate(p.monetary.initialRate.toDouble),
   )
 
-  def step(prev: State, realizedInflation: Double, currentRate: Double, unemployment: Double, rc: McRunConfig)(using
-      p: SimParams,
-  ): State =
+  def step(prev: State, realizedInflation: Double, currentRate: Double, unemployment: Double)(using p: SimParams): State =
 
     // 1. Forecast error
     val error = realizedInflation - prev.expectedInflation.toDouble

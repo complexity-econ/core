@@ -3,7 +3,6 @@ package sfc.engine
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import sfc.accounting.{BopState, ForexState}
-import sfc.McRunConfig
 import sfc.config.SimParams
 import sfc.engine.markets.OpenEconomy
 import sfc.types.*
@@ -13,14 +12,11 @@ class OpenEconomySpec extends AnyFlatSpec with Matchers:
   given SimParams          = SimParams.defaults
   private val p: SimParams = summon[SimParams]
 
-  private val rc = McRunConfig(1, "test")
-
   private val baseForex         = ForexState(p.forex.baseExRate, PLN.Zero, PLN(p.forex.exportBase.toDouble), PLN.Zero, PLN.Zero)
   private val baseSectorOutputs = Vector(30000.0, 160000.0, 450000.0, 60000.0, 220000.0, 80000.0)
   private val gdp               = 1e9
 
   private def runStep(
-      rc: McRunConfig = rc,
       prevBop: BopState = BopState.zero,
       prevForex: ForexState = baseForex,
       autoRatio: Double = 0.0,
@@ -37,7 +33,6 @@ class OpenEconomySpec extends AnyFlatSpec with Matchers:
       1.0,
       baseSectorOutputs,
       month,
-      rc,
     )
 
   // ---- Export tests ----
@@ -102,7 +97,6 @@ class OpenEconomySpec extends AnyFlatSpec with Matchers:
       1.0,
       baseSectorOutputs,
       30,
-      rc,
       euFundsMonthly = p.openEcon.euTransfers.toDouble,
     )
     r.bop.secondaryIncome.toDouble shouldBe p.openEcon.euTransfers.toDouble +- 0.01
