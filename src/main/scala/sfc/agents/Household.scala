@@ -649,73 +649,42 @@ object Household:
       sectorVacancies: Option[Array[Int]] = None,
   )(using p: SimParams): (Vector[State], Aggregates, Option[Vector[PerBankFlow]]) =
 
-    // Pre-compute distressed HH set: O(N_hh) instead of O(N_hh x k) per-HH lookup
-    val distressedIds = new java.util.BitSet(households.length)
-    var idx           = 0
-    while idx < households.length do
-      households(idx).status match
-        case HhStatus.Bankrupt | HhStatus.Unemployed(_) => distressedIds.set(idx)
-        case _                                          =>
-      idx += 1
+    val distressedIds = buildDistressedSet(households)
 
-    // Map each HH to (updatedState, Option[(bankId, result)])
     val mapped = households.map: hh =>
       if hh.status == HhStatus.Bankrupt then (hh, None) // absorbing barrier
       else
-        val result = processHousehold(
-          hh,
-          world,
-          rng,
-          bankRates,
-          equityIndexReturn,
-          sectorWages,
-          sectorVacancies,
-          distressedIds,
-        )
+        val result = processHousehold(hh, world, rng, bankRates, equityIndexReturn, sectorWages, sectorVacancies, distressedIds)
         (result.newState, Some((hh.bankId, result)))
 
     val updated = mapped.map(_._1)
     val flows   = mapped.flatMap(_._2)
+    val totals  = flows.foldLeft(StepTotals())((acc, br) => acc.add(br._2))
+    val agg     = computeAggregates(updated, marketWage, reservationWage, importAdj, totals)
+    val pbf     = if bankRates.isDefined then Some(buildPerBankFlows(flows, nBanks)) else None
+    (updated, agg, pbf)
 
-    // Fold totals (immutable)
-    val t = flows.foldLeft(StepTotals())((acc, br) => acc.add(br._2))
+  /** Pre-compute distressed HH set for O(1) neighbor lookups. */
+  private def buildDistressedSet(households: Vector[State]): java.util.BitSet =
+    val bits = new java.util.BitSet(households.length)
+    var i    = 0
+    while i < households.length do
+      households(i).status match
+        case HhStatus.Bankrupt | HhStatus.Unemployed(_) => bits.set(i)
+        case _                                          =>
+      i += 1
+    bits
 
-    val agg                    =
-      computeAggregates(updated, marketWage, reservationWage, importAdj, t.retrainingAttempts, t.retrainingSuccesses)
-    val actualTotalConsumption = (t.goodsConsumption + t.rent).toDouble
-    val actualImportCons       = t.goodsConsumption.toDouble * Math.min(ImportRatioCap, importAdj)
-    val actualDomesticCons     = actualTotalConsumption - actualImportCons
-    // Sector mobility rate: fraction of employed in different sector than lastSectorIdx
-    val smRate                 = if p.flags.sectoralMobility then
-      val employed = updated.filter(_.status.isInstanceOf[HhStatus.Employed])
-      if employed.nonEmpty then
-        employed.count { hh =>
-          val sec = hh.status.asInstanceOf[HhStatus.Employed].sectorIdx
-          hh.lastSectorIdx.toInt >= 0 && hh.lastSectorIdx != sec
-        }.toDouble / employed.length
-      else 0.0
-    else 0.0
-    val correctedAgg           = agg.copy(
-      totalIncome = t.income,
-      consumption = PLN(actualTotalConsumption),
-      importConsumption = PLN(actualImportCons),
-      domesticConsumption = PLN(actualDomesticCons),
-      totalUnempBenefits = t.unempBenefits,
-      totalDebtService = t.debtService,
-      totalDepositInterest = t.depositInterest,
-      totalRent = t.rent,
-      voluntaryQuits = t.voluntaryQuits,
-      sectorMobilityRate = Ratio(smRate),
-      totalRemittances = t.remittances,
-      totalPit = t.pit,
-      totalSocialTransfers = t.socialTransfers,
-      totalConsumerDebtService = t.consumerDebtService,
-      totalConsumerOrigination = t.consumerOrigination,
-      totalConsumerDefault = t.consumerDefault,
-      totalConsumerPrincipal = t.consumerPrincipal,
-    )
-    val pbf                    = if bankRates.isDefined then Some(buildPerBankFlows(flows, nBanks)) else None
-    (updated, correctedAgg, pbf)
+  /** Sector mobility rate: fraction of employed in different sector than last.
+    */
+  private def sectorMobilityRate(updated: Vector[State])(using p: SimParams): Double =
+    if !p.flags.sectoralMobility then return 0.0
+    val employed = updated.flatMap: hh =>
+      hh.status match
+        case HhStatus.Employed(_, sec, _) => Some((hh.lastSectorIdx, sec))
+        case _                            => None
+    if employed.isEmpty then return 0.0
+    employed.count((last, cur) => last.toInt >= 0 && last != cur).toDouble / employed.length
 
   /** Base income, benefit, and updated status for one HH. */
   private def computeIncome(hh: State)(using SimParams): (PLN, PLN, HhStatus) =
@@ -756,7 +725,8 @@ object Household:
         i += 1
       count.toDouble / hh.socialNeighbors.length
 
-  /** Aggregate stats: single-pass accumulation + sorted-array Gini/percentiles.
+  /** Public entry point for aggregate stats (used by BankUpdateStep and tests).
+    * Flow totals default to zero — only distribution stats are computed.
     */
   def computeAggregates(
       households: Vector[State],
@@ -765,6 +735,25 @@ object Household:
       importAdj: Double,
       retrainingAttempts: Int,
       retrainingSuccesses: Int,
+  )(using SimParams): Aggregates =
+    computeAggregates(
+      households,
+      marketWage,
+      reservationWage,
+      importAdj,
+      StepTotals(retrainingAttempts = retrainingAttempts, retrainingSuccesses = retrainingSuccesses),
+    )
+
+  /** Aggregate stats: single-pass accumulation + sorted-array Gini/percentiles.
+    * Merges per-HH distribution stats with flow totals from StepTotals in one
+    * construction — no intermediate Aggregates + copy overwrite.
+    */
+  private def computeAggregates(
+      households: Vector[State],
+      marketWage: PLN,
+      reservationWage: PLN,
+      importAdj: Double,
+      t: StepTotals,
   )(using p: SimParams): Aggregates =
     val n = households.length
 
@@ -772,18 +761,14 @@ object Household:
     var nUnemployed  = 0
     var nRetraining  = 0
     var nBankrupt    = 0
-    var totalIncome  = 0.0
     var sumSkill     = 0.0
     var sumHealth    = 0.0
     val incomes      = new Array[Double](n)
     val consumptions = new Array[Double](n)
     val savingsArr   = new Array[Double](n)
 
-    var totalRent          = 0.0
-    var totalDebtService   = 0.0
-    var totalUnempBenefits = 0.0
-
-    // Single pass: collect all per-HH stats + accumulate skill/health
+    // Hot path: O(N_hh) single-pass with mutable accumulators + in-place arrays.
+    // Intentionally imperative — foldLeft with 9-field accumulator would be slower and less readable.
     var i = 0
     while i < n do
       val hh = households(i)
@@ -795,9 +780,7 @@ object Household:
           sumHealth += hh.healthPenalty.toDouble
         case HhStatus.Unemployed(months)   =>
           nUnemployed += 1
-          val benefit = computeBenefit(months).toDouble
-          incomes(i) = benefit
-          totalUnempBenefits += benefit
+          incomes(i) = computeBenefit(months).toDouble
           sumSkill += hh.skill.toDouble
           sumHealth += hh.healthPenalty.toDouble
         case HhStatus.Retraining(_, _, _)  =>
@@ -809,98 +792,67 @@ object Household:
           nBankrupt += 1
           incomes(i) = 0.0
 
-      val rent        = hh.monthlyRent.toDouble
-      val debtSvc     = hh.debt.toDouble * p.household.debtServiceRate.toDouble
-      val obligations = rent + debtSvc
-      val disposable  = Math.max(0.0, incomes(i) - obligations)
+      val rent       = hh.monthlyRent.toDouble
+      val debtSvc    = hh.debt.toDouble * p.household.debtServiceRate.toDouble
+      val disposable = Math.max(0.0, incomes(i) - rent - debtSvc)
       consumptions(i) = disposable * hh.mpc.toDouble
-      totalIncome += incomes(i)
       savingsArr(i) = hh.savings.toDouble
-      if hh.status != HhStatus.Bankrupt then
-        totalRent += rent
-        totalDebtService += debtSvc
       i += 1
 
     val nAlive = n - nBankrupt
 
-    // SFC consistency: rent is domestic consumption (landlord income -> spending),
-    // debt service flows to bank (captured via BankState in Simulation.scala).
-    val goodsConsumption = consumptions.kahanSum
-    val totalConsumption = goodsConsumption + totalRent
-    val importCons       = goodsConsumption * Math.min(ImportRatioCap, importAdj)
-    val domesticCons     = totalConsumption - importCons
-
-    // Sort each array once -- reuse for Gini + percentiles + poverty
+    // Sort each array once — reuse for Gini + percentiles + poverty
     java.util.Arrays.sort(incomes)
     java.util.Arrays.sort(savingsArr)
     java.util.Arrays.sort(consumptions)
 
-    // Gini coefficients (on pre-sorted arrays)
-    val giniIncome = giniSorted(incomes)
-    val giniWealth = giniSorted(savingsArr)
+    // Consumption split: flow totals (from StepTotals) are authoritative
+    val totalConsumption = (t.goodsConsumption + t.rent).toDouble
+    val importCons       = t.goodsConsumption.toDouble * Math.min(ImportRatioCap, importAdj)
+    val domesticCons     = totalConsumption - importCons
 
-    // Savings statistics (savingsArr already sorted)
-    val meanSavings   = if n > 0 then savingsArr.kahanSum / n else 0.0
-    val medianSavings = if n > 0 then savingsArr(n / 2) else 0.0
-
-    // Poverty rates from sorted incomes -- binary search instead of full scan
-    val medianIncome  = if n > 0 then incomes(n / 2) else 0.0
-    val povertyRate50 = if n > 0 && medianIncome > 0 then lowerBound(incomes, medianIncome * PovertyRate50Pct).toDouble / n else 0.0
-    val povertyRate30 = if n > 0 && medianIncome > 0 then lowerBound(incomes, medianIncome * PovertyRate30Pct).toDouble / n else 0.0
-
-    // Consumption percentiles (consumptions already sorted)
-    val consP10 = if n > 0 then consumptions((n * ConsumptionP10).toInt) else 0.0
-    val consP50 = if n > 0 then consumptions(n / 2) else 0.0
-    val consP90 = if n > 0 then consumptions(Math.min(n - 1, (n * ConsumptionP90).toInt)) else 0.0
-
-    // Skill and health (accumulated in main loop)
-    val meanSkill  = if nAlive > 0 then sumSkill / nAlive else 0.0
-    val meanHealth = if nAlive > 0 then sumHealth / nAlive else 0.0
-
-    // Bankruptcy rate and mean months to ruin
-    val bankruptcyRate   = if n > 0 then nBankrupt.toDouble / n else 0.0
-    val meanMonthsToRuin = 0.0 // would require tracking entry time
+    val medianIncome = if n > 0 then incomes(n / 2) else 0.0
 
     Aggregates(
       employed = nEmployed,
       unemployed = nUnemployed,
       retraining = nRetraining,
       bankrupt = nBankrupt,
-      totalIncome = PLN(totalIncome),
+      totalIncome = t.income,
       consumption = PLN(totalConsumption),
       domesticConsumption = PLN(domesticCons),
       importConsumption = PLN(importCons),
       marketWage = marketWage,
       reservationWage = reservationWage,
-      giniIndividual = Ratio(giniIncome),
-      giniWealth = Ratio(giniWealth),
-      meanSavings = PLN(meanSavings),
-      medianSavings = PLN(medianSavings),
-      povertyRate50 = Ratio(povertyRate50),
-      bankruptcyRate = Ratio(bankruptcyRate),
-      meanSkill = meanSkill,
-      meanHealthPenalty = meanHealth,
-      retrainingAttempts = retrainingAttempts,
-      retrainingSuccesses = retrainingSuccesses,
-      consumptionP10 = PLN(consP10),
-      consumptionP50 = PLN(consP50),
-      consumptionP90 = PLN(consP90),
-      meanMonthsToRuin = meanMonthsToRuin,
-      povertyRate30 = Ratio(povertyRate30),
-      totalRent = PLN(totalRent),
-      totalDebtService = PLN(totalDebtService),
-      totalUnempBenefits = PLN(totalUnempBenefits),
-      totalDepositInterest = PLN.Zero,
+      giniIndividual = Ratio(giniSorted(incomes)),
+      giniWealth = Ratio(giniSorted(savingsArr)),
+      meanSavings = PLN(if n > 0 then savingsArr.kahanSum / n else 0.0),
+      medianSavings = PLN(if n > 0 then savingsArr(n / 2) else 0.0),
+      povertyRate50 = Ratio(if n > 0 && medianIncome > 0 then lowerBound(incomes, medianIncome * PovertyRate50Pct).toDouble / n else 0.0),
+      bankruptcyRate = Ratio(if n > 0 then nBankrupt.toDouble / n else 0.0),
+      meanSkill = if nAlive > 0 then sumSkill / nAlive else 0.0,
+      meanHealthPenalty = if nAlive > 0 then sumHealth / nAlive else 0.0,
+      retrainingAttempts = t.retrainingAttempts,
+      retrainingSuccesses = t.retrainingSuccesses,
+      consumptionP10 = PLN(if n > 0 then consumptions((n * ConsumptionP10).toInt) else 0.0),
+      consumptionP50 = PLN(if n > 0 then consumptions(n / 2) else 0.0),
+      consumptionP90 = PLN(if n > 0 then consumptions(Math.min(n - 1, (n * ConsumptionP90).toInt)) else 0.0),
+      meanMonthsToRuin = 0.0,
+      povertyRate30 = Ratio(if n > 0 && medianIncome > 0 then lowerBound(incomes, medianIncome * PovertyRate30Pct).toDouble / n else 0.0),
+      totalRent = t.rent,
+      totalDebtService = t.debtService,
+      totalUnempBenefits = t.unempBenefits,
+      totalDepositInterest = t.depositInterest,
       crossSectorHires = 0,
-      voluntaryQuits = 0,
-      sectorMobilityRate = Ratio.Zero,
-      totalRemittances = PLN.Zero,
-      totalPit = PLN.Zero,
-      totalSocialTransfers = PLN.Zero,
-      totalConsumerDebtService = PLN.Zero,
-      totalConsumerOrigination = PLN.Zero,
-      totalConsumerDefault = PLN.Zero,
-      totalConsumerPrincipal = PLN.Zero,
+      voluntaryQuits = t.voluntaryQuits,
+      sectorMobilityRate = Ratio(sectorMobilityRate(households)),
+      totalRemittances = t.remittances,
+      totalPit = t.pit,
+      totalSocialTransfers = t.socialTransfers,
+      totalConsumerDebtService = t.consumerDebtService,
+      totalConsumerOrigination = t.consumerOrigination,
+      totalConsumerDefault = t.consumerDefault,
+      totalConsumerPrincipal = t.consumerPrincipal,
     )
 
   /** Gini coefficient for a pre-sorted array (handles negatives by shifting).
