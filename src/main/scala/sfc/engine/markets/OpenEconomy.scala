@@ -37,7 +37,7 @@ object OpenEconomy:
       bop: BopState,
       importedIntermediates: Vector[Double], // per-sector import cost (6 elements)
       valuationEffect: Double,               // exact valuation effect used in NFA update
-      fxIntervention: Nbp.FxInterventionResult = Nbp.FxInterventionResult(0.0, 0.0, 0.0),
+      fxIntervention: Nbp.FxInterventionResult = Nbp.FxInterventionResult(0.0, PLN.Zero, PLN.Zero),
   )
 
   def step(

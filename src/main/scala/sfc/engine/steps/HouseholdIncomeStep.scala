@@ -43,8 +43,8 @@ object HouseholdIncomeStep:
     val nBanksHh           = bsec.banks.length
     val hhBankRates        = Some(
       BankRates(
-        lendingRates = bsec.banks.zip(bsec.configs).map((b, cfg) => Banking.lendingRate(b, cfg, Rate(in.s1.lendingBaseRate)).toDouble).toArray,
-        depositRates = bsec.banks.map(_ => Banking.hhDepositRate(in.w.nbp.referenceRate).toDouble).toArray,
+        lendingRates = bsec.banks.zip(bsec.configs).map((b, cfg) => Banking.lendingRate(b, cfg, Rate(in.s1.lendingBaseRate))),
+        depositRates = bsec.banks.map(_ => Banking.hhDepositRate(in.w.nbp.referenceRate)),
       ),
     )
     val eqReturn           = in.w.financial.equity.monthlyReturn.toDouble

@@ -155,8 +155,8 @@ class HouseholdSpec extends AnyFlatSpec with Matchers:
     )
     // Bank 0: 6% annual lending rate, Bank 1: 10% annual
     val br                 = BankRates(
-      lendingRates = Array(0.06, 0.10),
-      depositRates = Array(0.04, 0.04),
+      lendingRates = Vector(Rate(0.06), Rate(0.10)),
+      depositRates = Vector(Rate(0.04), Rate(0.04)),
     )
     val (_, agg, maybePbf) =
       Household.step(hhs, mkWorld(), PLN(8000.0), PLN(4666.0), 0.4, rng, nBanks = 2, bankRates = Some(br))
@@ -178,8 +178,8 @@ class HouseholdSpec extends AnyFlatSpec with Matchers:
     )
     val depRate            = 0.04 // 4% annual
     val br                 = BankRates(
-      lendingRates = Array(0.07),
-      depositRates = Array(depRate),
+      lendingRates = Vector(Rate(0.07)),
+      depositRates = Vector(Rate(depRate)),
     )
     val (_, agg, maybePbf) =
       Household.step(hhs, mkWorld(), PLN(8000.0), PLN(4666.0), 0.4, rng, nBanks = 1, bankRates = Some(br))
@@ -198,8 +198,8 @@ class HouseholdSpec extends AnyFlatSpec with Matchers:
       mkHousehold(0, HhStatus.Employed(FirmId(0), SectorIdx(0), PLN(wage)), savings = savings, bankId = 0),
     )
     val br             = BankRates(
-      lendingRates = Array(0.07),
-      depositRates = Array(depRate),
+      lendingRates = Vector(Rate(0.07)),
+      depositRates = Vector(Rate(depRate)),
     )
     val (_, agg, _)    = Household.step(hhs, mkWorld(), PLN(wage), PLN(4666.0), 0.4, rng, nBanks = 1, bankRates = Some(br))
     val expectedDepInt = depRate / 12.0 * savings.toDouble
@@ -233,8 +233,8 @@ class HouseholdSpec extends AnyFlatSpec with Matchers:
       ),
     )
     val br               = BankRates(
-      lendingRates = Array(0.07, 0.08),
-      depositRates = Array(0.035, 0.035),
+      lendingRates = Vector(Rate(0.07), Rate(0.08)),
+      depositRates = Vector(Rate(0.035), Rate(0.035)),
     )
     val (_, _, maybePbf) =
       Household.step(hhs, mkWorld(), PLN(8000.0), PLN(4666.0), 0.4, rng, nBanks = 2, bankRates = Some(br))
@@ -256,8 +256,8 @@ class HouseholdSpec extends AnyFlatSpec with Matchers:
       mkHousehold(0, HhStatus.Employed(FirmId(0), SectorIdx(0), PLN(8000.0)), savings = PLN(-5000.0), bankId = 0),
     )
     val br                 = BankRates(
-      lendingRates = Array(0.07),
-      depositRates = Array(0.04),
+      lendingRates = Vector(Rate(0.07)),
+      depositRates = Vector(Rate(0.04)),
     )
     val (_, agg, maybePbf) =
       Household.step(hhs, mkWorld(), PLN(8000.0), PLN(4666.0), 0.4, rng, nBanks = 1, bankRates = Some(br))

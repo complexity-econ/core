@@ -12,18 +12,18 @@ class JstSpec extends AnyFlatSpec with Matchers:
 
   "Jst.step" should "return zero deposit change when disabled" in {
     // JST_ENABLED is false by default
-    val (jst, depChange) = Jst.step(Jst.State.zero, 1e8, 1e9, 1e10, 5000)
-    depChange shouldBe 0.0
-    jst shouldBe Jst.State.zero
+    val result = Jst.step(Jst.State.zero, PLN(1e8), PLN(1e9), PLN(1e10), 5000, PLN.Zero)
+    result.depositChange shouldBe PLN.Zero
+    result.state shouldBe Jst.State.zero
   }
 
   "Jst.State.zero" should "have all zero fields" in {
     val z = Jst.State.zero
-    z.deposits.toDouble shouldBe 0.0
-    z.debt.toDouble shouldBe 0.0
-    z.revenue.toDouble shouldBe 0.0
-    z.spending.toDouble shouldBe 0.0
-    z.deficit.toDouble shouldBe 0.0
+    z.deposits shouldBe PLN.Zero
+    z.debt shouldBe PLN.Zero
+    z.revenue shouldBe PLN.Zero
+    z.spending shouldBe PLN.Zero
+    z.deficit shouldBe PLN.Zero
   }
 
   "Jst.step revenue components" should "compute PIT share correctly" in {

@@ -117,16 +117,18 @@ object BankUpdateStep:
     val newGovWithYield = newGov.copy(bondYield = Rate(in.s8.newBondYield))
 
     // JST (local government)
-    val nLivingFirms               = in.s5.ioFirms.count(Firm.isAlive)
-    val (newJst, jstDepositChange) =
+    val nLivingFirms = in.s5.ioFirms.count(Firm.isAlive)
+    val jstResult    =
       Jst.step(
         in.w.social.jst,
-        newGovWithYield.taxRevenue.toDouble,
-        in.s3.totalIncome,
-        in.s7.gdp,
+        newGovWithYield.taxRevenue,
+        PLN(in.s3.totalIncome),
+        PLN(in.s7.gdp),
         nLivingFirms,
-        pitAfterEvasion,
+        PLN(pitAfterEvasion),
       )
+    val newJst           = jstResult.state
+    val jstDepositChange = jstResult.depositChange.toDouble
 
     // ---- Housing market step ----
     val unempRate                = 1.0 - in.s2.employed.toDouble / in.w.totalPopulation
