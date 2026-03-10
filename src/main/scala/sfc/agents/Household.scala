@@ -439,11 +439,11 @@ object Household:
       bankRates: Option[BankRates],
       rng: Random,
   )(using p: SimParams): CreditResult =
-    val consumerRate    = bankRates match
-      case Some(br) => br.lendingRates(hh.bankId.toInt).toDouble + p.household.ccSpread.toDouble
-      case None     => world.nbp.referenceRate.toDouble + p.household.ccSpread.toDouble
-    val consumerDebtSvc = hh.consumerDebt * (p.household.ccAmortRate.toDouble + consumerRate / 12.0)
-    val consumerPrin    = hh.consumerDebt * p.household.ccAmortRate.toDouble
+    val consumerRate: Rate = bankRates match
+      case Some(br) => br.lendingRates(hh.bankId.toInt) + p.household.ccSpread
+      case None     => world.nbp.referenceRate + p.household.ccSpread
+    val consumerDebtSvc    = hh.consumerDebt * (p.household.ccAmortRate.toDouble + consumerRate.toDouble / 12.0)
+    val consumerPrin       = hh.consumerDebt * p.household.ccAmortRate.toDouble
 
     val newConsumerLoan = hh.status match
       case HhStatus.Employed(_, _, wage)                                             =>
@@ -457,7 +457,7 @@ object Household:
           if desired > MinConsumerLoanSize then PLN(desired) else PLN.Zero
       case HhStatus.Unemployed(_) | HhStatus.Retraining(_, _, _) | HhStatus.Bankrupt => PLN.Zero
 
-    val updatedDebt = PLN(Math.max(0.0, (hh.consumerDebt + newConsumerLoan - consumerDebtSvc).toDouble))
+    val updatedDebt = (hh.consumerDebt + newConsumerLoan - consumerDebtSvc).max(PLN.Zero)
 
     CreditResult(
       debtService = consumerDebtSvc,
@@ -499,13 +499,13 @@ object Household:
     val (baseIncome, benefit, newStatus) = computeIncome(hh)
 
     // Variable-rate debt service (monetary transmission channel 1)
-    val debtServiceRate = bankRates match
+    val debtServiceRate: Double = bankRates match
       case Some(br) => p.household.baseAmortRate.toDouble + br.lendingRates(hh.bankId.toInt).toDouble / 12.0
       case None     => p.household.debtServiceRate.toDouble
 
     // Deposit interest (monetary transmission channel 2)
-    val depInterest = bankRates match
-      case Some(br) => PLN(br.depositRates(hh.bankId.toInt).toDouble / 12.0 * hh.savings.toDouble)
+    val depInterest: PLN = bankRates match
+      case Some(br) => hh.savings * (br.depositRates(hh.bankId.toInt).toDouble / 12.0)
       case None     => PLN.Zero
 
     val grossIncome     = baseIncome + depInterest.max(PLN.Zero)
@@ -515,7 +515,7 @@ object Household:
     val thisDebtService = hh.debt * debtServiceRate
 
     val remittance =
-      if hh.isImmigrant && p.flags.immigration then income * p.immigration.remitRate.toDouble
+      if hh.isImmigrant && p.flags.immigration then income * p.immigration.remitRate
       else PLN.Zero
 
     val obligations         = hh.monthlyRent + thisDebtService + remittance
@@ -523,7 +523,7 @@ object Household:
     val credit              = processConsumerCredit(hh, income, disposablePreCredit, thisDebtService, world, bankRates, rng)
     val fullObligations     = obligations + credit.debtService
     val disposable          = (income - fullObligations).max(PLN.Zero)
-    val consumption         = (disposable + credit.newLoan) * hh.mpc.toDouble
+    val consumption         = (disposable + credit.newLoan) * hh.mpc
 
     // Social network precautionary effect
     val neighborDistress = neighborDistressRatioFast(hh, distressedIds)
@@ -531,10 +531,10 @@ object Household:
       if neighborDistress > NeighborDistressThreshold then consumption * NeighborDistressConsAdj else consumption
 
     // GPW equity wealth effect
-    val newEquityWealth       = PLN(Math.max(0.0, hh.equityWealth.toDouble * (1.0 + equityIndexReturn)))
+    val newEquityWealth       = (hh.equityWealth * (1.0 + equityIndexReturn)).max(PLN.Zero)
     val equityGain            = newEquityWealth - hh.equityWealth
     val wealthEffectBoost     =
-      if p.flags.gpwHhEquity && equityGain > PLN.Zero then equityGain * p.equity.wealthEffectMpc.toDouble
+      if p.flags.gpwHhEquity && equityGain > PLN.Zero then equityGain * p.equity.wealthEffectMpc
       else PLN.Zero
     val consumptionWithWealth = consumptionAdj + wealthEffectBoost
 
@@ -552,7 +552,7 @@ object Household:
       consumption = consumptionWithWealth,
       newEquityWealth = newEquityWealth,
       newSavings = hh.savings + income - fullObligations + credit.newLoan - consumptionWithWealth,
-      newDebt = PLN(Math.max(0.0, (hh.debt - thisDebtService).toDouble)),
+      newDebt = (hh.debt - thisDebtService).max(PLN.Zero),
       neighborDistress = neighborDistress,
     )
 
@@ -569,7 +569,7 @@ object Household:
       distressedIds: java.util.BitSet,
   )(using p: SimParams): HhMonthlyResult =
     val f = computeMonthlyFlows(hh, world, rng, bankRates, equityIndexReturn, distressedIds)
-    if f.newSavings.toDouble < p.household.bankruptcyThreshold * hh.monthlyRent.toDouble then resolveBankruptcy(f)
+    if f.newSavings < hh.monthlyRent * p.household.bankruptcyThreshold then resolveBankruptcy(f)
     else resolveSurvival(f, sectorWages, sectorVacancies, rng)
 
   /** Bankruptcy branch: write off consumer debt, zero equity. */
