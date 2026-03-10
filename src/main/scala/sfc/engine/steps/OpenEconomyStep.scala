@@ -105,7 +105,7 @@ object OpenEconomyStep:
         in.s7.gdp,
         in.rc,
       )
-      (fx, in.w.bop, 0.0, Nbp.FxInterventionResult(0.0, 0.0, in.w.nbp.fxReserves.toDouble))
+      (fx, in.w.bop, 0.0, Nbp.FxInterventionResult(0.0, PLN.Zero, in.w.nbp.fxReserves))
 
     // Adjust BOP for foreign dividend outflow (primary income component) + EU funds tracking
     val newBop1          =
@@ -188,8 +188,8 @@ object OpenEconomyStep:
     val postQeNbp        = qeResult.state
     val qePurchaseAmount = qeResult.purchased.toDouble
     val postFxNbp        = postQeNbp.copy(
-      fxReserves = PLN(fxResult.newReserves),
-      lastFxTraded = PLN(fxResult.eurTraded),
+      fxReserves = fxResult.newReserves,
+      lastFxTraded = fxResult.eurTraded,
     )
 
     // --- Corporate bond market step (#40) ---

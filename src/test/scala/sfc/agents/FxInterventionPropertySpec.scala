@@ -4,6 +4,7 @@ import org.scalacheck.Gen
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import sfc.types.*
 
 class FxInterventionPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks:
 
@@ -25,7 +26,7 @@ class FxInterventionPropertySpec extends AnyFlatSpec with Matchers with ScalaChe
   "Nbp.fxIntervention (enabled)" should "never produce negative reserves" in
     forAll(genER, genReserves, genGdp) { (er, reserves, gdp) =>
       val result = fxEnabled(er, reserves, gdp)
-      result.newReserves should be >= 0.0
+      result.newReserves should be >= PLN.Zero
     }
 
   it should "bound eurTraded by reserves" in
@@ -33,7 +34,7 @@ class FxInterventionPropertySpec extends AnyFlatSpec with Matchers with ScalaChe
       val result = fxEnabled(er, reserves, gdp)
       // When selling EUR (eurTraded < 0), magnitude <= reserves
       // When buying EUR (eurTraded > 0), magnitude <= reserves * maxMonthly
-      Math.abs(result.eurTraded) should be <= (reserves + 1e-6)
+      result.eurTraded.abs should be <= PLN(reserves + 1e-6)
     }
 
   it should "have erEffect opposing deviation when outside band" in
@@ -51,8 +52,8 @@ class FxInterventionPropertySpec extends AnyFlatSpec with Matchers with ScalaChe
     forAll(genER, genReserves, genGdp) { (er, reserves, gdp) =>
       val result = Nbp.fxIntervention(er, reserves, gdp, enabled = false)
       result.erEffect shouldBe 0.0
-      result.eurTraded shouldBe 0.0
-      result.newReserves shouldBe reserves
+      result.eurTraded shouldBe PLN.Zero
+      result.newReserves shouldBe PLN(reserves)
     }
 
   "Nbp.fxIntervention (enabled)" should "return zero effect when ER within band" in {
@@ -64,7 +65,7 @@ class FxInterventionPropertySpec extends AnyFlatSpec with Matchers with ScalaChe
     forAll(genERInBand, genReserves, genGdp) { (er, reserves, gdp) =>
       val result = fxEnabled(er, reserves, gdp)
       result.erEffect shouldBe 0.0
-      result.eurTraded shouldBe 0.0
+      result.eurTraded shouldBe PLN.Zero
     }
   }
 
@@ -74,5 +75,5 @@ class FxInterventionPropertySpec extends AnyFlatSpec with Matchers with ScalaChe
       // newReserves = max(0, reserves + eurTraded)
       // When reserves + eurTraded >= 0: |newReserves - reserves| = |eurTraded|
       // Tolerance 1.0 for large magnitudes (~1e10), consistent with SFC check
-      if result.newReserves > 0 then Math.abs(result.newReserves - reserves) shouldBe (Math.abs(result.eurTraded) +- 1.0)
+      if result.newReserves > PLN.Zero then Math.abs(result.newReserves.toDouble - reserves) shouldBe (result.eurTraded.abs.toDouble +- 1.0)
     }

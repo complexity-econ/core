@@ -21,8 +21,8 @@ enum HhStatus:
 
 /** Per-bank lending and deposit rates for individual HH mode. */
 case class BankRates(
-    lendingRates: Array[Double], // annual lending rate per bank (index = BankId)
-    depositRates: Array[Double], // annual deposit rate per bank (index = BankId)
+    lendingRates: Vector[Rate], // annual lending rate per bank (index = BankId)
+    depositRates: Vector[Rate], // annual deposit rate per bank (index = BankId)
 )
 
 /** Per-bank HH flow accumulator for multi-bank mode (one per BankId). */
@@ -466,7 +466,7 @@ object Household:
       rng: Random,
   )(using p: SimParams): CreditResult =
     val consumerRate    = bankRates match
-      case Some(br) => br.lendingRates(hh.bankId.toInt) + p.household.ccSpread.toDouble
+      case Some(br) => br.lendingRates(hh.bankId.toInt).toDouble + p.household.ccSpread.toDouble
       case None     => world.nbp.referenceRate.toDouble + p.household.ccSpread.toDouble
     val consumerDebtSvc = hh.consumerDebt * (p.household.ccAmortRate.toDouble + consumerRate / 12.0)
     val consumerPrin    = hh.consumerDebt * p.household.ccAmortRate.toDouble
@@ -506,12 +506,12 @@ object Household:
 
     // Variable-rate debt service (monetary transmission channel 1)
     val debtServiceRate = bankRates match
-      case Some(br) => p.household.baseAmortRate.toDouble + br.lendingRates(hh.bankId.toInt) / 12.0
+      case Some(br) => p.household.baseAmortRate.toDouble + br.lendingRates(hh.bankId.toInt).toDouble / 12.0
       case None     => p.household.debtServiceRate.toDouble
 
     // Deposit interest (monetary transmission channel 2)
     val depInterest = bankRates match
-      case Some(br) => PLN(br.depositRates(hh.bankId.toInt) / 12.0 * hh.savings.toDouble)
+      case Some(br) => PLN(br.depositRates(hh.bankId.toInt).toDouble / 12.0 * hh.savings.toDouble)
       case None     => PLN.Zero
 
     val grossIncome     = baseIncome + depInterest.max(PLN.Zero)

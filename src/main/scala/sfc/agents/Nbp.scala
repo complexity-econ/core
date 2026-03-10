@@ -48,9 +48,9 @@ object Nbp:
 
   /** FX intervention result. */
   case class FxInterventionResult(
-      erEffect: Double,   // added to erChange in OpenEconomy
-      eurTraded: Double,  // positive = bought EUR (weakened PLN), negative = sold EUR
-      newReserves: Double, // updated reserve level
+      erEffect: Double, // dimensionless ER change added to erChange in OpenEconomy
+      eurTraded: PLN,   // positive = bought EUR (weakened PLN), negative = sold EUR
+      newReserves: PLN, // updated reserve level
   )
 
   // ---------------------------------------------------------------------------
@@ -171,10 +171,10 @@ object Nbp:
       gdp: Double,
       enabled: Boolean,
   )(using p: SimParams): FxInterventionResult =
-    if !enabled then FxInterventionResult(0.0, 0.0, reserves)
+    if !enabled then FxInterventionResult(0.0, PLN.Zero, PLN(reserves))
     else
       val erDev = (prevER - p.forex.baseExRate) / p.forex.baseExRate
-      if Math.abs(erDev) <= p.monetary.fxBand.toDouble then FxInterventionResult(0.0, 0.0, reserves)
+      if Math.abs(erDev) <= p.monetary.fxBand.toDouble then FxInterventionResult(0.0, PLN.Zero, PLN(reserves))
       else
         val direction     = -Math.signum(erDev)
         val maxByReserves = reserves * p.monetary.fxMaxMonthly.toDouble
@@ -185,4 +185,4 @@ object Nbp:
         val newReserves   = reserves + eurTraded
         val gdpEffect     = if gdp > 0 then Math.abs(eurTraded) * p.forex.baseExRate / gdp else 0.0
         val erEffect      = direction * gdpEffect * p.monetary.fxStrength.toDouble
-        FxInterventionResult(erEffect, eurTraded, Math.max(0.0, newReserves))
+        FxInterventionResult(erEffect, PLN(eurTraded), PLN(Math.max(0.0, newReserves)))
