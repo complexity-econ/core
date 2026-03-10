@@ -9,10 +9,6 @@ enum Topology:
 /** Runtime configuration: values that depend on CLI arguments. Passed through
   * runSingle and Simulation.step.
   */
-case class RunConfig(
-    nSeeds: Int,
-    outputPrefix: String,
-)
 
 /** 4-to-6 sector definition with heterogeneous sigma (CES elasticity of
   * substitution). sigma affects: decision threshold, automation efficiency,

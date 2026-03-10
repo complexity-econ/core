@@ -2,7 +2,8 @@ package sfc.engine.steps
 
 import sfc.accounting.{BopState, ForexState}
 import sfc.agents.*
-import sfc.config.{RunConfig, SectorDefs, SimParams}
+import sfc.McRunConfig
+import sfc.config.{SectorDefs, SimParams}
 import sfc.engine.*
 import sfc.engine.markets.{CorporateBondMarket, GvcTrade, OpenEconomy}
 import sfc.engine.mechanisms.Expectations
@@ -13,7 +14,7 @@ object OpenEconomyStep:
 
   case class Input(
       w: World,
-      rc: RunConfig,
+      rc: McRunConfig,
       s1: FiscalConstraintStep.Output,
       s2: LaborDemographicsStep.Output,
       s3: HouseholdIncomeStep.Output,

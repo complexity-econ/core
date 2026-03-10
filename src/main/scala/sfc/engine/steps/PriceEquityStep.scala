@@ -1,7 +1,8 @@
 package sfc.engine.steps
 
 import sfc.agents.*
-import sfc.config.{FirmSizeDistribution, RunConfig, SectorDefs, SimParams}
+import sfc.McRunConfig
+import sfc.config.{FirmSizeDistribution, SectorDefs, SimParams}
 import sfc.engine.*
 import sfc.engine.markets.{EquityMarket, PriceLevel}
 import sfc.engine.mechanisms.{EuFunds, Macroprudential}
@@ -14,7 +15,7 @@ object PriceEquityStep:
 
   case class Input(
       w: World,
-      rc: RunConfig,
+      rc: McRunConfig,
       s1: FiscalConstraintStep.Output,
       s2: LaborDemographicsStep.Output,
       s3: HouseholdIncomeStep.Output,

@@ -2,7 +2,8 @@ package sfc.engine.steps
 
 import sfc.accounting.*
 import sfc.agents.*
-import sfc.config.{RunConfig, SectorDefs, SimParams}
+import sfc.McRunConfig
+import sfc.config.{SectorDefs, SimParams}
 import sfc.engine.*
 import sfc.engine.markets.SectoralMobility
 import sfc.types.*
@@ -14,7 +15,7 @@ object WorldAssemblyStep:
 
   case class Input(
       w: World,
-      rc: RunConfig,
+      rc: McRunConfig,
       firms: Vector[Firm.State],
       households: Vector[Household.State],
       s1: FiscalConstraintStep.Output,

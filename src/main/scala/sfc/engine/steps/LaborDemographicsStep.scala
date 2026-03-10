@@ -1,7 +1,8 @@
 package sfc.engine.steps
 
 import sfc.agents.*
-import sfc.config.{RunConfig, SectorDefs, SimParams}
+import sfc.McRunConfig
+import sfc.config.{SectorDefs, SimParams}
 import sfc.engine.World
 import sfc.engine.markets.LaborMarket
 import sfc.types.*
@@ -11,7 +12,7 @@ object LaborDemographicsStep:
 
   case class Input(
       w: World,
-      rc: RunConfig,
+      rc: McRunConfig,
       firms: Vector[Firm.State],
       households: Vector[Household.State],
       s1: FiscalConstraintStep.Output,
