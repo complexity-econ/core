@@ -367,8 +367,8 @@ object Household:
     val friction      = p.labor.frictionMatrix(status.sectorIdx.toInt)(targetSector)
     if friction < p.labor.adjacentFrictionMax.toDouble then (HhStatus.Unemployed(0), 1)
     else
-      val (adjDur, adjCost) = SectoralMobility.frictionAdjustedParams(friction, p.labor.frictionDurationMult, p.labor.frictionCostMult.toDouble)
-      if hh.savings.toDouble > adjCost then (HhStatus.Retraining(adjDur, SectorIdx(targetSector), PLN(adjCost)), 1)
+      val rp = SectoralMobility.frictionAdjustedParams(friction, p.labor.frictionDurationMult, p.labor.frictionCostMult.toDouble)
+      if hh.savings > rp.cost then (HhStatus.Retraining(rp.duration, SectorIdx(targetSector), rp.cost), 1)
       else (status, 0)
 
   /** Retraining for unemployed HH → (newStatus, attemptFlag, successFlag). */
@@ -386,13 +386,13 @@ object Household:
           (if neighborDistress > NeighborDistressThreshold then NeighborDistressRetrainBoost else 0.0)
         if hh.savings > p.household.retrainingCost && rng.nextDouble() < retrainProb then
           if p.flags.sectoralMobility && sectorWages.isDefined then
-            val sw                = sectorWages.get
-            val sv                = sectorVacancies.get
-            val fromSector        = if hh.lastSectorIdx.toInt >= 0 then hh.lastSectorIdx.toInt else 0
-            val targetSector      = SectoralMobility.selectTargetSector(fromSector, sw, sv, p.labor.frictionMatrix, p.labor.vacancyWeight, rng)
-            val friction          = p.labor.frictionMatrix(fromSector)(targetSector)
-            val (adjDur, adjCost) = SectoralMobility.frictionAdjustedParams(friction, p.labor.frictionDurationMult, p.labor.frictionCostMult.toDouble)
-            if hh.savings.toDouble > adjCost then (HhStatus.Retraining(adjDur, SectorIdx(targetSector), PLN(adjCost)), 1, 0)
+            val sw           = sectorWages.get
+            val sv           = sectorVacancies.get
+            val fromSector   = if hh.lastSectorIdx.toInt >= 0 then hh.lastSectorIdx.toInt else 0
+            val targetSector = SectoralMobility.selectTargetSector(fromSector, sw, sv, p.labor.frictionMatrix, p.labor.vacancyWeight, rng)
+            val friction     = p.labor.frictionMatrix(fromSector)(targetSector)
+            val rp           = SectoralMobility.frictionAdjustedParams(friction, p.labor.frictionDurationMult, p.labor.frictionCostMult.toDouble)
+            if hh.savings > rp.cost then (HhStatus.Retraining(rp.duration, SectorIdx(targetSector), rp.cost), 1, 0)
             else (status, 0, 0)
           else
             val targetSector = rng.nextInt(p.sectorDefs.length)

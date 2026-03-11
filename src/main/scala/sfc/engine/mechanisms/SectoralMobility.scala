@@ -117,11 +117,14 @@ object SectoralMobility:
     val others = (0 until NumSectors).filter(_ != from)
     others(rng.nextInt(others.length))
 
+  /** Friction-adjusted retraining duration (months) and cost (PLN). */
+  case class RetrainingParams(duration: Int, cost: PLN)
+
   /** Adjust retraining duration and cost by friction level. */
-  def frictionAdjustedParams(friction: Double, durationMult: Double, costMult: Double)(using p: SimParams): (Int, Double) =
+  def frictionAdjustedParams(friction: Double, durationMult: Double, costMult: Double)(using p: SimParams): RetrainingParams =
     val adjDuration = Math.round(p.household.retrainingDuration * (1.0 + friction * durationMult)).toInt
-    val adjCost     = p.household.retrainingCost.toDouble * (1.0 + friction * costMult)
-    (adjDuration, adjCost)
+    val adjCost     = p.household.retrainingCost * (1.0 + friction * costMult)
+    RetrainingParams(adjDuration, adjCost)
 
   /** Cross-sector wage penalty: proportional to friction, max 30%. */
   def crossSectorWagePenalty(friction: Double): Double =

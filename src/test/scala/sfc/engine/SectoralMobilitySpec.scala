@@ -107,16 +107,16 @@ class SectoralMobilitySpec extends AnyFlatSpec with Matchers:
   // --- frictionAdjustedParams ---
 
   "frictionAdjustedParams" should "increase duration and cost with higher friction" in {
-    val (dur0, cost0) = SectoralMobility.frictionAdjustedParams(0.0, 1.0, 0.5)
-    val (dur9, cost9) = SectoralMobility.frictionAdjustedParams(0.9, 1.0, 0.5)
-    dur9 should be > dur0
-    cost9 should be > cost0
+    val rp0 = SectoralMobility.frictionAdjustedParams(0.0, 1.0, 0.5)
+    val rp9 = SectoralMobility.frictionAdjustedParams(0.9, 1.0, 0.5)
+    rp9.duration should be > rp0.duration
+    rp9.cost should be > rp0.cost
   }
 
   it should "return base values at zero friction" in {
-    val (dur, cost) = SectoralMobility.frictionAdjustedParams(0.0, 1.0, 0.5)
-    dur shouldBe p.household.retrainingDuration
-    cost shouldBe p.household.retrainingCost.toDouble +- 0.01
+    val rp = SectoralMobility.frictionAdjustedParams(0.0, 1.0, 0.5)
+    rp.duration shouldBe p.household.retrainingDuration
+    rp.cost.toDouble shouldBe p.household.retrainingCost.toDouble +- 0.01
   }
 
   // --- crossSectorWagePenalty ---

@@ -118,8 +118,8 @@ class SectoralMobilityPropertySpec extends AnyFlatSpec with Matchers with ScalaC
 
   "frictionAdjustedParams" should "increase monotonically with friction" in
     forAll(Gen.choose(0.0, 0.99), Gen.choose(0.01, 2.0), Gen.choose(0.01, 2.0)) { (friction, durMult, costMult) =>
-      val (dur1, cost1) = SectoralMobility.frictionAdjustedParams(friction, durMult, costMult)
-      val (dur2, cost2) = SectoralMobility.frictionAdjustedParams(friction + 0.01, durMult, costMult)
-      dur2 should be >= dur1
-      cost2 should be >= cost1
+      val rp1 = SectoralMobility.frictionAdjustedParams(friction, durMult, costMult)
+      val rp2 = SectoralMobility.frictionAdjustedParams(friction + 0.01, durMult, costMult)
+      rp2.duration should be >= rp1.duration
+      rp2.cost should be >= rp1.cost
     }
