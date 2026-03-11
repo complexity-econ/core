@@ -1,32 +1,62 @@
 package sfc.engine.markets
 
 import sfc.config.SimParams
+import sfc.types.*
 
+/** Aggregate price level: Phillips-curve-style monthly inflation update.
+  *
+  * Four channels: demand-pull (output gap proxy via demandMult), cost-push
+  * (wage growth pass-through), import push (exchange rate deviation × import
+  * propensity), and tech deflation (automation + hybrid digitalization).
+  *
+  * A soft floor at −1.5%/month with 30% pass-through approximates downward
+  * nominal rigidity (cf. Bewley 1999). These are calibration choices, not
+  * empirical estimates — a micro-founded pricing module (menu costs, Calvo
+  * staggering) would be a better long-term replacement.
+  *
+  * Inflation is exponentially smoothed (λ=0.3) to avoid month-to-month noise.
+  */
 object PriceLevel:
 
+  // ---- Calibration constants ----
+  private val DemandPullWeight = 0.15   // sensitivity of inflation to demand gap
+  private val CostPushWeight   = 0.25   // wage growth pass-through to prices
+  private val ImportPushWeight = 0.25   // FX depreciation pass-through
+  private val AutoDeflation    = 0.060  // monthly tech deflation per unit automation ratio
+  private val HybridDeflation  = 0.018  // monthly tech deflation per unit hybrid ratio
+  private val DeflationFloor   = -0.015 // soft floor: −1.5%/month
+  private val FloorPassThrough = 0.3    // beyond floor, 30% pass-through
+  private val SmoothingLambda  = 0.3    // EWM weight on new observation
+  private val MinPriceLevel    = 0.30   // absolute floor on price index
+
+  /** Result of a monthly price-level update. */
+  case class Result(inflation: Rate, priceLevel: Double)
+
   def update(
-      prevInflation: Double,
+      prevInflation: Rate,
       prevPrice: Double,
       demandMult: Double,
       wageGrowth: Double,
       exRateDeviation: Double,
       autoRatio: Double,
       hybridRatio: Double,
-  )(using p: SimParams): (Double, Double) =
-    val demandPull    = (demandMult - 1.0) * 0.15
-    val costPush      = wageGrowth * 0.25
-    val rawImportPush = Math.max(0.0, exRateDeviation) * p.forex.importPropensity.toDouble * 0.25
+  )(using p: SimParams): Result =
+    val demandPull    = (demandMult - 1.0) * DemandPullWeight
+    val costPush      = wageGrowth * CostPushWeight
+    val rawImportPush = Math.max(0.0, exRateDeviation) * p.forex.importPropensity.toDouble * ImportPushWeight
     val importPush    =
       if p.flags.openEcon then Math.min(rawImportPush, p.openEcon.importPushCap.toDouble)
       else rawImportPush
-    val techDeflation = autoRatio * 0.060 + hybridRatio * 0.018
-    // Soft floor: beyond -1.5%/month, deflation passes through at 30% rate
-    // (models downward price stickiness -- Bewley 1999, Schmitt-Grohe & Uribe 2016)
-    val rawMonthly    = demandPull + costPush + importPush - techDeflation
-    val monthly       =
-      if rawMonthly >= -0.015 then rawMonthly
-      else -0.015 + (rawMonthly + 0.015) * 0.3
-    val annualized    = monthly * 12.0
-    val smoothed      = prevInflation * 0.7 + annualized * 0.3
-    val newPrice      = Math.max(0.30, prevPrice * (1.0 + monthly))
-    (smoothed, newPrice)
+    val techDeflation = autoRatio * AutoDeflation + hybridRatio * HybridDeflation
+
+    val rawMonthly = demandPull + costPush + importPush - techDeflation
+    val monthly    = softFloor(rawMonthly)
+    val annualized = monthly * 12.0
+    val smoothed   = prevInflation.toDouble * (1.0 - SmoothingLambda) + annualized * SmoothingLambda
+    val newPrice   = Math.max(MinPriceLevel, prevPrice * (1.0 + monthly))
+    Result(Rate(smoothed), newPrice)
+
+  /** Soft deflation floor: beyond −1.5%/month, only 30% passes through. */
+  private def softFloor(raw: Double): Double =
+    if raw >= DeflationFloor then raw
+    else DeflationFloor + (raw - DeflationFloor) * FloorPassThrough

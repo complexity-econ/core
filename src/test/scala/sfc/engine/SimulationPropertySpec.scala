@@ -66,22 +66,21 @@ class SimulationPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPr
   "updateInflation" should "keep price >= 0.30 floor" in
     forAll(genInflInputs) { (inputs: (Double, Double, Double, Double, Double, Double, Double)) =>
       val (prevInfl, prevPrice, demandMult, wageGrowth, exRateDev, autoR, hybR) = inputs
-      val (_, newPrice)                                                         =
-        PriceLevel.update(prevInfl, prevPrice, demandMult, wageGrowth, exRateDev, autoR, hybR)
-      newPrice should be >= 0.30
+      val r                                                                     = PriceLevel.update(Rate(prevInfl), prevPrice, demandMult, wageGrowth, exRateDev, autoR, hybR)
+      r.priceLevel should be >= 0.30
     }
 
   it should "apply soft deflation floor (price >= 0.30)" in {
-    val (_, price) = PriceLevel.update(-0.30, 1.0, 0.5, -0.10, 0.0, 0.80, 0.15)
-    price should be >= 0.30
+    val r = PriceLevel.update(Rate(-0.30), 1.0, 0.5, -0.10, 0.0, 0.80, 0.15)
+    r.priceLevel should be >= 0.30
   }
 
   it should "produce lower inflation with more automation" in
     forAll(genInflation, genPrice, Gen.choose(0.8, 1.2), Gen.choose(-0.02, 0.02)) {
       (prevInfl: Double, prevPrice: Double, demandMult: Double, wageGrowth: Double) =>
-        val (infl1, _) = PriceLevel.update(prevInfl, prevPrice, demandMult, wageGrowth, 0.0, 0.05, 0.0)
-        val (infl2, _) = PriceLevel.update(prevInfl, prevPrice, demandMult, wageGrowth, 0.0, 0.50, 0.0)
-        infl2 should be <= (infl1 + 1e-10)
+        val r1 = PriceLevel.update(Rate(prevInfl), prevPrice, demandMult, wageGrowth, 0.0, 0.05, 0.0)
+        val r2 = PriceLevel.update(Rate(prevInfl), prevPrice, demandMult, wageGrowth, 0.0, 0.50, 0.0)
+        r2.inflation.toDouble should be <= (r1.inflation.toDouble + 1e-10)
     }
 
   // --- updateLaborMarket properties ---
