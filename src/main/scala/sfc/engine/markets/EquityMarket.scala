@@ -150,10 +150,10 @@ object EquityMarket:
   )(using p: SimParams): DividendResult =
     if marketCap <= PLN.Zero then DividendResultZero
     else
-      val totalDividends   = marketCap * (divYield.toDouble / MonthsPerYear)
-      val foreignDividends = totalDividends * foreignShare.toDouble
+      val totalDividends   = marketCap * divYield / MonthsPerYear
+      val foreignDividends = totalDividends * foreignShare
       val domesticGross    = totalDividends - foreignDividends
-      val dividendTax      = domesticGross * p.equity.divTax.toDouble
+      val dividendTax      = domesticGross * p.equity.divTax
       DividendResult(
         netDomestic = domesticGross - dividendTax,
         foreign = foreignDividends,
