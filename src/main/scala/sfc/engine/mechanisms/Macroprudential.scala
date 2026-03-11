@@ -3,98 +3,106 @@ package sfc.engine.mechanisms
 import sfc.config.SimParams
 import sfc.types.*
 
+/** Macroprudential policy toolkit: CCyB, O-SII buffers, P2R, concentration
+  * limits.
+  *
+  * Implements the Basel III / CRD V macroprudential stack as applied by KNF
+  * (Polish Financial Supervision Authority):
+  *
+  *   - **CCyB** (countercyclical capital buffer): activated when credit-to-GDP
+  *     gap exceeds threshold, released immediately when gap falls below release
+  *     level. Credit-to-GDP trend approximated via exponential smoothing
+  *     (λ=0.05 monthly ≈ quarterly HP filter with λ=1600, per Drehmann & Yetman
+  *     2018).
+  *   - **O-SII** (Other Systemically Important Institutions): per-bank
+  *     surcharges calibrated to KNF 2024 decisions (PKO BP 1.0%, Pekao 0.5%).
+  *   - **P2R** (Pillar 2 Requirement): per-bank BION/SREP add-ons from KNF.
+  *   - **Concentration limit**: single-name exposure cap as share of system
+  *     loans.
+  *
+  * All functions are no-ops when MACROPRU_ENABLED=false.
+  */
 object Macroprudential:
 
-  /** Macroprudential state: CCyB, credit-to-GDP gap, effective minimum CAR. */
+  // ---- Calibration constants ----
+  private val TrendSmoothing  = 0.05       // EWM λ for credit-to-GDP trend (≈ HP 1600 quarterly)
+  private val CcybBuildRate   = 0.0025 / 3 // ~0.25pp per quarter ÷ 3 months
+  private val AnnualizeFactor = 12.0       // monthly GDP → annual
+
   case class State(
-      ccyb: Rate,              // current countercyclical capital buffer rate
-      creditToGdpGap: Double,  // credit-to-GDP deviation from trend (HP-filtered)
-      creditToGdpTrend: Double, // HP-filtered trend (smoothed)
+      ccyb: Rate,              // countercyclical capital buffer rate
+      creditToGdpGap: Double,  // credit-to-GDP deviation from HP trend
+      creditToGdpTrend: Double, // HP-filtered trend (exponential smoothing)
   )
 
   object State:
     val zero: State = State(Rate.Zero, 0.0, 0.0)
 
-  /** OSII buffer for a specific bank (based on bank ID). Systemically important
-    * banks get higher buffers. PKO BP (id=0): 1.0%, Pekao (id=1): 0.5%, others:
-    * 0%.
+  // ---- O-SII buffer ----
+
+  /** O-SII buffer for a specific bank. PKO BP (id=0): 1.0%, Pekao (id=1): 0.5%,
+    * others: 0%.
     */
   def osiiBuffer(bankId: Int)(using p: SimParams): Double =
     if !p.flags.macropru then 0.0
     else osiiBufferInternal(bankId)
 
-  /** Internal OSII buffer (always computes, for testing). */
   private[engine] def osiiBufferInternal(bankId: Int)(using p: SimParams): Double = bankId match
-    case 0 => p.banking.osiiPkoBp.toDouble // PKO BP
-    case 1 => p.banking.osiiPekao.toDouble // Pekao
+    case 0 => p.banking.osiiPkoBp.toDouble
+    case 1 => p.banking.osiiPekao.toDouble
     case _ => 0.0
 
-  /** Effective minimum CAR for a specific bank: base MinCar + CCyB + OSII +
-    * P2R.
-    */
+  // ---- Effective minimum CAR ----
+
+  /** Effective minimum CAR = base + CCyB + O-SII + P2R. */
   def effectiveMinCar(bankId: Int, ccyb: Double)(using p: SimParams): Double =
     if !p.flags.macropru then p.banking.minCar.toDouble
     else p.banking.minCar.toDouble + ccyb + osiiBufferInternal(bankId) + p2rAddon(bankId)
 
-  /** Internal effectiveMinCar (always computes, for testing). */
   private[engine] def effectiveMinCarInternal(bankId: Int, ccyb: Double)(using p: SimParams): Double =
     p.banking.minCar.toDouble + ccyb + osiiBufferInternal(bankId) + p2rAddon(bankId)
 
-  /** Pillar 2 Requirement (P2R) for a specific bank (KNF BION/SREP). */
-  private[engine] def p2rAddon(bankId: Int)(using p: SimParams): Double =
-    if bankId >= 0 && bankId < p.banking.p2rAddons.map(_.toDouble).length then p.banking.p2rAddons.map(_.toDouble)(bankId)
-    else p.banking.p2rAddons.map(_.toDouble).last
-
-  /** Update macroprudential state. Computes credit-to-GDP gap and CCyB.
-    *
-    * Credit-to-GDP gap: deviation of credit/GDP ratio from its HP-filtered
-    * trend. CCyB activation: gap > activationGap → build buffer (up to max).
-    * CCyB release: gap < releaseGap → release buffer immediately.
-    *
-    * HP filter approximated by exponential smoothing (λ=0.05 monthly ≈
-    * quarterly HP 1600).
+  /** P2R add-on from KNF BION/SREP, indexed by bank ID (last value as
+    * fallback).
     */
+  private[engine] def p2rAddon(bankId: Int)(using p: SimParams): Double =
+    val addons = p.banking.p2rAddons
+    if bankId >= 0 && bankId < addons.length then addons(bankId).toDouble
+    else addons.last.toDouble
+
+  // ---- CCyB step ----
+
+  /** Monthly CCyB update: credit-to-GDP gap → build / release / hold. */
   def step(prev: State, totalLoans: Double, gdp: Double)(using p: SimParams): State =
     if !p.flags.macropru then prev
     else stepInternal(prev, totalLoans, gdp)
 
-  /** Internal step (always computes, for testing). */
   private[engine] def stepInternal(prev: State, totalLoans: Double, gdp: Double)(using p: SimParams): State =
-    // Credit-to-GDP ratio (annualized GDP)
-    val annualGdp   = Math.max(1.0, gdp * 12.0)
+    val annualGdp   = Math.max(1.0, gdp * AnnualizeFactor)
     val creditToGdp = totalLoans / annualGdp
 
     // Exponential smoothing of trend (proxy for HP filter)
-    val lambda   = 0.05 // smoothing parameter
     val newTrend =
       if prev.creditToGdpTrend <= 0 then creditToGdp
-      else prev.creditToGdpTrend * (1.0 - lambda) + creditToGdp * lambda
+      else prev.creditToGdpTrend * (1.0 - TrendSmoothing) + creditToGdp * TrendSmoothing
 
-    // Gap = actual - trend
     val gap = creditToGdp - newTrend
 
-    // CCyB policy rule:
-    // - gap > activation threshold → build CCyB (gradual, up to max)
-    // - gap < release threshold → release immediately (countercyclical)
+    // CCyB rule: build gradually above activation gap, release immediately below release gap
     val newCcyb =
-      if gap > p.banking.ccybActivationGap.toDouble then
-        // Build gradually: add 0.25pp per quarter of exceedance
-        Rate(Math.min(p.banking.ccybMax.toDouble, prev.ccyb.toDouble + 0.0025 / 3.0)) // ~0.25pp/quarter ÷ 3 months
-      else if gap < p.banking.ccybReleaseGap then Rate.Zero // Immediate release
-      else prev.ccyb                                                                  // Maintain current buffer
+      if gap > p.banking.ccybActivationGap.toDouble then Rate(Math.min(p.banking.ccybMax.toDouble, prev.ccyb.toDouble + CcybBuildRate))
+      else if gap < p.banking.ccybReleaseGap then Rate.Zero
+      else prev.ccyb
 
     State(newCcyb, gap, newTrend)
 
-  /** Check concentration limit: bank's loan share should not exceed limit ×
-    * capital. Returns true if within limit.
-    */
-  def withinConcentrationLimit(bankLoans: Double, bankCapital: Double, totalSystemLoans: Double)(using
-      p: SimParams,
-  ): Boolean =
+  // ---- Concentration limit ----
+
+  /** Returns true if bank's loan share is within the concentration limit. */
+  def withinConcentrationLimit(bankLoans: Double, bankCapital: Double, totalSystemLoans: Double)(using p: SimParams): Boolean =
     if !p.flags.macropru || totalSystemLoans <= 0 then true
     else withinConcentrationLimitInternal(bankLoans, bankCapital, totalSystemLoans)
 
-  /** Internal concentration limit check (always computes, for testing). */
   private[engine] def withinConcentrationLimitInternal(
       bankLoans: Double,
       bankCapital: Double,
