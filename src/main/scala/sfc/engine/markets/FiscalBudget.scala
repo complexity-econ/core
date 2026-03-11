@@ -20,26 +20,31 @@ import sfc.types.*
   */
 object FiscalBudget:
 
-  /** Monthly budget update → new GovState. All monetary arguments in PLN. */
-  def update(
+  /** Monthly fiscal inputs — all monetary fields in PLN. */
+  case class Input(
       prev: GovState,
-      citPaid: Double,
-      vat: Double,
       priceLevel: Double,
-      unempBenefitSpend: Double,
-      debtService: Double = 0.0,
-      nbpRemittance: Double = 0.0,
-      zusGovSubvention: Double = 0.0,
-      socialTransferSpend: Double = 0.0,
-      euCofinancing: Double = 0.0,
-      euProjectCapital: Double = 0.0,
-      exciseRevenue: Double = 0.0,
-      customsDutyRevenue: Double = 0.0,
-      govPurchasesActual: Double = 0.0,
-  )(using p: SimParams): GovState =
+      // Revenue
+      citPaid: PLN = PLN.Zero,
+      vat: PLN = PLN.Zero,
+      nbpRemittance: PLN = PLN.Zero,
+      exciseRevenue: PLN = PLN.Zero,
+      customsDutyRevenue: PLN = PLN.Zero,
+      // Spending
+      unempBenefitSpend: PLN = PLN.Zero,
+      debtService: PLN = PLN.Zero,
+      zusGovSubvention: PLN = PLN.Zero,
+      socialTransferSpend: PLN = PLN.Zero,
+      euCofinancing: PLN = PLN.Zero,
+      euProjectCapital: PLN = PLN.Zero,
+      govPurchasesActual: PLN = PLN.Zero,
+  )
+
+  /** Monthly budget update → new GovState. */
+  def update(in: Input)(using p: SimParams): GovState =
     val govBaseRaw =
-      if govPurchasesActual > 0 then govPurchasesActual
-      else p.fiscal.govBaseSpending.toDouble * priceLevel
+      if in.govPurchasesActual > PLN.Zero then in.govPurchasesActual.toDouble
+      else p.fiscal.govBaseSpending.toDouble * in.priceLevel
 
     val (govCurrent, govCapital) =
       if p.flags.govInvest then
@@ -47,34 +52,35 @@ object FiscalBudget:
         (govBaseRaw * (1.0 - capShare), govBaseRaw * capShare)
       else (govBaseRaw, 0.0)
 
-    val totalSpend = unempBenefitSpend + socialTransferSpend + govCurrent + govCapital +
-      debtService + zusGovSubvention + euCofinancing
-    val totalRev   = citPaid + vat + nbpRemittance + exciseRevenue + customsDutyRevenue
+    val totalSpend = in.unempBenefitSpend.toDouble + in.socialTransferSpend.toDouble +
+      govCurrent + govCapital + in.debtService.toDouble + in.zusGovSubvention.toDouble + in.euCofinancing.toDouble
+    val totalRev   = in.citPaid.toDouble + in.vat.toDouble + in.nbpRemittance.toDouble +
+      in.exciseRevenue.toDouble + in.customsDutyRevenue.toDouble
     val deficit    = totalSpend - totalRev
 
     val newBondsOutstanding =
-      if p.flags.govBondMarket then Math.max(0.0, prev.bondsOutstanding.toDouble + deficit)
-      else prev.bondsOutstanding.toDouble
+      if p.flags.govBondMarket then Math.max(0.0, in.prev.bondsOutstanding.toDouble + deficit)
+      else in.prev.bondsOutstanding.toDouble
 
     val newCapitalStock =
       if p.flags.govInvest then
         val monthlyDepreciation = p.fiscal.govDepreciationRate.toDouble / 12.0
-        prev.publicCapitalStock.toDouble * (1.0 - monthlyDepreciation) + govCapital + euProjectCapital
+        in.prev.publicCapitalStock.toDouble * (1.0 - monthlyDepreciation) + govCapital + in.euProjectCapital.toDouble
       else 0.0
 
     GovState(
       taxRevenue = PLN(totalRev),
       deficit = PLN(deficit),
-      cumulativeDebt = PLN(prev.cumulativeDebt.toDouble + deficit),
-      unempBenefitSpend = PLN(unempBenefitSpend),
+      cumulativeDebt = PLN(in.prev.cumulativeDebt.toDouble + deficit),
+      unempBenefitSpend = in.unempBenefitSpend,
       bondsOutstanding = PLN(newBondsOutstanding),
-      bondYield = prev.bondYield,
-      debtServiceSpend = PLN(debtService),
-      socialTransferSpend = PLN(socialTransferSpend),
+      bondYield = in.prev.bondYield,
+      debtServiceSpend = in.debtService,
+      socialTransferSpend = in.socialTransferSpend,
       publicCapitalStock = PLN(newCapitalStock),
       govCurrentSpend = PLN(govCurrent),
-      govCapitalSpend = PLN(govCapital + euProjectCapital),
-      euCofinancing = PLN(euCofinancing),
-      exciseRevenue = PLN(exciseRevenue),
-      customsDutyRevenue = PLN(customsDutyRevenue),
+      govCapitalSpend = PLN(govCapital + in.euProjectCapital.toDouble),
+      euCofinancing = in.euCofinancing,
+      exciseRevenue = in.exciseRevenue,
+      customsDutyRevenue = in.customsDutyRevenue,
     )
