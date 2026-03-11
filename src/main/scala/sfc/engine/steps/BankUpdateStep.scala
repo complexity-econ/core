@@ -33,31 +33,129 @@ object BankUpdateStep:
       newGovWithYield: FiscalBudget.GovState,
       newJst: Jst.State,
       housingAfterFlows: HousingMarket.State,
-      bfgLevy: Double,
-      bailInLoss: Double,
-      multiCapDestruction: Double,
+      bfgLevy: PLN,
+      bailInLoss: PLN,
+      multiCapDestruction: PLN,
       monAgg: Option[Banking.MonetaryAggregates],
       finalHhAgg: Household.Aggregates,
       // Tax intermediates (needed by SFC check)
-      vat: Double,
-      vatAfterEvasion: Double,
-      pitAfterEvasion: Double,
-      exciseRevenue: Double,
-      exciseAfterEvasion: Double,
-      customsDutyRevenue: Double,
-      effectiveShadowShare: Double,
+      vat: PLN,
+      vatAfterEvasion: PLN,
+      pitAfterEvasion: PLN,
+      exciseRevenue: PLN,
+      exciseAfterEvasion: PLN,
+      customsDutyRevenue: PLN,
+      effectiveShadowShare: Ratio,
       // Housing flows (needed by SFC check)
-      mortgageInterestIncome: Double,
-      mortgagePrincipal: Double,
-      mortgageDefaultLoss: Double,
-      mortgageDefaultAmount: Double,
+      mortgageInterestIncome: PLN,
+      mortgagePrincipal: PLN,
+      mortgageDefaultLoss: PLN,
+      mortgageDefaultAmount: PLN,
       // Other intermediates (needed by SFC/World assembly)
-      jstDepositChange: Double,
-      investNetDepositFlow: Double,
-      actualBondChange: Double,
+      jstDepositChange: PLN,
+      investNetDepositFlow: PLN,
+      actualBondChange: PLN,
+  )
+
+  // --- Intermediate result types for sub-methods ---
+
+  private case class GovJstResult(
+      newGovWithYield: FiscalBudget.GovState,
+      newJst: Jst.State,
+      jstDepositChange: PLN,
+      tax: TaxRevenue.Output,
+  )
+
+  private case class HousingResult(
+      housingAfterFlows: HousingMarket.State,
+      mortgageFlows: HousingMarket.MortgageFlows,
+  )
+
+  private case class BondAllocations(
+      finalPpk: SocialSecurity.PpkState,
+      finalInsurance: Insurance.State,
+      finalNbfi: Nbfi.State,
+      ppkBondPurchase: PLN,
+      insBondPurchase: PLN,
+      tfiBondPurchase: PLN,
+      actualBondChange: PLN,
+  )
+
+  private case class PerBankHhFlows(
+      incomeShare: PLN,
+      consShare: PLN,
+      hhDebtService: PLN,
+      depInterest: PLN,
+      ccDebtService: PLN,
+      ccOrigination: PLN,
+      ccDefault: PLN,
+  )
+
+  private case class MultiBankResult(
+      finalBankingSector: Banking.State,
+      reassignedFirms: Vector[Firm.State],
+      reassignedHouseholds: Vector[Household.State],
+      bailInLoss: PLN,
+      multiCapDestruction: PLN,
+      resolvedBank: Banking.Aggregate,
   )
 
   def run(in: Input)(using p: SimParams): Output =
+    val govJst               = computeGovAndJst(in)
+    val housing              = computeHousingFlows(in)
+    val bfgLevy              =
+      if p.flags.bankFailure then Banking.computeBfgLevy(in.w.bankingSector.banks).total
+      else PLN.Zero
+    val investNetDepositFlow = computeInvestNetDepositFlow(in)
+    val newBank              =
+      computeAggregateBank(in, housing.mortgageFlows, bfgLevy, investNetDepositFlow, govJst.jstDepositChange)
+    val finalHhAgg           = computeHhAgg(in)
+    val bonds                = computeBondAllocations(in, newBank, govJst.newGovWithYield)
+    val multi                = processMultiBankPath(
+      in,
+      govJst.jstDepositChange,
+      investNetDepositFlow,
+      housing.mortgageFlows,
+      bonds,
+    )
+    val monAgg               = computeMonetaryAggregates(multi.finalBankingSector, multi.resolvedBank)
+
+    Output(
+      resolvedBank = multi.resolvedBank,
+      finalBankingSector = multi.finalBankingSector,
+      reassignedFirms = multi.reassignedFirms,
+      reassignedHouseholds = multi.reassignedHouseholds,
+      finalPpk = bonds.finalPpk,
+      finalInsurance = bonds.finalInsurance,
+      finalNbfi = bonds.finalNbfi,
+      newGovWithYield = govJst.newGovWithYield,
+      newJst = govJst.newJst,
+      housingAfterFlows = housing.housingAfterFlows,
+      bfgLevy = bfgLevy,
+      bailInLoss = multi.bailInLoss,
+      multiCapDestruction = multi.multiCapDestruction,
+      monAgg = monAgg,
+      finalHhAgg = finalHhAgg,
+      vat = PLN(govJst.tax.vat),
+      vatAfterEvasion = PLN(govJst.tax.vatAfterEvasion),
+      pitAfterEvasion = PLN(govJst.tax.pitAfterEvasion),
+      exciseRevenue = PLN(govJst.tax.exciseRevenue),
+      exciseAfterEvasion = PLN(govJst.tax.exciseAfterEvasion),
+      customsDutyRevenue = PLN(govJst.tax.customsDutyRevenue),
+      effectiveShadowShare = Ratio(govJst.tax.effectiveShadowShare),
+      mortgageInterestIncome = housing.mortgageFlows.interest,
+      mortgagePrincipal = housing.mortgageFlows.principal,
+      mortgageDefaultLoss = housing.mortgageFlows.defaultLoss,
+      mortgageDefaultAmount = housing.mortgageFlows.defaultAmount,
+      jstDepositChange = govJst.jstDepositChange,
+      investNetDepositFlow = investNetDepositFlow,
+      actualBondChange = bonds.actualBondChange,
+    )
+
+  /** Government budget update (deficit, debt, bonds) and JST local government
+    * step.
+    */
+  private def computeGovAndJst(in: Input)(using p: SimParams): GovJstResult =
     val tax = TaxRevenue.compute(
       TaxRevenue.Input(
         consumption = in.s3.consumption,
@@ -92,9 +190,8 @@ object BankUpdateStep:
     )
     val newGovWithYield = newGov.copy(bondYield = in.s8.monetary.newBondYield)
 
-    // JST (local government)
-    val nLivingFirms     = in.s5.ioFirms.count(Firm.isAlive)
-    val jstResult        =
+    val nLivingFirms = in.s5.ioFirms.count(Firm.isAlive)
+    val jstResult    =
       Jst.step(
         in.w.social.jst,
         newGovWithYield.taxRevenue,
@@ -103,10 +200,16 @@ object BankUpdateStep:
         nLivingFirms,
         PLN(tax.pitAfterEvasion),
       )
-    val newJst           = jstResult.state
-    val jstDepositChange = jstResult.depositChange.toDouble
 
-    // ---- Housing market step ----
+    GovJstResult(
+      newGovWithYield = newGovWithYield,
+      newJst = jstResult.state,
+      jstDepositChange = jstResult.depositChange,
+      tax = tax,
+    )
+
+  /** Housing market: price step, origination, mortgage flows. */
+  private def computeHousingFlows(in: Input)(using p: SimParams): HousingResult =
     val unempRate                = 1.0 - in.s2.employed.toDouble / in.w.totalPopulation
     val prevMortgageRate         = in.w.real.housing.avgMortgageRate
     val mortgageBaseRate: Double =
@@ -130,24 +233,33 @@ object BankUpdateStep:
     val mortgageFlows     = HousingMarket.processMortgageFlows(housingAfterOrig, mortgageRateTyped, Ratio(unempRate))
     val housingAfterFlows = HousingMarket.applyFlows(housingAfterOrig, mortgageFlows)
 
-    // BFG levy (#48)
-    val bfgLevy =
-      if p.flags.bankFailure then Banking.computeBfgLevy(in.w.bankingSector.banks).total.toDouble
-      else 0.0
+    HousingResult(housingAfterFlows = housingAfterFlows, mortgageFlows = mortgageFlows)
 
-    // Investment net deposit flow
+  /** Investment net deposit flow: lagged demand minus current domestic
+    * investment.
+    */
+  private def computeInvestNetDepositFlow(in: Input)(using p: SimParams): PLN =
     val currentInvestDomestic = in.s5.sumGrossInvestment * (1.0 - p.capital.importShare.toDouble) +
       in.s5.sumGreenInvestment * (1.0 - p.climate.greenImportShare.toDouble)
-    val investNetDepositFlow  = in.s4.laggedInvestDemand - currentInvestDomestic
+    PLN(in.s4.laggedInvestDemand - currentInvestDomestic)
 
-    val aggCapitalPnl = Banking.computeCapitalDelta(
+  /** Single-bank aggregate path: capital PnL, loans, deposits, consumer credit.
+    */
+  private def computeAggregateBank(
+      in: Input,
+      mortgageFlows: HousingMarket.MortgageFlows,
+      bfgLevy: PLN,
+      investNetDepositFlow: PLN,
+      jstDepositChange: PLN,
+  )(using p: SimParams): Banking.Aggregate =
+    val aggCapitalPnl   = Banking.computeCapitalDelta(
       Banking.CapitalPnlInput(
         prevCapital = in.w.bank.capital,
         nplLoss = PLN(in.s5.nplLoss),
         mortgageNplLoss = mortgageFlows.defaultLoss,
         consumerNplLoss = PLN(in.s6.consumerNplLoss),
         corpBondDefaultLoss = in.s8.corpBonds.corpBondBankDefaultLoss,
-        bfgLevy = PLN(bfgLevy),
+        bfgLevy = bfgLevy,
         intIncome = PLN(in.s5.intIncome),
         hhDebtService = PLN(in.s6.hhDebtService),
         bondIncome = in.s8.banking.bankBondIncome,
@@ -160,15 +272,16 @@ object BankUpdateStep:
         corpBondCoupon = in.s8.corpBonds.corpBondBankCoupon,
       ),
     )
-    val newBank       = in.w.bank.copy(
+    val nplWriteOffRate = 0.05 // monthly NPL write-off rate
+    in.w.bank.copy(
       totalLoans = PLN(
         Math.max(0, in.w.bank.totalLoans.toDouble + in.s5.sumNewLoans - in.s5.nplNew * p.banking.loanRecovery.toDouble),
       ),
-      nplAmount = PLN(Math.max(0, in.w.bank.nplAmount.toDouble + in.s5.nplNew - in.w.bank.nplAmount.toDouble * 0.05)),
+      nplAmount = PLN(Math.max(0, in.w.bank.nplAmount.toDouble + in.s5.nplNew - in.w.bank.nplAmount.toDouble * nplWriteOffRate)),
       capital = aggCapitalPnl.newCapital,
       deposits = PLN(
-        in.w.bank.deposits.toDouble + (in.s3.totalIncome - in.s3.consumption) + investNetDepositFlow
-          + jstDepositChange
+        in.w.bank.deposits.toDouble + (in.s3.totalIncome - in.s3.consumption) + investNetDepositFlow.toDouble
+          + jstDepositChange.toDouble
           + in.s7.netDomesticDividends - in.s7.foreignDividendOutflow - in.s6.remittanceOutflow + in.s6.diasporaInflow
           + in.s6.tourismExport - in.s6.tourismImport
           + in.s6.consumerOrigination + in.s8.nonBank.insNetDepositChange.toDouble + in.s8.nonBank.nbfiDepositDrain.toDouble,
@@ -180,181 +293,250 @@ object BankUpdateStep:
         ),
       ),
       consumerNpl = PLN(
-        Math.max(0.0, in.w.bank.consumerNpl.toDouble + in.s6.consumerDefaultAmt - in.w.bank.consumerNpl.toDouble * 0.05),
+        Math.max(0.0, in.w.bank.consumerNpl.toDouble + in.s6.consumerDefaultAmt - in.w.bank.consumerNpl.toDouble * nplWriteOffRate),
       ),
       corpBondHoldings = in.s8.corpBonds.newCorpBonds.bankHoldings,
     )
 
-    // Recompute hhAgg from final households
-    val monthlyRetAttempts  = in.s3.hhAgg.retrainingAttempts
-    val monthlyRetSuccesses = in.s3.hhAgg.retrainingSuccesses
-    val finalHhAgg          = Household.computeAggregates(
+  /** Recompute household aggregates from final households. */
+  private def computeHhAgg(in: Input)(using SimParams): Household.Aggregates =
+    Household.computeAggregates(
       in.s5.households,
       PLN(in.s2.newWage),
       PLN(in.s1.resWage),
       in.s3.importAdj,
-      monthlyRetAttempts,
-      monthlyRetSuccesses,
+      in.s3.hhAgg.retrainingAttempts,
+      in.s3.hhAgg.retrainingSuccesses,
     )
 
+  /** PPK, insurance, and TFI gov bond purchases, each capped at available
+    * supply.
+    */
+  private def computeBondAllocations(
+      in: Input,
+      newBank: Banking.Aggregate,
+      newGovWithYield: FiscalBudget.GovState,
+  )(using p: SimParams): BondAllocations =
     val actualBondChange = (newGovWithYield.bondsOutstanding - in.w.gov.bondsOutstanding).toDouble
+    val bondSupplyBase   = newBank.govBondHoldings.toDouble +
+      (if p.flags.govBondMarket then actualBondChange else 0.0) - in.s8.monetary.qePurchaseAmount.toDouble
 
     // PPK bond purchases (capped at available bonds after QE)
-    val availableBondsForPpk = newBank.govBondHoldings.toDouble +
-      (if p.flags.govBondMarket then actualBondChange else 0.0) - in.s8.monetary.qePurchaseAmount.toDouble
-    val ppkBondPurchase      = Math.min(in.s2.rawPpkBondPurchase, Math.max(0.0, availableBondsForPpk))
-    val finalPpk             = in.s2.newPpk.copy(bondHoldings = PLN(in.w.social.ppk.bondHoldings.toDouble + ppkBondPurchase))
+    val ppkBondPurchase = Math.min(in.s2.rawPpkBondPurchase, Math.max(0.0, bondSupplyBase))
+    val finalPpk        = in.s2.newPpk.copy(bondHoldings = PLN(in.w.social.ppk.bondHoldings.toDouble + ppkBondPurchase))
 
     // Insurance gov bond purchases (capped at available bonds after QE + PPK)
     val insGovBondDelta      = (in.s8.nonBank.newInsurance.govBondHoldings - in.w.financial.insurance.govBondHoldings).toDouble
-    val availableBondsForIns = newBank.govBondHoldings.toDouble +
-      (if p.flags.govBondMarket then actualBondChange else 0.0) - in.s8.monetary.qePurchaseAmount.toDouble - ppkBondPurchase
+    val availableBondsForIns = bondSupplyBase - ppkBondPurchase
     val insBondPurchase      = Math.max(0.0, Math.min(Math.max(0.0, insGovBondDelta), Math.max(0.0, availableBondsForIns)))
     val finalInsurance       =
       in.s8.nonBank.newInsurance.copy(govBondHoldings = PLN(in.w.financial.insurance.govBondHoldings.toDouble + insBondPurchase))
 
     // TFI gov bond purchases (#42)
     val tfiGovBondDelta      = (in.s8.nonBank.newNbfi.tfiGovBondHoldings - in.w.financial.nbfi.tfiGovBondHoldings).toDouble
-    val availableBondsForTfi = newBank.govBondHoldings.toDouble +
-      (if p.flags.govBondMarket then actualBondChange else 0.0) -
-      in.s8.monetary.qePurchaseAmount.toDouble - ppkBondPurchase - insBondPurchase
+    val availableBondsForTfi = bondSupplyBase - ppkBondPurchase - insBondPurchase
     val tfiBondPurchase      = Math.max(0.0, Math.min(Math.max(0.0, tfiGovBondDelta), Math.max(0.0, availableBondsForTfi)))
     val finalNbfi            =
       in.s8.nonBank.newNbfi.copy(tfiGovBondHoldings = PLN(in.w.financial.nbfi.tfiGovBondHoldings.toDouble + tfiBondPurchase))
 
-    // ---- Multi-bank update path ----
+    BondAllocations(
+      finalPpk,
+      finalInsurance,
+      finalNbfi,
+      ppkBondPurchase = PLN(ppkBondPurchase),
+      insBondPurchase = PLN(insBondPurchase),
+      tfiBondPurchase = PLN(tfiBondPurchase),
+      actualBondChange = PLN(actualBondChange),
+    )
+
+  /** Resolve per-bank household flows from tracked data or worker-share
+    * fallback.
+    */
+  private def resolvePerBankHhFlows(
+      bId: Int,
+      perBankHhFlowsOpt: Option[Vector[PerBankFlow]],
+      totalWorkers: Double,
+      perBankWorkers: Vector[Int],
+      in: Input,
+  ): PerBankHhFlows =
+    perBankHhFlowsOpt match
+      case Some(pbf) =>
+        val f = pbf(bId)
+        PerBankHhFlows(
+          incomeShare = f.income,
+          consShare = f.consumption,
+          hhDebtService = f.debtService,
+          depInterest = f.depositInterest,
+          ccDebtService = f.consumerDebtService,
+          ccOrigination = f.consumerOrigination,
+          ccDefault = f.consumerDefault,
+        )
+      case None      =>
+        val ws = if totalWorkers > 0 then perBankWorkers(bId) / totalWorkers else 0.0
+        PerBankHhFlows(
+          incomeShare = PLN(in.s3.totalIncome * ws),
+          consShare = PLN(in.s3.consumption * ws),
+          hhDebtService = PLN(in.s6.hhDebtService * ws),
+          depInterest = PLN.Zero,
+          ccDebtService = PLN(in.s6.consumerDebtService * ws),
+          ccOrigination = PLN(in.s6.consumerOrigination * ws),
+          ccDefault = PLN(in.s6.consumerDefaultAmt * ws),
+        )
+
+  /** Compute updated state for a single bank in the multi-bank path. */
+  private def updateSingleBank(
+      b: Banking.BankState,
+      hhFlows: PerBankHhFlows,
+      workerShare: Ratio,
+      mortgageFlows: HousingMarket.MortgageFlows,
+      perBankReserveInt: Banking.PerBankAmounts,
+      perBankStandingFac: Banking.PerBankAmounts,
+      perBankInterbankInt: Banking.PerBankAmounts,
+      jstDepositChange: PLN,
+      investNetDepositFlow: PLN,
+      in: Input,
+  )(using p: SimParams): Banking.BankState =
+    val bId           = b.id.toInt
+    val ws            = workerShare.toDouble
+    val bankNplNew    = in.s5.perBankNplDebt(bId)
+    val bankNplLoss   = bankNplNew * (1.0 - p.banking.loanRecovery.toDouble)
+    val bankIntIncome = in.s5.perBankIntIncome(bId)
+    val bankBondInc   = b.govBondHoldings.toDouble * in.s8.monetary.newBondYield.toDouble / 12.0
+    val bankResInt    = perBankReserveInt.perBank(bId).toDouble
+    val bankSfInc     = perBankStandingFac.perBank(bId).toDouble
+    val bankIbInt     = perBankInterbankInt.perBank(bId).toDouble
+    val newLoansTotal =
+      Math.max(0.0, b.loans.toDouble + in.s5.perBankNewLoans(bId) - bankNplNew * p.banking.loanRecovery.toDouble)
+
+    val newDep = b.deposits.toDouble + (hhFlows.incomeShare.toDouble - hhFlows.consShare.toDouble) +
+      investNetDepositFlow.toDouble * ws + jstDepositChange.toDouble * ws +
+      in.s7.netDomesticDividends * ws - in.s7.foreignDividendOutflow * ws -
+      in.s6.remittanceOutflow * ws + in.s6.diasporaInflow * ws +
+      in.s6.tourismExport * ws - in.s6.tourismImport * ws +
+      hhFlows.ccOrigination.toDouble +
+      in.s8.nonBank.insNetDepositChange.toDouble * ws + in.s8.nonBank.nbfiDepositDrain.toDouble * ws
+
+    val bankMortgageIntIncome   = mortgageFlows.interest.toDouble * ws
+    val bankMortgageNplLoss     = mortgageFlows.defaultLoss.toDouble * ws
+    val bankCcNplLoss           = hhFlows.ccDefault.toDouble * (1.0 - p.household.ccNplRecovery.toDouble)
+    val bankCcPrincipal         = in.s3.perBankHhFlowsOpt match
+      case Some(pbf) => pbf(bId).consumerPrincipal.toDouble
+      case _         =>
+        val ccAmort       = p.household.ccAmortRate.toDouble
+        val ccMonthlyRate = (in.s1.lendingBaseRate + p.household.ccSpread.toDouble) / 12.0
+        if ccAmort + ccMonthlyRate > 0 then hhFlows.ccDebtService.toDouble * (ccAmort / (ccAmort + ccMonthlyRate))
+        else 0.0
+    val bankCorpBondCoupon      = in.s8.corpBonds.corpBondBankCoupon.toDouble * ws
+    val bankCorpBondDefaultLoss = in.s8.corpBonds.corpBondBankDefaultLoss.toDouble * ws
+    val bankBfgLevy             =
+      if p.flags.bankFailure && !b.failed then b.deposits.toDouble * p.banking.bfgLevyRate.toDouble / 12.0
+      else 0.0
+
+    val capitalPnl = Banking.computeCapitalDelta(
+      Banking.CapitalPnlInput(
+        prevCapital = b.capital,
+        nplLoss = PLN(bankNplLoss),
+        mortgageNplLoss = PLN(bankMortgageNplLoss),
+        consumerNplLoss = PLN(bankCcNplLoss),
+        corpBondDefaultLoss = PLN(bankCorpBondDefaultLoss),
+        bfgLevy = PLN(bankBfgLevy),
+        intIncome = PLN(bankIntIncome),
+        hhDebtService = PLN(hhFlows.hhDebtService.toDouble),
+        bondIncome = PLN(bankBondInc),
+        depositInterest = PLN(hhFlows.depInterest.toDouble),
+        reserveInterest = PLN(bankResInt),
+        standingFacilityIncome = PLN(bankSfInc),
+        interbankInterest = PLN(bankIbInt),
+        mortgageInterestIncome = PLN(bankMortgageIntIncome),
+        consumerDebtService = PLN(hhFlows.ccDebtService.toDouble),
+        corpBondCoupon = PLN(bankCorpBondCoupon),
+      ),
+    )
+
+    val nplWriteOffRate = 0.05 // monthly NPL write-off rate
+    val shortLoanFrac   = 0.20
+    val mediumLoanFrac  = 0.30
+    val longLoanFrac    = 0.50
+    b.copy(
+      loans = PLN(newLoansTotal),
+      nplAmount = PLN(Math.max(0.0, b.nplAmount.toDouble + bankNplNew - b.nplAmount.toDouble * nplWriteOffRate)),
+      capital = capitalPnl.newCapital,
+      deposits = PLN(newDep),
+      demandDeposits = PLN(newDep * (1.0 - p.banking.termDepositFrac.toDouble)),
+      termDeposits = PLN(newDep * p.banking.termDepositFrac.toDouble),
+      loansShort = PLN(newLoansTotal * shortLoanFrac),
+      loansMedium = PLN(newLoansTotal * mediumLoanFrac),
+      loansLong = PLN(newLoansTotal * longLoanFrac),
+      consumerLoans = PLN(Math.max(0.0, b.consumerLoans.toDouble + hhFlows.ccOrigination.toDouble - bankCcPrincipal - hhFlows.ccDefault.toDouble)),
+      consumerNpl = PLN(
+        Math.max(0.0, b.consumerNpl.toDouble + hhFlows.ccDefault.toDouble - b.consumerNpl.toDouble * nplWriteOffRate),
+      ),
+      corpBondHoldings = in.s8.corpBonds.newCorpBonds.bankHoldings * ws,
+    )
+
+  /** Multi-bank update: per-bank loop, interbank clearing, bond allocation,
+    * failure resolution.
+    */
+  private def processMultiBankPath(
+      in: Input,
+      jstDepositChange: PLN,
+      investNetDepositFlow: PLN,
+      mortgageFlows: HousingMarket.MortgageFlows,
+      bonds: BondAllocations,
+  )(using p: SimParams): MultiBankResult =
     val bs                  = in.w.bankingSector
     val perBankReserveInt   = Banking.computeReserveInterest(bs.banks, in.w.nbp.referenceRate)
     val perBankStandingFac  = Banking.computeStandingFacilities(bs.banks, in.w.nbp.referenceRate)
     val perBankInterbankInt = Banking.interbankInterestFlows(bs.banks, bs.interbankRate)
+    val totalWorkers        = in.s5.perBankWorkers.kahanSumBy(_.toDouble)
 
-    val totalWorkers         = in.s5.perBankWorkers.kahanSumBy(_.toDouble)
-    val updatedBanks         = bs.banks.map { b =>
-      val bId                     = b.id.toInt
-      val bankNplNew              = in.s5.perBankNplDebt(bId)
-      val bankNplLoss             = bankNplNew * (1.0 - p.banking.loanRecovery.toDouble)
-      val bankIntIncome           = in.s5.perBankIntIncome(bId)
-      val (
-        bankIncomeShare,
-        bankConsShare,
-        bankHhDebtService,
-        bankDepInterest,
-        bankCcDSvc,
-        bankCcOrig,
-        bankCcDef,
-      )                           =
-        in.s3.perBankHhFlowsOpt match
-          case Some(pbf) =>
-            val f = pbf(bId)
-            (
-              f.income.toDouble,
-              f.consumption.toDouble,
-              f.debtService.toDouble,
-              f.depositInterest.toDouble,
-              f.consumerDebtService.toDouble,
-              f.consumerOrigination.toDouble,
-              f.consumerDefault.toDouble,
-            )
-          case None      =>
-            val ws = if totalWorkers > 0 then in.s5.perBankWorkers(bId) / totalWorkers else 0.0
-            (
-              in.s3.totalIncome * ws,
-              in.s3.consumption * ws,
-              in.s6.hhDebtService * ws,
-              0.0,
-              in.s6.consumerDebtService * ws,
-              in.s6.consumerOrigination * ws,
-              in.s6.consumerDefaultAmt * ws,
-            )
-      val bankBondInc             = b.govBondHoldings.toDouble * in.s8.monetary.newBondYield.toDouble / 12.0
-      val bankResInt              = perBankReserveInt.perBank(bId).toDouble
-      val bankSfInc               = perBankStandingFac.perBank(bId).toDouble
-      val bankIbInt               = perBankInterbankInt.perBank(bId).toDouble
-      val newLoansTotal           =
-        Math.max(0.0, b.loans.toDouble + in.s5.perBankNewLoans(bId) - bankNplNew * p.banking.loanRecovery.toDouble)
-      val ws                      = if totalWorkers > 0 then in.s5.perBankWorkers(bId) / totalWorkers else 0.0
-      val bankDivInflow           = in.s7.netDomesticDividends * ws
-      val bankDivOutflow          = in.s7.foreignDividendOutflow * ws
-      val bankRemittance          = in.s6.remittanceOutflow * ws
-      val bankDiasporaInflow      = in.s6.diasporaInflow * ws
-      val bankTourismExport       = in.s6.tourismExport * ws
-      val bankTourismImport       = in.s6.tourismImport * ws
-      val bankInsDepChange        = in.s8.nonBank.insNetDepositChange.toDouble * ws
-      val bankNbfiDepDrain        = in.s8.nonBank.nbfiDepositDrain.toDouble * ws
-      val bankJstDepChange        = jstDepositChange * ws
-      val bankInvestNetFlow       = investNetDepositFlow * ws
-      val newDep                  =
-        b.deposits.toDouble + (bankIncomeShare - bankConsShare) + bankInvestNetFlow + bankJstDepChange + bankDivInflow - bankDivOutflow - bankRemittance + bankDiasporaInflow + bankTourismExport - bankTourismImport + bankCcOrig + bankInsDepChange + bankNbfiDepDrain
-      val bankDepShare            = if totalWorkers > 0 then in.s5.perBankWorkers(bId) / totalWorkers else 0.0
-      val bankMortgageIntIncome   = mortgageFlows.interest.toDouble * bankDepShare
-      val bankMortgageNplLoss     = mortgageFlows.defaultLoss.toDouble * bankDepShare
-      val bankCcNplLoss           = bankCcDef * (1.0 - p.household.ccNplRecovery.toDouble)
-      val bankCcPrincipal         = in.s3.perBankHhFlowsOpt match
-        case Some(pbf) => pbf(bId).consumerPrincipal.toDouble
-        case _         =>
-          if p.household.ccAmortRate.toDouble + (in.s1.lendingBaseRate + p.household.ccSpread.toDouble) / 12.0 > 0 then
-            bankCcDSvc * (p.household.ccAmortRate.toDouble / (p.household.ccAmortRate.toDouble + (in.s1.lendingBaseRate + p.household.ccSpread.toDouble) / 12.0))
-          else 0.0
-      val bankCorpBondCoupon      = in.s8.corpBonds.corpBondBankCoupon.toDouble * bankDepShare
-      val bankCorpBondDefaultLoss = in.s8.corpBonds.corpBondBankDefaultLoss.toDouble * bankDepShare
-      val bankBfgLevy             =
-        if p.flags.bankFailure && !b.failed then b.deposits.toDouble * p.banking.bfgLevyRate.toDouble / 12.0
-        else 0.0
-      val capitalPnl              = Banking.computeCapitalDelta(
-        Banking.CapitalPnlInput(
-          prevCapital = b.capital,
-          nplLoss = PLN(bankNplLoss),
-          mortgageNplLoss = PLN(bankMortgageNplLoss),
-          consumerNplLoss = PLN(bankCcNplLoss),
-          corpBondDefaultLoss = PLN(bankCorpBondDefaultLoss),
-          bfgLevy = PLN(bankBfgLevy),
-          intIncome = PLN(bankIntIncome),
-          hhDebtService = PLN(bankHhDebtService),
-          bondIncome = PLN(bankBondInc),
-          depositInterest = PLN(bankDepInterest),
-          reserveInterest = PLN(bankResInt),
-          standingFacilityIncome = PLN(bankSfInc),
-          interbankInterest = PLN(bankIbInt),
-          mortgageInterestIncome = PLN(bankMortgageIntIncome),
-          consumerDebtService = PLN(bankCcDSvc),
-          corpBondCoupon = PLN(bankCorpBondCoupon),
-        ),
-      )
-      b.copy(
-        loans = PLN(newLoansTotal),
-        nplAmount = PLN(Math.max(0.0, b.nplAmount.toDouble + bankNplNew - b.nplAmount.toDouble * 0.05)),
-        capital = capitalPnl.newCapital,
-        deposits = PLN(newDep),
-        demandDeposits = PLN(newDep * (1.0 - p.banking.termDepositFrac.toDouble)),
-        termDeposits = PLN(newDep * p.banking.termDepositFrac.toDouble),
-        loansShort = PLN(newLoansTotal * 0.20),
-        loansMedium = PLN(newLoansTotal * 0.30),
-        loansLong = PLN(newLoansTotal * 0.50),
-        consumerLoans = PLN(Math.max(0.0, b.consumerLoans.toDouble + bankCcOrig - bankCcPrincipal - bankCcDef)),
-        consumerNpl = PLN(Math.max(0.0, b.consumerNpl.toDouble + bankCcDef - b.consumerNpl.toDouble * 0.05)),
-        corpBondHoldings = in.s8.corpBonds.newCorpBonds.bankHoldings * bankDepShare,
+    val updatedBanks = bs.banks.map { b =>
+      val bId         = b.id.toInt
+      val workerShare = Ratio(if totalWorkers > 0 then in.s5.perBankWorkers(bId) / totalWorkers else 0.0)
+      val hhFlows     = resolvePerBankHhFlows(bId, in.s3.perBankHhFlowsOpt, totalWorkers, in.s5.perBankWorkers, in)
+      updateSingleBank(
+        b,
+        hhFlows,
+        workerShare,
+        mortgageFlows,
+        perBankReserveInt,
+        perBankStandingFac,
+        perBankInterbankInt,
+        jstDepositChange,
+        investNetDepositFlow,
+        in,
       )
     }
+
+    processInterbankAndFailures(in, updatedBanks, bs, bonds)
+
+  /** Interbank clearing, bond allocation, QE, failure check, bail-in,
+    * resolution, reassignment.
+    */
+  private def processInterbankAndFailures(
+      in: Input,
+      updatedBanks: Vector[Banking.BankState],
+      bs: Banking.State,
+      bonds: BondAllocations,
+  )(using p: SimParams): MultiBankResult =
     val ibRate               = Banking.interbankRate(updatedBanks, in.w.nbp.referenceRate)
     val afterInterbank       = Banking.clearInterbank(updatedBanks, bs.configs)
     val afterBonds           =
-      if p.flags.govBondMarket then Banking.allocateBonds(afterInterbank, PLN(actualBondChange))
+      if p.flags.govBondMarket then Banking.allocateBonds(afterInterbank, bonds.actualBondChange)
       else afterInterbank
     val afterQe              = Banking.allocateQePurchases(afterBonds, in.s8.monetary.qePurchaseAmount)
-    val afterPpk             = Banking.allocateQePurchases(afterQe, PLN(ppkBondPurchase))
-    val afterIns             = Banking.allocateQePurchases(afterPpk, PLN(insBondPurchase))
-    val afterTfi             = Banking.allocateQePurchases(afterIns, PLN(tfiBondPurchase))
+    val afterPpk             = Banking.allocateQePurchases(afterQe, bonds.ppkBondPurchase)
+    val afterIns             = Banking.allocateQePurchases(afterPpk, bonds.insBondPurchase)
+    val afterTfi             = Banking.allocateQePurchases(afterIns, bonds.tfiBondPurchase)
     val failResult           =
       Banking.checkFailures(afterTfi, in.s1.m, p.flags.bankFailure, in.s7.newMacropru.ccyb)
     val afterFailCheck       = failResult.banks
     val anyFailed            = failResult.anyFailed
     val bailInResult         =
       if anyFailed then Banking.applyBailIn(afterFailCheck) else Banking.BailInResult(afterFailCheck, PLN.Zero)
-    val afterBailIn          = bailInResult.banks
-    val multiBailInLoss      = bailInResult.totalLoss.toDouble
     val resolveResult        =
-      if anyFailed then Banking.resolveFailures(afterBailIn)
-      else Banking.ResolutionResult(afterBailIn, BankId.NoBank)
+      if anyFailed then Banking.resolveFailures(bailInResult.banks)
+      else Banking.ResolutionResult(bailInResult.banks, BankId.NoBank)
     val afterResolve         = resolveResult.banks
     val rawAbsorberId        = resolveResult.absorberId
     val absorberId           =
@@ -383,44 +565,22 @@ object BankUpdateStep:
           if h.bankId.toInt < afterResolve.length && afterResolve(h.bankId.toInt).failed then h.copy(bankId = absorberId)
           else h
       else in.s5.households
-    val bailInLoss           = multiBailInLoss
-    val multiCapDestruction  = multiCapDest
 
-    val resolvedBank = finalBankingSector.aggregate
+    MultiBankResult(
+      finalBankingSector = finalBankingSector,
+      reassignedFirms = reassignedFirms,
+      reassignedHouseholds = reassignedHouseholds,
+      bailInLoss = bailInResult.totalLoss,
+      multiCapDestruction = PLN(multiCapDest),
+      resolvedBank = finalBankingSector.aggregate,
+    )
 
-    val monAgg = if p.flags.creditDiagnostics then
+  /** Monetary aggregates (M1/M2/M3) when credit diagnostics enabled. */
+  private def computeMonetaryAggregates(
+      finalBankingSector: Banking.State,
+      resolvedBank: Banking.Aggregate,
+  )(using p: SimParams): Option[Banking.MonetaryAggregates] =
+    if p.flags.creditDiagnostics then
       val totalReserves = finalBankingSector.banks.kahanSumBy(_.reservesAtNbp.toDouble)
       Some(Banking.MonetaryAggregates.compute(resolvedBank.deposits, PLN(totalReserves)))
     else None
-
-    Output(
-      resolvedBank,
-      finalBankingSector,
-      reassignedFirms,
-      reassignedHouseholds,
-      finalPpk,
-      finalInsurance,
-      finalNbfi,
-      newGovWithYield,
-      newJst,
-      housingAfterFlows,
-      bfgLevy,
-      bailInLoss,
-      multiCapDestruction,
-      monAgg,
-      finalHhAgg,
-      tax.vat,
-      tax.vatAfterEvasion,
-      tax.pitAfterEvasion,
-      tax.exciseRevenue,
-      tax.exciseAfterEvasion,
-      tax.customsDutyRevenue,
-      tax.effectiveShadowShare,
-      mortgageFlows.interest.toDouble,
-      mortgageFlows.principal.toDouble,
-      mortgageFlows.defaultLoss.toDouble,
-      mortgageFlows.defaultAmount.toDouble,
-      jstDepositChange,
-      investNetDepositFlow,
-      actualBondChange,
-    )
