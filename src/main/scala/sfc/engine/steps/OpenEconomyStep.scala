@@ -152,9 +152,8 @@ object OpenEconomyStep:
       )
 
     // Expectations step: update after inflation + rate computed
-    val unempRateForExp = 1.0 - in.s2.employed.toDouble / in.w.totalPopulation
-    val newExp          =
-      if p.flags.expectations then Expectations.step(in.w.mechanisms.expectations, in.s7.newInfl, newRefRate.toDouble, unempRateForExp)
+    val newExp =
+      if p.flags.expectations then Expectations.step(in.w.mechanisms.expectations, in.s7.newInfl, newRefRate.toDouble, in.s2.unemploymentRate)
       else in.w.mechanisms.expectations
 
     // Reserve interest, standing facilities, interbank interest
@@ -218,7 +217,7 @@ object OpenEconomyStep:
       CorporateBondMarket.processDefaults(in.w.financial.corporateBonds, PLN(in.s5.totalBondDefault))
 
     // --- Insurance sector step ---
-    val insUnempRate        = Ratio(1.0 - in.s2.employed.toDouble / in.w.totalPopulation)
+    val insUnempRate        = Ratio(in.s2.unemploymentRate)
     val newInsurance        =
       if p.flags.insurance then
         Insurance.step(
@@ -236,7 +235,7 @@ object OpenEconomyStep:
 
     // --- Shadow Banking / NBFI step ---
     val nbfiDepositRate  = Rate(Math.max(0.0, postFxNbp.referenceRate.toDouble - 0.02))
-    val nbfiUnempRate    = Ratio(1.0 - in.s2.employed.toDouble / in.w.totalPopulation)
+    val nbfiUnempRate    = Ratio(in.s2.unemploymentRate)
     val newNbfi          =
       if p.flags.nbfi then
         Nbfi.step(

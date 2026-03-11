@@ -66,7 +66,7 @@ object WorldAssemblyStep:
       else 0.0
     val informalEmployed       = if p.flags.informal then in.s2.employed.toDouble * in.s9.effectiveShadowShare else 0.0
     val newInformalCyclicalAdj = if p.flags.informal then
-      val unemp  = 1.0 - in.s2.employed.toDouble / in.w.totalPopulation
+      val unemp  = in.s2.unemploymentRate
       val target = Math.max(0.0, unemp - p.informal.unempThreshold.toDouble) * p.informal.cyclicalSens.toDouble
       in.w.mechanisms.informalCyclicalAdj * p.informal.smoothing.toDouble + target * (1.0 - p.informal.smoothing.toDouble)
     else 0.0

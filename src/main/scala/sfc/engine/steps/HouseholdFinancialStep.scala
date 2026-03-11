@@ -33,12 +33,11 @@ object HouseholdFinancialStep:
 
     // Diaspora remittance inflow (#46)
     val diasporaInflow = if p.flags.remittance then
-      val wap           = if p.flags.demographics then in.w.social.demographics.workingAgePop else in.w.totalPopulation
-      val base          = p.remittance.perCapita.toDouble * wap.toDouble
-      val erAdj         = Math.pow(in.w.forex.exchangeRate / p.forex.baseExRate, p.remittance.erElasticity)
-      val trendAdj      = Math.pow(1.0 + p.remittance.growthRate.toDouble / 12.0, in.s1.m.toDouble)
-      val unempForRemit = 1.0 - in.s2.employed.toDouble / in.w.totalPopulation
-      val cyclicalAdj   = 1.0 + p.remittance.cyclicalSens.toDouble * Math.max(0.0, unempForRemit - 0.05)
+      val wap         = if p.flags.demographics then in.w.social.demographics.workingAgePop else in.w.totalPopulation
+      val base        = p.remittance.perCapita.toDouble * wap.toDouble
+      val erAdj       = Math.pow(in.w.forex.exchangeRate / p.forex.baseExRate, p.remittance.erElasticity)
+      val trendAdj    = Math.pow(1.0 + p.remittance.growthRate.toDouble / 12.0, in.s1.m.toDouble)
+      val cyclicalAdj = 1.0 + p.remittance.cyclicalSens.toDouble * Math.max(0.0, in.s2.unemploymentRate - 0.05)
       base * erAdj * trendAdj * cyclicalAdj
     else 0.0
 

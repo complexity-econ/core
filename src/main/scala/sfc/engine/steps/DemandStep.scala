@@ -26,8 +26,7 @@ object DemandStep:
     val zusNetSurplus      =
       if p.flags.zus then Math.max(0.0, in.w.social.zus.contributions.toDouble - in.w.social.zus.pensionPayments.toDouble)
       else 0.0
-    val unempRateForFiscal = 1.0 - in.s2.employed.toDouble / in.w.totalPopulation
-    val unempGap           = Math.max(0.0, unempRateForFiscal - p.monetary.nairu.toDouble)
+    val unempGap           = Math.max(0.0, in.s2.unemploymentRate - p.monetary.nairu.toDouble)
     val fiscalStimulus     = p.fiscal.govBaseSpending.toDouble * unempGap * p.fiscal.govAutoStabMult
     val targetGovPurchases = p.fiscal.govBaseSpending.toDouble * Math.max(1.0, in.w.priceLevel) +
       p.fiscal.govFiscalRecyclingRate.toDouble * (in.w.gov.taxRevenue.toDouble + zusNetSurplus) + fiscalStimulus

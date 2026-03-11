@@ -130,7 +130,6 @@ object BankUpdateStep:
     val jstDepositChange = jstResult.depositChange.toDouble
 
     // ---- Housing market step ----
-    val unempRate                = 1.0 - in.s2.employed.toDouble / in.w.totalPopulation
     val prevMortgageRate         = in.w.real.housing.avgMortgageRate
     val mortgageBaseRate: Double =
       if p.flags.interbankTermStructure then YieldCurve.compute(in.w.bankingSector.interbankRate.toDouble).wibor3m.toDouble
@@ -150,7 +149,7 @@ object BankUpdateStep:
     )
     val housingAfterOrig  =
       HousingMarket.processOrigination(housingAfterPrice, PLN(in.s3.totalIncome), mortgageRateTyped, true)
-    val mortgageFlows     = HousingMarket.processMortgageFlows(housingAfterOrig, mortgageRateTyped, Ratio(unempRate))
+    val mortgageFlows     = HousingMarket.processMortgageFlows(housingAfterOrig, mortgageRateTyped, Ratio(in.s2.unemploymentRate))
     val housingAfterFlows = HousingMarket.applyFlows(housingAfterOrig, mortgageFlows)
 
     // BFG levy (#48)

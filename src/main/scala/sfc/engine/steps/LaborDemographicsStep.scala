@@ -19,6 +19,7 @@ object LaborDemographicsStep:
   case class Output(
       newWage: Double,
       employed: Int,
+      unemploymentRate: Double, // 1.0 - employed / totalPopulation (computed once, used by S4–S10)
       laborDemand: Int,
       wageGrowth: Double,
       newImmig: Immigration.State,
@@ -58,17 +59,19 @@ object LaborDemographicsStep:
       if p.flags.demographics then Math.min(rawEmployed, in.w.social.demographics.workingAgePop)
       else rawEmployed
 
+    // Unemployment rate (computed once, shared across all downstream steps)
+    val unemploymentRate = 1.0 - employed.toDouble / in.w.totalPopulation
+
     // Immigration
-    val unempRateForImmig = 1.0 - employed.toDouble / in.w.totalPopulation
-    val newImmig          = Immigration.step(
+    val newImmig     = Immigration.step(
       in.w.external.immigration,
       in.households,
       PLN(newWage),
-      unempRateForImmig,
+      unemploymentRate,
       in.w.social.demographics.workingAgePop.max(in.w.totalPopulation),
       in.s1.m,
     )
-    val netMigration      = newImmig.monthlyInflow - newImmig.monthlyOutflow
+    val netMigration = newImmig.monthlyInflow - newImmig.monthlyOutflow
 
     val newDemographics = SocialSecurity.demographicsStep(in.w.social.demographics, employed, netMigration)
 
@@ -81,6 +84,7 @@ object LaborDemographicsStep:
     Output(
       newWage,
       employed,
+      unemploymentRate,
       laborDemand,
       wageGrowth,
       newImmig,
