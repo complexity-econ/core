@@ -66,7 +66,7 @@ class SimulationPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPr
   "updateInflation" should "keep price >= 0.30 floor" in
     forAll(genInflInputs) { (inputs: (Double, Double, Double, Double, Double, Double, Double)) =>
       val (prevInfl, prevPrice, demandMult, wageGrowth, exRateDev, autoR, hybR) = inputs
-      val r = PriceLevel.update(Rate(prevInfl), prevPrice, demandMult, wageGrowth, exRateDev, autoR, hybR)
+      val r                                                                     = PriceLevel.update(Rate(prevInfl), prevPrice, demandMult, wageGrowth, exRateDev, autoR, hybR)
       r.priceLevel should be >= 0.30
     }
 

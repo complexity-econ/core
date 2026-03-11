@@ -17,15 +17,15 @@ import sfc.types.*
 object PriceLevel:
 
   // ---- Calibration constants ----
-  private val DemandPullWeight = 0.15  // sensitivity of inflation to demand gap
-  private val CostPushWeight   = 0.25  // wage growth pass-through to prices
-  private val ImportPushWeight = 0.25  // FX depreciation pass-through
-  private val AutoDeflation    = 0.060 // monthly tech deflation per unit automation ratio
-  private val HybridDeflation  = 0.018 // monthly tech deflation per unit hybrid ratio
+  private val DemandPullWeight = 0.15   // sensitivity of inflation to demand gap
+  private val CostPushWeight   = 0.25   // wage growth pass-through to prices
+  private val ImportPushWeight = 0.25   // FX depreciation pass-through
+  private val AutoDeflation    = 0.060  // monthly tech deflation per unit automation ratio
+  private val HybridDeflation  = 0.018  // monthly tech deflation per unit hybrid ratio
   private val DeflationFloor   = -0.015 // soft floor: −1.5%/month
-  private val FloorPassThrough = 0.3   // beyond floor, 30% pass-through
-  private val SmoothingLambda  = 0.3   // EWM weight on new observation
-  private val MinPriceLevel    = 0.30  // absolute floor on price index
+  private val FloorPassThrough = 0.3    // beyond floor, 30% pass-through
+  private val SmoothingLambda  = 0.3    // EWM weight on new observation
+  private val MinPriceLevel    = 0.30   // absolute floor on price index
 
   /** Result of a monthly price-level update. */
   case class Result(inflation: Rate, priceLevel: Double)
