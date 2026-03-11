@@ -22,27 +22,27 @@ object PriceEquityStep:
   )
 
   case class Output(
-      autoR: Double,
-      hybR: Double,
-      aggInventoryStock: Double,
-      aggGreenCapital: Double,
-      euMonthly: Double,
-      euCofin: Double,
-      euProjectCapital: Double,
-      gdp: Double,
+      autoR: Ratio,
+      hybR: Ratio,
+      aggInventoryStock: PLN,
+      aggGreenCapital: PLN,
+      euMonthly: PLN,
+      euCofin: PLN,
+      euProjectCapital: PLN,
+      gdp: PLN,
       newMacropru: Macroprudential.State,
       newSigmas: Vector[Double],
       rewiredFirms: Vector[Firm.State],
-      newInfl: Double,
+      newInfl: Rate,
       newPrice: Double,
       equityAfterIssuance: EquityMarket.State,
-      netDomesticDividends: Double,
-      foreignDividendOutflow: Double,
-      dividendTax: Double,
-      firmProfits: Double,
-      domesticGFCF: Double,
-      investmentImports: Double,
-      aggInventoryChange: Double,
+      netDomesticDividends: PLN,
+      foreignDividendOutflow: PLN,
+      dividendTax: PLN,
+      firmProfits: PLN,
+      domesticGFCF: PLN,
+      investmentImports: PLN,
+      aggInventoryChange: PLN,
   )
 
   // ---------------------------------------------------------------------------
@@ -275,15 +275,15 @@ object PriceEquityStep:
       else if p.flags.euFunds then euCofin
       else 0.0
     val greenDomesticGFCF  =
-      if p.flags.energy then in.s5.sumGreenInvestment * (1.0 - p.climate.greenImportShare.toDouble) else 0.0
-    val domesticGFCF       = (if p.flags.physCap then in.s5.sumGrossInvestment * (1.0 - p.capital.importShare.toDouble)
+      if p.flags.energy then in.s5.sumGreenInvestment.toDouble * (1.0 - p.climate.greenImportShare.toDouble) else 0.0
+    val domesticGFCF       = (if p.flags.physCap then in.s5.sumGrossInvestment.toDouble * (1.0 - p.capital.importShare.toDouble)
                         else 0.0) + greenDomesticGFCF
     val investmentImports  =
-      (if p.flags.physCap then in.s5.sumGrossInvestment * p.capital.importShare.toDouble else 0.0) +
-        (if p.flags.energy then in.s5.sumGreenInvestment * p.climate.greenImportShare.toDouble else 0.0)
-    val aggInventoryChange = if p.flags.inventory then in.s5.sumInventoryChange else 0.0
+      (if p.flags.physCap then in.s5.sumGrossInvestment.toDouble * p.capital.importShare.toDouble else 0.0) +
+        (if p.flags.energy then in.s5.sumGreenInvestment.toDouble * p.climate.greenImportShare.toDouble else 0.0)
+    val aggInventoryChange = if p.flags.inventory then in.s5.sumInventoryChange.toDouble else 0.0
     val gdp                =
-      in.s3.domesticCons + govGdpContribution + euGdpContribution + in.w.forex.exports.toDouble + domesticGFCF + aggInventoryChange
+      in.s3.domesticCons.toDouble + govGdpContribution + euGdpContribution + in.w.forex.exports.toDouble + domesticGFCF + aggInventoryChange
 
     val totalSystemLoans = in.w.bankingSector.banks.kahanSumBy(_.loans.toDouble)
     val newMacropru      = Macroprudential.step(in.w.mechanisms.macropru, totalSystemLoans, gdp)
@@ -307,7 +307,7 @@ object PriceEquityStep:
       in.w.inflation,
       in.w.priceLevel,
       in.s4.avgDemandMult,
-      in.s2.wageGrowth,
+      in.s2.wageGrowth.toDouble,
       exDev,
       autoR,
       hybR,
@@ -317,7 +317,7 @@ object PriceEquityStep:
 
     val firmProfits = living2.kahanSumBy { f =>
       val rev      = Firm.computeCapacity(f).toDouble * in.s4.sectorMults(f.sector.toInt) * newPrice
-      val labor    = Firm.workerCount(f) * in.s2.newWage * p.sectorDefs(f.sector.toInt).wageMultiplier
+      val labor    = Firm.workerCount(f) * in.s2.newWage.toDouble * p.sectorDefs(f.sector.toInt).wageMultiplier
       val other    = p.firm.otherCosts.toDouble * newPrice
       val aiMaint  = f.tech match
         case _: TechState.Automated => p.firm.aiOpex.toDouble * (0.60 + 0.40 * newPrice)
@@ -340,7 +340,7 @@ object PriceEquityStep:
         firmProfits = PLN(firmProfits),
       ),
     )
-    val equityAfterIssuance = EquityMarket.processIssuance(PLN(in.s5.sumEquityIssuance), equityAfterIndex)
+    val equityAfterIssuance = EquityMarket.processIssuance(in.s5.sumEquityIssuance, equityAfterIndex)
 
     val dividends              =
       if p.flags.gpw && p.flags.gpwDividends then
@@ -355,25 +355,25 @@ object PriceEquityStep:
     val dividendTax            = dividends.tax.toDouble
 
     Output(
-      autoR,
-      hybR,
-      aggInventoryStock,
-      aggGreenCapital,
-      euMonthly,
-      euCofin,
-      euProjectCapital,
-      gdp,
+      Ratio(autoR),
+      Ratio(hybR),
+      PLN(aggInventoryStock),
+      PLN(aggGreenCapital),
+      PLN(euMonthly),
+      PLN(euCofin),
+      PLN(euProjectCapital),
+      PLN(gdp),
       newMacropru,
       newSigmas,
       rewiredFirms,
-      newInfl,
+      Rate(newInfl),
       newPrice,
       equityAfterIssuance,
-      netDomesticDividends,
-      foreignDividendOutflow,
-      dividendTax,
-      firmProfits,
-      domesticGFCF,
-      investmentImports,
-      aggInventoryChange,
+      PLN(netDomesticDividends),
+      PLN(foreignDividendOutflow),
+      PLN(dividendTax),
+      PLN(firmProfits),
+      PLN(domesticGFCF),
+      PLN(investmentImports),
+      PLN(aggInventoryChange),
     )

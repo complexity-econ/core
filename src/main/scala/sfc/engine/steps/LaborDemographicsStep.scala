@@ -17,16 +17,16 @@ object LaborDemographicsStep:
   )
 
   case class Output(
-      newWage: Double,
+      newWage: PLN,
       employed: Int,
       laborDemand: Int,
-      wageGrowth: Double,
+      wageGrowth: Ratio,
       newImmig: Immigration.State,
       netMigration: Int,
       newDemographics: SocialSecurity.DemographicsState,
       newZus: SocialSecurity.ZusState,
       newPpk: SocialSecurity.PpkState,
-      rawPpkBondPurchase: Double,
+      rawPpkBondPurchase: PLN,
       living: Vector[Firm.State],
   )
 
@@ -34,7 +34,7 @@ object LaborDemographicsStep:
     val living                 = in.firms.filter(Firm.isAlive)
     val laborDemand            = living.kahanSumBy(f => Firm.workerCount(f).toDouble).toInt
     val wageResult             =
-      LaborMarket.updateLaborMarket(in.w.hhAgg.marketWage, PLN(in.s1.resWage), laborDemand, in.w.totalPopulation)
+      LaborMarket.updateLaborMarket(in.w.hhAgg.marketWage, in.s1.resWage, laborDemand, in.w.totalPopulation)
     val (rawWage, rawEmployed) = (wageResult.wage.toDouble, wageResult.employed)
 
     // Channel 1: Expectations-augmented wage Phillips curve
@@ -42,7 +42,7 @@ object LaborDemographicsStep:
       val target          = p.monetary.targetInfl.toDouble
       val expWagePressure = p.labor.expWagePassthrough.toDouble *
         Math.max(0.0, in.w.mechanisms.expectations.expectedInflation.toDouble - target) / 12.0
-      Math.max(in.s1.resWage, rawWage * (1.0 + expWagePressure))
+      Math.max(in.s1.resWage.toDouble, rawWage * (1.0 + expWagePressure))
     else rawWage
 
     // Union downward wage rigidity (#44)
@@ -50,7 +50,7 @@ object LaborDemographicsStep:
       val aggDensity =
         p.sectorDefs.zipWithIndex.map((s, i) => s.share.toDouble * p.labor.unionDensity.map(_.toDouble)(i)).sum
       val decline    = in.w.hhAgg.marketWage.toDouble - wageAfterExp
-      Math.max(in.s1.resWage, wageAfterExp + decline * p.labor.unionRigidity.toDouble * aggDensity)
+      Math.max(in.s1.resWage.toDouble, wageAfterExp + decline * p.labor.unionRigidity.toDouble * aggDensity)
     else wageAfterExp
 
     // Demographics caps employment at working-age population
@@ -79,15 +79,15 @@ object LaborDemographicsStep:
     val wageGrowth = if in.w.hhAgg.marketWage.toDouble > 0 then newWage / in.w.hhAgg.marketWage.toDouble - 1.0 else 0.0
 
     Output(
-      newWage,
+      PLN(newWage),
       employed,
       laborDemand,
-      wageGrowth,
+      Ratio(wageGrowth),
       newImmig,
       netMigration,
       newDemographics,
       newZus,
       newPpk,
-      rawPpkBondPurchase,
+      PLN(rawPpkBondPurchase),
       living,
     )

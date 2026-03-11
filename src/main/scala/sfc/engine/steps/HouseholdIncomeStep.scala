@@ -20,16 +20,16 @@ object HouseholdIncomeStep:
   )
 
   case class Output(
-      totalIncome: Double,
-      consumption: Double,
-      importCons: Double,
-      domesticCons: Double,
+      totalIncome: PLN,
+      consumption: PLN,
+      importCons: PLN,
+      domesticCons: PLN,
       updatedHouseholds: Vector[Household.State],
       hhAgg: Household.Aggregates,
       perBankHhFlowsOpt: Option[Vector[PerBankFlow]],
-      pitRevenue: Double,
+      pitRevenue: PLN,
       importAdj: Double,
-      aggUnempBenefit: Double,
+      aggUnempBenefit: PLN,
   )
 
   def run(in: Input, rng: Random)(using p: SimParams): Output =
@@ -37,12 +37,12 @@ object HouseholdIncomeStep:
       Math.pow(p.forex.baseExRate / in.w.forex.exchangeRate, 0.5)
 
     val afterSep           = LaborMarket.separations(in.households, in.firms, in.firms)
-    val afterWages         = LaborMarket.updateWages(afterSep, PLN(in.s2.newWage))
+    val afterWages         = LaborMarket.updateWages(afterSep, in.s2.newWage)
     val bsec               = in.w.bankingSector
     val nBanksHh           = bsec.banks.length
     val hhBankRates        = Some(
       BankRates(
-        lendingRates = bsec.banks.zip(bsec.configs).map((b, cfg) => Banking.lendingRate(b, cfg, Rate(in.s1.lendingBaseRate))),
+        lendingRates = bsec.banks.zip(bsec.configs).map((b, cfg) => Banking.lendingRate(b, cfg, in.s1.lendingBaseRate)),
         depositRates = bsec.banks.map(_ => Banking.hhDepositRate(in.w.nbp.referenceRate)),
       ),
     )
@@ -53,8 +53,8 @@ object HouseholdIncomeStep:
     val (newHhs, agg, pbf) = Household.step(
       afterWages,
       in.w,
-      PLN(in.s2.newWage),
-      PLN(in.s1.resWage),
+      in.s2.newWage,
+      in.s1.resWage,
       importAdj,
       rng,
       nBanksHh,
@@ -69,14 +69,14 @@ object HouseholdIncomeStep:
       else 0.0
 
     Output(
-      agg.totalIncome.toDouble,
-      agg.consumption.toDouble,
-      agg.importConsumption.toDouble,
-      agg.domesticConsumption.toDouble,
+      agg.totalIncome,
+      agg.consumption,
+      agg.importConsumption,
+      agg.domesticConsumption,
       newHhs,
       agg,
       pbf,
-      pitRevenue,
+      PLN(pitRevenue),
       importAdj,
-      aggUnempBenefit = 0.0,
+      aggUnempBenefit = PLN.Zero,
     )
