@@ -46,11 +46,11 @@ object FirmProcessingStep:
       corpBondAbsorption: Double,
       actualBondIssuance: Double,
       netMigration: Int,
-      perBankNewLoans: Array[Double],
-      perBankNplDebt: Array[Double],
-      perBankIntIncome: Array[Double],
-      perBankWorkers: Array[Int],
-      lendingRates: Array[Double],
+      perBankNewLoans: Vector[Double],
+      perBankNplDebt: Vector[Double],
+      perBankIntIncome: Vector[Double],
+      perBankWorkers: Vector[Int],
+      lendingRates: Vector[Double],
       postFirmCrossSectorHires: Int,
   )
 
@@ -68,7 +68,7 @@ object FirmProcessingStep:
     val bankCanLendFn: (Int, PLN) => Boolean =
       (bankId: Int, amt: PLN) => Banking.canLend(bsec.banks(bankId), amt, rng, currentCcyb)
 
-    val lendingRates = rates.map(_.toDouble).toArray
+    val lendingRates = rates.map(_.toDouble)
 
     var sumTax             = 0.0
     var sumCapex           = 0.0
@@ -236,10 +236,10 @@ object FirmProcessingStep:
       corpBondAbsorption = corpBondAbsorption,
       actualBondIssuance = actualBondIssuance,
       netMigration = netMigration,
-      perBankNewLoans = perBankNewLoans,
-      perBankNplDebt = perBankNplDebt,
-      perBankIntIncome = perBankIntIncome,
-      perBankWorkers = perBankWorkers,
+      perBankNewLoans = perBankNewLoans.toVector,
+      perBankNplDebt = perBankNplDebt.toVector,
+      perBankIntIncome = perBankIntIncome.toVector,
+      perBankWorkers = perBankWorkers.toVector,
       lendingRates = lendingRates,
       postFirmCrossSectorHires = postFirmCrossSectorHires,
     )
