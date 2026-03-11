@@ -4,7 +4,7 @@ import sfc.accounting.*
 import sfc.agents.*
 import sfc.config.SimParams
 import sfc.engine.*
-import sfc.engine.mechanisms.SectoralMobility
+import sfc.engine.mechanisms.{FirmEntry, SectoralMobility}
 import sfc.types.*
 import sfc.util.KahanSum.*
 
@@ -250,129 +250,18 @@ object WorldAssemblyStep:
     val sfcResult = Sfc.validate(prevSnap, currSnap, sfcFlows)
 
     // FDI M&A: monthly domestic → foreign conversion (#33)
-    val postFdiFirms =
-      if p.flags.fdi && p.fdi.maProb.toDouble > 0 then
-        in.s9.reassignedFirms.map { f =>
-          if Firm.isAlive(f) && !f.foreignOwned &&
-            f.initialSize >= p.fdi.maSizeMin &&
-            rng.nextDouble() < p.fdi.maProb.toDouble
-          then f.copy(foreignOwned = true)
-          else f
-        }
-      else in.s9.reassignedFirms
+    val postFdiFirms = FirmEntry.applyFdiMa(in.s9.reassignedFirms, rng)
 
     // Endogenous Firm Entry (#35): recycle bankrupt slots
-    val (finalFirms, firmBirths) = if p.flags.firmEntry then
-      val postLiving    = postFdiFirms.filter(Firm.isAlive)
-      val sectorCashSum = Array.fill(p.sectorDefs.length)(0.0)
-      val sectorCashCnt = Array.fill(p.sectorDefs.length)(0)
-      for f <- postLiving do
-        sectorCashSum(f.sector.toInt) += f.cash.toDouble
-        sectorCashCnt(f.sector.toInt) += 1
-      val sectorAvgCash =
-        p.sectorDefs.indices.map(s => if sectorCashCnt(s) > 0 then sectorCashSum(s) / sectorCashCnt(s) else 0.0).toArray
-      val globalAvgCash = if postLiving.nonEmpty then postLiving.map(_.cash.toDouble).sum / postLiving.length else 1.0
-      val profitSignals = sectorAvgCash.map { c =>
-        Math.max(-1.0, Math.min(2.0, (c - globalAvgCash) / Math.max(1.0, Math.abs(globalAvgCash))))
-      }
-
-      val sectorWeights = p.sectorDefs.indices.map { s =>
-        Math.max(
-          0.01,
-          (1.0 + profitSignals(s) * p.firm.entryProfitSens) *
-            p.firm.entrySectorBarriers(s),
-        )
-      }.toArray
-      val totalWeight   = sectorWeights.sum
-
-      val totalAdoption = newW.real.automationRatio.toDouble + newW.real.hybridRatio.toDouble
-      val livingIds     = postLiving.map(_.id.toInt)
-      var births        = 0
-
-      val result = postFdiFirms.map { f =>
-        if !Firm.isAlive(f) then
-          val slotSector = f.sector.toInt
-          val entryProb  = p.firm.entryRate.toDouble * p.firm.entrySectorBarriers(slotSector) *
-            Math.max(0.0, 1.0 + profitSignals(slotSector) * p.firm.entryProfitSens)
-          if rng.nextDouble() < entryProb then
-            births += 1
-            val roll      = rng.nextDouble() * totalWeight
-            var cumul     = 0.0
-            var newSector = 0
-            var found     = false
-            for s <- p.sectorDefs.indices if !found do
-              cumul += sectorWeights(s)
-              if roll < cumul then { newSector = s; found = true }
-
-            val firmSize = Math.max(1, rng.between(1, 10))
-            val sizeMult = firmSize.toDouble / p.pop.workersPerFirm
-
-            val isAiNative   = totalAdoption > p.firm.entryAiThreshold.toDouble &&
-              rng.nextDouble() < p.firm.entryAiProb.toDouble
-            val dr           =
-              if isAiNative then rng.between(0.50, 0.90)
-              else
-                Math.max(
-                  0.02,
-                  Math.min(0.30, p.sectorDefs(newSector).baseDigitalReadiness.toDouble + rng.nextGaussian() * 0.10),
-                )
-            val startWorkers = 0 // workers hired via labor market
-            val tech         = if isAiNative then
-              val hw = Math.max(1, (startWorkers * 0.6).toInt)
-              TechState.Hybrid(hw, 0.5 + rng.nextDouble() * 0.3)
-            else TechState.Traditional(startWorkers)
-
-            val nNeighbors   = Math.min(6, livingIds.length)
-            val newNeighbors =
-              if nNeighbors > 0 then rng.shuffle(livingIds.toList).take(nNeighbors).map(FirmId(_)).toVector
-              else Vector.empty[FirmId]
-
-            val newBankId = Banking.assignBank(SectorIdx(newSector), Banking.DefaultConfigs, rng)
-
-            val foreignOwned = p.flags.fdi &&
-              rng.nextDouble() < p.fdi.foreignShares.map(_.toDouble)(newSector)
-
-            val capitalStock =
-              if p.flags.physCap then firmSize.toDouble * p.capital.klRatios.map(_.toDouble)(newSector)
-              else 0.0
-
-            val initInventory = if p.flags.inventory then
-              val cap = p.firm.baseRevenue.toDouble * (firmSize.toDouble / p.pop.workersPerFirm) *
-                p.sectorDefs(newSector).revenueMultiplier
-              cap * p.capital.inventoryTargetRatios.map(_.toDouble)(newSector) * p.capital.inventoryInitRatio.toDouble
-            else 0.0
-
-            val initGreenK =
-              if p.flags.energy then
-                firmSize.toDouble * p.climate.greenKLRatios.map(_.toDouble)(
-                  newSector,
-                ) * p.climate.greenInitRatio.toDouble
-              else 0.0
-
-            Firm.State(
-              id = f.id,
-              cash = PLN(p.firm.entryStartupCash.toDouble * sizeMult),
-              debt = PLN.Zero,
-              tech = tech,
-              riskProfile = Ratio(rng.between(0.1, 0.9)),
-              innovationCostFactor = rng.between(0.8, 1.5),
-              digitalReadiness = Ratio(dr),
-              sector = SectorIdx(newSector),
-              neighbors = newNeighbors,
-              bankId = newBankId,
-              equityRaised = PLN.Zero,
-              initialSize = firmSize,
-              capitalStock = PLN(capitalStock),
-              bondDebt = PLN.Zero,
-              foreignOwned = foreignOwned,
-              inventory = PLN(initInventory),
-              greenCapital = PLN(initGreenK),
-            )
-          else f
-        else f
-      }
-      (result, births)
-    else (postFdiFirms, 0)
+    val entryResult              = FirmEntry.process(
+      FirmEntry.Input(
+        firms = postFdiFirms,
+        automationRatio = newW.real.automationRatio.toDouble,
+        hybridRatio = newW.real.hybridRatio.toDouble,
+        rng = rng,
+      ),
+    )
+    val (finalFirms, firmBirths) = (entryResult.firms, entryResult.births)
 
     val finalW = newW.updateFlows(_.copy(firmBirths = firmBirths, firmDeaths = in.s5.firmDeaths))
     Output(finalW, finalFirms, in.s9.reassignedHouseholds, sfcResult)
