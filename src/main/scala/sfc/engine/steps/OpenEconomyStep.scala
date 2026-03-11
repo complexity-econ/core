@@ -148,13 +148,24 @@ object OpenEconomyStep:
       fxIntervention: Nbp.FxInterventionResult,
   )
 
-  private case class RateExpResult(refRate: Rate, expectations: Expectations.State)
+  private case class RateExpResult(
+      refRate: Rate,                   // new NBP reference rate after Taylor rule
+      expectations: Expectations.State, // updated inflation/rate expectations state
+  )
 
-  private case class InterbankResult(reserveInterest: PLN, standingFacilityIncome: PLN, interbankInterest: PLN)
+  private case class InterbankResult(
+      reserveInterest: PLN,        // total interest earned on required reserves at NBP
+      standingFacilityIncome: PLN, // net income from NBP standing facilities (deposit/lombard)
+      interbankInterest: PLN,      // net interbank market interest flows across all banks
+  )
 
-  private case class InsuranceResult(state: Insurance.State)
+  private case class InsuranceResult(
+      state: Insurance.State, // updated insurance sector state (life + non-life reserves, asset allocation)
+  )
 
-  private case class NbfiResult(state: Nbfi.State)
+  private case class NbfiResult(
+      state: Nbfi.State, // updated NBFI/TFI state (AUM, credit, deposit drain)
+  )
 
   // --- Sub-methods ---
 

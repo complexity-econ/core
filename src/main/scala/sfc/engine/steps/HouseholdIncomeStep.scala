@@ -28,16 +28,16 @@ object HouseholdIncomeStep:
   )
 
   case class Output(
-      totalIncome: PLN,
-      consumption: PLN,
-      importCons: PLN,
-      domesticCons: PLN,
-      updatedHouseholds: Vector[Household.State],
-      hhAgg: Household.Aggregates,
-      perBankHhFlowsOpt: Option[Vector[PerBankFlow]],
-      pitRevenue: PLN,
-      importAdj: Double,
-      aggUnempBenefit: PLN,
+      totalIncome: PLN,                               // aggregate household income (wages + benefits + transfers)
+      consumption: PLN,                               // aggregate household consumption spending
+      importCons: PLN,                                // import component of household consumption (forex demand)
+      domesticCons: PLN,                              // domestic component of household consumption
+      updatedHouseholds: Vector[Household.State],     // post-income household population
+      hhAgg: Household.Aggregates,                    // household-level aggregates (employment, savings, etc.)
+      perBankHhFlowsOpt: Option[Vector[PerBankFlow]], // per-bank household flow breakdown (multi-bank mode)
+      pitRevenue: PLN,                                // personal income tax collected from households
+      importAdj: Double,                              // ER-adjusted import propensity (base * ER elasticity)
+      aggUnempBenefit: PLN,                           // aggregate unemployment benefit payments
   )
 
   def run(in: Input, rng: Random)(using p: SimParams): Output =

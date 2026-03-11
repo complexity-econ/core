@@ -12,20 +12,20 @@ import sfc.util.KahanSum.*
 object TaxRevenue:
 
   case class Input(
-      consumption: Double,
-      pitRevenue: Double,
-      totalImports: Double,
-      informalCyclicalAdj: Double,
+      consumption: Double,        // aggregate household consumption (VAT/excise tax base)
+      pitRevenue: Double,         // gross PIT revenue before informal evasion
+      totalImports: Double,       // total imports (customs duty tax base)
+      informalCyclicalAdj: Double, // lagged cyclical adjustment for shadow economy share
   )
 
   case class Output(
-      vat: Double,
-      vatAfterEvasion: Double,
-      pitAfterEvasion: Double,
-      exciseRevenue: Double,
-      exciseAfterEvasion: Double,
-      customsDutyRevenue: Double,
-      effectiveShadowShare: Double,
+      vat: Double,                 // gross VAT revenue (sector-weighted effective rates)
+      vatAfterEvasion: Double,     // net VAT revenue after informal economy evasion
+      pitAfterEvasion: Double,     // net PIT revenue after informal economy evasion
+      exciseRevenue: Double,       // gross excise tax revenue (sector-weighted rates)
+      exciseAfterEvasion: Double,  // net excise revenue after informal economy evasion
+      customsDutyRevenue: Double,  // customs duty on non-EU imports
+      effectiveShadowShare: Double, // consumption-weighted aggregate shadow economy share
   )
 
   def compute(in: Input)(using p: SimParams): Output =

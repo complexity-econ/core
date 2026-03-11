@@ -20,18 +20,18 @@ import scala.util.Random
 object WorldAssemblyStep:
 
   case class Input(
-      w: World,
-      firms: Vector[Firm.State],
-      households: Vector[Household.State],
-      s1: FiscalConstraintStep.Output,
-      s2: LaborDemographicsStep.Output,
-      s3: HouseholdIncomeStep.Output,
-      s4: DemandStep.Output,
-      s5: FirmProcessingStep.Output,
-      s6: HouseholdFinancialStep.Output,
-      s7: PriceEquityStep.Output,
-      s8: OpenEconomyStep.Output,
-      s9: BankUpdateStep.Output,
+      w: World,                            // current world state
+      firms: Vector[Firm.State],           // pre-step firm population
+      households: Vector[Household.State], // pre-step household population
+      s1: FiscalConstraintStep.Output,     // fiscal constraint (month, reservation wage, lending base rate)
+      s2: LaborDemographicsStep.Output,    // labor/demographics (wage, employment, ZUS, PPK)
+      s3: HouseholdIncomeStep.Output,      // household income (consumption, PIT, import propensity)
+      s4: DemandStep.Output,               // demand (sector multipliers, gov purchases)
+      s5: FirmProcessingStep.Output,       // firm processing (loans, NPL, tax, I-O, bond issuance)
+      s6: HouseholdFinancialStep.Output,   // household financial (debt service, remittances, tourism)
+      s7: PriceEquityStep.Output,          // price/equity (inflation, GDP, equity, macropru)
+      s8: OpenEconomyStep.Output,          // open economy (monetary policy, forex, BOP, corp bonds)
+      s9: BankUpdateStep.Output,           // bank update (balance sheets, tax revenue, housing flows)
   )
 
   case class Output(
