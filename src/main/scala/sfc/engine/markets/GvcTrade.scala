@@ -58,8 +58,9 @@ object GvcTrade:
     val exportShares  = p.gvc.exportShares.map(_.toDouble)
     val depths        = p.gvc.depth.map(_.toDouble)
 
+    val nSectors = exportShares.size
     val firms = for
-      s  <- (0 until 6).toVector
+      s  <- (0 until nSectors).toVector
       pi <- (0 until NumPartners).toVector
     yield
       val ps = partnerShares(pi)
