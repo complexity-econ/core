@@ -156,10 +156,20 @@ class DiasporaRemittanceSpec extends AnyFlatSpec with Matchers:
     val prevBop   = BopState.zero
     val prevForex = ForexState(p.forex.baseExRate, PLN.Zero, PLN(p.forex.exportBase.toDouble), PLN.Zero, PLN.Zero)
 
-    val resultWith    =
-      OpenEconomy.step(prevBop, prevForex, 0, 0, 0, 0.05, 1e9, 1.0, Vector.fill(6)(1e8), 1, diasporaInflow = 1000.0)
-    val resultWithout =
-      OpenEconomy.step(prevBop, prevForex, 0, 0, 0, 0.05, 1e9, 1.0, Vector.fill(6)(1e8), 1, diasporaInflow = 0.0)
+    val base          = OpenEconomy.StepInput(
+      prevBop = prevBop,
+      prevForex = prevForex,
+      importCons = PLN.Zero,
+      techImports = PLN.Zero,
+      autoRatio = Ratio.Zero,
+      domesticRate = Rate(0.05),
+      gdp = PLN(1e9),
+      priceLevel = 1.0,
+      sectorOutputs = Vector.fill(6)(PLN(1e8)),
+      month = 1,
+    )
+    val resultWith    = OpenEconomy.step(base.copy(diasporaInflow = PLN(1000.0)))
+    val resultWithout = OpenEconomy.step(base.copy(diasporaInflow = PLN.Zero))
 
     resultWith.bop.secondaryIncome shouldBe resultWithout.bop.secondaryIncome + PLN(1000.0)
   }
@@ -168,20 +178,19 @@ class DiasporaRemittanceSpec extends AnyFlatSpec with Matchers:
     val prevBop   = BopState.zero
     val prevForex = ForexState(p.forex.baseExRate, PLN.Zero, PLN(p.forex.exportBase.toDouble), PLN.Zero, PLN.Zero)
 
-    val result = OpenEconomy.step(
-      prevBop,
-      prevForex,
-      0,
-      0,
-      0,
-      0.05,
-      1e9,
-      1.0,
-      Vector.fill(6)(1e8),
-      1,
-      remittanceOutflow = 500.0,
-      diasporaInflow = 800.0,
+    val base   = OpenEconomy.StepInput(
+      prevBop = prevBop,
+      prevForex = prevForex,
+      importCons = PLN.Zero,
+      techImports = PLN.Zero,
+      autoRatio = Ratio.Zero,
+      domesticRate = Rate(0.05),
+      gdp = PLN(1e9),
+      priceLevel = 1.0,
+      sectorOutputs = Vector.fill(6)(PLN(1e8)),
+      month = 1,
     )
+    val result = OpenEconomy.step(base.copy(remittanceOutflow = PLN(500.0), diasporaInflow = PLN(800.0)))
 
     // secondaryIncome = euFunds(0) - outflow(500) + inflow(800) = 300
     result.bop.secondaryIncome shouldBe PLN(300.0)
