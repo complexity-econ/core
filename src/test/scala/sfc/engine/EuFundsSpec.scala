@@ -2,7 +2,6 @@ package sfc.engine
 
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import sfc.accounting.GovState
 import sfc.engine.markets.FiscalBudget
 import sfc.engine.mechanisms.EuFunds
 import sfc.types.*
@@ -93,7 +92,7 @@ class EuFundsSpec extends AnyFlatSpec with Matchers:
   // --- updateGov integration ---
 
   "updateGov" should "include euCofinancing in deficit" in {
-    val prev      = GovState(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
+    val prev      = FiscalBudget.GovState(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
     val baseInput = FiscalBudget.Input(prev, priceLevel = 1.0, citPaid = PLN(100000), vat = PLN(200000))
     val base      = FiscalBudget.update(baseInput)
     val withEu    = FiscalBudget.update(baseInput.copy(euCofinancing = PLN(50000.0)))
@@ -102,7 +101,7 @@ class EuFundsSpec extends AnyFlatSpec with Matchers:
   }
 
   it should "record euCofinancing in GovState" in {
-    val prev   = GovState(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
+    val prev   = FiscalBudget.GovState(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
     val result = FiscalBudget.update(
       FiscalBudget.Input(
         prev,
@@ -116,7 +115,7 @@ class EuFundsSpec extends AnyFlatSpec with Matchers:
   }
 
   it should "add euProjectCapital to govCapitalSpend when GovInvest disabled" in {
-    val prev   = GovState(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
+    val prev   = FiscalBudget.GovState(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
     val result = FiscalBudget.update(
       FiscalBudget.Input(
         prev,

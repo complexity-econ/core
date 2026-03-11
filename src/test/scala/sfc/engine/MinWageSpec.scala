@@ -2,7 +2,7 @@ package sfc.engine
 
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import sfc.accounting.GovState
+import sfc.engine.markets.FiscalBudget
 import sfc.types.*
 
 class MinWageSpec extends AnyFlatSpec with Matchers:
@@ -18,7 +18,7 @@ class MinWageSpec extends AnyFlatSpec with Matchers:
   }
 
   "GovState defaults" should "have minWageLevel=4666 and minWagePriceLevel=1.0" in {
-    val gov = GovState(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
+    val gov = FiscalBudget.GovState(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
     gov.minWageLevel shouldBe PLN(4666.0)
     gov.minWagePriceLevel shouldBe 1.0
   }

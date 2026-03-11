@@ -2,8 +2,7 @@ package sfc.engine
 
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import sfc.accounting.GovState
-import sfc.engine.markets.OpenEconomy
+import sfc.engine.markets.{FiscalBudget, OpenEconomy}
 import sfc.agents.Banking
 import sfc.agents.Banking.BankStatus
 import sfc.engine.mechanisms.Macroprudential
@@ -219,7 +218,7 @@ class KnfBfgSpec extends AnyFlatSpec with Matchers:
       gdpProxy = 100000.0,
       currentSigmas = Vector(1.0, 1.0, 1.0, 1.0, 1.0, 1.0),
       totalPopulation = 100,
-      gov = GovState(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
+      gov = FiscalBudget.GovState(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
       nbp = sfc.agents.Nbp.State(Rate(0.05), PLN.Zero, false, PLN.Zero, PLN.Zero, PLN.Zero),
       bank = Banking.Aggregate(PLN.Zero, PLN.Zero, PLN(100000), PLN(500000), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
       bankingSector = Banking.initialize(PLN(1e9), PLN(5e8), PLN(5e8), PLN.Zero, PLN.Zero, Banking.DefaultConfigs),

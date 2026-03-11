@@ -19,7 +19,7 @@ class BalanceSheetPropertySpec extends AnyFlatSpec with Matchers with ScalaCheck
     PropertyCheckConfiguration(minSuccessful = 200)
 
   // Combined generator for gov update inputs (avoids >6 forAll limit)
-  private val genGovUpdateInputs: Gen[(GovState, Double, Double, Double, Double)] =
+  private val genGovUpdateInputs: Gen[(FiscalBudget.GovState, Double, Double, Double, Double)] =
     for
       prev     <- genGovState
       cit      <- Gen.choose(0.0, 1e8)
@@ -65,7 +65,7 @@ class BalanceSheetPropertySpec extends AnyFlatSpec with Matchers with ScalaCheck
   // --- GovState properties ---
 
   "GovState" should "have deficit = spending - revenue via updateGov" in
-    forAll(genGovUpdateInputs) { (inputs: (GovState, Double, Double, Double, Double)) =>
+    forAll(genGovUpdateInputs) { (inputs: (FiscalBudget.GovState, Double, Double, Double, Double)) =>
       val (prev, cit, vat, price, unempBen) = inputs
       val gov                               = FiscalBudget.update(FiscalBudget.Input(prev, price, citPaid = PLN(cit), vat = PLN(vat), unempBenefitSpend = PLN(unempBen)))
       val totalRev                          = cit + vat

@@ -5,7 +5,7 @@ import sfc.accounting.*
 import sfc.agents.*
 import sfc.config.SimParams
 import sfc.engine.*
-import sfc.engine.markets.OpenEconomy
+import sfc.engine.markets.{FiscalBudget, OpenEconomy}
 import sfc.types.*
 
 object Generators:
@@ -145,7 +145,7 @@ object Generators:
     PLN.Zero,
   )
 
-  val genGovState: Gen[GovState] = for
+  val genGovState: Gen[FiscalBudget.GovState] = for
     taxRev      <- Gen.choose(0.0, 1e9)
     deficit     <- Gen.choose(-1e9, 1e9)
     cumDebt     <- Gen.choose(0.0, 1e10)
@@ -153,7 +153,7 @@ object Generators:
     bondsOut    <- Gen.choose(0.0, 1e10)
     bondYield   <- Gen.choose(0.0, 0.15)
     debtService <- Gen.choose(0.0, 1e8)
-  yield GovState(
+  yield FiscalBudget.GovState(
     PLN(taxRev),
     PLN(deficit),
     PLN(cumDebt),

@@ -2,7 +2,6 @@ package sfc.engine
 
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import sfc.accounting.GovState
 import sfc.engine.markets.FiscalBudget
 import sfc.types.*
 
@@ -12,7 +11,7 @@ class PublicInvestmentSpec extends AnyFlatSpec with Matchers:
   given SimParams          = SimParams.defaults
   private val p: SimParams = summon[SimParams]
 
-  val prev = GovState(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
+  val prev = FiscalBudget.GovState(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
 
   // --- Disabled (default) ---
 
@@ -43,7 +42,7 @@ class PublicInvestmentSpec extends AnyFlatSpec with Matchers:
   // we verify the math by checking that the split preserves total spending.
 
   "GovState" should "have new fields default to 0" in {
-    val g = GovState(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
+    val g = FiscalBudget.GovState(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
     g.publicCapitalStock shouldBe PLN.Zero
     g.govCurrentSpend shouldBe PLN.Zero
     g.govCapitalSpend shouldBe PLN.Zero
@@ -111,7 +110,7 @@ class PublicInvestmentSpec extends AnyFlatSpec with Matchers:
 
   "updateGov with prior capital stock" should "carry forward stock when disabled" in {
     // Even if prev has nonzero capitalStock, disabled mode resets to 0
-    val prevWithStock = GovState(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, publicCapitalStock = PLN(500000.0))
+    val prevWithStock = FiscalBudget.GovState(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero, publicCapitalStock = PLN(500000.0))
     val result        = FiscalBudget.update(baseInput.copy(prev = prevWithStock))
     result.publicCapitalStock shouldBe PLN.Zero
   }
