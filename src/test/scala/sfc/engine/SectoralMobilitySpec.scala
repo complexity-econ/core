@@ -64,16 +64,16 @@ class SectoralMobilitySpec extends AnyFlatSpec with Matchers:
       mkHousehold(3, HhStatus.Unemployed(1)),
     )
     val wages = SectoralMobility.sectorWages(hhs)
-    wages(0) shouldBe 11000.0 +- 0.01 // (10000+12000)/2
-    wages(2) shouldBe 8000.0
-    wages(1) shouldBe 0.0             // no employed in sector 1
+    wages(0).toDouble shouldBe 11000.0 +- 0.01 // (10000+12000)/2
+    wages(2).toDouble shouldBe 8000.0
+    wages(1).toDouble shouldBe 0.0             // no employed in sector 1
   }
 
   // --- selectTargetSector ---
 
   "selectTargetSector" should "not select the source sector" in {
     val rng   = new Random(42)
-    val wages = Vector(10000.0, 12000.0, 8000.0, 15000.0, 9000.0, 7000.0)
+    val wages = Vector(PLN(10000.0), PLN(12000.0), PLN(8000.0), PLN(15000.0), PLN(9000.0), PLN(7000.0))
     val vac   = Vector(5, 10, 3, 8, 2, 1)
     for _ <- 0 until 100 do
       val target = SectoralMobility.selectTargetSector(0, wages, vac, SectoralMobility.DefaultFrictionMatrix, 2.0, rng)
@@ -84,7 +84,7 @@ class SectoralMobilitySpec extends AnyFlatSpec with Matchers:
     val rng    = new Random(42)
     // Sector 1 (Mfg): high wage, high vacancies
     // Sector 5 (Agr): high friction from BPO (0.9)
-    val wages  = Vector(0.0, 20000.0, 5000.0, 5000.0, 5000.0, 5000.0)
+    val wages  = Vector(PLN(0.0), PLN(20000.0), PLN(5000.0), PLN(5000.0), PLN(5000.0), PLN(5000.0))
     val vac    = Vector(0, 100, 1, 1, 1, 1)
     val counts = new Array[Int](6)
     for _ <- 0 until 1000 do
@@ -96,7 +96,7 @@ class SectoralMobilitySpec extends AnyFlatSpec with Matchers:
 
   it should "handle all-zero wages gracefully" in {
     val rng    = new Random(42)
-    val wages  = Vector.fill(6)(0.0)
+    val wages  = Vector.fill(6)(PLN.Zero)
     val vac    = Vector.fill(6)(0)
     val target = SectoralMobility.selectTargetSector(0, wages, vac, SectoralMobility.DefaultFrictionMatrix, 2.0, rng)
     target should not be 0

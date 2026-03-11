@@ -47,7 +47,7 @@ class SectoralMobilityPropertySpec extends AnyFlatSpec with Matchers with ScalaC
   "selectTargetSector" should "always return a valid sector != from" in
     forAll(Gen.choose(0, 5)) { from =>
       val rng    = new Random(42)
-      val wages  = Vector.fill(6)(10000.0)
+      val wages  = Vector.fill(6)(PLN(10000.0))
       val vac    = Vector.fill(6)(5)
       val target =
         SectoralMobility.selectTargetSector(from, wages, vac, SectoralMobility.DefaultFrictionMatrix, 2.0, rng)
@@ -111,7 +111,7 @@ class SectoralMobilityPropertySpec extends AnyFlatSpec with Matchers with ScalaC
       )
       .toVector
     val wages = SectoralMobility.sectorWages(hhs)
-    wages.foreach(_ should be >= 0.0)
+    wages.foreach(_.toDouble should be >= 0.0)
   }
 
   // --- frictionAdjustedParams ---

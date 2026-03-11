@@ -355,7 +355,7 @@ object Household:
   private def tryVoluntarySearch(
       hh: State,
       status: HhStatus.Employed,
-      sectorWages: Vector[Double],
+      sectorWages: Vector[PLN],
       sectorVacancies: Vector[Int],
       rng: Random,
   )(using p: SimParams): (HhStatus, Int) =
@@ -363,7 +363,7 @@ object Household:
     val targetSector  =
       SectoralMobility.selectTargetSector(status.sectorIdx.toInt, sectorWages, sectorVacancies, p.labor.frictionMatrix, p.labor.vacancyWeight, rng)
     val targetAvgWage = sectorWages(targetSector)
-    if targetAvgWage <= status.wage.toDouble * (1.0 + p.labor.voluntaryWageThreshold.toDouble) then return (status, 0)
+    if targetAvgWage <= status.wage * (1.0 + p.labor.voluntaryWageThreshold.toDouble) then return (status, 0)
     val friction      = p.labor.frictionMatrix(status.sectorIdx.toInt)(targetSector)
     if friction < p.labor.adjacentFrictionMax.toDouble then (HhStatus.Unemployed(0), 1)
     else
@@ -376,7 +376,7 @@ object Household:
       hh: State,
       status: HhStatus,
       neighborDistress: Double,
-      sectorWages: Option[Vector[Double]],
+      sectorWages: Option[Vector[PLN]],
       sectorVacancies: Option[Vector[Int]],
       rng: Random,
   )(using p: SimParams): (HhStatus, Int, Int) =
@@ -551,7 +551,7 @@ object Household:
       rng: Random,
       bankRates: Option[BankRates],
       equityIndexReturn: Double,
-      sectorWages: Option[Vector[Double]],
+      sectorWages: Option[Vector[PLN]],
       sectorVacancies: Option[Vector[Int]],
       distressedIds: java.util.BitSet,
   )(using p: SimParams): HhMonthlyResult =
@@ -590,7 +590,7 @@ object Household:
   /** Survival branch: skill decay, labor transitions, state update. */
   private def resolveSurvival(
       f: MonthlyFlows,
-      sectorWages: Option[Vector[Double]],
+      sectorWages: Option[Vector[PLN]],
       sectorVacancies: Option[Vector[Int]],
       rng: Random,
   )(using p: SimParams): HhMonthlyResult =
@@ -647,7 +647,7 @@ object Household:
       nBanks: Int = 1,
       bankRates: Option[BankRates] = None,
       equityIndexReturn: Double = 0.0,
-      sectorWages: Option[Vector[Double]] = None,
+      sectorWages: Option[Vector[PLN]] = None,
       sectorVacancies: Option[Vector[Int]] = None,
   )(using p: SimParams): (Vector[State], Aggregates, Option[Vector[PerBankFlow]]) =
     val distressedIds = buildDistressedSet(households)

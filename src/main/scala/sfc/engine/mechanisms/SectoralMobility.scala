@@ -63,22 +63,22 @@ object SectoralMobility:
     (0 until NumSectors).map(s => Math.max(0, sectorDemand(s) - workerCounts(s))).toVector
 
   /** Compute average wage per sector from employed households. */
-  def sectorWages(households: Vector[Household.State]): Vector[Double] =
-    val (sums, counts) = households.foldLeft((Vector.fill(NumSectors)(0.0), Vector.fill(NumSectors)(0))) { case ((sums, counts), hh) =>
+  def sectorWages(households: Vector[Household.State]): Vector[PLN] =
+    val (sums, counts) = households.foldLeft((Vector.fill(NumSectors)(PLN.Zero), Vector.fill(NumSectors)(0))) { case ((sums, counts), hh) =>
       hh.status match
         case HhStatus.Employed(_, sectorIdx, wage) =>
           val s = sectorIdx.toInt
-          (sums.updated(s, sums(s) + wage.toDouble), counts.updated(s, counts(s) + 1))
+          (sums.updated(s, sums(s) + wage), counts.updated(s, counts(s) + 1))
         case _                                     => (sums, counts)
     }
-    (0 until NumSectors).map(s => if counts(s) > 0 then sums(s) / counts(s) else 0.0).toVector
+    (0 until NumSectors).map(s => if counts(s) > 0 then sums(s) / counts(s).toDouble else PLN.Zero).toVector
 
   /** Probabilistic target sector selection (gravity model). score(to) =
     * wage(to) × (vacancies(to) + 1)^vacancyWeight × (1 − friction(from,to)).
     */
   def selectTargetSector(
       from: Int,
-      wages: Vector[Double],
+      wages: Vector[PLN],
       vacancies: Vector[Int],
       matrix: Vector[Vector[Double]],
       vacancyWeight: Double,
@@ -87,7 +87,7 @@ object SectoralMobility:
     val scores = (0 until NumSectors).map { to =>
       if to == from then 0.0
       else
-        Math.max(0.0, wages(to)) *
+        wages(to).max(PLN.Zero).toDouble *
           Math.pow(vacancies(to).toDouble + 1.0, vacancyWeight) *
           (1.0 - matrix(from)(to))
     }.toVector
