@@ -18,7 +18,7 @@ class OpenEconomyPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckP
   implicit override val generatorDrivenConfig: PropertyCheckConfiguration =
     PropertyCheckConfiguration(minSuccessful = 200)
 
-  private val defaultSectorOutputs = Vector.fill(6)(1e8)
+  private val defaultSectorOutputs = Vector.fill(6)(PLN(1e8))
 
   private def makeForex(er: Double = p.forex.baseExRate): ForexState =
     ForexState(er, PLN(1e8), PLN(1e8), PLN.Zero, PLN(1e7))
@@ -54,11 +54,11 @@ class OpenEconomyPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckP
   ) = OpenEconomy.StepInput(
     prevBop = prevBop,
     prevForex = makeForex(er),
-    importCons = importCons,
-    techImports = techImp,
-    autoRatio = autoR,
-    domesticRate = rate,
-    gdp = gdp,
+    importCons = PLN(importCons),
+    techImports = PLN(techImp),
+    autoRatio = Ratio(autoR),
+    domesticRate = Rate(rate),
+    gdp = PLN(gdp),
     priceLevel = price,
     sectorOutputs = defaultSectorOutputs,
     month = month,
@@ -137,7 +137,7 @@ class OpenEconomyPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckP
     forAll(genExchangeRate, genFraction) { (er: Double, autoR: Double) =>
       val r = OpenEconomy.step(baseInput(er = er, autoR = autoR))
       r.importedIntermediates.length shouldBe 6
-      for v <- r.importedIntermediates do v should be >= 0.0
+      for v <- r.importedIntermediates do v.toDouble should be >= 0.0
     }
 
   // --- Higher autoRatio → higher exports (ULC effect) ---
@@ -155,7 +155,7 @@ class OpenEconomyPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckP
       val prevBop  = makeBop(nfa = prevNfa)
       val r        = OpenEconomy.step(baseInput(prevBop = prevBop, autoR = autoR, rate = rate))
       val deltaNfa = r.bop.nfa.toDouble - prevNfa
-      deltaNfa shouldBe (r.bop.currentAccount.toDouble + r.valuationEffect +- 1.0)
+      deltaNfa shouldBe (r.bop.currentAccount.toDouble + r.valuationEffect.toDouble +- 1.0)
     }
 
   // --- FDI >= 0 ---

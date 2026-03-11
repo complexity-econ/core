@@ -53,11 +53,14 @@ object OpenEconomyStep:
     val living2 = in.s5.ioFirms.filter(Firm.isAlive)
 
     // Sector outputs for open economy
-    val sectorOutputs = (0 until p.sectorDefs.length).map { s =>
-      living2
-        .filter(_.sector.toInt == s)
-        .kahanSumBy(f => (Firm.computeCapacity(f) * (in.s4.sectorMults(f.sector.toInt) * in.w.priceLevel)).toDouble)
-    }.toVector
+    val sectorOutputs = (0 until p.sectorDefs.length)
+      .map: s =>
+        PLN(
+          living2
+            .filter(_.sector.toInt == s)
+            .kahanSumBy(f => (Firm.computeCapacity(f) * (in.s4.sectorMults(f.sector.toInt) * in.w.priceLevel)).toDouble),
+        )
+      .toVector
 
     // GVC / Deep External Sector (v5.0)
     val newGvc =
@@ -65,7 +68,7 @@ object OpenEconomyStep:
         GvcTrade.step(
           GvcTrade.StepInput(
             prev = in.w.external.gvc,
-            sectorOutputs = sectorOutputs,
+            sectorOutputs = sectorOutputs.map(_.toDouble),
             priceLevel = in.w.priceLevel,
             exchangeRate = in.w.forex.exchangeRate,
             autoRatio = in.s7.autoR,
@@ -75,7 +78,7 @@ object OpenEconomyStep:
       else in.w.external.gvc
 
     val (gvcExp, gvcImp) =
-      if p.flags.gvc && p.flags.openEcon then (Some(newGvc.totalExports.toDouble), Some(newGvc.sectorImports.map(_.toDouble)))
+      if p.flags.gvc && p.flags.openEcon then (Some(newGvc.totalExports), Some(newGvc.sectorImports))
       else (None, None)
 
     val totalTechAndInvImports                           = in.s5.sumTechImp + in.s7.investmentImports
@@ -84,33 +87,33 @@ object OpenEconomyStep:
         OpenEconomy.StepInput(
           prevBop = in.w.bop,
           prevForex = in.w.forex,
-          importCons = in.s3.importCons,
-          techImports = totalTechAndInvImports,
-          autoRatio = in.s7.autoR,
-          domesticRate = in.w.nbp.referenceRate.toDouble,
-          gdp = in.s7.gdp,
+          importCons = PLN(in.s3.importCons),
+          techImports = PLN(totalTechAndInvImports),
+          autoRatio = Ratio(in.s7.autoR),
+          domesticRate = in.w.nbp.referenceRate,
+          gdp = PLN(in.s7.gdp),
           priceLevel = in.w.priceLevel,
           sectorOutputs = sectorOutputs,
           month = in.s1.m,
-          nbpFxReserves = in.w.nbp.fxReserves.toDouble,
+          nbpFxReserves = in.w.nbp.fxReserves,
           gvcExports = gvcExp,
           gvcIntermImports = gvcImp,
-          remittanceOutflow = in.s6.remittanceOutflow,
-          euFundsMonthly = in.s7.euMonthly,
-          diasporaInflow = in.s6.diasporaInflow,
-          tourismExport = in.s6.tourismExport,
-          tourismImport = in.s6.tourismImport,
+          remittanceOutflow = PLN(in.s6.remittanceOutflow),
+          euFundsMonthly = PLN(in.s7.euMonthly),
+          diasporaInflow = PLN(in.s6.diasporaInflow),
+          tourismExport = PLN(in.s6.tourismExport),
+          tourismImport = PLN(in.s6.tourismImport),
         ),
       )
-      (oeResult.forex, oeResult.bop, oeResult.valuationEffect, oeResult.fxIntervention)
+      (oeResult.forex, oeResult.bop, oeResult.valuationEffect.toDouble, oeResult.fxIntervention)
     else
       val fx = OpenEconomy.updateForeign(
         in.w.forex,
-        in.s3.importCons,
-        totalTechAndInvImports,
-        in.s7.autoR,
-        in.w.nbp.referenceRate.toDouble,
-        in.s7.gdp,
+        PLN(in.s3.importCons),
+        PLN(totalTechAndInvImports),
+        Ratio(in.s7.autoR),
+        in.w.nbp.referenceRate,
+        PLN(in.s7.gdp),
       )
       (fx, in.w.bop, 0.0, Nbp.FxInterventionResult(0.0, PLN.Zero, in.w.nbp.fxReserves))
 

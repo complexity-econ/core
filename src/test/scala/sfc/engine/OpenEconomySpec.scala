@@ -13,8 +13,8 @@ class OpenEconomySpec extends AnyFlatSpec with Matchers:
   private val p: SimParams = summon[SimParams]
 
   private val baseForex         = ForexState(p.forex.baseExRate, PLN.Zero, PLN(p.forex.exportBase.toDouble), PLN.Zero, PLN.Zero)
-  private val baseSectorOutputs = Vector(30000.0, 160000.0, 450000.0, 60000.0, 220000.0, 80000.0)
-  private val gdp               = 1e9
+  private val baseSectorOutputs = Vector(30000.0, 160000.0, 450000.0, 60000.0, 220000.0, 80000.0).map(PLN(_))
+  private val gdp               = PLN(1e9)
 
   private def baseInput(
       prevBop: BopState = BopState.zero,
@@ -24,10 +24,10 @@ class OpenEconomySpec extends AnyFlatSpec with Matchers:
   ) = OpenEconomy.StepInput(
     prevBop = prevBop,
     prevForex = prevForex,
-    importCons = 1e7,
-    techImports = 5e6,
-    autoRatio = autoRatio,
-    domesticRate = p.monetary.initialRate.toDouble,
+    importCons = PLN(1e7),
+    techImports = PLN(5e6),
+    autoRatio = Ratio(autoRatio),
+    domesticRate = p.monetary.initialRate,
     gdp = gdp,
     priceLevel = 1.0,
     sectorOutputs = baseSectorOutputs,
@@ -64,7 +64,7 @@ class OpenEconomySpec extends AnyFlatSpec with Matchers:
   it should "produce per-sector imported intermediates" in {
     val r = OpenEconomy.step(baseInput())
     r.importedIntermediates.length shouldBe 6
-    r.importedIntermediates.forall(_ >= 0.0) shouldBe true
+    r.importedIntermediates.forall(_ >= PLN.Zero) shouldBe true
   }
 
   it should "have manufacturing highest import content" in {
@@ -84,7 +84,7 @@ class OpenEconomySpec extends AnyFlatSpec with Matchers:
   // ---- Current account ----
 
   it should "include EU transfers in current account" in {
-    val r = OpenEconomy.step(baseInput().copy(euFundsMonthly = p.openEcon.euTransfers.toDouble))
+    val r = OpenEconomy.step(baseInput().copy(euFundsMonthly = p.openEcon.euTransfers))
     r.bop.secondaryIncome.toDouble shouldBe p.openEcon.euTransfers.toDouble +- 0.01
   }
 
