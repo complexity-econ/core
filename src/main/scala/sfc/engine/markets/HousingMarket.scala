@@ -229,9 +229,7 @@ object HousingMarket:
     * and rate sensitivity. LTV constraint caps mortgage at ltvMax × property
     * value (KNF Recommendation S).
     */
-  def processOrigination(prev: State, totalIncome: PLN, mortgageRate: Rate, bankCapacity: Boolean)(using
-      p: SimParams,
-  ): State =
+  def processOrigination(prev: State, totalIncome: PLN, mortgageRate: Rate, bankCapacity: Boolean)(using p: SimParams): State =
     if !p.flags.re || !p.flags.reMortgage || !bankCapacity then
       prev.copy(
         lastOrigination = PLN.Zero,
@@ -250,9 +248,7 @@ object HousingMarket:
           )
 
   /** Base origination adjusted for rate and income sensitivity. */
-  private def computeRawOrigination(prev: State, totalIncome: PLN, mortgageRate: Rate)(using
-      p: SimParams,
-  ): Double =
+  private def computeRawOrigination(prev: State, totalIncome: PLN, mortgageRate: Rate)(using p: SimParams): Double =
     val baseOrigination = prev.totalValue.toDouble * p.housing.originationRate.toDouble
     val rateAdj         = Math.max(0.3, Math.min(2.0, 1.0 - 0.5 * (mortgageRate.toDouble - 0.06)))
     val incomeAdj       = Math.max(0.5, Math.min(1.5, 1.0 + totalIncome.toDouble / Math.max(1.0, prev.totalValue.toDouble) * 10.0))
@@ -286,9 +282,7 @@ object HousingMarket:
     * Returns both gross defaultAmount (for stock reduction) and net defaultLoss
     * (after recovery, for bank P&L).
     */
-  def processMortgageFlows(prev: State, mortgageRate: Rate, unemploymentRate: Ratio)(using
-      p: SimParams,
-  ): MortgageFlows =
+  def processMortgageFlows(prev: State, mortgageRate: Rate, unemploymentRate: Ratio)(using p: SimParams): MortgageFlows =
     if !p.flags.re || prev.mortgageStock <= PLN.Zero
     then MortgageFlows(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
     else
