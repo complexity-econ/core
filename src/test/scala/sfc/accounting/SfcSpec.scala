@@ -5,6 +5,7 @@ import org.scalatest.matchers.should.Matchers
 import sfc.agents.*
 import sfc.config.SimParams
 import sfc.engine.{ExternalState, FinancialMarketsState, FlowState, MechanismsState, MonetaryPlumbingState, RealState, SocialState, World}
+import sfc.engine.markets.OpenEconomy
 import sfc.types.*
 
 class SfcSpec extends AnyFlatSpec with Matchers:
@@ -33,7 +34,7 @@ class SfcSpec extends AnyFlatSpec with Matchers:
       nbp = Nbp.State(Rate(0.0575), PLN.Zero, false, PLN.Zero, PLN.Zero, PLN.Zero),
       bank = Banking.Aggregate(PLN(bankLoans), PLN(bankNpl), PLN(bankCapital), PLN(bankDeposits), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
       bankingSector = Banking.initialize(PLN(1e9), PLN(5e8), PLN(5e8), PLN.Zero, PLN.Zero, Banking.DefaultConfigs),
-      forex = ForexState(4.33, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
+      forex = OpenEconomy.ForexState(4.33, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
       hhAgg = Household.Aggregates(
         employed = 100,
         unemployed = 0,

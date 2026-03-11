@@ -1,6 +1,6 @@
 package sfc.engine.steps
 
-import sfc.accounting.{BopState, GovState}
+import sfc.accounting.GovState
 import sfc.agents.*
 import sfc.config.SimParams
 import sfc.engine.*

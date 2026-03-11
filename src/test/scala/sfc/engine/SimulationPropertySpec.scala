@@ -5,7 +5,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import sfc.Generators.*
-import sfc.accounting.{ForexState, GovState}
+import sfc.accounting.GovState
 import sfc.agents.Nbp
 import sfc.config.SimParams
 import sfc.engine.markets.{FiscalBudget, LaborMarket, OpenEconomy, PriceLevel}
@@ -139,7 +139,7 @@ class SimulationPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPr
 
   "updateForeign" should "keep exchange rate in [3.0, 8.0]" in
     forAll(genForexState, Gen.choose(0.0, 1e8), Gen.choose(0.0, 1e7), genFraction, genRate, Gen.choose(1e6, 1e10)) {
-      (prev: ForexState, importCons: Double, techImp: Double, autoR: Double, rate: Double, gdp: Double) =>
+      (prev: OpenEconomy.ForexState, importCons: Double, techImp: Double, autoR: Double, rate: Double, gdp: Double) =>
         val fx = OpenEconomy.updateForeign(prev, PLN(importCons), PLN(techImp), Ratio(autoR), Rate(rate), PLN(gdp))
         fx.exchangeRate should be >= 3.0
         fx.exchangeRate should be <= 8.0

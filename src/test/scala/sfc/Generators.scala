@@ -5,6 +5,7 @@ import sfc.accounting.*
 import sfc.agents.*
 import sfc.config.SimParams
 import sfc.engine.*
+import sfc.engine.markets.OpenEconomy
 import sfc.types.*
 
 object Generators:
@@ -162,14 +163,14 @@ object Generators:
     PLN(debtService),
   )
 
-  val genForexState: Gen[ForexState] = for
+  val genForexState: Gen[OpenEconomy.ForexState] = for
     er      <- genExchangeRate
     imports <- Gen.choose(0.0, 1e9)
     exports <- Gen.choose(0.0, 1e9)
     techImp <- Gen.choose(0.0, 1e8)
-  yield ForexState(er, PLN(imports), PLN(exports), PLN(exports - imports), PLN(techImp))
+  yield OpenEconomy.ForexState(er, PLN(imports), PLN(exports), PLN(exports - imports), PLN(techImp))
 
-  val genBopState: Gen[BopState] = for
+  val genBopState: Gen[OpenEconomy.BopState] = for
     nfa     <- Gen.choose(-1e10, 1e10)
     fAssets <- Gen.choose(0.0, 1e10)
     fLiab   <- Gen.choose(0.0, 1e10)
@@ -185,7 +186,7 @@ object Generators:
   yield
     val ca = tb + pi + si
     val ka = fdi + pf
-    BopState(
+    OpenEconomy.BopState(
       PLN(nfa),
       PLN(fAssets),
       PLN(fLiab),

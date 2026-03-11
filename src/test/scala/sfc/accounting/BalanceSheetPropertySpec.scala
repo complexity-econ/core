@@ -7,7 +7,7 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import sfc.agents.Banking
 import sfc.config.SimParams
 import sfc.Generators.*
-import sfc.engine.markets.FiscalBudget
+import sfc.engine.markets.{FiscalBudget, OpenEconomy}
 import sfc.types.*
 
 class BalanceSheetPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks:
@@ -76,13 +76,13 @@ class BalanceSheetPropertySpec extends AnyFlatSpec with Matchers with ScalaCheck
   // --- ForexState properties ---
 
   "ForexState" should "have tradeBalance = exports - imports" in
-    forAll(genForexState) { (fs: ForexState) =>
+    forAll(genForexState) { (fs: OpenEconomy.ForexState) =>
       fs.tradeBalance.toDouble shouldBe ((fs.exports - fs.imports).toDouble +- 1e-6)
     }
 
   // --- BopState properties ---
 
   "BopState" should "have CA = tradeBalance + primaryIncome + secondaryIncome" in
-    forAll(genBopState) { (bop: BopState) =>
+    forAll(genBopState) { (bop: OpenEconomy.BopState) =>
       bop.currentAccount.toDouble shouldBe ((bop.tradeBalance + bop.primaryIncome + bop.secondaryIncome).toDouble +- 1e-6)
     }

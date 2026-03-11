@@ -2,7 +2,7 @@ package sfc.engine
 
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import sfc.accounting.{BopState, ForexState, GovState}
+import sfc.accounting.GovState
 import sfc.agents.Banking
 import sfc.config.SimParams
 import sfc.engine.markets.OpenEconomy
@@ -153,8 +153,8 @@ class DiasporaRemittanceSpec extends AnyFlatSpec with Matchers:
   // ==========================================================================
 
   "secondaryIncome" should "include diasporaInflow as credit" in {
-    val prevBop   = BopState.zero
-    val prevForex = ForexState(p.forex.baseExRate, PLN.Zero, PLN(p.forex.exportBase.toDouble), PLN.Zero, PLN.Zero)
+    val prevBop   = OpenEconomy.BopState.zero
+    val prevForex = OpenEconomy.ForexState(p.forex.baseExRate, PLN.Zero, PLN(p.forex.exportBase.toDouble), PLN.Zero, PLN.Zero)
 
     val base          = OpenEconomy.StepInput(
       prevBop = prevBop,
@@ -175,8 +175,8 @@ class DiasporaRemittanceSpec extends AnyFlatSpec with Matchers:
   }
 
   it should "net outflow and inflow" in {
-    val prevBop   = BopState.zero
-    val prevForex = ForexState(p.forex.baseExRate, PLN.Zero, PLN(p.forex.exportBase.toDouble), PLN.Zero, PLN.Zero)
+    val prevBop   = OpenEconomy.BopState.zero
+    val prevForex = OpenEconomy.ForexState(p.forex.baseExRate, PLN.Zero, PLN(p.forex.exportBase.toDouble), PLN.Zero, PLN.Zero)
 
     val base   = OpenEconomy.StepInput(
       prevBop = prevBop,
@@ -222,7 +222,7 @@ class DiasporaRemittanceSpec extends AnyFlatSpec with Matchers:
       nbp = sfc.agents.Nbp.State(Rate(0.05), PLN.Zero, false, PLN.Zero, PLN.Zero, PLN.Zero),
       bank = Banking.Aggregate(PLN.Zero, PLN.Zero, PLN(100), PLN(1000), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
       bankingSector = Banking.initialize(PLN(1e9), PLN(5e8), PLN(5e8), PLN.Zero, PLN.Zero, Banking.DefaultConfigs),
-      forex = ForexState(p.forex.baseExRate, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
+      forex = OpenEconomy.ForexState(p.forex.baseExRate, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
       hhAgg = sfc.agents.Household.Aggregates(
         employed = 100,
         unemployed = 0,
