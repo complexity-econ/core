@@ -302,9 +302,9 @@ object PriceEquityStep:
 
     val rewiredFirms = rewireFirms(in.s5.ioFirms, p.firm.rewireRho.toDouble, rng)
 
-    val exDev               = (in.w.forex.exchangeRate / p.forex.baseExRate) - 1.0
-    val (newInfl, newPrice) = PriceLevel.update(
-      in.w.inflation.toDouble,
+    val exDev    = (in.w.forex.exchangeRate / p.forex.baseExRate) - 1.0
+    val priceUpd = PriceLevel.update(
+      in.w.inflation,
       in.w.priceLevel,
       in.s4.avgDemandMult,
       in.s2.wageGrowth,
@@ -312,6 +312,8 @@ object PriceEquityStep:
       autoR,
       hybR,
     )
+    val newInfl  = priceUpd.inflation.toDouble
+    val newPrice = priceUpd.priceLevel
 
     val firmProfits = living2.kahanSumBy { f =>
       val rev      = Firm.computeCapacity(f).toDouble * in.s4.sectorMults(f.sector.toInt) * newPrice
