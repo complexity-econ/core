@@ -1,10 +1,9 @@
 package sfc.init
 
-import sfc.accounting.*
 import sfc.agents.*
 import sfc.config.*
 import sfc.engine.*
-import sfc.engine.markets.{CorporateBondMarket, OpenEconomy}
+import sfc.engine.markets.{CorporateBondMarket, FiscalBudget, OpenEconomy}
 import sfc.engine.mechanisms.{Macroprudential, SectoralMobility}
 import sfc.types.*
 import sfc.util.KahanSum.*
@@ -58,7 +57,7 @@ object WorldInit:
       gdpProxy = p.firm.baseRevenue.toDouble * p.pop.firmsCount,
       currentSigmas = p.sectorDefs.map(_.sigma),
       totalPopulation = totalPop,
-      gov = GovState(
+      gov = FiscalBudget.GovState(
         taxRevenue = PLN.Zero,
         deficit = PLN.Zero,
         cumulativeDebt = p.fiscal.initGovDebt,

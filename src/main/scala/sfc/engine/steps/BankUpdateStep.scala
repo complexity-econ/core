@@ -1,6 +1,5 @@
 package sfc.engine.steps
 
-import sfc.accounting.GovState
 import sfc.agents.*
 import sfc.config.SimParams
 import sfc.engine.*
@@ -31,7 +30,7 @@ object BankUpdateStep:
       finalPpk: SocialSecurity.PpkState,
       finalInsurance: Insurance.State,
       finalNbfi: Nbfi.State,
-      newGovWithYield: GovState,
+      newGovWithYield: FiscalBudget.GovState,
       newJst: Jst.State,
       housingAfterFlows: HousingMarket.State,
       bfgLevy: Double,

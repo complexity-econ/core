@@ -2,8 +2,7 @@ package sfc.engine
 
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import sfc.accounting.GovState
-import sfc.engine.markets.OpenEconomy
+import sfc.engine.markets.{FiscalBudget, OpenEconomy}
 import sfc.agents.{Banking, BankruptReason, Firm, TechState}
 import sfc.types.*
 
@@ -85,7 +84,7 @@ class InventorySpec extends AnyFlatSpec with Matchers:
     gdpProxy = 1e9,
     currentSigmas = Vector.fill(6)(5.0),
     totalPopulation = 100,
-    gov = GovState(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
+    gov = FiscalBudget.GovState(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
     nbp = sfc.agents.Nbp.State(Rate(0.05), PLN.Zero, false, PLN.Zero, PLN.Zero, PLN.Zero),
     bank = Banking.Aggregate(PLN.Zero, PLN.Zero, PLN(1e9), PLN(1e9), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
     bankingSector = Banking.initialize(PLN(1e9), PLN(5e8), PLN(5e8), PLN.Zero, PLN.Zero, Banking.DefaultConfigs),

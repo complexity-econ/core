@@ -5,7 +5,6 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import sfc.Generators.*
-import sfc.accounting.GovState
 import sfc.agents.Nbp
 import sfc.config.SimParams
 import sfc.engine.markets.{FiscalBudget, LaborMarket, OpenEconomy, PriceLevel}
@@ -22,7 +21,7 @@ class SimulationPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPr
   private val totalPop = p.pop.firmsCount * p.pop.workersPerFirm
 
   // Combined generator for gov inputs (avoids >6 forAll limit)
-  private val genGovInputs: Gen[(GovState, Double, Double, Double, Double)] =
+  private val genGovInputs: Gen[(FiscalBudget.GovState, Double, Double, Double, Double)] =
     for
       prev     <- genGovState
       cit      <- Gen.choose(0.0, 1e8)
@@ -100,7 +99,7 @@ class SimulationPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPr
   // --- updateGov properties ---
 
   "updateGov" should "have deficit = spending - revenue" in
-    forAll(genGovInputs) { (inputs: (GovState, Double, Double, Double, Double)) =>
+    forAll(genGovInputs) { (inputs: (FiscalBudget.GovState, Double, Double, Double, Double)) =>
       val (prev, cit, vat, price, unempBen) = inputs
       val gov                               = FiscalBudget.update(FiscalBudget.Input(prev, price, citPaid = PLN(cit), vat = PLN(vat), unempBenefitSpend = PLN(unempBen)))
       val totalRev                          = cit + vat
@@ -109,14 +108,14 @@ class SimulationPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPr
     }
 
   it should "accumulate debt (newDebt = prev + deficit)" in
-    forAll(genGovInputs) { (inputs: (GovState, Double, Double, Double, Double)) =>
+    forAll(genGovInputs) { (inputs: (FiscalBudget.GovState, Double, Double, Double, Double)) =>
       val (prev, cit, vat, price, unempBen) = inputs
       val gov                               = FiscalBudget.update(FiscalBudget.Input(prev, price, citPaid = PLN(cit), vat = PLN(vat), unempBenefitSpend = PLN(unempBen)))
       gov.cumulativeDebt.toDouble shouldBe (prev.cumulativeDebt.toDouble + gov.deficit.toDouble +- 1.0)
     }
 
   it should "include debtService in deficit calculation" in
-    forAll(genGovInputs, Gen.choose(0.0, 1e7)) { (inputs: (GovState, Double, Double, Double, Double), debtSvc: Double) =>
+    forAll(genGovInputs, Gen.choose(0.0, 1e7)) { (inputs: (FiscalBudget.GovState, Double, Double, Double, Double), debtSvc: Double) =>
       val (prev, cit, vat, price, unempBen) = inputs
       val gov                               =
         FiscalBudget.update(FiscalBudget.Input(prev, price, citPaid = PLN(cit), vat = PLN(vat), unempBenefitSpend = PLN(unempBen), debtService = PLN(debtSvc)))
@@ -126,7 +125,7 @@ class SimulationPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckPr
     }
 
   it should "include nbpRemittance in revenue" in
-    forAll(genGovInputs, Gen.choose(0.0, 1e7)) { (inputs: (GovState, Double, Double, Double, Double), nbpRemit: Double) =>
+    forAll(genGovInputs, Gen.choose(0.0, 1e7)) { (inputs: (FiscalBudget.GovState, Double, Double, Double, Double), nbpRemit: Double) =>
       val (prev, cit, vat, price, unempBen) = inputs
       val base                              = FiscalBudget.Input(prev, price, citPaid = PLN(cit), vat = PLN(vat), unempBenefitSpend = PLN(unempBen))
       val govNoRemit                        = FiscalBudget.update(base)

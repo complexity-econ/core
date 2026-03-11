@@ -1,6 +1,5 @@
 package sfc.engine.markets
 
-import sfc.accounting.*
 import sfc.config.*
 import sfc.types.*
 
@@ -19,6 +18,48 @@ import sfc.types.*
   * nominal PLN, price-adjusted via priceLevel.
   */
 object FiscalBudget:
+
+  // ---------------------------------------------------------------------------
+  // State type
+  // ---------------------------------------------------------------------------
+
+  /** Government sector balance sheet and flow snapshot.
+    *
+    * Updated monthly by [[update]]. Revenue fields (`taxRevenue`,
+    * `exciseRevenue`, `customsDutyRevenue`) and spending fields
+    * (`unempBenefitSpend`, `debtServiceSpend`, `socialTransferSpend`,
+    * `govCurrentSpend`, `govCapitalSpend`, `euCofinancing`) are single-month
+    * flows. Stock fields (`cumulativeDebt`, `bondsOutstanding`,
+    * `publicCapitalStock`) accumulate across months.
+    *
+    * `deficit` = totalSpend − totalRevenue (positive = deficit, negative =
+    * surplus). `cumulativeDebt` += deficit each month.
+    *
+    * Calibration: MF budgetary law structure 2024, GUS public finance
+    * statistics, NBP government securities data.
+    */
+  case class GovState(
+      taxRevenue: PLN,                     // total tax revenue this month (CIT + VAT + excise + customs + NBP remittance)
+      deficit: PLN,                        // monthly budget deficit (positive) or surplus (negative)
+      cumulativeDebt: PLN,                 // cumulative public debt stock (Σ deficits since t = 0)
+      unempBenefitSpend: PLN,              // unemployment benefit payments this month
+      bondsOutstanding: PLN = PLN.Zero,    // government bond stock (skarbowe papiery wartościowe)
+      bondYield: Rate = Rate.Zero,         // weighted-average yield on outstanding bonds
+      debtServiceSpend: PLN = PLN.Zero,    // interest payments on public debt this month
+      socialTransferSpend: PLN = PLN.Zero, // social transfers (800+, family benefits) this month
+      publicCapitalStock: PLN = PLN.Zero,  // public capital stock (roads, infrastructure) — GOV_INVEST
+      govCurrentSpend: PLN = PLN.Zero,     // current government purchases (1 − investShare) × base
+      govCapitalSpend: PLN = PLN.Zero,     // capital government investment (investShare × base + EU capital)
+      euCofinancing: PLN = PLN.Zero,       // EU co-financing expenditure this month
+      exciseRevenue: PLN = PLN.Zero,       // excise duty revenue this month (akcyza)
+      customsDutyRevenue: PLN = PLN.Zero,  // customs duty revenue this month (cło)
+      minWageLevel: PLN = PLN(4666.0),     // statutory minimum wage (PLN/month, GUS 2024)
+      minWagePriceLevel: Double = 1.0,     // price level at last minimum wage adjustment
+  )
+
+  // ---------------------------------------------------------------------------
+  // Budget update
+  // ---------------------------------------------------------------------------
 
   /** Monthly fiscal inputs — all monetary fields in PLN. */
   case class Input(

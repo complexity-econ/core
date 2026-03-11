@@ -1,9 +1,8 @@
 package sfc.engine
 
-import sfc.accounting.*
 import sfc.agents.*
 import sfc.config.SimParams
-import sfc.engine.markets.{CorporateBondMarket, EquityMarket, GvcTrade, HousingMarket, OpenEconomy}
+import sfc.engine.markets.{CorporateBondMarket, EquityMarket, FiscalBudget, GvcTrade, HousingMarket, OpenEconomy}
 import sfc.engine.mechanisms.{Expectations, Macroprudential, SectoralMobility}
 import sfc.types.*
 
@@ -19,7 +18,7 @@ case class World(
     gdpProxy: Double,                                       // monthly GDP proxy
     currentSigmas: Vector[Double],                          // per-sector σ (Arthur increasing returns)
     totalPopulation: Int,                                   // employed + immigrants + retirees
-    gov: GovState,                                          // government budget & debt
+    gov: FiscalBudget.GovState,                             // government budget & debt
     nbp: Nbp.State,                                         // central bank: rate, bonds, FX, QE
     bank: Banking.Aggregate,                                // consolidated banking balance sheet
     bankingSector: Banking.State,                           // multi-bank: individual states, interbank, term structure

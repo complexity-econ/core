@@ -2,8 +2,8 @@ package sfc.agents
 
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import sfc.accounting.GovState
 import sfc.config.SimParams
+import sfc.engine.markets.FiscalBudget
 import sfc.types.*
 import sfc.util.Distributions
 
@@ -137,6 +137,6 @@ class SocialTransferSpec extends AnyFlatSpec with Matchers:
   }
 
   "GovState.socialTransferSpend" should "default to 0.0" in {
-    val gov = GovState(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
+    val gov = FiscalBudget.GovState(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
     gov.socialTransferSpend shouldBe PLN.Zero
   }

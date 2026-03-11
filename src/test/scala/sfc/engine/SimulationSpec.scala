@@ -2,8 +2,6 @@ package sfc.engine
 
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import sfc.accounting
-import sfc.accounting.GovState
 import sfc.agents.Nbp
 import sfc.config.SimParams
 import sfc.engine.markets.{FiscalBudget, LaborMarket, PriceLevel}
@@ -75,7 +73,7 @@ class SimulationSpec extends AnyFlatSpec with Matchers:
   // --- updateGov ---
 
   "FiscalBudget.update" should "compute deficit as spending - revenue" in {
-    val prev   = GovState(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
+    val prev   = FiscalBudget.GovState(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
     val result = FiscalBudget.update(
       FiscalBudget.Input(
         prev,
@@ -88,7 +86,7 @@ class SimulationSpec extends AnyFlatSpec with Matchers:
   }
 
   it should "accumulate debt" in {
-    val prev   = accounting.GovState(PLN.Zero, PLN.Zero, PLN(1000000), PLN.Zero)
+    val prev   = FiscalBudget.GovState(PLN.Zero, PLN.Zero, PLN(1000000), PLN.Zero)
     val result = FiscalBudget.update(
       FiscalBudget.Input(
         prev,
