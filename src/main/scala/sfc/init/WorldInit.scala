@@ -4,7 +4,7 @@ import sfc.accounting.*
 import sfc.agents.*
 import sfc.config.*
 import sfc.engine.*
-import sfc.engine.markets.CorporateBondMarket
+import sfc.engine.markets.{CorporateBondMarket, OpenEconomy}
 import sfc.engine.mechanisms.{Macroprudential, SectoralMobility}
 import sfc.types.*
 import sfc.util.KahanSum.*
@@ -84,7 +84,7 @@ object WorldInit:
         corpBondHoldings = p.corpBond.initStock * p.corpBond.bankShare.toDouble,
       ),
       bankingSector = initBankingSector,
-      forex = ForexState(
+      forex = OpenEconomy.ForexState(
         exchangeRate = p.forex.baseExRate,
         imports = PLN.Zero,
         exports = p.forex.exportBase,

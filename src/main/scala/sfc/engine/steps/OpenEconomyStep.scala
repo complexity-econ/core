@@ -1,6 +1,5 @@
 package sfc.engine.steps
 
-import sfc.accounting.{BopState, ForexState}
 import sfc.agents.*
 import sfc.config.SimParams
 import sfc.engine.*
@@ -23,8 +22,8 @@ object OpenEconomyStep:
   )
 
   case class Output(
-      newForex: ForexState,
-      newBop: BopState,
+      newForex: OpenEconomy.ForexState,
+      newBop: OpenEconomy.BopState,
       newGvc: GvcTrade.State,
       newRefRate: Double,
       newExp: Expectations.State,

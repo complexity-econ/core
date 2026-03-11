@@ -2,7 +2,6 @@ package sfc.engine
 
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import sfc.accounting.{BopState, ForexState}
 import sfc.config.SimParams
 import sfc.engine.markets.OpenEconomy
 import sfc.types.*
@@ -12,13 +11,13 @@ class OpenEconomySpec extends AnyFlatSpec with Matchers:
   given SimParams          = SimParams.defaults
   private val p: SimParams = summon[SimParams]
 
-  private val baseForex         = ForexState(p.forex.baseExRate, PLN.Zero, PLN(p.forex.exportBase.toDouble), PLN.Zero, PLN.Zero)
+  private val baseForex         = OpenEconomy.ForexState(p.forex.baseExRate, PLN.Zero, PLN(p.forex.exportBase.toDouble), PLN.Zero, PLN.Zero)
   private val baseSectorOutputs = Vector(30000.0, 160000.0, 450000.0, 60000.0, 220000.0, 80000.0).map(PLN(_))
   private val gdp               = PLN(1e9)
 
   private def baseInput(
-      prevBop: BopState = BopState.zero,
-      prevForex: ForexState = baseForex,
+      prevBop: OpenEconomy.BopState = OpenEconomy.BopState.zero,
+      prevForex: OpenEconomy.ForexState = baseForex,
       autoRatio: Double = 0.0,
       month: Int = 30,
   ) = OpenEconomy.StepInput(
@@ -77,7 +76,7 @@ class OpenEconomySpec extends AnyFlatSpec with Matchers:
   it should "satisfy BoP identity: CA + KA + deltaReserves = 0" in {
     val r      = OpenEconomy.step(baseInput())
     val bopSum = r.bop.currentAccount.toDouble + r.bop.capitalAccount.toDouble +
-      (r.bop.reserves - BopState.zero.reserves).toDouble
+      (r.bop.reserves - OpenEconomy.BopState.zero.reserves).toDouble
     Math.abs(bopSum) should be < 1.0
   }
 

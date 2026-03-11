@@ -1,6 +1,5 @@
 package sfc.engine.markets
 
-import sfc.accounting.{BopState, ForexState}
 import sfc.agents.Nbp
 import sfc.config.SimParams
 import sfc.types.*
@@ -20,6 +19,79 @@ import sfc.util.KahanSum.*
   * Calibration: NBP BoP statistics 2024, GUS national accounts.
   */
 object OpenEconomy:
+
+  // ---------------------------------------------------------------------------
+  // State types
+  // ---------------------------------------------------------------------------
+
+  /** Foreign exchange snapshot — nominal EUR/PLN rate and monthly trade flows.
+    *
+    * Recomputed every step by [[updateForeign]] (simplified mode) or [[step]]
+    * (full open-economy mode). The exchange rate feeds back into export
+    * competitiveness (Marshall-Lerner), imported intermediate costs, and NFA
+    * valuation. Trade balance = exports − imports (merchandise only; tourism
+    * and services are tracked separately in [[BopState]]).
+    *
+    * Calibration: NBP daily fixing, GUS foreign trade statistics 2024.
+    */
+  case class ForexState(
+      exchangeRate: Double, // nominal EUR/PLN mid-rate (NBP fixing convention)
+      imports: PLN,         // total merchandise imports this month (consumption + tech + intermediates)
+      exports: PLN,         // total merchandise exports this month (before tourism)
+      tradeBalance: PLN,    // exports − imports (merchandise only)
+      techImports: PLN,     // technology-related imports (automation CAPEX, R&D equipment)
+  )
+
+  /** Balance of Payments snapshot — full BPM6 decomposition.
+    *
+    * Accounting identity: CA + KA + ΔReserves ≡ 0 (IMF BPM6, §2.18). Updated
+    * every step by [[step]]; the simplified [[updateForeign]] path does not
+    * produce a BopState (World.bop stays at [[BopState.zero]]).
+    *
+    * Stock fields (`nfa`, `foreignAssets`, `foreignLiabilities`, `reserves`,
+    * `euCumulativeAbsorption`) accumulate across months. All other fields are
+    * single-month flows, reset each step.
+    *
+    * NFA dynamics: ΔNFA = CA + valuationEffect (ER pass-through on gross
+    * foreign assets, [[computeValuationEffect]]).
+    *
+    * Calibration: NBP BoP statistics 2024, Eurostat EU funds absorption data.
+    */
+  case class BopState(
+      nfa: PLN,                              // net foreign assets (cumulative stock, ΔNFA = CA + valuation)
+      foreignAssets: PLN,                    // gross foreign assets (cumulative, grows with KA inflows)
+      foreignLiabilities: PLN,               // gross foreign liabilities (cumulative, grows with KA outflows)
+      currentAccount: PLN,                   // monthly CA: trade + primary income + secondary income
+      capitalAccount: PLN,                   // monthly KA: FDI + portfolio flows (BPM6 financial account)
+      tradeBalance: PLN,                     // monthly exports − imports (merchandise + tourism)
+      primaryIncome: PLN,                    // monthly interest/dividends on NFA (nfa × nfaReturnRate / 12)
+      secondaryIncome: PLN,                  // monthly transfers: EU funds + diaspora − remittance outflow
+      fdi: PLN,                              // monthly FDI inflows (base + automation boost − NFA dampening)
+      portfolioFlows: PLN,                   // monthly portfolio flows (interest rate differential + risk premium)
+      reserves: PLN,                         // CB foreign reserves (cumulative, ΔRes = −(CA + KA))
+      exports: PLN,                          // total exports this month (merchandise + tourism)
+      totalImports: PLN,                     // total imports this month (consumption + tech + intermediates + tourism)
+      importedIntermediates: PLN,            // cross-border intermediate inputs (per-sector import content × output)
+      euFundsMonthly: PLN = PLN.Zero,        // EU structural/cohesion funds transferred this month
+      euCumulativeAbsorption: PLN = PLN.Zero, // cumulative EU funds absorbed since t = 0
+  )
+  object BopState:
+    val zero: BopState = BopState(
+      PLN.Zero,
+      PLN.Zero,
+      PLN.Zero,
+      PLN.Zero,
+      PLN.Zero,
+      PLN.Zero,
+      PLN.Zero,
+      PLN.Zero,
+      PLN.Zero,
+      PLN.Zero,
+      PLN.Zero,
+      PLN.Zero,
+      PLN.Zero,
+      PLN.Zero,
+    )
 
   // --- Named constants ---
   private val MonthsPerYear        = 12.0

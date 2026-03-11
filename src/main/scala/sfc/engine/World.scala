@@ -3,7 +3,7 @@ package sfc.engine
 import sfc.accounting.*
 import sfc.agents.*
 import sfc.config.SimParams
-import sfc.engine.markets.{CorporateBondMarket, EquityMarket, GvcTrade, HousingMarket}
+import sfc.engine.markets.{CorporateBondMarket, EquityMarket, GvcTrade, HousingMarket, OpenEconomy}
 import sfc.engine.mechanisms.{Expectations, Macroprudential, SectoralMobility}
 import sfc.types.*
 
@@ -23,8 +23,8 @@ case class World(
     nbp: Nbp.State,                                         // central bank: rate, bonds, FX, QE
     bank: Banking.Aggregate,                                // consolidated banking balance sheet
     bankingSector: Banking.State,                           // multi-bank: individual states, interbank, term structure
-    forex: ForexState,                                      // EUR/PLN, exports, imports, trade balance
-    bop: BopState = BopState.zero,                          // balance of payments: NFA, CA, KA, FDI
+    forex: OpenEconomy.ForexState,                          // EUR/PLN, exports, imports, trade balance
+    bop: OpenEconomy.BopState = OpenEconomy.BopState.zero,  // balance of payments: NFA, CA, KA, FDI
     hhAgg: Household.Aggregates,                            // household aggregates (employment, wages, consumption)
     households: Vector[Household.State] = Vector.empty,     // individual household states
     monetaryAgg: Option[Banking.MonetaryAggregates] = None, // M1, monetary base, credit multiplier (CREDIT_DIAGNOSTICS)

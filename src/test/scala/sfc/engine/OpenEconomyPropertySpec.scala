@@ -5,7 +5,6 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import sfc.Generators.*
-import sfc.accounting.{BopState, ForexState}
 import sfc.config.SimParams
 import sfc.engine.markets.OpenEconomy
 import sfc.types.*
@@ -20,11 +19,11 @@ class OpenEconomyPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckP
 
   private val defaultSectorOutputs = Vector.fill(6)(PLN(1e8))
 
-  private def makeForex(er: Double = p.forex.baseExRate): ForexState =
-    ForexState(er, PLN(1e8), PLN(1e8), PLN.Zero, PLN(1e7))
+  private def makeForex(er: Double = p.forex.baseExRate): OpenEconomy.ForexState =
+    OpenEconomy.ForexState(er, PLN(1e8), PLN(1e8), PLN.Zero, PLN(1e7))
 
-  private def makeBop(nfa: Double = 0.0, fAssets: Double = 1e9): BopState =
-    BopState(
+  private def makeBop(nfa: Double = 0.0, fAssets: Double = 1e9): OpenEconomy.BopState =
+    OpenEconomy.BopState(
       PLN(nfa),
       PLN(fAssets),
       PLN(5e8),
@@ -42,7 +41,7 @@ class OpenEconomyPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckP
     )
 
   private def baseInput(
-      prevBop: BopState = makeBop(),
+      prevBop: OpenEconomy.BopState = makeBop(),
       er: Double = p.forex.baseExRate,
       importCons: Double = 1e7,
       techImp: Double = 1e6,
