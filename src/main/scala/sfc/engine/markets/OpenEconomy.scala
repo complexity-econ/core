@@ -50,12 +50,14 @@ object OpenEconomy:
     val newRate   = Math.max(3.0, Math.min(8.0, prev.exchangeRate * (1.0 + exRateChg)))
     ForexState(newRate, PLN(totalImp), PLN(exports), PLN(tradeBal), PLN(techImports))
 
+  /** Output of a single open-economy step. */
   case class Result(
-      forex: ForexState,
-      bop: BopState,
-      importedIntermediates: Vector[Double],
-      valuationEffect: Double,
-      fxIntervention: Nbp.FxInterventionResult = Nbp.FxInterventionResult(0.0, PLN.Zero, PLN.Zero),
+      forex: ForexState,                     // updated FX state (ER, imports, exports, trade balance)
+      bop: BopState,                         // full balance-of-payments snapshot
+      importedIntermediates: Vector[Double], // per-sector imported intermediate goods (PLN)
+      valuationEffect: Double,               // NFA valuation change from ER movement
+      fxIntervention: Nbp.FxInterventionResult // NBP FX intervention result (reserves, EUR traded)
+      = Nbp.FxInterventionResult(0.0, PLN.Zero, PLN.Zero),
   )
 
   case class StepInput(
