@@ -4,7 +4,7 @@ import sfc.agents.*
 import sfc.config.SimParams
 import sfc.engine.*
 import sfc.engine.markets.{FiscalBudget, HousingMarket}
-import sfc.engine.mechanisms.YieldCurve
+import sfc.engine.mechanisms.{TaxRevenue, YieldCurve}
 import sfc.types.*
 import sfc.util.KahanSum.*
 
@@ -58,52 +58,29 @@ object BankUpdateStep:
   )
 
   def run(in: Input)(using p: SimParams): Output =
-    val vat                 = in.s3.consumption * p.fiscal.fofConsWeights
-      .map(_.toDouble)
-      .zip(p.fiscal.vatRates.map(_.toDouble))
-      .map((w, r) => w * r)
-      .kahanSum
-    val exciseRevenue       = in.s3.consumption * p.fiscal.fofConsWeights
-      .map(_.toDouble)
-      .zip(p.fiscal.exciseRates.map(_.toDouble))
-      .map((w, r) => w * r)
-      .kahanSum
-    val customsDutyRevenue  =
-      if p.flags.openEcon then in.s8.newBop.totalImports.toDouble * p.fiscal.customsNonEuShare.toDouble * p.fiscal.customsDutyRate.toDouble
-      else 0.0
+    val tax = TaxRevenue.compute(
+      TaxRevenue.Input(
+        consumption = in.s3.consumption,
+        pitRevenue = in.s3.pitRevenue,
+        totalImports = in.s8.newBop.totalImports.toDouble,
+        informalCyclicalAdj = in.w.mechanisms.informalCyclicalAdj,
+      ),
+    )
+
     val unempBenefitSpend   = in.s3.hhAgg.totalUnempBenefits.toDouble
     val socialTransferSpend =
       if p.flags.social800 then in.s3.hhAgg.totalSocialTransfers.toDouble
       else 0.0
 
-    // Informal economy: aggregate tax evasion
-    val informalCyclicalAdj  = in.w.mechanisms.informalCyclicalAdj
-    val effectiveShadowShare =
-      if p.flags.informal then
-        p.fiscal.fofConsWeights
-          .map(_.toDouble)
-          .zip(p.informal.sectorShares.map(_.toDouble))
-          .map((cw, ss) => cw * Math.min(1.0, ss + informalCyclicalAdj))
-          .kahanSum
-      else 0.0
-    val vatAfterEvasion      =
-      if p.flags.informal then vat * (1.0 - effectiveShadowShare * p.informal.vatEvasion.toDouble) else vat
-    val exciseAfterEvasion   =
-      if p.flags.informal then exciseRevenue * (1.0 - effectiveShadowShare * p.informal.exciseEvasion.toDouble)
-      else exciseRevenue
-    val pitAfterEvasion      =
-      if p.flags.informal then in.s3.pitRevenue * (1.0 - effectiveShadowShare * p.informal.pitEvasion.toDouble)
-      else in.s3.pitRevenue
-
     val newGov          = FiscalBudget.update(
       FiscalBudget.Input(
         prev = in.w.gov,
         priceLevel = in.s7.newPrice,
-        citPaid = PLN(in.s5.sumTax + in.s7.dividendTax + pitAfterEvasion),
-        vat = PLN(vatAfterEvasion),
+        citPaid = PLN(in.s5.sumTax + in.s7.dividendTax + tax.pitAfterEvasion),
+        vat = PLN(tax.vatAfterEvasion),
         nbpRemittance = PLN(in.s8.nbpRemittance),
-        exciseRevenue = PLN(exciseAfterEvasion),
-        customsDutyRevenue = PLN(customsDutyRevenue),
+        exciseRevenue = PLN(tax.exciseAfterEvasion),
+        customsDutyRevenue = PLN(tax.customsDutyRevenue),
         unempBenefitSpend = PLN(unempBenefitSpend),
         debtService = PLN(in.s8.monthlyDebtService),
         zusGovSubvention = PLN(in.s2.newZus.govSubvention.toDouble),
@@ -124,7 +101,7 @@ object BankUpdateStep:
         PLN(in.s3.totalIncome),
         PLN(in.s7.gdp),
         nLivingFirms,
-        PLN(pitAfterEvasion),
+        PLN(tax.pitAfterEvasion),
       )
     val newJst           = jstResult.state
     val jstDepositChange = jstResult.depositChange.toDouble
@@ -410,13 +387,13 @@ object BankUpdateStep:
       multiCapDestruction,
       monAgg,
       finalHhAgg,
-      vat,
-      vatAfterEvasion,
-      pitAfterEvasion,
-      exciseRevenue,
-      exciseAfterEvasion,
-      customsDutyRevenue,
-      effectiveShadowShare,
+      tax.vat,
+      tax.vatAfterEvasion,
+      tax.pitAfterEvasion,
+      tax.exciseRevenue,
+      tax.exciseAfterEvasion,
+      tax.customsDutyRevenue,
+      tax.effectiveShadowShare,
       mortgageFlows.interest.toDouble,
       mortgageFlows.principal.toDouble,
       mortgageFlows.defaultLoss.toDouble,
