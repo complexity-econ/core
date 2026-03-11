@@ -125,7 +125,12 @@ object OpenEconomy:
 
   // --- Private helpers ---
 
-  /** Export demand: foreign GDP growth × real ER elasticity × ULC effect. */
+  // --- Trade helpers ---
+
+  /** Export demand: foreign GDP trend × ULC competitiveness × real ER
+    * elasticity. Returns total merchandise exports (PLN) before tourism. Falls
+    * back to GVC module exports when flags.gvc is enabled.
+    */
   private def computeExports(in: StepInput)(using p: SimParams): PLN =
     in.gvcExports.getOrElse:
       val foreignGdpFactor = Math.pow(1.0 + p.openEcon.foreignGdpGrowth.toDouble / MonthsPerYear, in.month.toDouble)
@@ -133,14 +138,9 @@ object OpenEconomy:
       val realExRate       = realExchangeRateEffect(in.prevForex.exchangeRate, in.priceLevel)
       p.openEcon.exportBase * (foreignGdpFactor * realExRate * ulcEffect)
 
-  /** Real ER effect on exports (Marshall-Lerner). */
-  private def realExchangeRateEffect(exchangeRate: Double, priceLevel: Double)(using p: SimParams): Double =
-    val nominalER = exchangeRate / p.forex.baseExRate
-    val realPrice = if priceLevel > 0 && nominalER > 0 then priceLevel / nominalER else 1.0
-    Math.pow(1.0 / Math.max(MinRealPrice, realPrice), p.openEcon.exportPriceElasticity)
-
-  /** Per-sector imported intermediates: real output × import content × ER
-    * effect.
+  /** Per-sector imported intermediates: real output × sector import content ×
+    * ER effect. Returns one PLN value per sector. Falls back to GVC module
+    * imports when flags.gvc is enabled.
     */
   private def computeImportedIntermediates(in: StepInput)(using p: SimParams): Vector[PLN] =
     in.gvcIntermImports.getOrElse:
@@ -152,14 +152,21 @@ object OpenEconomy:
           realOutput * p.openEcon.importContent(s) * erNetEffect
         .toVector
 
-  /** Current account: trade balance + primary income + secondary income. */
+  // --- BoP components ---
+
+  /** Current account = trade balance + primary income (NFA return) + secondary
+    * income (EU funds, remittances, diaspora). All three components returned
+    * for BopState.
+    */
   private def computeCurrentAccount(in: StepInput, tradeBalance: PLN)(using p: SimParams): CurrentAccountResult =
     val primaryIncome   = in.prevBop.nfa * p.openEcon.nfaReturnRate / MonthsPerYear
     val secondaryIncome = in.euFundsMonthly - in.remittanceOutflow + in.diasporaInflow
     val ca              = tradeBalance + primaryIncome + secondaryIncome
     CurrentAccountResult(ca, primaryIncome, secondaryIncome)
 
-  /** Capital account: FDI + portfolio flows. */
+  /** Capital account = FDI (base + automation boost - NFA dampening) +
+    * portfolio flows (interest rate differential + NFA risk premium).
+    */
   private def computeCapitalAccount(in: StepInput)(using p: SimParams): CapitalAccountResult =
     val annualGdp      = in.gdp * MonthsPerYear
     val nfaGdpRatio    = if in.gdp > PLN.Zero then in.prevBop.nfa / annualGdp else 0.0
@@ -172,7 +179,23 @@ object OpenEconomy:
       monthlyGdp * ((rateDiff + riskPremium) * p.openEcon.portfolioSensitivity)
     CapitalAccountResult(fdi + portfolioFlows, fdi, portfolioFlows)
 
-  /** BoP-driven exchange rate with NFA risk premium and FX intervention. */
+  // --- Exchange rate & valuation ---
+
+  /** Dimensionless export price multiplier from the real exchange rate
+    * (Marshall-Lerner condition). Weaker PLN (higher nominal ER) → lower real
+    * price → multiplier > 1 → higher exports. Used as input to computeExports;
+    * does NOT determine the new nominal ER.
+    */
+  private def realExchangeRateEffect(exchangeRate: Double, priceLevel: Double)(using p: SimParams): Double =
+    val nominalER = exchangeRate / p.forex.baseExRate
+    val realPrice = if priceLevel > 0 && nominalER > 0 then priceLevel / nominalER else 1.0
+    Math.pow(1.0 / Math.max(MinRealPrice, realPrice), p.openEcon.exportPriceElasticity)
+
+  /** New nominal exchange rate for the next period, driven by BoP flows. ER
+    * adjusts to close the BoP gap: surplus → appreciation, deficit →
+    * depreciation. Includes NFA risk premium (negative NFA → weaker PLN) and
+    * NBP FX intervention. Clamped to [erFloor, erCeiling].
+    */
   private def computeExchangeRate(
       in: StepInput,
       ca: PLN,
@@ -186,7 +209,11 @@ object OpenEconomy:
     val erChange    = p.forex.exRateAdjSpeed.toDouble * (-bopGdpRatio + nfaRisk) + fxErEffect
     Math.max(p.openEcon.erFloor, Math.min(p.openEcon.erCeiling, in.prevForex.exchangeRate * (1.0 + erChange)))
 
-  /** NFA valuation effect from ER changes (partial pass-through). */
+  /** NFA valuation adjustment from ER movement between periods. Not a flow
+    * through current account — purely a balance-sheet revaluation. Partial
+    * pass-through (30%): only a fraction of ER change reprices foreign assets.
+    * ΔNFA = CA + valuationEffect (accounting identity).
+    */
   private def computeValuationEffect(prevBop: BopState, prevExRate: Double, newExRate: Double): PLN =
     val erChange = (newExRate - prevExRate) / prevExRate
     prevBop.foreignAssets * (erChange * ValuationPassThrough)
