@@ -21,31 +21,51 @@ object OpenEconomyStep:
       s7: PriceEquityStep.Output,
   )
 
-  case class Output(
+  case class MonetaryPolicy(
+      newRefRate: Rate,
+      newExp: Expectations.State,
+      newBondYield: Rate,
+      qePurchaseAmount: PLN,
+      postFxNbp: Nbp.State,
+  )
+
+  case class BankingFlows(
+      totalReserveInterest: PLN,
+      totalStandingFacilityIncome: PLN,
+      totalInterbankInterest: PLN,
+      bankBondIncome: PLN,
+      nbpRemittance: PLN,
+      monthlyDebtService: PLN,
+  )
+
+  case class ExternalSector(
       newForex: OpenEconomy.ForexState,
       newBop: OpenEconomy.BopState,
       newGvc: GvcTrade.State,
-      newRefRate: Double,
-      newExp: Expectations.State,
-      totalReserveInterest: Double,
-      totalStandingFacilityIncome: Double,
-      totalInterbankInterest: Double,
-      newBondYield: Double,
-      monthlyDebtService: Double,
-      bankBondIncome: Double,
-      nbpRemittance: Double,
-      postFxNbp: Nbp.State,
-      qePurchaseAmount: Double,
+      oeValuationEffect: PLN,
+      fdiCitLoss: PLN,
+  )
+
+  case class CorporateBonds(
       newCorpBonds: CorporateBondMarket.State,
-      corpBondBankCoupon: Double,
-      corpBondBankDefaultLoss: Double,
-      corpBondAmort: Double,
+      corpBondBankCoupon: PLN,
+      corpBondBankDefaultLoss: PLN,
+      corpBondAmort: PLN,
+  )
+
+  case class NonBankFinancials(
       newInsurance: Insurance.State,
-      insNetDepositChange: Double,
+      insNetDepositChange: PLN,
       newNbfi: Nbfi.State,
-      nbfiDepositDrain: Double,
-      oeValuationEffect: Double,
-      fdiCitLoss: Double,
+      nbfiDepositDrain: PLN,
+  )
+
+  case class Output(
+      monetary: MonetaryPolicy,
+      banking: BankingFlows,
+      external: ExternalSector,
+      corpBonds: CorporateBonds,
+      nonBank: NonBankFinancials,
   )
 
   def run(in: Input)(using p: SimParams): Output =
@@ -104,7 +124,7 @@ object OpenEconomyStep:
           tourismImport = PLN(in.s6.tourismImport),
         ),
       )
-      (oeResult.forex, oeResult.bop, oeResult.valuationEffect.toDouble, oeResult.fxIntervention)
+      (oeResult.forex, oeResult.bop, oeResult.valuationEffect, oeResult.fxIntervention)
     else
       val fx = OpenEconomy.updateForeign(
         in.w.forex,
@@ -114,7 +134,7 @@ object OpenEconomyStep:
         in.w.nbp.referenceRate,
         PLN(in.s7.gdp),
       )
-      (fx, in.w.bop, 0.0, Nbp.FxInterventionResult(0.0, PLN.Zero, in.w.nbp.fxReserves))
+      (fx, in.w.bop, PLN.Zero, Nbp.FxInterventionResult(0.0, PLN.Zero, in.w.nbp.fxReserves))
 
     // Adjust BOP for foreign dividend outflow (primary income component) + EU funds tracking
     val newBop1          =
@@ -135,7 +155,7 @@ object OpenEconomyStep:
           totalImports = newBop1.totalImports + PLN(in.s5.sumProfitShifting),
         )
       else newBop1
-    val fdiCitLoss       = in.s5.sumProfitShifting * p.fiscal.citRate.toDouble
+    val fdiCitLoss       = PLN(in.s5.sumProfitShifting * p.fiscal.citRate.toDouble)
     val newBop           = newBop2.copy(
       euFundsMonthly = PLN(in.s7.euMonthly),
       euCumulativeAbsorption = in.w.bop.euCumulativeAbsorption + PLN(in.s7.euMonthly),
@@ -159,10 +179,10 @@ object OpenEconomyStep:
 
     // Reserve interest, standing facilities, interbank interest
     val bsec                        = in.w.bankingSector
-    val totalReserveInterest        = Banking.computeReserveInterest(bsec.banks, in.w.nbp.referenceRate).total.toDouble
+    val totalReserveInterest        = Banking.computeReserveInterest(bsec.banks, in.w.nbp.referenceRate).total
     val totalStandingFacilityIncome =
-      Banking.computeStandingFacilities(bsec.banks, in.w.nbp.referenceRate).total.toDouble
-    val totalInterbankInterest      = Banking.interbankInterestFlows(bsec.banks, bsec.interbankRate).total.toDouble
+      Banking.computeStandingFacilities(bsec.banks, in.w.nbp.referenceRate).total
+    val totalInterbankInterest      = Banking.interbankInterestFlows(bsec.banks, bsec.interbankRate).total
 
     // --- Bond market + QE ---
     val annualGdpForBonds = in.w.gdpProxy * 12.0
@@ -179,10 +199,10 @@ object OpenEconomyStep:
 
     // Debt service: use LAGGED bond stock
     val rawDebtService     = in.w.gov.bondsOutstanding.toDouble * newBondYield.toDouble / 12.0
-    val monthlyDebtService = Math.min(rawDebtService, in.w.gdpProxy * 0.50)
-    val bankBondIncome     = in.w.bank.govBondHoldings.toDouble * newBondYield.toDouble / 12.0
+    val monthlyDebtService = PLN(Math.min(rawDebtService, in.w.gdpProxy * 0.50))
+    val bankBondIncome     = PLN(in.w.bank.govBondHoldings.toDouble * newBondYield.toDouble / 12.0)
     val nbpBondIncome      = in.w.nbp.govBondHoldings.toDouble * newBondYield.toDouble / 12.0
-    val nbpRemittance      = nbpBondIncome - totalReserveInterest - totalStandingFacilityIncome
+    val nbpRemittance      = PLN(nbpBondIncome - totalReserveInterest.toDouble - totalStandingFacilityIncome.toDouble)
 
     // QE logic
     val qeActivate       = Nbp.shouldActivateQe(newRefRate, Rate(in.s7.newInfl))
@@ -194,7 +214,7 @@ object OpenEconomyStep:
     val preQeNbp         = Nbp.State(newRefRate, in.w.nbp.govBondHoldings, qeActive, in.w.nbp.qeCumulative, in.w.nbp.fxReserves, in.w.nbp.lastFxTraded)
     val qeResult         = Nbp.executeQe(preQeNbp, in.w.bank.govBondHoldings, PLN(annualGdpForBonds))
     val postQeNbp        = qeResult.state
-    val qePurchaseAmount = qeResult.purchased.toDouble
+    val qePurchaseAmount = qeResult.purchased
     val postFxNbp        = postQeNbp.copy(
       fxReserves = fxResult.newReserves,
       lastFxTraded = fxResult.eurTraded,
@@ -232,7 +252,7 @@ object OpenEconomyStep:
           in.w.financial.equity.monthlyReturn,
         )
       else in.w.financial.insurance
-    val insNetDepositChange = newInsurance.lastNetDepositChange.toDouble
+    val insNetDepositChange = newInsurance.lastNetDepositChange
 
     // --- Shadow Banking / NBFI step ---
     val nbfiDepositRate  = Rate(Math.max(0.0, postFxNbp.referenceRate.toDouble - 0.02))
@@ -253,31 +273,41 @@ object OpenEconomyStep:
           PLN(in.s3.domesticCons),
         )
       else in.w.financial.nbfi
-    val nbfiDepositDrain = newNbfi.lastDepositDrain.toDouble
+    val nbfiDepositDrain = newNbfi.lastDepositDrain
 
     Output(
-      newForex,
-      newBop,
-      newGvc,
-      newRefRate.toDouble,
-      newExp,
-      totalReserveInterest,
-      totalStandingFacilityIncome,
-      totalInterbankInterest,
-      newBondYield.toDouble,
-      monthlyDebtService,
-      bankBondIncome,
-      nbpRemittance,
-      postFxNbp,
-      qePurchaseAmount,
-      newCorpBonds,
-      corpBondCoupon.bank.toDouble,
-      corpBondDefaults.bankLoss.toDouble,
-      corpBondAmort.toDouble,
-      newInsurance,
-      insNetDepositChange,
-      newNbfi,
-      nbfiDepositDrain,
-      oeValuationEffect,
-      fdiCitLoss,
+      monetary = MonetaryPolicy(
+        newRefRate = newRefRate,
+        newExp = newExp,
+        newBondYield = newBondYield,
+        qePurchaseAmount = qePurchaseAmount,
+        postFxNbp = postFxNbp,
+      ),
+      banking = BankingFlows(
+        totalReserveInterest = totalReserveInterest,
+        totalStandingFacilityIncome = totalStandingFacilityIncome,
+        totalInterbankInterest = totalInterbankInterest,
+        bankBondIncome = bankBondIncome,
+        nbpRemittance = nbpRemittance,
+        monthlyDebtService = monthlyDebtService,
+      ),
+      external = ExternalSector(
+        newForex = newForex,
+        newBop = newBop,
+        newGvc = newGvc,
+        oeValuationEffect = oeValuationEffect,
+        fdiCitLoss = fdiCitLoss,
+      ),
+      corpBonds = CorporateBonds(
+        newCorpBonds = newCorpBonds,
+        corpBondBankCoupon = corpBondCoupon.bank,
+        corpBondBankDefaultLoss = corpBondDefaults.bankLoss,
+        corpBondAmort = corpBondAmort,
+      ),
+      nonBank = NonBankFinancials(
+        newInsurance = newInsurance,
+        insNetDepositChange = insNetDepositChange,
+        newNbfi = newNbfi,
+        nbfiDepositDrain = nbfiDepositDrain,
+      ),
     )
