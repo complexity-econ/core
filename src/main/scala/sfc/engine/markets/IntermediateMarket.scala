@@ -45,7 +45,8 @@ object IntermediateMarket:
     val arr      = in.firms.toArray
 
     // Identify living firms and compute per-firm gross output
-    val living      = arr.indices.filter(i => Firm.isAlive(arr(i)))
+    val living      = arr.indices.filter: i =>
+      Firm.isAlive(arr(i))
     val grossOutput = new Array[Double](arr.length)
     for i <- living do grossOutput(i) = Firm.computeCapacity(arr(i)).toDouble * in.sectorMults(arr(i).sector.toInt) * in.price
 
@@ -55,10 +56,10 @@ object IntermediateMarket:
 
     // Firms can only buy from sectors that have living suppliers.
     // Effective column sum for sector j = Sum_{i: hasFirms(i)} a_ij
-    val hasFirms         = (0 until nSectors).map(i => sectorOutput(i) > 0)
-    val effectiveColSums = (0 until nSectors).map { j =>
-      (0 until nSectors).filter(i => hasFirms(i)).map(i => in.ioMatrix(i)(j)).sum
-    }
+    val hasFirms         = (0 until nSectors).map: i =>
+      sectorOutput(i) > 0
+    val effectiveColSums = (0 until nSectors).map: j =>
+      (0 until nSectors).collect { case i if hasFirms(i) => in.ioMatrix(i)(j) }.sum
 
     // Revenue for sector i = Sum_j a_ij * sectorOutput_j (only from sectors with firms)
     val cashAdj = new Array[Double](arr.length)
