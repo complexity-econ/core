@@ -32,6 +32,11 @@ object IntermediateMarket:
       scale: Ratio = Ratio.One,
   )
 
+  /** @param firms
+    *   firms with cash adjusted for intermediate purchases/sales (zero-sum)
+    * @param totalPaid
+    *   aggregate intermediate input costs across all living firms
+    */
   case class Result(firms: Vector[Firm.State], totalPaid: PLN)
 
   def process(in: Input)(using SimParams): Result =
