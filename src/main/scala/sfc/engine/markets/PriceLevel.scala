@@ -9,10 +9,12 @@ import sfc.types.*
   * (wage growth pass-through), import push (exchange rate deviation × import
   * propensity), and tech deflation (automation + hybrid digitalization).
   *
-  * A soft floor at −1.5%/month models downward price stickiness: beyond the
-  * floor, deflation passes through at 30% (Bewley 1999, Schmitt-Grohé & Uribe
-  * 2016). Inflation is exponentially smoothed (λ=0.3) to avoid month-to-month
-  * noise.
+  * A soft floor at −1.5%/month with 30% pass-through approximates downward
+  * nominal rigidity (cf. Bewley 1999). These are calibration choices, not
+  * empirical estimates — a micro-founded pricing module (menu costs, Calvo
+  * staggering) would be a better long-term replacement.
+  *
+  * Inflation is exponentially smoothed (λ=0.3) to avoid month-to-month noise.
   */
 object PriceLevel:
 
