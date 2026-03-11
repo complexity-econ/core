@@ -61,7 +61,17 @@ object OpenEconomyStep:
 
     // GVC / Deep External Sector (v5.0)
     val newGvc =
-      if p.flags.gvc && p.flags.openEcon then GvcTrade.step(in.w.external.gvc, sectorOutputs, in.w.priceLevel, in.w.forex.exchangeRate, in.s7.autoR, in.s1.m)
+      if p.flags.gvc && p.flags.openEcon then
+        GvcTrade.step(
+          GvcTrade.StepInput(
+            prev = in.w.external.gvc,
+            sectorOutputs = sectorOutputs,
+            priceLevel = in.w.priceLevel,
+            exchangeRate = in.w.forex.exchangeRate,
+            autoRatio = in.s7.autoR,
+            month = in.s1.m,
+          ),
+        )
       else in.w.external.gvc
 
     val (gvcExp, gvcImp) =

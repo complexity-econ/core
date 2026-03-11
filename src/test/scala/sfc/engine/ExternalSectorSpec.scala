@@ -13,6 +13,14 @@ class ExternalSectorSpec extends AnyFlatSpec with Matchers:
 
   private val sectorOutputs = Vector(30000.0, 160000.0, 450000.0, 60000.0, 220000.0, 80000.0)
 
+  private def baseInput(
+      prev: GvcTrade.State = GvcTrade.initial,
+      er: Double = p.forex.baseExRate,
+      price: Double = 1.0,
+      autoR: Double = 0.0,
+      month: Int = 30,
+  ) = GvcTrade.StepInput(prev, sectorOutputs, price, er, autoR, month)
+
   // ---- Initialization ----
 
   "GvcTrade.zero" should "have empty foreign firms" in {
@@ -57,52 +65,44 @@ class ExternalSectorSpec extends AnyFlatSpec with Matchers:
   // ---- Step ----
 
   "GvcTrade.step" should "produce positive total exports" in {
-    val init = GvcTrade.initial
-    val r    = GvcTrade.step(init, sectorOutputs, 1.0, p.forex.baseExRate, 0.0, 30)
+    val r = GvcTrade.step(baseInput())
     r.totalExports.toDouble should be > 0.0
   }
 
   it should "produce positive total intermediate imports" in {
-    val init = GvcTrade.initial
-    val r    = GvcTrade.step(init, sectorOutputs, 1.0, p.forex.baseExRate, 0.0, 30)
+    val r = GvcTrade.step(baseInput())
     r.totalIntermImports.toDouble should be > 0.0
   }
 
   it should "evolve foreign price index upward" in {
-    val init = GvcTrade.initial
-    val r    = GvcTrade.step(init, sectorOutputs, 1.0, p.forex.baseExRate, 0.0, 30)
+    val r = GvcTrade.step(baseInput())
     r.foreignPriceIndex should be > 1.0
   }
 
   it should "have 6-element sector exports" in {
-    val init = GvcTrade.initial
-    val r    = GvcTrade.step(init, sectorOutputs, 1.0, p.forex.baseExRate, 0.0, 30)
+    val r = GvcTrade.step(baseInput())
     r.sectorExports.length shouldBe 6
     r.sectorExports.map(_.toDouble).foreach(_ should be >= 0.0)
   }
 
   it should "have 6-element sector imports" in {
-    val init = GvcTrade.initial
-    val r    = GvcTrade.step(init, sectorOutputs, 1.0, p.forex.baseExRate, 0.0, 30)
+    val r = GvcTrade.step(baseInput())
     r.sectorImports.length shouldBe 6
     r.sectorImports.map(_.toDouble).foreach(_ should be >= 0.0)
   }
 
   it should "increase exports with higher automation" in {
-    val init = GvcTrade.initial
-    val r0   = GvcTrade.step(init, sectorOutputs, 1.0, p.forex.baseExRate, 0.0, 30)
-    val r1   = GvcTrade.step(init, sectorOutputs, 1.0, p.forex.baseExRate, 0.5, 30)
+    val r0 = GvcTrade.step(baseInput(autoR = 0.0))
+    val r1 = GvcTrade.step(baseInput(autoR = 0.5))
     r1.totalExports.toDouble should be > r0.totalExports.toDouble
   }
 
   it should "have zero disruption when no shock applied" in {
-    val init = GvcTrade.initial
-    val r    = GvcTrade.step(init, sectorOutputs, 1.0, p.forex.baseExRate, 0.0, 30)
+    val r = GvcTrade.step(baseInput())
     r.disruptionIndex.toDouble shouldBe 0.0
   }
 
   it should "have import cost index >= 1.0 (foreign inflation)" in {
-    val init = GvcTrade.initial
-    val r    = GvcTrade.step(init, sectorOutputs, 1.0, p.forex.baseExRate, 0.0, 30)
+    val r = GvcTrade.step(baseInput())
     r.importCostIndex should be >= 1.0
   }
