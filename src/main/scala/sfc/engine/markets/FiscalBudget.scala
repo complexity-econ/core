@@ -37,8 +37,9 @@ object FiscalBudget:
       customsDutyRevenue: Double = 0.0,
       govPurchasesActual: Double = 0.0,
   )(using p: SimParams): GovState =
-    val govBaseRaw = if govPurchasesActual > 0 then govPurchasesActual
-                     else p.fiscal.govBaseSpending.toDouble * priceLevel
+    val govBaseRaw =
+      if govPurchasesActual > 0 then govPurchasesActual
+      else p.fiscal.govBaseSpending.toDouble * priceLevel
 
     val (govCurrent, govCapital) =
       if p.flags.govInvest then
