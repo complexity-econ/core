@@ -15,24 +15,24 @@ import sfc.util.KahanSum.*
 object LaborDemographicsStep:
 
   case class Input(
-      w: World,
-      firms: Vector[Firm.State],
-      households: Vector[Household.State],
-      s1: FiscalConstraintStep.Output,
+      w: World,                            // current world state
+      firms: Vector[Firm.State],           // pre-step firm population
+      households: Vector[Household.State], // pre-step household population
+      s1: FiscalConstraintStep.Output,     // fiscal constraint (reservation wage, lending base rate)
   )
 
   case class Output(
-      newWage: PLN,
-      employed: Int,
-      laborDemand: Int,
-      wageGrowth: Ratio,
-      newImmig: Immigration.State,
-      netMigration: Int,
-      newDemographics: SocialSecurity.DemographicsState,
-      newZus: SocialSecurity.ZusState,
-      newPpk: SocialSecurity.PpkState,
-      rawPpkBondPurchase: PLN,
-      living: Vector[Firm.State],
+      newWage: PLN,                                      // market-clearing wage after Phillips curve + expectations + union adjustments
+      employed: Int,                                     // total employed workers across all living firms
+      laborDemand: Int,                                  // aggregate labor demand (sum of firm worker counts)
+      wageGrowth: Ratio,                                 // month-on-month nominal wage growth rate
+      newImmig: Immigration.State,                       // updated immigration state (inflows, outflows)
+      netMigration: Int,                                 // net migration this month (inflow minus outflow)
+      newDemographics: SocialSecurity.DemographicsState, // updated demographics (working-age pop, retirees)
+      newZus: SocialSecurity.ZusState,                   // updated ZUS pension system (contributions, payouts)
+      newPpk: SocialSecurity.PpkState,                   // updated PPK capital pillar (bond holdings)
+      rawPpkBondPurchase: PLN,                           // PPK monthly gov bond purchase before supply cap
+      living: Vector[Firm.State],                        // surviving firms (bankrupt firms filtered out)
   )
 
   def run(in: Input)(using p: SimParams): Output =

@@ -19,11 +19,11 @@ object FiscalConstraintStep:
   case class Input(w: World) // current world state
 
   case class Output(
-      m: Int,
-      baseMinWage: PLN,
-      updatedMinWagePriceLevel: Double,
-      resWage: PLN,
-      lendingBaseRate: Rate,
+      m: Int,                           // current simulation month (1-based)
+      baseMinWage: PLN,                 // inflation-indexed minimum wage level
+      updatedMinWagePriceLevel: Double, // price level at last minimum wage adjustment
+      resWage: PLN,                     // reservation wage (floor for labor market clearing)
+      lendingBaseRate: Rate,            // blended base rate for bank lending (interbank + expectations)
   )
 
   def run(in: Input)(using p: SimParams): Output =

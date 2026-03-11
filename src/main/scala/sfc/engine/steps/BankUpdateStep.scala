@@ -72,44 +72,44 @@ object BankUpdateStep:
   // --- Intermediate result types for sub-methods ---
 
   private case class GovJstResult(
-      newGovWithYield: FiscalBudget.GovState,
-      newJst: Jst.State,
-      jstDepositChange: PLN,
-      tax: TaxRevenue.Output,
+      newGovWithYield: FiscalBudget.GovState, // updated government state with bond yield
+      newJst: Jst.State,                      // updated local government (JST) state
+      jstDepositChange: PLN,                  // net JST deposit flow into banking sector
+      tax: TaxRevenue.Output,                 // computed tax revenues (VAT, excise, customs, PIT)
   )
 
   private case class HousingResult(
-      housingAfterFlows: HousingMarket.State,
-      mortgageFlows: HousingMarket.MortgageFlows,
+      housingAfterFlows: HousingMarket.State,    // housing market state after origination and mortgage flows
+      mortgageFlows: HousingMarket.MortgageFlows, // monthly mortgage cash flows (interest, principal, defaults)
   )
 
   private case class BondAllocations(
-      finalPpk: SocialSecurity.PpkState,
-      finalInsurance: Insurance.State,
-      finalNbfi: Nbfi.State,
-      ppkBondPurchase: PLN,
-      insBondPurchase: PLN,
-      tfiBondPurchase: PLN,
-      actualBondChange: PLN,
+      finalPpk: SocialSecurity.PpkState, // PPK state after gov bond purchase
+      finalInsurance: Insurance.State,   // insurance state after gov bond allocation
+      finalNbfi: Nbfi.State,             // NBFI/TFI state after gov bond allocation
+      ppkBondPurchase: PLN,              // PPK gov bond purchase (supply-capped)
+      insBondPurchase: PLN,              // insurance sector gov bond purchase (supply-capped)
+      tfiBondPurchase: PLN,              // TFI fund gov bond purchase (supply-capped)
+      actualBondChange: PLN,             // net change in government bonds outstanding
   )
 
   private case class PerBankHhFlows(
-      incomeShare: PLN,
-      consShare: PLN,
-      hhDebtService: PLN,
-      depInterest: PLN,
-      ccDebtService: PLN,
-      ccOrigination: PLN,
-      ccDefault: PLN,
+      incomeShare: PLN,   // household income allocated to this bank
+      consShare: PLN,     // household consumption allocated to this bank
+      hhDebtService: PLN, // mortgage debt service payments to this bank
+      depInterest: PLN,   // deposit interest paid by this bank to households
+      ccDebtService: PLN, // consumer credit debt service to this bank
+      ccOrigination: PLN, // new consumer credit originated at this bank
+      ccDefault: PLN,     // consumer credit defaults at this bank
   )
 
   private case class MultiBankResult(
-      finalBankingSector: Banking.State,
-      reassignedFirms: Vector[Firm.State],
-      reassignedHouseholds: Vector[Household.State],
-      bailInLoss: PLN,
-      multiCapDestruction: PLN,
-      resolvedBank: Banking.Aggregate,
+      finalBankingSector: Banking.State,             // final banking sector state after interbank clearing and resolution
+      reassignedFirms: Vector[Firm.State],           // firms reassigned from failed banks to absorber bank
+      reassignedHouseholds: Vector[Household.State], // households reassigned from failed banks to absorber bank
+      bailInLoss: PLN,                               // total bail-in losses imposed on depositors
+      multiCapDestruction: PLN,                      // capital destroyed by bank failures this month
+      resolvedBank: Banking.Aggregate,               // aggregate banking sector after resolution
   )
 
   def run(in: Input)(using p: SimParams): Output =
