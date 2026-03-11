@@ -15,11 +15,11 @@ object DemandStep:
   )
 
   case class Output(
-      govPurchases: Double,
+      govPurchases: PLN,
       sectorMults: Vector[Double],
       avgDemandMult: Double,
       sectorCap: Vector[Double],
-      laggedInvestDemand: Double,
+      laggedInvestDemand: PLN,
   )
 
   def run(in: Input)(using p: SimParams): Output =
@@ -45,7 +45,7 @@ object DemandStep:
     val laggedInvestDemand = in.w.real.grossInvestment.toDouble * (1.0 - p.capital.importShare.toDouble) +
       in.w.real.aggGreenInvestment.toDouble * (1.0 - p.climate.greenImportShare.toDouble)
     val sectorDemand       = (0 until p.sectorDefs.length).map { s =>
-      p.fiscal.fofConsWeights.map(_.toDouble)(s) * in.s3.domesticCons +
+      p.fiscal.fofConsWeights.map(_.toDouble)(s) * in.s3.domesticCons.toDouble +
         p.fiscal.fofGovWeights.map(_.toDouble)(s) * govPurchases +
         p.fiscal.fofInvestWeights.map(_.toDouble)(s) * laggedInvestDemand +
         sectorExports(s)
@@ -73,4 +73,4 @@ object DemandStep:
     val avgDemandMult      =
       (if totalCapacity > 0 then fofTotalDemand / (totalCapacity * in.w.priceLevel) else 1.0) + realRateEffect
 
-    Output(govPurchases, sectorMults, avgDemandMult, sectorCap, laggedInvestDemand)
+    Output(PLN(govPurchases), sectorMults, avgDemandMult, sectorCap, PLN(laggedInvestDemand))

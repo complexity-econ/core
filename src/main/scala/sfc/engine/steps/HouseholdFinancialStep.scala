@@ -2,6 +2,7 @@ package sfc.engine.steps
 
 import sfc.config.SimParams
 import sfc.engine.World
+import sfc.types.*
 
 object HouseholdFinancialStep:
 
@@ -13,17 +14,17 @@ object HouseholdFinancialStep:
   )
 
   case class Output(
-      hhDebtService: Double,
-      depositInterestPaid: Double,
-      remittanceOutflow: Double,
-      diasporaInflow: Double,
-      tourismExport: Double,
-      tourismImport: Double,
-      consumerDebtService: Double,
-      consumerOrigination: Double,
-      consumerDefaultAmt: Double,
-      consumerNplLoss: Double,
-      consumerPrincipal: Double,
+      hhDebtService: PLN,
+      depositInterestPaid: PLN,
+      remittanceOutflow: PLN,
+      diasporaInflow: PLN,
+      tourismExport: PLN,
+      tourismImport: PLN,
+      consumerDebtService: PLN,
+      consumerOrigination: PLN,
+      consumerDefaultAmt: PLN,
+      consumerNplLoss: PLN,
+      consumerPrincipal: PLN,
   )
 
   def run(in: Input)(using p: SimParams): Output =
@@ -80,15 +81,15 @@ object HouseholdFinancialStep:
     val consumerPrincipal   = in.s3.hhAgg.totalConsumerPrincipal.toDouble
 
     Output(
-      hhDebtService,
-      depositInterestPaid,
-      remittanceOutflow,
-      diasporaInflow,
-      tourismExport,
-      tourismImport,
-      consumerDebtService,
-      consumerOrigination,
-      consumerDefaultAmt,
-      consumerNplLoss,
-      consumerPrincipal,
+      PLN(hhDebtService),
+      PLN(depositInterestPaid),
+      PLN(remittanceOutflow),
+      PLN(diasporaInflow),
+      PLN(tourismExport),
+      PLN(tourismImport),
+      PLN(consumerDebtService),
+      PLN(consumerOrigination),
+      PLN(consumerDefaultAmt),
+      PLN(consumerNplLoss),
+      PLN(consumerPrincipal),
     )

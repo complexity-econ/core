@@ -11,10 +11,10 @@ object FiscalConstraintStep:
 
   case class Output(
       m: Int,
-      baseMinWage: Double,
+      baseMinWage: PLN,
       updatedMinWagePriceLevel: Double,
-      resWage: Double,
-      lendingBaseRate: Double,
+      resWage: PLN,
+      lendingBaseRate: Rate,
   )
 
   def run(in: Input)(using p: SimParams): Output =
@@ -47,4 +47,4 @@ object FiscalConstraintStep:
       if p.flags.expectations then 0.5 * rawLendingBaseRate + 0.5 * w.mechanisms.expectations.expectedRate.toDouble
       else rawLendingBaseRate
 
-    Output(m, baseMinWage, updatedMinWagePriceLevel, resWage, lendingBaseRate)
+    Output(m, PLN(baseMinWage), updatedMinWagePriceLevel, PLN(resWage), Rate(lendingBaseRate))

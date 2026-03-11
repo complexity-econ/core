@@ -168,7 +168,7 @@ object OpenEconomyStep:
           sectorOutputs = sectorOutputs.map(_.toDouble),
           priceLevel = in.w.priceLevel,
           exchangeRate = in.w.forex.exchangeRate,
-          autoRatio = in.s7.autoR,
+          autoRatio = in.s7.autoR.toDouble,
           month = in.s1.m,
         ),
       )
@@ -185,61 +185,61 @@ object OpenEconomyStep:
         OpenEconomy.StepInput(
           prevBop = in.w.bop,
           prevForex = in.w.forex,
-          importCons = PLN(in.s3.importCons),
-          techImports = PLN(totalTechAndInvImports),
-          autoRatio = Ratio(in.s7.autoR),
+          importCons = in.s3.importCons,
+          techImports = totalTechAndInvImports,
+          autoRatio = in.s7.autoR,
           domesticRate = in.w.nbp.referenceRate,
-          gdp = PLN(in.s7.gdp),
+          gdp = in.s7.gdp,
           priceLevel = in.w.priceLevel,
           sectorOutputs = sectorOutputs,
           month = in.s1.m,
           nbpFxReserves = in.w.nbp.fxReserves,
           gvcExports = gvcExp,
           gvcIntermImports = gvcImp,
-          remittanceOutflow = PLN(in.s6.remittanceOutflow),
-          euFundsMonthly = PLN(in.s7.euMonthly),
-          diasporaInflow = PLN(in.s6.diasporaInflow),
-          tourismExport = PLN(in.s6.tourismExport),
-          tourismImport = PLN(in.s6.tourismImport),
+          remittanceOutflow = in.s6.remittanceOutflow,
+          euFundsMonthly = in.s7.euMonthly,
+          diasporaInflow = in.s6.diasporaInflow,
+          tourismExport = in.s6.tourismExport,
+          tourismImport = in.s6.tourismImport,
         ),
       )
       ForexResult(oeResult.forex, oeResult.bop, oeResult.valuationEffect, oeResult.fxIntervention)
     else
       val fx = OpenEconomy.updateForeign(
         in.w.forex,
-        PLN(in.s3.importCons),
-        PLN(totalTechAndInvImports),
-        Ratio(in.s7.autoR),
+        in.s3.importCons,
+        totalTechAndInvImports,
+        in.s7.autoR,
         in.w.nbp.referenceRate,
-        PLN(in.s7.gdp),
+        in.s7.gdp,
       )
       ForexResult(fx, in.w.bop, PLN.Zero, Nbp.FxInterventionResult(0.0, PLN.Zero, in.w.nbp.fxReserves))
 
   private def adjustBop(in: Input, bop0: OpenEconomy.BopState)(using p: SimParams): (OpenEconomy.BopState, PLN) =
     // Adjust BOP for foreign dividend outflow (primary income component)
     val bop1             =
-      if in.s7.foreignDividendOutflow > 0 && p.flags.openEcon then
+      if in.s7.foreignDividendOutflow > PLN.Zero && p.flags.openEcon then
         bop0.copy(
-          currentAccount = bop0.currentAccount - PLN(in.s7.foreignDividendOutflow),
-          nfa = bop0.nfa - PLN(in.s7.foreignDividendOutflow),
+          currentAccount = bop0.currentAccount - in.s7.foreignDividendOutflow,
+          nfa = bop0.nfa - in.s7.foreignDividendOutflow,
         )
       else bop0
     // FDI composition (#33): profit shifting (service import) + repatriation (primary income debit)
     val fdiTotalBopDebit = in.s5.sumProfitShifting + in.s5.sumFdiRepatriation
     val bop2             =
-      if fdiTotalBopDebit > 0 && p.flags.fdi && p.flags.openEcon then
+      if fdiTotalBopDebit > PLN.Zero && p.flags.fdi && p.flags.openEcon then
         bop1.copy(
-          currentAccount = bop1.currentAccount - PLN(fdiTotalBopDebit),
-          nfa = bop1.nfa - PLN(fdiTotalBopDebit),
-          tradeBalance = bop1.tradeBalance - PLN(in.s5.sumProfitShifting),
-          totalImports = bop1.totalImports + PLN(in.s5.sumProfitShifting),
+          currentAccount = bop1.currentAccount - fdiTotalBopDebit,
+          nfa = bop1.nfa - fdiTotalBopDebit,
+          tradeBalance = bop1.tradeBalance - in.s5.sumProfitShifting,
+          totalImports = bop1.totalImports + in.s5.sumProfitShifting,
         )
       else bop1
-    val fdiCitLoss       = PLN(in.s5.sumProfitShifting * p.fiscal.citRate.toDouble)
+    val fdiCitLoss       = in.s5.sumProfitShifting * p.fiscal.citRate.toDouble
     // EU funds tracking
     val bop              = bop2.copy(
-      euFundsMonthly = PLN(in.s7.euMonthly),
-      euCumulativeAbsorption = in.w.bop.euCumulativeAbsorption + PLN(in.s7.euMonthly),
+      euFundsMonthly = in.s7.euMonthly,
+      euCumulativeAbsorption = in.w.bop.euCumulativeAbsorption + in.s7.euMonthly,
     )
     (bop, fdiCitLoss)
 
@@ -260,14 +260,14 @@ object OpenEconomyStep:
     val exRateChg       = (newForex.exchangeRate / in.w.forex.exchangeRate) - 1.0
     val newRefRate      = Nbp.updateRate(
       in.w.nbp.referenceRate,
-      Rate(in.s7.newInfl),
+      in.s7.newInfl,
       exRateChg,
       in.s2.employed,
       in.w.totalPopulation,
     )
     val unempRateForExp = 1.0 - in.s2.employed.toDouble / in.w.totalPopulation
     val newExp          =
-      if p.flags.expectations then Expectations.step(in.w.mechanisms.expectations, in.s7.newInfl, newRefRate.toDouble, unempRateForExp)
+      if p.flags.expectations then Expectations.step(in.w.mechanisms.expectations, in.s7.newInfl.toDouble, newRefRate.toDouble, unempRateForExp)
       else in.w.mechanisms.expectations
     RateExpResult(newRefRate, newExp)
 
@@ -305,8 +305,8 @@ object OpenEconomyStep:
     val nbpRemittance      = PLN(nbpBondIncome - interbank.reserveInterest.toDouble - interbank.standingFacilityIncome.toDouble)
 
     // QE logic
-    val qeActivate       = Nbp.shouldActivateQe(newRefRate, Rate(in.s7.newInfl))
-    val qeTaper          = Nbp.shouldTaperQe(Rate(in.s7.newInfl))
+    val qeActivate       = Nbp.shouldActivateQe(newRefRate, in.s7.newInfl)
+    val qeTaper          = Nbp.shouldTaperQe(in.s7.newInfl)
     val qeActive         =
       if qeActivate then true
       else if qeTaper then false
@@ -327,13 +327,13 @@ object OpenEconomyStep:
           prev = in.w.financial.corporateBonds,
           govBondYield = newBondYield,
           nplRatio = in.w.bank.nplRatio,
-          totalBondDefault = PLN(in.s5.totalBondDefault),
-          totalBondIssuance = PLN(in.s5.actualBondIssuance),
+          totalBondDefault = in.s5.totalBondDefault,
+          totalBondIssuance = in.s5.actualBondIssuance,
         ),
       )
-      .copy(lastAbsorptionRate = Ratio(in.s5.corpBondAbsorption))
+      .copy(lastAbsorptionRate = in.s5.corpBondAbsorption)
     val corpBondCoupon   = CorporateBondMarket.computeCoupon(in.w.financial.corporateBonds)
-    val corpBondDefaults = CorporateBondMarket.processDefaults(in.w.financial.corporateBonds, PLN(in.s5.totalBondDefault))
+    val corpBondDefaults = CorporateBondMarket.processDefaults(in.w.financial.corporateBonds, in.s5.totalBondDefault)
     CorporateBonds(
       newCorpBonds = newCorpBonds,
       corpBondBankCoupon = corpBondCoupon.bank,
@@ -348,7 +348,7 @@ object OpenEconomyStep:
         Insurance.step(
           in.w.financial.insurance,
           in.s2.employed,
-          PLN(in.s2.newWage),
+          in.s2.newWage,
           in.w.priceLevel,
           unempRate,
           newBondYield,
@@ -366,7 +366,7 @@ object OpenEconomyStep:
         Nbfi.step(
           in.w.financial.nbfi,
           in.s2.employed,
-          PLN(in.s2.newWage),
+          in.s2.newWage,
           in.w.priceLevel,
           nbfiUnempRate,
           in.w.bank.nplRatio,
@@ -374,7 +374,7 @@ object OpenEconomyStep:
           in.w.financial.corporateBonds.corpBondYield,
           in.w.financial.equity.monthlyReturn,
           nbfiDepositRate,
-          PLN(in.s3.domesticCons),
+          in.s3.domesticCons,
         )
       else in.w.financial.nbfi
     NbfiResult(newNbfi)

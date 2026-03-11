@@ -24,27 +24,27 @@ object FirmProcessingStep:
   case class Output(
       ioFirms: Vector[Firm.State],
       households: Vector[Household.State],
-      sumTax: Double,
-      sumCapex: Double,
-      sumTechImp: Double,
-      sumNewLoans: Double,
-      sumEquityIssuance: Double,
-      sumGrossInvestment: Double,
-      sumBondIssuance: Double,
-      sumProfitShifting: Double,
-      sumFdiRepatriation: Double,
-      sumInventoryChange: Double,
-      sumCitEvasion: Double,
-      sumEnergyCost: Double,
-      sumGreenInvestment: Double,
-      totalIoPaid: Double,
-      nplNew: Double,
-      nplLoss: Double,
-      totalBondDefault: Double,
+      sumTax: PLN,
+      sumCapex: PLN,
+      sumTechImp: PLN,
+      sumNewLoans: PLN,
+      sumEquityIssuance: PLN,
+      sumGrossInvestment: PLN,
+      sumBondIssuance: PLN,
+      sumProfitShifting: PLN,
+      sumFdiRepatriation: PLN,
+      sumInventoryChange: PLN,
+      sumCitEvasion: PLN,
+      sumEnergyCost: PLN,
+      sumGreenInvestment: PLN,
+      totalIoPaid: PLN,
+      nplNew: PLN,
+      nplLoss: PLN,
+      totalBondDefault: PLN,
       firmDeaths: Int,
-      intIncome: Double,
-      corpBondAbsorption: Double,
-      actualBondIssuance: Double,
+      intIncome: PLN,
+      corpBondAbsorption: Ratio,
+      actualBondIssuance: PLN,
       netMigration: Int,
       perBankNewLoans: Vector[Double],
       perBankNplDebt: Vector[Double],
@@ -63,7 +63,7 @@ object FirmProcessingStep:
     val perBankWorkers   = new Array[Int](nBanks)
 
     val currentCcyb                          = in.w.mechanisms.macropru.ccyb
-    val rates                                = bsec.banks.zip(bsec.configs).map((b, cfg) => Banking.lendingRate(b, cfg, Rate(in.s1.lendingBaseRate)))
+    val rates                                = bsec.banks.zip(bsec.configs).map((b, cfg) => Banking.lendingRate(b, cfg, in.s1.lendingBaseRate))
     val getFirmRate: Int => Rate             = (bankId: Int) => rates(bankId)
     val bankCanLendFn: (Int, PLN) => Boolean =
       (bankId: Int, amt: PLN) => Banking.canLend(bsec.banks(bankId), amt, rng, currentCcyb)
@@ -87,7 +87,7 @@ object FirmProcessingStep:
     val macro4firms = in.w.copy(
       month = in.s1.m,
       flows = in.w.flows.copy(sectorDemandMult = in.s4.sectorMults),
-      hhAgg = in.w.hhAgg.copy(marketWage = PLN(in.s2.newWage), reservationWage = PLN(in.s1.resWage)),
+      hhAgg = in.w.hhAgg.copy(marketWage = in.s2.newWage, reservationWage = in.s1.resWage),
     )
 
     val firmBondAmounts = scala.collection.mutable.HashMap.empty[FirmId, Double]
@@ -185,9 +185,9 @@ object FirmProcessingStep:
 
     var postFirmCrossSectorHires = 0
     val afterSep                 = LaborMarket.separations(in.s3.updatedHouseholds, in.firms, ioFirms)
-    val searchResult             = LaborMarket.jobSearch(afterSep, ioFirms, PLN(in.s2.newWage), rng)
+    val searchResult             = LaborMarket.jobSearch(afterSep, ioFirms, in.s2.newWage, rng)
     postFirmCrossSectorHires += searchResult.crossSectorHires
-    val preMigrationHouseholds   = LaborMarket.updateWages(searchResult.households, PLN(in.s2.newWage))
+    val preMigrationHouseholds   = LaborMarket.updateWages(searchResult.households, in.s2.newWage)
 
     val finalHouseholds =
       if p.flags.immigration then
@@ -214,27 +214,27 @@ object FirmProcessingStep:
     Output(
       ioFirms = ioFirms,
       households = finalHouseholds,
-      sumTax = sumTax,
-      sumCapex = sumCapex,
-      sumTechImp = sumTechImp,
-      sumNewLoans = sumNewLoans,
-      sumEquityIssuance = sumEquityIssuance,
-      sumGrossInvestment = sumGrossInvestment,
-      sumBondIssuance = sumBondIssuance,
-      sumProfitShifting = sumProfitShifting,
-      sumFdiRepatriation = sumFdiRepatriation,
-      sumInventoryChange = sumInventoryChange,
-      sumCitEvasion = sumCitEvasion,
-      sumEnergyCost = sumEnergyCost,
-      sumGreenInvestment = sumGreenInvestment,
-      totalIoPaid = totalIoPaid,
-      nplNew = nplNew,
-      nplLoss = nplLoss,
-      totalBondDefault = totalBondDefault,
+      sumTax = PLN(sumTax),
+      sumCapex = PLN(sumCapex),
+      sumTechImp = PLN(sumTechImp),
+      sumNewLoans = PLN(sumNewLoans),
+      sumEquityIssuance = PLN(sumEquityIssuance),
+      sumGrossInvestment = PLN(sumGrossInvestment),
+      sumBondIssuance = PLN(sumBondIssuance),
+      sumProfitShifting = PLN(sumProfitShifting),
+      sumFdiRepatriation = PLN(sumFdiRepatriation),
+      sumInventoryChange = PLN(sumInventoryChange),
+      sumCitEvasion = PLN(sumCitEvasion),
+      sumEnergyCost = PLN(sumEnergyCost),
+      sumGreenInvestment = PLN(sumGreenInvestment),
+      totalIoPaid = PLN(totalIoPaid),
+      nplNew = PLN(nplNew),
+      nplLoss = PLN(nplLoss),
+      totalBondDefault = PLN(totalBondDefault),
       firmDeaths = firmDeaths,
-      intIncome = intIncome,
-      corpBondAbsorption = corpBondAbsorption,
-      actualBondIssuance = actualBondIssuance,
+      intIncome = PLN(intIncome),
+      corpBondAbsorption = Ratio(corpBondAbsorption),
+      actualBondIssuance = PLN(actualBondIssuance),
       netMigration = netMigration,
       perBankNewLoans = perBankNewLoans.toVector,
       perBankNplDebt = perBankNplDebt.toVector,
