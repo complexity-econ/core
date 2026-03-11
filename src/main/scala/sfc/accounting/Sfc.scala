@@ -175,6 +175,176 @@ object Sfc:
     */
   type SfcResult = Either[Vector[SfcIdentityError], Unit]
 
+  /** All primitive values needed to assemble MonthlyFlows.
+    *
+    * This input is constructed in WorldAssemblyStep from step outputs. Keeping
+    * the factory method here avoids coupling `sfc.accounting` to
+    * `sfc.engine.steps` output types while giving MonthlyFlows construction a
+    * single source of truth.
+    */
+  case class BuildFlowsInput(
+      // Government
+      unempBenefitSpend: PLN,
+      socialTransferSpend: PLN,
+      govPurchases: PLN,
+      monthlyDebtService: PLN,
+      zusGovSubvention: PLN,
+      euCofin: PLN,
+      // Revenue
+      sumCit: PLN,
+      dividendTax: PLN,
+      pitAfterEvasion: PLN,
+      vatAfterEvasion: PLN,
+      nbpRemittance: PLN,
+      exciseAfterEvasion: PLN,
+      customsDutyRevenue: PLN,
+      // Bank / loans
+      nplLoss: PLN,
+      intIncome: PLN,
+      hhDebtService: PLN,
+      sumNewLoans: PLN,
+      nplNew: PLN,
+      loanRecoveryRate: Ratio,
+      // Deposit / monetary plumbing
+      totalIncome: PLN,
+      consumption: PLN,
+      depositInterestPaid: PLN,
+      reserveInterest: PLN,
+      standingFacilityIncome: PLN,
+      interbankInterest: PLN,
+      bankBondIncome: PLN,
+      // Open economy
+      currentAccount: PLN,
+      valuationEffect: PLN,
+      qePurchaseAmount: PLN,
+      govBondMarketEnabled: Boolean,
+      actualBondChange: PLN,
+      // Equity / dividends
+      netDomesticDividends: PLN,
+      foreignDividendOutflow: PLN,
+      // Housing / mortgages
+      mortgageInterestIncome: PLN,
+      mortgageDefaultLoss: PLN,
+      mortgageOrigination: PLN,
+      mortgagePrincipal: PLN,
+      mortgageDefaultAmount: PLN,
+      // Remittances / tourism
+      remittanceOutflow: PLN,
+      diasporaInflow: PLN,
+      tourismExport: PLN,
+      tourismImport: PLN,
+      // Consumer credit
+      consumerDebtService: PLN,
+      consumerNplLoss: PLN,
+      consumerOrigination: PLN,
+      consumerPrincipal: PLN,
+      consumerDefaultAmt: PLN,
+      // Corporate bonds
+      corpBondBankCoupon: PLN,
+      corpBondBankDefaultLoss: PLN,
+      actualBondIssuance: PLN,
+      corpBondAmort: PLN,
+      totalBondDefault: PLN,
+      // Non-bank financials
+      insNetDepositChange: PLN,
+      nbfiDepositDrain: PLN,
+      nbfiOrigination: PLN,
+      nbfiRepayment: PLN,
+      nbfiDefaultAmount: PLN,
+      // FDI
+      sumProfitShifting: PLN,
+      sumFdiRepatriation: PLN,
+      // JST
+      jstDepositChange: PLN,
+      jstSpending: PLN,
+      jstRevenue: PLN,
+      // ZUS
+      zusContributions: PLN,
+      zusPensionPayments: PLN,
+      // BFG / bail-in
+      bfgLevy: PLN,
+      bailInLoss: PLN,
+      multiCapDestruction: PLN,
+      // Other
+      investNetDepositFlow: PLN,
+      fofResidual: PLN,
+  )
+
+  /** Construct MonthlyFlows from pre-computed step values.
+    *
+    * Pure function — all inputs are explicit in BuildFlowsInput.
+    */
+  def buildMonthlyFlows(in: BuildFlowsInput): MonthlyFlows =
+    MonthlyFlows(
+      govSpending = PLN(
+        in.unempBenefitSpend.toDouble
+          + in.socialTransferSpend.toDouble
+          + in.govPurchases.toDouble + in.monthlyDebtService.toDouble + in.zusGovSubvention.toDouble
+          + in.euCofin.toDouble,
+      ),
+      govRevenue = PLN(
+        in.sumCit.toDouble + in.dividendTax.toDouble + in.pitAfterEvasion.toDouble
+          + in.vatAfterEvasion.toDouble + in.nbpRemittance.toDouble
+          + in.exciseAfterEvasion.toDouble + in.customsDutyRevenue.toDouble,
+      ),
+      nplLoss = in.nplLoss,
+      interestIncome = in.intIncome,
+      hhDebtService = in.hhDebtService,
+      totalIncome = in.totalIncome,
+      totalConsumption = in.consumption,
+      newLoans = in.sumNewLoans,
+      nplRecovery = PLN(in.nplNew.toDouble * in.loanRecoveryRate.toDouble),
+      currentAccount = in.currentAccount,
+      valuationEffect = in.valuationEffect,
+      bankBondIncome = in.bankBondIncome,
+      qePurchase = in.qePurchaseAmount,
+      newBondIssuance = if in.govBondMarketEnabled then in.actualBondChange else PLN.Zero,
+      depositInterestPaid = in.depositInterestPaid,
+      reserveInterest = in.reserveInterest,
+      standingFacilityIncome = in.standingFacilityIncome,
+      interbankInterest = in.interbankInterest,
+      jstDepositChange = in.jstDepositChange,
+      jstSpending = in.jstSpending,
+      jstRevenue = in.jstRevenue,
+      zusContributions = in.zusContributions,
+      zusPensionPayments = in.zusPensionPayments,
+      zusGovSubvention = in.zusGovSubvention,
+      dividendIncome = in.netDomesticDividends,
+      foreignDividendOutflow = in.foreignDividendOutflow,
+      dividendTax = in.dividendTax,
+      mortgageInterestIncome = in.mortgageInterestIncome,
+      mortgageNplLoss = in.mortgageDefaultLoss,
+      mortgageOrigination = in.mortgageOrigination,
+      mortgagePrincipalRepaid = in.mortgagePrincipal,
+      mortgageDefaultAmount = in.mortgageDefaultAmount,
+      remittanceOutflow = in.remittanceOutflow,
+      fofResidual = in.fofResidual,
+      consumerDebtService = in.consumerDebtService,
+      consumerNplLoss = in.consumerNplLoss,
+      consumerOrigination = in.consumerOrigination,
+      consumerPrincipalRepaid = in.consumerPrincipal,
+      consumerDefaultAmount = in.consumerDefaultAmt,
+      corpBondCouponIncome = in.corpBondBankCoupon,
+      corpBondDefaultLoss = in.corpBondBankDefaultLoss,
+      corpBondIssuance = in.actualBondIssuance,
+      corpBondAmortization = in.corpBondAmort,
+      corpBondDefaultAmount = in.totalBondDefault,
+      insNetDepositChange = in.insNetDepositChange,
+      nbfiDepositDrain = in.nbfiDepositDrain,
+      nbfiOrigination = in.nbfiOrigination,
+      nbfiRepayment = in.nbfiRepayment,
+      nbfiDefaultAmount = in.nbfiDefaultAmount,
+      fdiProfitShifting = in.sumProfitShifting,
+      fdiRepatriation = in.sumFdiRepatriation,
+      diasporaInflow = in.diasporaInflow,
+      tourismExport = in.tourismExport,
+      tourismImport = in.tourismImport,
+      bfgLevy = in.bfgLevy,
+      bailInLoss = in.bailInLoss,
+      bankCapitalDestruction = in.multiCapDestruction,
+      investNetDepositFlow = in.investNetDepositFlow,
+    )
+
   /** Build a Snapshot from the current simulation state by aggregating all
     * agent-level stocks.
     */
