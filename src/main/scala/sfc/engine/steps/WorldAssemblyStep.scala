@@ -62,9 +62,9 @@ object WorldAssemblyStep:
     // Informal economy: aggregate metrics and next-month cyclical adjustment (#45)
     val taxEvasionLoss         =
       if p.flags.informal then
-        in.s5.sumCitEvasion + (in.s9.vat - in.s9.vatAfterEvasion) + (in.s3.pitRevenue - in.s9.pitAfterEvasion) + (in.s9.exciseRevenue - in.s9.exciseAfterEvasion)
+        in.s5.sumCitEvasion + (in.s9.vat.toDouble - in.s9.vatAfterEvasion.toDouble) + (in.s3.pitRevenue - in.s9.pitAfterEvasion.toDouble) + (in.s9.exciseRevenue.toDouble - in.s9.exciseAfterEvasion.toDouble)
       else 0.0
-    val informalEmployed       = if p.flags.informal then in.s2.employed.toDouble * in.s9.effectiveShadowShare else 0.0
+    val informalEmployed       = if p.flags.informal then in.s2.employed.toDouble * in.s9.effectiveShadowShare.toDouble else 0.0
     val newInformalCyclicalAdj = if p.flags.informal then
       val unemp  = 1.0 - in.s2.employed.toDouble / in.w.totalPopulation
       val target = Math.max(0.0, unemp - p.informal.unempThreshold.toDouble) * p.informal.cyclicalSens.toDouble
@@ -145,7 +145,7 @@ object WorldAssemblyStep:
       mechanisms = MechanismsState(
         macropru = in.s7.newMacropru,
         expectations = in.s8.monetary.newExp,
-        bfgFundBalance = PLN(in.w.mechanisms.bfgFundBalance.toDouble + in.s9.bfgLevy),
+        bfgFundBalance = PLN(in.w.mechanisms.bfgFundBalance.toDouble + in.s9.bfgLevy.toDouble),
         informalCyclicalAdj = newInformalCyclicalAdj,
         effectiveShadowShare = newEffectiveShadowShare,
       ),
@@ -171,8 +171,8 @@ object WorldAssemblyStep:
         firmDeaths = 0,
         taxEvasionLoss = PLN(taxEvasionLoss),
         informalEmployed = informalEmployed,
-        bailInLoss = PLN(in.s9.bailInLoss),
-        bfgLevyTotal = in.s9.bfgLevy,
+        bailInLoss = in.s9.bailInLoss,
+        bfgLevyTotal = in.s9.bfgLevy.toDouble,
         sectorDemandMult = in.s4.sectorMults,
       ),
     )
@@ -188,7 +188,7 @@ object WorldAssemblyStep:
           + in.s7.euCofin,
       ),
       govRevenue = PLN(
-        in.s5.sumTax + in.s7.dividendTax + in.s9.pitAfterEvasion + in.s9.vatAfterEvasion + in.s8.banking.nbpRemittance.toDouble + in.s9.exciseAfterEvasion + in.s9.customsDutyRevenue,
+        in.s5.sumTax + in.s7.dividendTax + in.s9.pitAfterEvasion.toDouble + in.s9.vatAfterEvasion.toDouble + in.s8.banking.nbpRemittance.toDouble + in.s9.exciseAfterEvasion.toDouble + in.s9.customsDutyRevenue.toDouble,
       ),
       nplLoss = PLN(in.s5.nplLoss),
       interestIncome = PLN(in.s5.intIncome),
@@ -201,12 +201,12 @@ object WorldAssemblyStep:
       valuationEffect = in.s8.external.oeValuationEffect,
       bankBondIncome = in.s8.banking.bankBondIncome,
       qePurchase = in.s8.monetary.qePurchaseAmount,
-      newBondIssuance = PLN(if p.flags.govBondMarket then in.s9.actualBondChange else 0.0),
+      newBondIssuance = if p.flags.govBondMarket then in.s9.actualBondChange else PLN.Zero,
       depositInterestPaid = PLN(in.s6.depositInterestPaid),
       reserveInterest = in.s8.banking.totalReserveInterest,
       standingFacilityIncome = in.s8.banking.totalStandingFacilityIncome,
       interbankInterest = in.s8.banking.totalInterbankInterest,
-      jstDepositChange = PLN(in.s9.jstDepositChange),
+      jstDepositChange = in.s9.jstDepositChange,
       jstSpending = in.s9.newJst.spending,
       jstRevenue = in.s9.newJst.revenue,
       zusContributions = in.s2.newZus.contributions,
@@ -215,11 +215,11 @@ object WorldAssemblyStep:
       dividendIncome = PLN(in.s7.netDomesticDividends),
       foreignDividendOutflow = PLN(in.s7.foreignDividendOutflow),
       dividendTax = PLN(in.s7.dividendTax),
-      mortgageInterestIncome = PLN(in.s9.mortgageInterestIncome),
-      mortgageNplLoss = PLN(in.s9.mortgageDefaultLoss),
+      mortgageInterestIncome = in.s9.mortgageInterestIncome,
+      mortgageNplLoss = in.s9.mortgageDefaultLoss,
       mortgageOrigination = in.s9.housingAfterFlows.lastOrigination,
-      mortgagePrincipalRepaid = PLN(in.s9.mortgagePrincipal),
-      mortgageDefaultAmount = PLN(in.s9.mortgageDefaultAmount),
+      mortgagePrincipalRepaid = in.s9.mortgagePrincipal,
+      mortgageDefaultAmount = in.s9.mortgageDefaultAmount,
       remittanceOutflow = PLN(in.s6.remittanceOutflow),
       fofResidual = PLN(fofResidual),
       consumerDebtService = PLN(in.s6.consumerDebtService),
@@ -242,10 +242,10 @@ object WorldAssemblyStep:
       diasporaInflow = PLN(in.s6.diasporaInflow),
       tourismExport = PLN(in.s6.tourismExport),
       tourismImport = PLN(in.s6.tourismImport),
-      bfgLevy = PLN(in.s9.bfgLevy),
-      bailInLoss = PLN(in.s9.bailInLoss),
-      bankCapitalDestruction = PLN(in.s9.multiCapDestruction),
-      investNetDepositFlow = PLN(in.s9.investNetDepositFlow),
+      bfgLevy = in.s9.bfgLevy,
+      bailInLoss = in.s9.bailInLoss,
+      bankCapitalDestruction = in.s9.multiCapDestruction,
+      investNetDepositFlow = in.s9.investNetDepositFlow,
     )
     val sfcResult = Sfc.validate(prevSnap, currSnap, sfcFlows)
 
