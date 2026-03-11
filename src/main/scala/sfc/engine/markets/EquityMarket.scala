@@ -26,8 +26,8 @@ object EquityMarket:
   private val AdjustmentSpeed        = 0.15  // monthly partial adjustment to fundamental
   private val MinIndex               = 100.0 // index floor
   private val MonthsPerYear          = 12.0  // annual-to-monthly conversion
-  private val EarningsYieldFloor     = 0.01 // E/P floor (P/E = 100)
-  private val EarningsYieldCap       = 0.50 // E/P cap (P/E = 2)
+  private val EarningsYieldFloor     = 0.01  // E/P floor (P/E = 100)
+  private val EarningsYieldCap       = 0.50  // E/P cap (P/E = 2)
   private val PayoutRatio            = 0.57  // GPW average payout ratio
   private val DivYieldSmoothing      = 0.10  // weight on implied div yield (1-α on prev)
   private val ForeignReversionSpeed  = 0.01  // monthly mean-reversion speed
