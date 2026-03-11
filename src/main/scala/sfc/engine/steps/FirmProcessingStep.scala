@@ -169,14 +169,16 @@ object FirmProcessingStep:
 
     val (ioFirms, totalIoPaid) = if p.flags.io then
       val r = IntermediateMarket.process(
-        adjustedFirms,
-        in.s4.sectorMults,
-        in.w.priceLevel,
-        p.io.matrix,
-        p.io.columnSums,
-        p.io.scale.toDouble,
+        IntermediateMarket.Input(
+          firms = adjustedFirms,
+          sectorMults = in.s4.sectorMults,
+          price = in.w.priceLevel,
+          ioMatrix = p.io.matrix,
+          columnSums = p.io.columnSums,
+          scale = p.io.scale,
+        ),
       )
-      (r.firms, r.totalPaid)
+      (r.firms, r.totalPaid.toDouble)
     else (adjustedFirms, 0.0)
 
     var postFirmCrossSectorHires = 0
