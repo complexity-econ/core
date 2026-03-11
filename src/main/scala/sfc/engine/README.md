@@ -49,8 +49,10 @@ don't clear markets themselves.
 |------|--------|
 | `EuFunds.scala` | EU structural funds: Beta-curve absorption timing, co-financing, capital investment |
 | `Expectations.scala` | Inflation expectations: adaptive-anchoring hybrid, central bank credibility |
+| `FirmEntry.scala` | Endogenous firm entry: profit-weighted sector choice, regulatory barriers, AI-native startups |
 | `Macroprudential.scala` | CCyB (countercyclical capital buffer), credit-to-GDP gap, O-SII buffers |
 | `SectoralMobility.scala` | Cross-sector labor transitions: friction matrix, voluntary quits, wage penalties |
+| `TaxRevenue.scala` | Fiscal revenue: VAT, excise, customs, informal-economy evasion adjustments |
 | `YieldCurve.scala` | Interbank term structure: WIRON overnight → WIBOR 1M/3M/6M with term premia |
 
 ## steps/
@@ -96,5 +98,5 @@ prevents hidden coupling.
 
 **SFC rule:** Any flow that modifies bank capital, deposits, government
 debt, NFA, bond holdings, or interbank positions **must** be reflected in
-`SfcCheck.MonthlyFlows` / `SfcCheck.Snapshot`. The 14-identity check runs
+`Sfc.MonthlyFlows` / `Sfc.Snapshot`. The 14-identity check runs
 every month and will fail at runtime if the accounting is broken.
