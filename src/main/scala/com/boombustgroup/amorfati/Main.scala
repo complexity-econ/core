@@ -4,7 +4,7 @@ import com.boombustgroup.amorfati.config.SimParams
 import com.boombustgroup.amorfati.montecarlo.{McRunConfig, McRunner}
 
 // $COVERAGE-OFF$ entry point only
-@main def sfcMonteCarlo(
+@main def simulate(
     nSeedsStr: String,
     outputPrefix: String,
 ): Unit =
