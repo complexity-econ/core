@@ -20,6 +20,7 @@ class BankingSectorPropertySpec extends AnyFlatSpec with Matchers with ScalaChec
 
   private val configs = Banking.DefaultConfigs
 
+  @annotation.nowarn("msg=unused private member") // defaults used by callers
   private def mkBank(
       id: Int = 0,
       deposits: PLN = PLN(1e6),

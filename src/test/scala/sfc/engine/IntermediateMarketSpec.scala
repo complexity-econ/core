@@ -52,6 +52,7 @@ class IntermediateMarketSpec extends AnyFlatSpec with Matchers:
       greenCapital = PLN.Zero,
     )
 
+  @annotation.nowarn("msg=unused private member") // default used by callers
   private def makeFirmsAllSectors(perSector: Int = 10): Vector[Firm.State] =
     (0 until 6).flatMap { s =>
       (0 until perSector).map(i => makeFirm(s * perSector + i, s))

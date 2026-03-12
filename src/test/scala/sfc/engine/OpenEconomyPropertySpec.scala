@@ -19,6 +19,7 @@ class OpenEconomyPropertySpec extends AnyFlatSpec with Matchers with ScalaCheckP
 
   private val defaultSectorOutputs = Vector.fill(6)(PLN(1e8))
 
+  @annotation.nowarn("msg=unused private member") // default used by callers
   private def makeForex(er: Double = p.forex.baseExRate): OpenEconomy.ForexState =
     OpenEconomy.ForexState(er, PLN(1e8), PLN(1e8), PLN.Zero, PLN(1e7))
 

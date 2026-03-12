@@ -11,6 +11,7 @@ class PhysicalCapitalSpec extends AnyFlatSpec with Matchers:
   given SimParams          = SimParams.defaults
   private val p: SimParams = summon[SimParams]
 
+  @annotation.nowarn("msg=unused private member") // defaults used by callers
   private def mkFirm(
       sector: Int = 1,
       workers: Int = 10,

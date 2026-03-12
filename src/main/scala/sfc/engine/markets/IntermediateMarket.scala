@@ -1,6 +1,6 @@
 package sfc.engine.markets
 
-import sfc.agents.{Firm, TechState}
+import sfc.agents.Firm
 import sfc.config.SimParams
 import sfc.types.*
 import sfc.util.KahanSum.*

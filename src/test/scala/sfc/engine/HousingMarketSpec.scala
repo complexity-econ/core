@@ -35,6 +35,7 @@ class HousingMarketSpec extends AnyFlatSpec with Matchers:
   ): HousingMarket.StepInput =
     HousingMarket.StepInput(prev, Rate(mortgageRate), Rate(inflation), Rate(incomeGrowth), employed, Rate(prevMortgageRate))
 
+  @annotation.nowarn("msg=unused private member") // defaults used by callers
   private def mkFlows(
       interest: Double = 0.0,
       principal: Double = 0.0,

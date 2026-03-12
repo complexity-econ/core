@@ -23,7 +23,7 @@ object Immigration:
   /** Monthly immigration inflow. Exogenous: fixed rate × workingAgePop.
     * Endogenous: responds to (domesticWage / foreignWage − 1) × elasticity.
     */
-  def computeInflow(workingAgePop: Int, wage: PLN, unempRate: Double, month: Int)(using p: SimParams): Int =
+  def computeInflow(workingAgePop: Int, wage: PLN, unempRate: Double, @scala.annotation.unused month: Int)(using p: SimParams): Int =
     if !p.flags.immigration then 0
     else if p.flags.immigEndogenous then
       val wageGap = (wage.toDouble / p.immigration.foreignWage.toDouble - 1.0).max(0.0)

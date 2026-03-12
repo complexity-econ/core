@@ -1,7 +1,6 @@
 package sfc.agents
 
 import sfc.config.SimParams
-import sfc.engine.*
 import sfc.engine.mechanisms.{Macroprudential, YieldCurve}
 import sfc.types.*
 import sfc.util.KahanSum.*
