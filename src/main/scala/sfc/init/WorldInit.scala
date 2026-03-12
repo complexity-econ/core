@@ -46,9 +46,6 @@ object WorldInit:
       if p.flags.energy then PLN(firms.kahanSumBy(f => (f.greenCapital * p.climate.greenDepRate.toDouble / 12.0).toDouble))
       else PLN.Zero
 
-    // --- Consumer loans aggregate (from actual HH sums) ---
-    val initConsumerLoans = households.kahanSumBy(_.consumerDebt.toDouble)
-
     // --- World assembly ---
     val world = World(
       month = 0,
@@ -72,16 +69,7 @@ object WorldInit:
         fxReserves = p.monetary.fxReserves,
         lastFxTraded = PLN.Zero,
       ),
-      bank = Banking.Aggregate(
-        totalLoans = p.banking.initLoans,
-        nplAmount = PLN.Zero,
-        capital = p.banking.initCapital,
-        deposits = p.banking.initDeposits,
-        govBondHoldings = p.banking.initGovBonds,
-        consumerLoans = PLN(initConsumerLoans),
-        consumerNpl = PLN.Zero,
-        corpBondHoldings = p.corpBond.initStock * p.corpBond.bankShare.toDouble,
-      ),
+      bank = initBankingSector.aggregate,
       bankingSector = initBankingSector,
       forex = OpenEconomy.ForexState(
         exchangeRate = p.forex.baseExRate,

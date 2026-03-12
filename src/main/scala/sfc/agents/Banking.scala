@@ -261,44 +261,6 @@ object Banking:
   )
 
   // ---------------------------------------------------------------------------
-  // Initialization
-  // ---------------------------------------------------------------------------
-
-  /** Initialize banking sector — splits aggregates across banks by market
-    * share.
-    */
-  def initialize(
-      totalDeposits: PLN,      // aggregate customer deposits across all banks
-      totalCapital: PLN,       // aggregate regulatory capital
-      totalLoans: PLN,         // aggregate corporate loan book
-      totalGovBonds: PLN,      // aggregate gov bond holdings
-      totalConsumerLoans: PLN, // aggregate consumer credit outstanding
-      configs: Vector[Config], // per-bank configuration (market shares, spreads, affinities)
-  )(using p: SimParams): State =
-    val banks = configs.map { cfg =>
-      BankState(
-        id = cfg.id,
-        deposits = totalDeposits * cfg.initMarketShare.toDouble,
-        loans = totalLoans * cfg.initMarketShare.toDouble,
-        capital = totalCapital * cfg.initMarketShare.toDouble,
-        nplAmount = PLN.Zero,
-        govBondHoldings = totalGovBonds * cfg.initMarketShare.toDouble,
-        reservesAtNbp = PLN.Zero,
-        interbankNet = PLN.Zero,
-        status = BankStatus.Active(0),
-        demandDeposits = PLN.Zero,
-        termDeposits = PLN.Zero,
-        loansShort = PLN.Zero,
-        loansMedium = PLN.Zero,
-        loansLong = PLN.Zero,
-        consumerLoans = totalConsumerLoans * cfg.initMarketShare.toDouble,
-        consumerNpl = PLN.Zero,
-        corpBondHoldings = PLN.Zero,
-      )
-    }
-    State(banks, Rate.Zero, configs, None)
-
-  // ---------------------------------------------------------------------------
   // Bank assignment
   // ---------------------------------------------------------------------------
 

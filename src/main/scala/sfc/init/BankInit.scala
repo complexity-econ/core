@@ -1,29 +1,49 @@
 package sfc.init
 
-import sfc.config.SimParams
 import sfc.agents.*
+import sfc.config.SimParams
 import sfc.types.*
 
-/** Factory for banking sector initialization. */
+/** Banking sector initialization from actual agent populations.
+  *
+  * Computes per-bank balances from firm and household populations, ensuring the
+  * initial bank state is consistent with agent-level bank assignments.
+  */
 object BankInit:
 
-  /** Initialize multi-bank sector (always 7 banks). Per-bank consumer loan
-    * override from actual HH sums.
-    */
   def create(firms: Vector[Firm.State], households: Vector[Household.State])(using p: SimParams): Banking.State =
-    // Consumer loans passed as 0.0 — per-bank values are set from actual HH sums below
-    val bs0 = Banking.initialize(
-      p.banking.initDeposits,
-      p.banking.initCapital,
-      p.banking.initLoans,
-      p.banking.initGovBonds,
-      PLN.Zero,
-      Banking.DefaultConfigs,
-    )
+    val perBankCorpLoans  = firms.groupMapReduce(_.bankId.toInt)(_.debt)(_ + _)
+    val perBankCash       = firms.groupMapReduce(_.bankId.toInt)(_.cash)(_ + _)
+    val perBankConsLoans  = households.groupMapReduce(_.bankId.toInt)(_.consumerDebt)(_ + _)
+    val perBankHhDeposits = households.groupMapReduce(_.bankId.toInt)(_.savings)(_ + _)
 
-    // Override per-bank consumer loans with actual per-bank HH consumer debt sums
-    val perBankCcDebt: Map[Int, Double] =
-      households.groupMapReduce(_.bankId.toInt)(_.consumerDebt.toDouble)(_ + _)
-    val fixedBanks                      = bs0.banks.map(b => b.copy(consumerLoans = PLN(perBankCcDebt.getOrElse(b.id.toInt, 0.0))))
+    val totalCapital  = p.banking.initCapital
+    val totalGovBonds = p.banking.initGovBonds
 
-    bs0.copy(banks = fixedBanks)
+    val banks = Banking.DefaultConfigs.map: cfg =>
+      val bId          = cfg.id.toInt
+      val corpLoans    = perBankCorpLoans.getOrElse(bId, PLN.Zero)
+      val consLoans    = perBankConsLoans.getOrElse(bId, PLN.Zero)
+      val firmDeposits = perBankCash.getOrElse(bId, PLN.Zero)
+      val hhDeposits   = perBankHhDeposits.getOrElse(bId, PLN.Zero)
+      Banking.BankState(
+        id = cfg.id,
+        deposits = firmDeposits + hhDeposits,
+        loans = corpLoans,
+        capital = totalCapital * cfg.initMarketShare,
+        nplAmount = PLN.Zero,
+        govBondHoldings = totalGovBonds * cfg.initMarketShare,
+        reservesAtNbp = PLN.Zero,
+        interbankNet = PLN.Zero,
+        status = Banking.BankStatus.Active(0),
+        demandDeposits = PLN.Zero,
+        termDeposits = PLN.Zero,
+        loansShort = PLN.Zero,
+        loansMedium = PLN.Zero,
+        loansLong = PLN.Zero,
+        consumerLoans = consLoans,
+        consumerNpl = PLN.Zero,
+        corpBondHoldings = PLN.Zero,
+      )
+
+    Banking.State(banks, Rate.Zero, Banking.DefaultConfigs, None)

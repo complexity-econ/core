@@ -3,6 +3,7 @@ package sfc.agents
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import sfc.agents.Banking.BankStatus
+import sfc.Generators
 import sfc.config.SimParams
 import sfc.types.*
 
@@ -55,19 +56,19 @@ class BankingSectorSpec extends AnyFlatSpec with Matchers:
   // ---- initialize ----
 
   "Banking.initialize" should "create 7 banks with correct deposit/capital shares" in {
-    val bs = Banking.initialize(PLN(1000000.0), PLN(100000.0), PLN.Zero, PLN.Zero, PLN.Zero, configs)
+    val bs = Generators.testBankingSector(totalDeposits = PLN(1000000.0), totalCapital = PLN(100000.0), totalLoans = PLN.Zero, configs = configs)
     bs.banks.length shouldBe 7
     bs.banks.map(_.deposits.toDouble).sum shouldBe 1000000.0 +- 0.01
     bs.banks.map(_.capital.toDouble).sum shouldBe 100000.0 +- 0.01
   }
 
   it should "set all banks as not failed initially" in {
-    val bs = Banking.initialize(PLN(1000000.0), PLN(100000.0), PLN.Zero, PLN.Zero, PLN.Zero, configs)
+    val bs = Generators.testBankingSector(totalDeposits = PLN(1000000.0), totalCapital = PLN(100000.0), totalLoans = PLN.Zero, configs = configs)
     bs.banks.forall(!_.failed) shouldBe true
   }
 
   it should "set deposits proportional to market share" in {
-    val bs = Banking.initialize(PLN(1000000.0), PLN(100000.0), PLN.Zero, PLN.Zero, PLN.Zero, configs)
+    val bs = Generators.testBankingSector(totalDeposits = PLN(1000000.0), totalCapital = PLN(100000.0), totalLoans = PLN.Zero, configs = configs)
     bs.banks(0).deposits.toDouble shouldBe (1000000.0 * 0.175) +- 0.01 // PKO BP
     bs.banks(5).deposits.toDouble shouldBe (1000000.0 * 0.050) +- 0.01 // BPS/Coop
   }
@@ -252,7 +253,7 @@ class BankingSectorSpec extends AnyFlatSpec with Matchers:
   }
 
   it should "keep aggregate within tight tolerance with large deficit (1e13)" in {
-    val banks   = Banking.initialize(PLN(1e9), PLN(1e8), PLN.Zero, PLN.Zero, PLN.Zero, configs).banks
+    val banks   = Generators.testBankingSector(totalDeposits = PLN(1e9), totalCapital = PLN(1e8), totalLoans = PLN.Zero, configs = configs).banks
     val deficit = PLN(1e13)
     val before  = banks.map(_.govBondHoldings.toDouble).sum
     val result  = Banking.allocateBonds(banks, deficit)
@@ -298,7 +299,7 @@ class BankingSectorSpec extends AnyFlatSpec with Matchers:
   // ---- aggregate ----
 
   "Banking.State.aggregate" should "sum all individual bank values" in {
-    val bs  = Banking.initialize(PLN(1000000.0), PLN(100000.0), PLN.Zero, PLN.Zero, PLN.Zero, configs)
+    val bs  = Generators.testBankingSector(totalDeposits = PLN(1000000.0), totalCapital = PLN(100000.0), totalLoans = PLN.Zero, configs = configs)
     val agg = bs.aggregate
     agg.deposits.toDouble shouldBe 1000000.0 +- 0.01
     agg.capital.toDouble shouldBe 100000.0 +- 0.01

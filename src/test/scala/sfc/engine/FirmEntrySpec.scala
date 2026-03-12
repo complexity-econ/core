@@ -1,6 +1,7 @@
 package sfc.engine
 
 import org.scalatest.flatspec.AnyFlatSpec
+import sfc.Generators
 import org.scalatest.matchers.should.Matchers
 import sfc.engine.markets.{FiscalBudget, OpenEconomy}
 import sfc.agents.{Banking, Firm, TechState}
@@ -65,7 +66,7 @@ class FirmEntrySpec extends AnyFlatSpec with Matchers:
     gov = FiscalBudget.GovState(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
     nbp = sfc.agents.Nbp.State(Rate(0.05), PLN.Zero, false, PLN.Zero, PLN.Zero, PLN.Zero),
     bank = Banking.Aggregate(PLN.Zero, PLN.Zero, PLN(1e9), PLN(1e9), PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
-    bankingSector = Banking.initialize(PLN(1e9), PLN(5e8), PLN(5e8), PLN.Zero, PLN.Zero, Banking.DefaultConfigs),
+    bankingSector = Generators.testBankingSector(),
     forex = OpenEconomy.ForexState(4.33, PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero),
     hhAgg = sfc.agents.Household.Aggregates(
       employed = 100,

@@ -145,7 +145,7 @@ class BankingSectorPropertySpec extends AnyFlatSpec with Matchers with ScalaChec
 
   "initialize" should "preserve total deposits and capital" in
     forAll(Gen.choose(1e5, 1e10), Gen.choose(1e4, 1e9)) { (totalDep: Double, totalCap: Double) =>
-      val bs = Banking.initialize(PLN(totalDep), PLN(totalCap), PLN.Zero, PLN.Zero, PLN.Zero, configs)
+      val bs = testBankingSector(totalDeposits = PLN(totalDep), totalCapital = PLN(totalCap), totalLoans = PLN.Zero, configs = configs)
       bs.banks.map(_.deposits.toDouble).sum shouldBe totalDep +- 1.0
       bs.banks.map(_.capital.toDouble).sum shouldBe totalCap +- 1.0
     }
