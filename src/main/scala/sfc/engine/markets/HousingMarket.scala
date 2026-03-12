@@ -287,7 +287,7 @@ object HousingMarket:
     then MortgageFlows(PLN.Zero, PLN.Zero, PLN.Zero, PLN.Zero)
     else
       val stock         = prev.mortgageStock.toDouble
-      val interest      = PLN(stock * Math.max(0.0, mortgageRate.toDouble) / 12.0)
+      val interest      = PLN(stock * mortgageRate.max(Rate.Zero).toDouble / 12.0)
       val principal     = PLN(stock / p.housing.mortgageMaturity.toDouble)
       val defaultRate   = p.housing.defaultBase.toDouble +
         p.housing.defaultUnempSens * Math.max(0.0, unemploymentRate.toDouble - 0.05)

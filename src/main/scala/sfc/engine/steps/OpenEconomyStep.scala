@@ -379,7 +379,7 @@ object OpenEconomyStep:
     InsuranceResult(newInsurance)
 
   private def stepNbfi(in: Input, postFxNbp: Nbp.State, newBondYield: Rate)(using p: SimParams): NbfiResult =
-    val nbfiDepositRate = Rate(Math.max(0.0, postFxNbp.referenceRate.toDouble - NbfiDepositRateSpread))
+    val nbfiDepositRate = (postFxNbp.referenceRate - Rate(NbfiDepositRateSpread)).max(Rate.Zero)
     val nbfiUnempRate   = Ratio(1.0 - in.s2.employed.toDouble / in.w.totalPopulation)
     val newNbfi         =
       if p.flags.nbfi then

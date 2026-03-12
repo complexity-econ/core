@@ -283,7 +283,7 @@ object Banking:
     * zero.
     */
   def hhDepositRate(refRate: Rate)(using p: SimParams): Rate =
-    Rate(Math.max(0.0, refRate.toDouble - p.household.depositSpread.toDouble))
+    (refRate - p.household.depositSpread).max(Rate.Zero)
 
   /** Lending rate for a bank: refRate + baseSpread + bankSpread + nplSpread +
     * carPenalty. Failed banks get flat refRate + FailedBankSpread.
@@ -448,7 +448,7 @@ object Banking:
         if b.id == absorberId then
           b.copy(
             deposits = b.deposits + PLN(addDep),
-            loans = b.loans + PLN(Math.max(0, addLoans)),
+            loans = b.loans + PLN(addLoans).max(PLN.Zero),
             govBondHoldings = b.govBondHoldings + PLN(addBonds),
             corpBondHoldings = b.corpBondHoldings + PLN(addCorpB),
             consumerLoans = b.consumerLoans + PLN(addCC),
