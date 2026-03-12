@@ -296,7 +296,7 @@ object Banking:
         if bank.car.toDouble < p.banking.minCar.toDouble * CarPenaltyThreshMult then
           Math.max(0.0, (p.banking.minCar.toDouble * CarPenaltyThreshMult - bank.car.toDouble) * CarPenaltyScale)
         else 0.0
-      Rate(refRate.toDouble + p.banking.baseSpread.toDouble + cfg.lendingSpread.toDouble + nplSpread + carPenalty)
+      refRate + p.banking.baseSpread + cfg.lendingSpread + Rate(nplSpread + carPenalty)
 
   /** Interbank rate (WIBOR proxy): deposit rate + stress × (lombard − deposit).
     * stress = aggNplRate / stressThreshold, clipped to [0,1].
@@ -602,7 +602,7 @@ object Banking:
       val perBank     = banks.map: b =>
         if b.failed then PLN.Zero
         else if b.reservesAtNbp > PLN.Zero then b.reservesAtNbp * depositRate / 12.0
-        else if b.interbankNet < PLN.Zero then PLN(b.interbankNet.toDouble.abs * lombardRate.toDouble / 12.0 * -1.0)
+        else if b.interbankNet < PLN.Zero then -(b.interbankNet.abs * lombardRate.monthly)
         else PLN.Zero
       PerBankAmounts(perBank, PLN(perBank.map(_.toDouble).kahanSum))
 

@@ -88,6 +88,7 @@ object types:
       inline def max(other: Rate): Rate          = math.max(r, other)
       inline def min(other: Rate): Rate          = math.min(r, other)
       inline def clamp(lo: Rate, hi: Rate): Rate = math.max(lo, math.min(hi, r))
+      inline def monthly: Rate                   = r / 12.0
       inline def toDouble: Double                = r
       inline def >(other: Rate): Boolean         = r > other
       inline def <(other: Rate): Boolean         = r < other
