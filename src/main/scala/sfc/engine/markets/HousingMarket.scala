@@ -289,10 +289,10 @@ object HousingMarket:
       val stock         = prev.mortgageStock
       val interest      = stock * mortgageRate.max(Rate.Zero).monthly
       val principal     = stock / p.housing.mortgageMaturity.toDouble
-      val defaultRate   = p.housing.defaultBase.toDouble +
-        p.housing.defaultUnempSens * Math.max(0.0, unemploymentRate.toDouble - 0.05)
+      val defaultRate   = p.housing.defaultBase +
+        Ratio(p.housing.defaultUnempSens * (unemploymentRate - Ratio(0.05)).max(Ratio.Zero).toDouble)
       val defaultAmount = stock * defaultRate
-      val defaultLoss   = defaultAmount * (1.0 - p.housing.mortgageRecovery.toDouble)
+      val defaultLoss   = defaultAmount * (Ratio.One - p.housing.mortgageRecovery)
       MortgageFlows(interest, principal, defaultAmount, defaultLoss)
 
   // --- Apply flows ---
