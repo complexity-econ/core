@@ -9,9 +9,9 @@ object EquityInit:
 
   def create(totalPop: Int)(using p: SimParams): EquityMarket.State =
     if p.flags.gpw then
-      val initEq   = EquityMarket.initial
       val initHhEq =
-        if p.flags.gpwHhEquity then PLN(totalPop * p.equity.hhEquityFrac.toDouble * Math.exp(p.household.savingsMu) * 0.05)
+        if p.flags.gpwHhEquity
+        then PLN(totalPop * p.equity.hhEquityFrac.toDouble * Math.exp(p.household.savingsMu) * 0.05)
         else PLN.Zero
-      initEq.copy(hhEquityWealth = initHhEq)
+      EquityMarket.initial.copy(hhEquityWealth = initHhEq)
     else EquityMarket.zero

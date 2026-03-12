@@ -13,6 +13,39 @@ object Generators:
   given SimParams          = SimParams.defaults
   private val p: SimParams = summon[SimParams]
 
+  /** Test helper: create banking sector by splitting aggregates across banks by
+    * market share.
+    */
+  def testBankingSector(
+      totalDeposits: PLN = PLN(1e9),
+      totalCapital: PLN = PLN(5e8),
+      totalLoans: PLN = PLN(5e8),
+      totalGovBonds: PLN = PLN.Zero,
+      totalConsumerLoans: PLN = PLN.Zero,
+      configs: Vector[Banking.Config] = Banking.DefaultConfigs,
+  ): Banking.State =
+    val banks = configs.map: cfg =>
+      Banking.BankState(
+        id = cfg.id,
+        deposits = totalDeposits * cfg.initMarketShare.toDouble,
+        loans = totalLoans * cfg.initMarketShare.toDouble,
+        capital = totalCapital * cfg.initMarketShare.toDouble,
+        nplAmount = PLN.Zero,
+        govBondHoldings = totalGovBonds * cfg.initMarketShare.toDouble,
+        reservesAtNbp = PLN.Zero,
+        interbankNet = PLN.Zero,
+        status = Banking.BankStatus.Active(0),
+        demandDeposits = PLN.Zero,
+        termDeposits = PLN.Zero,
+        loansShort = PLN.Zero,
+        loansMedium = PLN.Zero,
+        loansLong = PLN.Zero,
+        consumerLoans = totalConsumerLoans * cfg.initMarketShare.toDouble,
+        consumerNpl = PLN.Zero,
+        corpBondHoldings = PLN.Zero,
+      )
+    Banking.State(banks, Rate.Zero, configs, None)
+
   // --- Primitive generators ---
 
   val genRate: Gen[Double] = Gen.choose(0.0, 0.25)
@@ -279,7 +312,7 @@ object Generators:
     gov = gov,
     nbp = Nbp.State(Rate(rate), PLN.Zero, false, PLN.Zero, PLN.Zero, PLN.Zero),
     bank = bank,
-    bankingSector = Banking.initialize(PLN(1e9), PLN(5e8), PLN(5e8), PLN.Zero, PLN.Zero, Banking.DefaultConfigs),
+    bankingSector = testBankingSector(),
     forex = forex,
     hhAgg = Household.Aggregates(
       employed = employed,
