@@ -16,8 +16,8 @@ lazy val root = project
       "-Wunused:all",
       "-Wconf:msg=Alphanumeric method.*is not declared infix:s",
     ),
-    Compile / mainClass := Some("com.boombustgroup.amorfati.sfcMonteCarlo"),
-    assembly / mainClass := Some("com.boombustgroup.amorfati.sfcMonteCarlo"),
+    Compile / mainClass := Some("com.boombustgroup.amorfati.simulate"),
+    assembly / mainClass := Some("com.boombustgroup.amorfati.simulate"),
     assembly / assemblyJarName := "amor-fati.jar",
     // Disable parallel test execution: production code uses global scala.util.Random,
     // so concurrent suites would cause non-deterministic interleaving (breaks reproducibility test)

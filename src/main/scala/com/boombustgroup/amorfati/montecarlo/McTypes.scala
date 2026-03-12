@@ -64,7 +64,7 @@ object DescriptiveStats:
     fromSorted(values)
 
   /** Compute from a **pre-sorted** array. Package-private — callers outside
-    * `sfc` must use [[from]].
+    * `amorfati` must use [[from]].
     */
   private[amorfati] def fromSorted(sorted: Array[Double]): DescriptiveStats =
     val n        = sorted.length
