@@ -105,7 +105,7 @@ object Macroprudential:
 
   private[engine] def withinConcentrationLimitImpl(
       bankLoans: Double,
-      bankCapital: Double,
+      @scala.annotation.unused bankCapital: Double,
       totalSystemLoans: Double,
   )(using p: SimParams): Boolean =
     if totalSystemLoans <= 0 then true

@@ -83,7 +83,7 @@ object SectoralMobility:
       matrix: Vector[Vector[Double]],
       vacancyWeight: Double,
       rng: Random,
-  )(using p: SimParams): Int =
+  )(using @scala.annotation.unused p: SimParams): Int =
     val scores = gravityScores(from, wages, vacancies, matrix, vacancyWeight)
     val total  = scores.sum
     if total <= 0.0 then uniformFallback(from, rng)

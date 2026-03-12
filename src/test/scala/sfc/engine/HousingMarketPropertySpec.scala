@@ -35,6 +35,7 @@ class HousingMarketPropertySpec extends AnyFlatSpec with Matchers with ScalaChec
     PLN.Zero,
   )
 
+  @annotation.nowarn("msg=unused private member") // defaults used by callers
   private def mkFlows(
       interest: Double = 0.0,
       principal: Double = 0.0,

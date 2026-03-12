@@ -109,6 +109,7 @@ class SfcSpec extends AnyFlatSpec with Matchers:
       )
     }.toVector
 
+  @annotation.nowarn("msg=unused private member") // defaults used by callers
   private def makeHouseholds(n: Int, savings: Double = 15000.0, debt: Double = 0.0): Vector[Household.State] =
     (0 until n).map { i =>
       Household.State(

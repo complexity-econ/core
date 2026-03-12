@@ -20,7 +20,7 @@ object McRunner:
   /** Run one simulation with given seed. Throws [[Sfc.SfcViolationException]]
     * on any SFC identity violation.
     */
-  def runSingle(seed: Long, rc: McRunConfig)(using p: SimParams): RunResult =
+  def runSingle(seed: Long, @scala.annotation.unused rc: McRunConfig)(using p: SimParams): RunResult =
     val init  = WorldInit.initialize(seed)
     var state = Simulation.SimState(init.world, init.firms, init.households)
 

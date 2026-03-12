@@ -6,11 +6,9 @@ object types:
   // === Entity IDs ===
   opaque type BankId = Int
   object BankId:
-    inline def apply(i: Int): BankId = i
-    val NoBank: BankId               = -1
-    extension (b: BankId)
-      inline def toInt: Int              = b
-      inline def ==(other: Int): Boolean = b == other
+    inline def apply(i: Int): BankId            = i
+    val NoBank: BankId                          = -1
+    extension (b: BankId) inline def toInt: Int = b
 
   opaque type FirmId = Int
   object FirmId:

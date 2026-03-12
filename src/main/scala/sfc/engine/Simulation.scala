@@ -3,7 +3,6 @@ package sfc.engine
 import sfc.accounting.*
 import sfc.agents.*
 import sfc.config.*
-import sfc.types.*
 
 import scala.util.Random
 

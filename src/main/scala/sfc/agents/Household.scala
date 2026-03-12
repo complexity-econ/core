@@ -690,14 +690,14 @@ object Household:
   /** Base income, benefit, and updated status for one HH. */
   private def computeIncome(hh: State)(using SimParams): (PLN, PLN, HhStatus) =
     hh.status match
-      case HhStatus.Employed(firmId, sectorIdx, wage)    =>
+      case HhStatus.Employed(firmId, sectorIdx, wage) =>
         (wage, PLN.Zero, hh.status)
-      case HhStatus.Unemployed(months)                   =>
+      case HhStatus.Unemployed(months)                =>
         val benefit = computeBenefit(months)
         (benefit, benefit, HhStatus.Unemployed(months + 1))
-      case HhStatus.Retraining(monthsLeft, target, cost) =>
+      case HhStatus.Retraining(monthsLeft, _, cost)   =>
         (PLN.Zero, PLN.Zero, hh.status)
-      case HhStatus.Bankrupt                             =>
+      case HhStatus.Bankrupt                          =>
         (PLN.Zero, PLN.Zero, HhStatus.Bankrupt)
 
   /** Skill decay for long-term unemployed (onset after scarringOnset months).

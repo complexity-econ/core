@@ -83,7 +83,7 @@ object LaborMarket:
       households: Vector[Household.State],
       firms: Vector[Firm.State],
       marketWage: PLN,
-      rng: Random,
+      @scala.annotation.unused rng: Random,
   )(using p: SimParams): JobSearchResult =
     val vacancies = computeVacancies(households, firms)
     if vacancies.isEmpty then JobSearchResult(households, 0)

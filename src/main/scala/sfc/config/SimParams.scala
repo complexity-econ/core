@@ -47,6 +47,7 @@ case class SectorDef(
   * Polish GDP (~3.5 bln PLN). Do NOT construct SimParams directly with unscaled
   * values — always start from `defaults` and use `.copy()`.
   */
+@annotation.nowarn("msg=unused private member") // Scala 3.8 false positive: defaults used via copy()
 case class SimParams private (
     flags: FeatureFlags = FeatureFlags(),
     pop: PopulationConfig = PopulationConfig(),

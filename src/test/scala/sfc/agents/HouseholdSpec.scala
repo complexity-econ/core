@@ -136,9 +136,9 @@ class HouseholdSpec extends AnyFlatSpec with Matchers:
   // --- Variable-rate debt service + deposit interest ---
 
   "Household.step with bankRates" should "use variable lending rate for debt service" in {
-    val rng                = new Random(42)
-    val debt               = PLN(100000.0)
-    val hhs                = Vector(
+    val rng              = new Random(42)
+    val debt             = PLN(100000.0)
+    val hhs              = Vector(
       mkHousehold(
         0,
         HhStatus.Employed(FirmId(0), SectorIdx(0), PLN(8000.0)),
@@ -155,16 +155,16 @@ class HouseholdSpec extends AnyFlatSpec with Matchers:
       ),
     )
     // Bank 0: 6% annual lending rate, Bank 1: 10% annual
-    val br                 = BankRates(
+    val br               = BankRates(
       lendingRates = Vector(Rate(0.06), Rate(0.10)),
       depositRates = Vector(Rate(0.04), Rate(0.04)),
     )
-    val (_, agg, maybePbf) =
+    val (_, _, maybePbf) =
       Household.step(hhs, mkWorld(), PLN(8000.0), PLN(4666.0), 0.4, rng, nBanks = 2, bankRates = Some(br))
-    val pbf                = maybePbf.get
+    val pbf              = maybePbf.get
     // Expected debt service: debt * (HhBaseAmortRate + lendingRate/12)
-    val expectedDs0        = debt.toDouble * (p.household.baseAmortRate.toDouble + 0.06 / 12.0)
-    val expectedDs1        = debt.toDouble * (p.household.baseAmortRate.toDouble + 0.10 / 12.0)
+    val expectedDs0      = debt.toDouble * (p.household.baseAmortRate.toDouble + 0.06 / 12.0)
+    val expectedDs1      = debt.toDouble * (p.household.baseAmortRate.toDouble + 0.10 / 12.0)
     pbf(0).debtService shouldBe PLN(expectedDs0) +- PLN(0.01)
     pbf(1).debtService shouldBe PLN(expectedDs1) +- PLN(0.01)
     // Bank 1's higher rate should mean higher debt service
@@ -271,25 +271,25 @@ class HouseholdSpec extends AnyFlatSpec with Matchers:
   // --- Immigration: remittance deduction ---
 
   "Household.step" should "not deduct remittances from non-immigrant HH" in {
-    val rng               = new Random(42)
-    val wage              = 8000.0
-    val hhs               = Vector(
+    val rng         = new Random(42)
+    val wage        = 8000.0
+    val hhs         = Vector(
       mkHousehold(0, HhStatus.Employed(FirmId(0), SectorIdx(2), PLN(wage)), savings = PLN(50000.0))
         .copy(isImmigrant = false),
     )
-    val (updated, agg, _) = Household.step(hhs, mkWorld(), PLN(wage), PLN(4666.0), 0.4, rng)
+    val (_, agg, _) = Household.step(hhs, mkWorld(), PLN(wage), PLN(4666.0), 0.4, rng)
     agg.totalRemittances shouldBe PLN.Zero
   }
 
   it should "not deduct remittances from immigrant HH when disabled" in {
-    val rng               = new Random(42)
-    val wage              = 8000.0
-    val hhs               = Vector(
+    val rng         = new Random(42)
+    val wage        = 8000.0
+    val hhs         = Vector(
       mkHousehold(0, HhStatus.Employed(FirmId(0), SectorIdx(2), PLN(wage)), savings = PLN(50000.0))
         .copy(isImmigrant = true),
     )
     // ImmigEnabled is false by default → no remittance deduction
-    val (updated, agg, _) = Household.step(hhs, mkWorld(), PLN(wage), PLN(4666.0), 0.4, rng)
+    val (_, agg, _) = Household.step(hhs, mkWorld(), PLN(wage), PLN(4666.0), 0.4, rng)
     agg.totalRemittances shouldBe PLN.Zero
   }
 

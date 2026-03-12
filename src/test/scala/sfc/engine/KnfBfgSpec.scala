@@ -15,6 +15,7 @@ class KnfBfgSpec extends AnyFlatSpec with Matchers:
   given SimParams          = SimParams.defaults
   private val p: SimParams = summon[SimParams]
 
+  @annotation.nowarn("msg=unused private member") // defaults used by callers
   private def mkBank(
       id: Int = 0,
       deposits: PLN = PLN(1e6),
